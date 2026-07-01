@@ -1,0 +1,18 @@
+schema: 1
+
+id: academic
+
+name: Academic
+
+version: 0.1.0
+
+description: Academic Module
+
+providers: []
+
+dependencies:
+  - core
+
+metadata: {}
+
+extra: {}

@@ -1,0 +1,21 @@
+schema: 1
+
+id: core
+
+name: Core
+
+version: 1.0.0
+
+description: EduCore Platform Kernel
+
+providers:
+  - Modules\Core\Providers\CoreServiceProvider
+
+dependencies: []
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Platform
+
+extra: {}

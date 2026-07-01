@@ -1,0 +1,22 @@
+schema: 1
+
+id: ppdb
+
+name: PPDB
+
+version: 0.1.0
+
+description: Student Admission Module
+
+providers:
+  - Modules\PPDB\Providers\PPDBServiceProvider
+
+dependencies:
+  - core
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Business
+
+extra: {}
