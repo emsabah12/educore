@@ -10,6 +10,8 @@ use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestParser;
 use Modules\Core\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleLoader;
+use Modules\Core\Services\ModuleStateRepository;
+use Modules\Core\Services\ModuleManager;
 
 final class CoreServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,10 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleRegistry::class);
 
         $this->app->singleton(ModuleLoader::class);
+
+        $this->app->singleton(ModuleStateRepository::class);
+    
+        $this->app->singleton(ModuleManager::class);
     }
 
     public function boot(ModuleLoader $loader): void
