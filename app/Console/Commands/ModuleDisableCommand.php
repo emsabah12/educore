@@ -10,16 +10,16 @@ use Modules\Core\Services\ModuleManager;
 
 final class ModuleDisableCommand extends Command
 {
-    protected $signature = 'module:disable {id : Module ID}';
+    protected $signature = 'module:disable {name : Module Name}';
 
     protected $description = 'Disable a module';
 
     public function handle(ModuleManager $manager): int
     {
-        $id = strtolower((string) $this->argument('id'));
+        $name = strtolower((string) $this->argument('name'));
 
         try {
-            $changed = $manager->disable($id);
+            $changed = $manager->disable($name);
         } catch (ModuleNotFoundException $e) {
             $this->error($e->getMessage());
 
@@ -29,12 +29,12 @@ final class ModuleDisableCommand extends Command
         if ($changed) {
             $this->info(sprintf(
                 'Module [%s] has been disabled.',
-                $id
+                $name
             ));
         } else {
             $this->info(sprintf(
                 'Module [%s] is already disabled.',
-                $id
+                $name
             ));
         }
 

@@ -1,10 +1,31 @@
 # Platform Kernel
 
-## Overview
+Version : 1.0
+Status : Locked
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-Platform Kernel adalah inti dari EduCore Platform yang bertanggung jawab mengelola seluruh modul aplikasi. Kernel menyediakan mekanisme untuk menemukan, memvalidasi, memuat, dan mengelola modul secara otomatis tanpa memerlukan registrasi manual.
+## Related ADR
 
-Kernel merupakan fondasi dari arsitektur **Modular Monolith**, sehingga setiap modul dapat dikembangkan secara independen namun tetap berjalan dalam satu aplikasi Laravel.
+- ADR-001 — Kernel Architecture Overview
+- ADR-002 — Modular Monolith Architecture
+- ADR-004 — Automatic Module Discovery
+- ADR-005 — Module Registry as Source of Truth
+- ADR-006 — Runtime Module State Repository
+- ADR-007 — Module Manager as Kernel Facade
+- ADR-008 — Thin Command Pattern
+- ADR-009 — Separation of Infrastructure and Kernel Domain
+- ADR-010 — Module Identity Strategy
+
+---
+
+# Overview
+
+Platform Kernel adalah inti dari EduCore Platform yang bertanggung jawab mengelola seluruh siklus hidup modul. Kernel menyediakan mekanisme untuk menemukan, membaca, memvalidasi, mendaftarkan, dan mengelola modul secara otomatis tanpa memerlukan registrasi manual.
+
+Kernel menjadi fondasi arsitektur **Modular Monolith**, sehingga setiap modul dapat dikembangkan secara independen namun tetap berjalan di dalam satu aplikasi Laravel.
+
+Kernel hanya bertanggung jawab terhadap **manajemen modul**, bukan terhadap logika bisnis masing-masing modul.
 
 ---
 
@@ -13,51 +34,53 @@ Kernel merupakan fondasi dari arsitektur **Modular Monolith**, sehingga setiap m
 Platform Kernel memiliki tanggung jawab utama sebagai berikut:
 
 - Menemukan seluruh modul yang tersedia.
-- Membaca dan memvalidasi `module.yaml`.
-- Membangun metadata modul.
+- Memuat berkas `module.yaml`.
+- Mem-parsing metadata manifest.
+- Memvalidasi spesifikasi manifest.
+- Membangun immutable `ModuleDefinition`.
 - Menyimpan metadata ke `ModuleRegistry`.
-- Mengelola status aktif/nonaktif modul.
-- Menyediakan API internal untuk pengelolaan modul.
-- Menjadi fondasi bagi proses bootstrap aplikasi.
-
-Kernel tidak bertanggung jawab terhadap logika bisnis dari masing-masing modul.
+- Mengelola status aktif/nonaktif melalui `ModuleStateRepository`.
+- Menyediakan API internal melalui `ModuleManager`.
+- Menjadi fondasi proses bootstrap aplikasi.
 
 ---
 
 # Kernel Architecture
 
-```
-                 Laravel Bootstrap
-                        │
-                        ▼
-              CoreServiceProvider
-                        │
-                        ▼
-                 ModuleLoader
-                        │
-                        ▼
-              Module Discovery
-                        │
-                        ▼
-           ModuleManifestParser
-                        │
-                        ▼
-             ManifestValidator
-                        │
-                        ▼
-          ModuleDefinitionFactory
-                        │
-                        ▼
-              ModuleRegistry
-                        │
-                        ▼
-          ModuleStateRepository
-                        │
-                        ▼
-              ModuleManager
-                        │
-                        ▼
-              Console Commands
+```text
+Laravel Bootstrap
+        │
+        ▼
+CoreServiceProvider
+        │
+        ▼
+ModuleLoader
+        │
+        ▼
+ModuleDiscovery
+        │
+        ▼
+ModuleManifestLoader
+        │
+        ▼
+ModuleManifestParser
+        │
+        ▼
+ModuleManifestValidator
+        │
+        ▼
+ModuleDefinitionFactory
+        │
+        ▼
+ModuleRegistry
+        │
+        ├──────────────► ModuleStateRepository
+        │
+        ▼
+ModuleManager
+        │
+        ▼
+Application Runtime
 ```
 
 ---
@@ -68,116 +91,126 @@ Kernel tidak bertanggung jawab terhadap logika bisnis dari masing-masing modul.
 
 Entry point Platform Kernel.
 
-Bertugas melakukan bootstrap seluruh komponen kernel saat aplikasi Laravel dijalankan.
+Melakukan bootstrap seluruh komponen Kernel ketika aplikasi Laravel dijalankan.
 
 ---
 
 ## ModuleLoader
 
-Menginisialisasi proses discovery seluruh modul dan mendaftarkannya ke dalam registry.
+Mengorkestrasi proses discovery dan registrasi modul selama bootstrap aplikasi.
 
 ---
 
-## Discovery
+## ModuleDiscovery
 
-Menemukan seluruh direktori modul yang tersedia pada folder `Modules`.
+Menemukan seluruh direktori modul pada folder `Modules/`.
 
-Discovery dilakukan secara otomatis tanpa konfigurasi manual.
+Komponen ini hanya bertanggung jawab menemukan lokasi modul dan tidak membaca isi manifest.
+
+---
+
+## ModuleManifestLoader
+
+Membaca file `module.yaml` dari setiap modul.
+
+Komponen ini hanya bertanggung jawab mengambil isi berkas tanpa melakukan parsing maupun validasi.
 
 ---
 
 ## ModuleManifestParser
 
-Membaca file `module.yaml` dari setiap modul menggunakan Symfony YAML.
+Mengubah isi YAML menjadi struktur data yang dapat diproses oleh Kernel.
 
 ---
 
-## ManifestValidator
+## ModuleManifestValidator
 
-Memastikan seluruh manifest memenuhi spesifikasi yang telah ditentukan sebelum digunakan oleh kernel.
+Memastikan seluruh manifest memenuhi spesifikasi yang telah ditetapkan sebelum digunakan oleh Kernel.
+
+Pendekatan yang digunakan adalah **Fail Fast**, sehingga proses bootstrap dihentikan ketika ditemukan manifest yang tidak valid.
 
 ---
 
 ## ModuleDefinitionFactory
 
-Mengubah hasil parsing manifest menjadi objek `ModuleDefinition`.
+Membangun immutable `ModuleDefinition` dari hasil parsing yang telah tervalidasi.
 
-Objek ini menjadi representasi metadata modul di dalam kernel.
+Factory merupakan satu-satunya komponen yang diperbolehkan membuat objek `ModuleDefinition`.
 
 ---
 
 ## ModuleRegistry
 
-Menyimpan seluruh metadata modul yang telah berhasil didaftarkan.
+Menyimpan seluruh metadata modul yang berhasil dimuat.
 
-Registry merupakan **Single Source of Truth** untuk metadata modul.
+`ModuleRegistry` merupakan **Source of Truth** untuk metadata modul selama aplikasi berjalan.
 
 ---
 
 ## ModuleStateRepository
 
-Menyimpan status runtime setiap modul.
+Menyimpan status runtime modul, seperti aktif atau nonaktif.
 
-Repository ini menggunakan file:
+Status runtime disimpan pada:
 
-```
+```text
 storage/framework/modules.json
 ```
 
-Runtime state dipisahkan dari metadata manifest.
+Runtime State dipisahkan dari Metadata sehingga perubahan status modul tidak mengubah definisi manifest.
 
 ---
 
 ## ModuleManager
 
-Menyediakan API internal untuk seluruh operasi pengelolaan modul.
+Menyediakan façade untuk seluruh operasi pengelolaan modul.
 
-Seluruh business rule kernel berada pada komponen ini.
+Seluruh aturan bisnis Kernel dipusatkan pada komponen ini sehingga lapisan lain tidak berinteraksi langsung dengan Registry maupun Repository.
 
 ---
 
 # Layer Separation
 
-Kernel menerapkan pemisahan tanggung jawab menjadi tiga lapisan utama.
+Platform Kernel menerapkan pemisahan tanggung jawab menjadi tiga lapisan utama.
 
-```
+```text
 Presentation
-
-↓
-
+      │
+      ▼
 Kernel Domain
-
-↓
-
+      │
+      ▼
 Infrastructure
 ```
 
-### Presentation
+## Presentation
 
-Antarmuka yang berinteraksi dengan pengguna, seperti Console Command.
+Antarmuka pengguna seperti Console Command.
 
-### Kernel Domain
+## Kernel Domain
 
-Berisi aturan bisnis inti Platform Kernel.
+Berisi aturan bisnis inti Kernel, termasuk Discovery, Registry, Manager, dan Metadata.
 
-### Infrastructure
+## Infrastructure
 
-Berisi implementasi teknis seperti pembacaan file, parser YAML, dan penyimpanan runtime state.
+Berisi implementasi teknis seperti filesystem, YAML parser, dan penyimpanan runtime state.
 
 ---
 
 # Startup Sequence
 
-Saat aplikasi dijalankan, kernel melakukan langkah berikut:
+Saat aplikasi dijalankan, Kernel melakukan proses berikut:
 
-1. CoreServiceProvider melakukan bootstrap.
-2. ModuleLoader dijalankan.
-3. Discovery menemukan seluruh modul.
-4. Manifest dibaca dan divalidasi.
-5. Metadata diubah menjadi `ModuleDefinition`.
-6. Metadata disimpan pada `ModuleRegistry`.
-7. Runtime state dibaca dari `ModuleStateRepository`.
-8. `ModuleManager` siap melayani permintaan aplikasi.
+1. `CoreServiceProvider` melakukan bootstrap.
+2. `ModuleLoader` memulai proses registrasi modul.
+3. `ModuleDiscovery` menemukan seluruh modul.
+4. `ModuleManifestLoader` membaca setiap `module.yaml`.
+5. `ModuleManifestParser` melakukan parsing YAML.
+6. `ModuleManifestValidator` memvalidasi struktur manifest.
+7. `ModuleDefinitionFactory` membangun immutable `ModuleDefinition`.
+8. `ModuleRegistry` menyimpan metadata seluruh modul.
+9. `ModuleStateRepository` memuat status runtime.
+10. `ModuleManager` siap melayani permintaan aplikasi.
 
 ---
 
@@ -185,32 +218,26 @@ Saat aplikasi dijalankan, kernel melakukan langkah berikut:
 
 Platform Kernel dibangun berdasarkan prinsip berikut:
 
+- Clean Architecture
 - Modular Monolith
-- Single Responsibility Principle
+- Single Responsibility Principle (SRP)
 - Separation of Concerns
-- Single Source of Truth
+- Fail Fast
+- Immutable Metadata
+- Registry as Source of Truth
+- Runtime State Separation
 - Thin Command Pattern
 - Infrastructure Isolation
-- Convention over Configuration
+
+Strategi identitas global platform menggunakan UUID v7 melalui Symfony UID sebagaimana dijelaskan pada ADR-010. Namun, identitas `ModuleDefinition` menggunakan nama modul (`name`) sebagai identifier.
 
 ---
 
 # Related Documents
 
+- `README.md`
 - `folder-structure.md`
 - `discovery-flow.md`
 - `module-manager.md`
 - `module-lifecycle.md`
-
----
-
-# Related ADR
-
-- ADR-001 — Kernel Architecture Overview
-- ADR-002 — Modular Monolith Architecture
-- ADR-004 — Automatic Module Discovery
-- ADR-005 — Module Registry as Metadata Source of Truth
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — ModuleManager as Kernel Facade
-- ADR-008 — Thin Command Pattern
-- ADR-009 — Separation of Infrastructure and Kernel Domain
+- `architecture-principles.md`

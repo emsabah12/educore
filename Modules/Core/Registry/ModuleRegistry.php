@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Registry;
 
 use Modules\Core\Entities\ModuleDefinition;
-use RuntimeException;
+use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
 use Modules\Core\Exceptions\ModuleNotFoundException;
 
@@ -18,31 +18,38 @@ final class ModuleRegistry
 
     public function register(ModuleDefinition $module): void
     {
-        $id = $module->id();
+        $name = $module->name;
 
-        if ($this->has($id)) {
+        if ($this->has($name)) {
             throw new ModuleAlreadyRegisteredException(
-                sprintf("Module '%s' is already registered.", $id)
+                sprintf(
+                    "Module '%s' is already registered.",
+                    $name
+                )
             );
         }
 
-        $this->modules[$id] = $module;
+        $this->modules[$name] = $module;
+
     }
 
-    public function has(string $id): bool
+    public function has(string $name): bool
     {
-        return array_key_exists($id, $this->modules);
+        return array_key_exists($name, $this->modules);
     }
 
-    public function get(string $id): ModuleDefinition
+    public function get(string $name): ModuleDefinition
     {
-        if (! $this->has($id)) {
+        if (! $this->has($name)) {
             throw new ModuleNotFoundException(
-                sprintf("Module '%s' is not registered.", $id)
+                sprintf(
+                    "Module '%s' not found.",
+                    $name
+                )
             );
         }
 
-        return $this->modules[$id];
+        return $this->modules[$name];
     }
 
     /**

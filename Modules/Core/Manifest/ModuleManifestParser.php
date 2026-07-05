@@ -6,26 +6,35 @@ namespace Modules\Core\Manifest;
 
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
+use InvalidArgumentException;
 
-class ModuleManifestParser
+final readonly class ModuleManifestParser
 {
     /**
-     * Parse module.yaml menjadi array.
+     * Parse YAML manifest content into PHP array.
      *
-     * @throws ParseException
+     * @throws InvalidArgumentException
      */
-    public function parse(string $manifestPath): array
+    
+    public function parse(string $content): array
     {
-        if (! is_file($manifestPath)) {
-            throw new \InvalidArgumentException(
-                sprintf('Manifest file not found: %s', $manifestPath)
+        try {
+            $manifest = Yaml::parse($content);
+        } catch (ParseException $exception) {
+            throw new InvalidArgumentException(
+                'Invalid module manifest YAML.',
+                previous: $exception
             );
         }
 
-        $manifest = Yaml::parseFile($manifestPath);
+        if (! is_array($manifest)) {
+            throw new InvalidArgumentException(
+                'Module manifest must be a YAML object.'
+            );
+        }
 
-        return is_array($manifest)
-            ? $manifest
-            : [];
+        return $manifest;
     }
+
+    
 }

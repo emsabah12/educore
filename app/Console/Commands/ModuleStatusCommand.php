@@ -11,16 +11,16 @@ use Modules\Core\Services\ModuleStateRepository;
 
 final class ModuleStatusCommand extends Command
 {
-    protected $signature = 'module:status {id : Module ID}';
+    protected $signature = 'module:status {name : Module Name}';
 
     protected $description = 'Show detailed information about a module';
 
     public function handle(ModuleRegistry $registry, ModuleStateRepository $stateRepository): int
     {
-        $id = strtolower((string) $this->argument('id'));
+        $name = strtolower((string) $this->argument('name'));
 
         try {
-            $module = $registry->get($id);
+            $module = $registry->get($name);
         } catch (ModuleNotFoundException $e) {
             $this->error($e->getMessage());
 
@@ -29,23 +29,21 @@ final class ModuleStatusCommand extends Command
 
         $this->info('Module Status');
         $this->newLine();
+        $this->line(sprintf('Name         : %s', $module->name));
+        $this->line(sprintf('Version      : %s', $module->version));
+        $this->line(sprintf('Description  : %s', $module->description));
+        $this->line(sprintf('Schema       : %d', $module->schema));
+        $status = $stateRepository->isEnabled($module->name)
+            ? 'Enabled'
+            : 'Disabled';
 
-        $this->line(sprintf('ID           : %s', $module->id()));
-        $this->line(sprintf('Name         : %s', $module->name()));
-        $this->line(sprintf('Version      : %s', $module->version()));
-        $this->line(sprintf('Description  : %s', $module->description()));
-        $this->line(sprintf('Schema       : %d', $module->schema()));
-        $status = $stateRepository->isEnabled($module->id())
-    ? 'Enabled'
-    : 'Disabled';
-
-$this->line(sprintf('Status       : %s', $status));
+        $this->line(sprintf('Status       : %s', $status));
 
         $this->newLine();
 
         $this->info('Providers');
 
-        foreach ($module->providers() as $provider) {
+        foreach ($module->providers as $provider) {
             $this->line("  • {$provider}");
         }
 
@@ -53,10 +51,10 @@ $this->line(sprintf('Status       : %s', $status));
 
         $this->info('Dependencies');
 
-        if ($module->dependencies() === []) {
+        if ($module->dependencies === []) {
             $this->line('  • -');
         } else {
-            foreach ($module->dependencies() as $dependency) {
+            foreach ($module->dependencies as $dependency) {
                 $this->line("  • {$dependency}");
             }
         }
@@ -65,7 +63,7 @@ $this->line(sprintf('Status       : %s', $status));
 
         $this->info('Metadata');
 
-        foreach ($module->metadata() as $key => $value) {
+        foreach ($module->metadata as $key => $value) {
             $this->line(sprintf('  • %-10s : %s', $key, $value));
         }
 

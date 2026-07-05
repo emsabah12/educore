@@ -10,16 +10,16 @@ use Modules\Core\Services\ModuleManager;
 
 final class ModuleEnableCommand extends Command
 {
-    protected $signature = 'module:enable {id : Module ID}';
+    protected $signature = 'module:enable {name : Module Name}';
 
     protected $description = 'Enable a module';
 
     public function handle(ModuleManager $manager): int
     {
-        $id = strtolower((string) $this->argument('id'));
+        $name = strtolower((string) $this->argument('name'));
 
         try {
-            $changed = $manager->enable($id);
+            $changed = $manager->enable($name);
         } catch (ModuleNotFoundException $e) {
             $this->error($e->getMessage());
 
@@ -29,12 +29,12 @@ final class ModuleEnableCommand extends Command
         if ($changed) {
             $this->info(sprintf(
                 'Module [%s] has been enabled.',
-                $id
+                $name
             ));
         } else {
             $this->info(sprintf(
                 'Module [%s] is already enabled.',
-                $id
+                $name
             ));
         }
 

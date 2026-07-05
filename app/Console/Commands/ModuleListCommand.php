@@ -14,18 +14,20 @@ final class ModuleListCommand extends Command
 
     protected $description = 'List all discovered modules';
 
-    public function handle(ModuleRegistry $registry, ModuleStateRepository $stateRepository): int
-    {
+    public function handle(
+        ModuleRegistry $registry,
+        ModuleStateRepository $stateRepository,
+    ): int {
         $rows = [];
 
         foreach ($registry->all() as $module) {
             $rows[] = [
-                'ID' => $module->id(),
-                'Name' => $module->name(),
-                'Version' => $module->version(),
-                'Status' => $stateRepository->isEnabled($module->id())
-            ? 'Enabled'
-            : 'Disabled',
+                'Name' => $module->name,
+                'Description' => $module->description,
+                'Version' => $module->version,
+                'Status' => $stateRepository->isEnabled($module->name)
+                    ? 'Enabled'
+                    : 'Disabled',
             ];
         }
 
@@ -36,7 +38,7 @@ final class ModuleListCommand extends Command
         }
 
         $this->table(
-            ['ID', 'Name', 'Version', 'Status'],
+            ['Name', 'Description', 'Version', 'Status'],
             $rows
         );
 

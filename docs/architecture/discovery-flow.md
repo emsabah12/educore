@@ -31,26 +31,63 @@ Seluruh proses discovery mengikuti pipeline berikut.
 
 ```text
 Modules/
-    │
-    ▼
+      │
+      ▼
 ModuleDiscovery
-    │
-    ▼
+      │
+      ▼
+ModuleManifestLoader
+      │
+      ▼
 ModuleManifestParser
-    │
-    ▼
-ManifestValidator
-    │
-    ▼
+      │
+      ▼
+ModuleManifestValidator
+      │
+      ▼
 ModuleDefinitionFactory
-    │
-    ▼
+      │
+      ▼
 ModuleRegistry
 ```
 
 Setiap tahapan memiliki tanggung jawab yang berbeda dan tidak saling tumpang tindih.
 
 ---
+
+# Pipeline Characteristics
+
+Discovery Pipeline dirancang mengikuti prinsip Explicit Processing Pipeline.
+
+Setiap tahap memiliki karakteristik berikut:
+
+- Memiliki satu tanggung jawab (SRP).
+- Input dan output didefinisikan dengan jelas.
+- Tidak mengetahui implementasi tahap berikutnya.
+- Dapat diuji secara terisolasi.
+- Menggunakan pendekatan Fail Fast.
+- Mudah diperluas tanpa mengubah tahap lain.
+
+Alur data:
+
+```text
+Filesystem
+    │
+    ▼
+Raw YAML
+    │
+    ▼
+Parsed Array
+    │
+    ▼
+Validated Data
+    │
+    ▼
+ModuleDefinition
+    │
+    ▼
+ModuleRegistry
+```
 
 # Discovery Sequence
 

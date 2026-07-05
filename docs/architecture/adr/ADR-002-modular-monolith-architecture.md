@@ -1,10 +1,17 @@
 # ADR-002 — Modular Monolith Architecture
 
-**Status** : Accepted
+Version : 1.0
+Status : Accepted
+Date : 2026-07-01
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-**Date** : 2026-07-01
+## Related ADR
 
-**Sprint** : CORE-001
+- ADR-001 — Kernel Architecture Overview
+- ADR-003 — Module Manifest Specification
+- ADR-004 — Automatic Module Discovery
+- ADR-005 — Module Registry as Source of Truth
 
 ---
 
@@ -23,7 +30,7 @@ EduCore dirancang sebagai platform yang akan terus berkembang dan mencakup berba
 
 Sejak awal proyek terdapat beberapa alternatif arsitektur yang dapat dipilih, mulai dari Monolith tradisional hingga Microservices.
 
-Pemilihan arsitektur harus mempertimbangkan kompleksitas pengembangan, kemudahan deployment, maintainability, dan kemungkinan evolusi platform di masa depan.
+Pemilihan arsitektur harus mempertimbangkan kompleksitas pengembangan, kemudahan deployment, maintainability, skalabilitas, dan kemungkinan evolusi platform di masa depan.
 
 ---
 
@@ -31,17 +38,17 @@ Pemilihan arsitektur harus mempertimbangkan kompleksitas pengembangan, kemudahan
 
 EduCore menggunakan pendekatan **Modular Monolith**.
 
-Seluruh modul berjalan dalam satu aplikasi Laravel, tetapi setiap modul memiliki batas tanggung jawab yang jelas, struktur direktori yang terpisah, serta dapat berkembang secara independen.
+Seluruh modul berjalan di dalam satu aplikasi Laravel, tetapi setiap modul memiliki batas tanggung jawab yang jelas, struktur direktori yang terpisah, serta dapat dikembangkan secara independen.
 
 Setiap modul memiliki:
 
-- Folder sendiri.
+- Direktori modul sendiri.
 - `module.yaml` sebagai manifest.
 - Service Provider.
 - Domain masing-masing.
-- Metadata sendiri.
+- Metadata modul yang immutable.
 
-Kernel bertanggung jawab menemukan dan memuat modul tersebut saat aplikasi dijalankan.
+Platform Kernel bertanggung jawab melakukan discovery, memuat metadata modul, dan menyediakan layanan dasar yang digunakan oleh seluruh modul.
 
 ---
 
@@ -52,7 +59,8 @@ Pendekatan Modular Monolith dipilih karena memberikan keseimbangan antara kesede
 Keuntungan utama:
 
 - Satu proses deployment.
-- Satu database (pada tahap awal).
+- Satu aplikasi Laravel.
+- Satu database pada tahap awal.
 - Tidak memerlukan komunikasi jaringan antar layanan.
 - Modularitas tetap terjaga.
 - Refactoring menjadi lebih mudah.
@@ -71,12 +79,14 @@ Pendekatan ini memungkinkan platform berkembang tanpa membawa kompleksitas opera
 - Pengembangan fitur baru menjadi lebih mudah.
 - Deployment tetap sederhana.
 - Debugging lebih mudah dibandingkan sistem terdistribusi.
+- Evolusi platform dapat dilakukan secara bertahap.
 
 ## Negative
 
-- Semua modul berjalan dalam satu proses aplikasi.
-- Kesalahan pada Kernel dapat memengaruhi seluruh platform.
+- Seluruh modul berjalan dalam satu proses aplikasi.
+- Kegagalan pada Platform Kernel dapat memengaruhi seluruh platform.
 - Dibutuhkan disiplin untuk menjaga batas antar modul.
+- Ketergantungan antar modul harus dikelola dengan baik.
 
 ---
 
@@ -86,7 +96,7 @@ Pendekatan ini memungkinkan platform berkembang tanpa membawa kompleksitas opera
 
 Seluruh kode ditempatkan dalam struktur Laravel standar tanpa batas modul yang jelas.
 
-**Ditolak** karena berisiko menghasilkan kode yang sulit dipelihara ketika jumlah domain bertambah.
+**Rejected**, karena berisiko menghasilkan kode yang sulit dipelihara ketika jumlah domain terus bertambah.
 
 ---
 
@@ -94,18 +104,20 @@ Seluruh kode ditempatkan dalam struktur Laravel standar tanpa batas modul yang j
 
 Setiap domain dipisahkan menjadi layanan independen.
 
-**Ditolak** karena:
+**Rejected**, karena:
 
 - Kompleksitas deployment meningkat.
 - Membutuhkan service discovery.
 - Membutuhkan observability.
 - Membutuhkan distributed tracing.
 - Membutuhkan komunikasi antar layanan.
-- Tidak sebanding dengan kebutuhan Sprint 1.
+- Tidak sebanding dengan kebutuhan awal platform.
 
 ---
 
-## Option C — Modular Monolith (**Dipilih**)
+## Option C — Modular Monolith (**Accepted**)
+
+Platform dibangun sebagai satu aplikasi dengan modul-modul yang memiliki batas tanggung jawab yang jelas.
 
 Pendekatan ini memberikan modularitas tinggi dengan kompleksitas operasional yang tetap rendah.
 
@@ -113,16 +125,16 @@ Pendekatan ini memberikan modularitas tinggi dengan kompleksitas operasional yan
 
 # Current Implementation
 
-Status implementasi pada Sprint CORE-001:
+Status implementasi pada akhir Sprint CORE-001:
 
-- ✅ Struktur folder `Modules/`
-- ✅ Modul `Core`
-- ✅ Modul `Academic`
-- ✅ Modul `PPDB`
-- ✅ Manifest per modul
-- ✅ Auto Discovery
-- ✅ Module Registry
-- ✅ Module Loader
+- ✅ Struktur direktori modular (`Modules/`).
+- ✅ Manifest modul (`module.yaml`).
+- ✅ Platform Kernel.
+- ✅ Automatic Module Discovery.
+- ✅ Module Registry.
+- ✅ Runtime Module State Repository.
+- ✅ Module Manager.
+- ✅ Bootstrap otomatis melalui `CoreServiceProvider`.
 
 ---
 
@@ -132,20 +144,22 @@ Arsitektur Modular Monolith dirancang agar dapat berkembang tanpa mengubah struk
 
 Kemungkinan evolusi di masa depan meliputi:
 
-- Modul dapat memiliki migration sendiri.
-- Modul dapat memiliki route sendiri.
-- Modul dapat memiliki konfigurasi sendiri.
-- Modul dapat memiliki event sendiri.
-- Modul dapat memiliki testing sendiri.
+- Modul memiliki migration sendiri.
+- Modul memiliki route sendiri.
+- Modul memiliki konfigurasi sendiri.
+- Modul memiliki event sendiri.
+- Modul memiliki testing sendiri.
 - Modul dapat dipublikasikan sebagai package internal apabila diperlukan.
 
-Selama evolusi tersebut, Kernel tetap menjadi fondasi platform.
+Apabila kebutuhan operasional berubah secara signifikan, pendekatan ini tetap memungkinkan evolusi menuju arsitektur yang lebih terdistribusi secara bertahap.
 
 ---
 
 # References
 
-- ADR-001 — Kernel Architecture Overview
 - PRD CORE-001
-- Sprint 001
+- Sprint CORE-001
 - `docs/architecture/folder-structure.md`
+- `docs/architecture/kernel.md`
+- `docs/architecture/architecture-principles.md`
+- ADR-001 — Kernel Architecture Overview

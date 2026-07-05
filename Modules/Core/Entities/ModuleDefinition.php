@@ -6,61 +6,39 @@ namespace Modules\Core\Entities;
 
 final readonly class ModuleDefinition
 {
+    /**
+     * Core runtime representation of a module.
+     */
     public function __construct(
-        private int $schema,
-        private string $id,
-        private string $name,
-        private string $version,
-        private string $description,
-        private array $providers,
-        private array $dependencies,
-        private array $metadata,
-        private array $extra,
+        public int $schema,
+        public string $name,
+        public string $displayName,
+        public string $version,
+        public string $description,
+        public array $providers = [],
+        public array $dependencies = [],
+        public array $metadata = [],
+        public array $extra = [],
     ) {
     }
 
-    public function schema(): int
+    /**
+     * Factory method from validated manifest.
+     *
+     * @param array<string, mixed> $manifest
+     */
+    public static function fromArray(array $manifest): self
     {
-        return $this->schema;
-    }
-
-    public function id(): string
-    {
-        return $this->id;
-    }
-
-    public function name(): string
-    {
-        return $this->name;
-    }
-
-    public function version(): string
-    {
-        return $this->version;
-    }
-
-    public function description(): string
-    {
-        return $this->description;
-    }
-
-    public function providers(): array
-    {
-        return $this->providers;
-    }
-
-    public function dependencies(): array
-    {
-        return $this->dependencies;
-    }
-
-    public function metadata(): array
-    {
-        return $this->metadata;
-    }
-
-    public function extra(): array
-    {
-        return $this->extra;
+        return new self(
+            schema: $manifest['schema'],
+            name: $manifest['name'],
+            displayName: $manifest['display_name'],
+            version: $manifest['version'],
+            description: $manifest['description'],
+            providers: $manifest['providers'] ?? [],
+            dependencies: $manifest['dependencies'] ?? [],
+            metadata: $manifest['metadata'] ?? [],
+            extra: $manifest['extra'] ?? [],
+        );
     }
 }

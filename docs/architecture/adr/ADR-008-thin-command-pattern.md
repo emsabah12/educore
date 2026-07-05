@@ -1,136 +1,206 @@
 # ADR-008 — Thin Command Pattern
 
+**Version** : 1.0
 **Status** : Accepted
-
 **Date** : 2026-07-01
-
-**Sprint** : CORE-001
-
----
-
-# Context
-
-EduCore menyediakan antarmuka Command Line Interface (CLI) untuk menjalankan operasi terhadap Kernel, seperti:
-
-- module:list
-- module:status
-- module:enable
-- module:disable
-
-Tanpa aturan yang jelas, terdapat risiko business rule berkembang di dalam command sehingga setiap command menjadi sulit dipelihara dan sulit diuji.
-
-Kernel membutuhkan pemisahan yang jelas antara antarmuka pengguna dan logika platform.
+**Updated** : 2026-07-02
+**Sprint** : CORE-001 Sprint-1
 
 ---
 
-# Decision
+> **Decision Summary**
+>
+> Seluruh Artisan Command pada EduCore menerapkan **Thin Command Pattern**, di mana command hanya bertindak sebagai adapter antara Command Line Interface (CLI) dan Platform Kernel. Seluruh business rule diimplementasikan pada Platform Kernel, sehingga command tetap sederhana, mudah diuji, dan dapat digunakan kembali oleh berbagai antarmuka aplikasi.
+
+---
+
+# Related ADR
+
+- ADR-007 — ModuleManager as Kernel Facade
+- ADR-009 — Separation of Infrastructure and Kernel Domain
+
+---
+
+# 1. Context
+
+EduCore menyediakan Command Line Interface (CLI) sebagai salah satu entry point menuju Platform Kernel. Melalui CLI, administrator dapat menjalankan berbagai operasi seperti:
+
+- `module:list`
+- `module:status`
+- `module:enable`
+- `module:disable`
+
+Tanpa aturan arsitektur yang jelas, terdapat kecenderungan business rule berkembang di dalam Artisan Command. Kondisi tersebut menyebabkan logika aplikasi tersebar pada berbagai command sehingga lebih sulit dipelihara, diuji, dan digunakan kembali oleh antarmuka lain.
+
+Sebagai Platform Kernel yang akan melayani berbagai entry point, EduCore membutuhkan pemisahan tanggung jawab yang jelas antara Presentation Layer dan Application Layer.
+
+---
+
+# 2. Decision
 
 Seluruh Artisan Command pada EduCore mengikuti **Thin Command Pattern**.
 
 Command hanya bertanggung jawab untuk:
 
-- Menerima input pengguna.
-- Memanggil service yang sesuai.
-- Menampilkan hasil.
-- Mengembalikan exit code.
+- menerima input pengguna;
+- membaca argument dan option;
+- memanggil service pada Platform Kernel;
+- menampilkan hasil kepada pengguna;
+- mengembalikan exit code.
 
-Command **tidak boleh** berisi business rule.
+Command **tidak boleh** mengandung business rule maupun mengakses komponen internal Platform Kernel secara langsung.
 
-Seluruh logika platform harus ditempatkan pada komponen Kernel seperti `ModuleManager`.
+Seluruh logika aplikasi ditempatkan pada Platform Kernel, terutama melalui `ModuleManager` sebagai Kernel Facade.
 
 ---
 
-# Rationale
+# 3. Rationale
 
-Pendekatan ini dipilih karena memberikan pemisahan tanggung jawab yang jelas.
+Keputusan ini diambil untuk menjaga pemisahan tanggung jawab antar layer arsitektur.
 
 Dengan menjaga command tetap tipis:
 
-- Business rule hanya berada pada satu tempat.
-- Command menjadi mudah dipahami.
-- Pengujian menjadi lebih sederhana.
-- Perubahan antarmuka CLI tidak memengaruhi Kernel.
+- business rule hanya berada pada satu lokasi;
+- perubahan antarmuka CLI tidak memengaruhi Platform Kernel;
+- command menjadi lebih mudah dipahami dan dipelihara;
+- pengujian command menjadi lebih sederhana;
+- logika aplikasi dapat digunakan kembali oleh berbagai jenis antarmuka.
 
-Pendekatan ini juga memungkinkan logika yang sama digunakan kembali oleh antarmuka lain seperti HTTP Controller, REST API, Scheduler, maupun Queue Worker.
+Pendekatan ini juga memperkuat prinsip bahwa Platform Kernel merupakan pusat orkestrasi seluruh operasi modul.
 
 ---
 
-# Consequences
+# 4. Responsibilities
+
+## Artisan Command bertanggung jawab untuk:
+
+- menerima input pengguna;
+- membaca argument dan option;
+- memanggil Platform Kernel;
+- menyajikan output;
+- mengembalikan exit code.
+
+## Artisan Command tidak bertanggung jawab untuk:
+
+- menjalankan business rule;
+- melakukan module discovery;
+- membaca `module.yaml`;
+- mengakses filesystem;
+- mengakses repository secara langsung;
+- mengelola runtime state;
+- melakukan validasi domain;
+- mengorkestrasi lifecycle modul.
+
+Seluruh tanggung jawab tersebut didelegasikan kepada Platform Kernel.
+
+---
+
+# 5. Architectural Rules
+
+Seluruh implementasi CLI pada EduCore harus mengikuti aturan berikut.
+
+- Command hanya menjadi adapter antara CLI dan Platform Kernel.
+- Business rule tidak boleh berada di dalam command.
+- Command tidak boleh bergantung langsung pada komponen Infrastructure.
+- Command hanya berkomunikasi melalui public API Platform Kernel.
+- Platform Kernel tetap menjadi satu-satunya tempat implementasi business rule.
+- Command harus dapat diganti tanpa mengubah perilaku Platform Kernel.
+
+---
+
+# 6. Consequences
 
 ## Positive
 
-- Command lebih kecil dan mudah dibaca.
+- Command menjadi kecil dan mudah dipahami.
 - Business rule tidak tersebar.
-- Pengujian lebih mudah.
 - Reusability meningkat.
-- Perubahan UI tidak memengaruhi Kernel.
+- Pengujian menjadi lebih sederhana.
+- Platform Kernel tetap independen terhadap jenis antarmuka.
 
 ## Negative
 
-- Membutuhkan lapisan service tambahan.
-- Membutuhkan disiplin agar command tetap sederhana.
+- Membutuhkan lapisan orchestration pada Platform Kernel.
+- Membutuhkan disiplin agar seluruh business rule tetap berada pada Platform Kernel.
 
 ---
 
-# Alternatives Considered
+# 7. Alternatives Considered
 
 ## Option A — Fat Command
 
-Business rule ditempatkan langsung pada command.
+Business rule ditempatkan langsung pada Artisan Command.
 
-**Ditolak** karena:
+**Rejected**, karena:
 
-- Sulit diuji.
-- Sulit digunakan ulang.
-- Menyebabkan duplikasi logika.
-
----
-
-## Option B — Thin Command (**Dipilih**)
-
-Command hanya menjadi adapter antara CLI dan Kernel.
-
-Business rule ditempatkan pada `ModuleManager` atau service Kernel lainnya.
+- mencampurkan Presentation Layer dan Application Layer;
+- meningkatkan coupling;
+- menyulitkan pengujian;
+- menyebabkan duplikasi logika pada antarmuka lain.
 
 ---
 
-# Responsibilities
+## Option B — Thin Command (**Accepted**)
 
-Command bertanggung jawab untuk:
+Command hanya bertindak sebagai adapter.
 
-- Membaca argument.
-- Membaca option.
-- Memanggil service.
-- Menampilkan output.
-- Mengembalikan exit code.
-
-Command **tidak bertanggung jawab** untuk:
-
-- Validasi dependency.
-- Membaca filesystem.
-- Mengubah runtime state secara langsung.
-- Menjalankan business rule.
-- Mengakses repository secara langsung.
+Seluruh business rule dijalankan oleh Platform Kernel melalui `ModuleManager` atau service kernel lainnya.
 
 ---
 
-# Current Implementation
+# 8. Architecture / Dependency Flow
 
-Status implementasi pada Sprint CORE-001:
+```text
+                Presentation Layer
+                        │
+                        ▼
+               Artisan Command (CLI)
+                        │
+                        ▼
+                 Platform Kernel
+                 ModuleManager
+                        │
+          ┌─────────────┴─────────────┐
+          ▼                           ▼
+ ModuleRegistry           ModuleStateRepository
+```
 
-- ✅ kernel:test-loader
-- ✅ module:list
-- ✅ module:status
-- ✅ module:enable
-- ✅ module:disable
-
-Seluruh command menggunakan service Kernel sebagai pusat logika.
+Command tidak mengetahui implementasi internal Platform Kernel dan hanya bergantung pada kontrak publik yang disediakan oleh Kernel Facade.
 
 ---
 
-# Future Evolution
+# 9. Current Implementation
 
-Pada sprint berikutnya, antarmuka baru seperti:
+## Implemented Components
+
+- `KernelTestLoaderCommand`
+- `ModuleListCommand`
+- `ModuleStatusCommand`
+- `ModuleEnableCommand`
+- `ModuleDisableCommand`
+
+## Implemented Capabilities
+
+- CLI sebagai entry point menuju Platform Kernel.
+- Seluruh command mendelegasikan business rule kepada `ModuleManager`.
+- Command hanya menangani input, output, dan exit code.
+- Tidak terdapat business rule pada implementasi command.
+
+---
+
+# 10. Impact
+
+Keputusan ini menjadikan CLI sebagai salah satu adapter terhadap Platform Kernel tanpa membawa logika aplikasi.
+
+Arsitektur menjadi lebih modular karena perubahan pada command tidak memengaruhi implementasi business rule. Sebaliknya, perubahan business rule dapat dilakukan pada Platform Kernel tanpa memerlukan perubahan pada setiap command.
+
+Pendekatan ini juga memperkuat konsistensi antara CLI, HTTP API, Scheduler, Queue Worker, maupun antarmuka lain yang akan menggunakan Platform Kernel.
+
+---
+
+# 11. Future Evolution
+
+Pada sprint berikutnya, berbagai entry point baru akan menggunakan Platform Kernel yang sama, antara lain:
 
 - REST API
 - Web Dashboard
@@ -138,15 +208,18 @@ Pada sprint berikutnya, antarmuka baru seperti:
 - Scheduler
 - GraphQL
 
-akan menggunakan service Kernel yang sama.
+Walaupun jumlah antarmuka bertambah, prinsip Thin Command tetap dipertahankan.
 
-Dengan demikian, perubahan business rule hanya dilakukan pada satu tempat tanpa memengaruhi antarmuka pengguna.
+Business rule akan tetap berada pada Platform Kernel, sedangkan setiap antarmuka hanya bertindak sebagai adapter yang menerjemahkan request menuju operasi Platform Kernel.
+
+Prinsip ini merupakan bagian permanen dari arsitektur EduCore dan tidak berubah meskipun implementasi antarmuka berkembang di masa mendatang.
 
 ---
 
-# References
+# 12. References
 
+- PRD CORE-001
+- Sprint CORE-001
 - ADR-007 — ModuleManager as Kernel Facade
 - ADR-009 — Separation of Infrastructure and Kernel Domain
-- PRD CORE-001
-- Sprint 001
+- `docs/architecture/module-manager.md`

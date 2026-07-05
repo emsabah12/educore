@@ -12,6 +12,7 @@
         "php": "^8.3",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
+        "symfony/uid": "^7.4",
         "symfony/yaml": "^7.4"
     },
     "require-dev": {
@@ -28,12 +29,15 @@
             "App\\": "app/",
             "Modules\\": "modules/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "Database\\Seeders\\": "database/seeders/",
+            "Tests\\": "tests/",
+            "Modules\\Core\\Tests\\": "Modules/Core/Tests/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Tests\\": "tests/",
+            "Modules\\": "Modules/"
         }
     },
     "scripts": {

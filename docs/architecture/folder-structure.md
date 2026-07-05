@@ -1,5 +1,10 @@
 # Core Folder Structure
 
+Version : 1.0
+Status : Locked
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
+
 ## Overview
 
 Direktori `Modules/Core` merupakan implementasi Platform Kernel pada EduCore. Seluruh komponen inti kernel ditempatkan di dalam direktori ini dan dipisahkan berdasarkan tanggung jawab (responsibility).
@@ -113,7 +118,7 @@ Folder ini tidak membaca atau memvalidasi manifest.
 
 ## Entities/
 
-Berisi objek domain yang merepresentasikan konsep dalam kernel.
+Berisi objek domain yang merepresentasikan konsep inti Platform Kernel.
 
 Contoh:
 
@@ -121,7 +126,9 @@ Contoh:
 ModuleDefinition
 ```
 
-Entity bersifat immutable sejauh memungkinkan dan tidak bergantung pada framework.
+Entity bersifat framework-independent dan immutable sejauh memungkinkan.
+
+`ModuleDefinition` merupakan immutable metadata object yang hanya dapat dibuat melalui `ModuleDefinitionFactory`.
 
 ---
 
@@ -145,23 +152,25 @@ Exception membantu menghasilkan penanganan error yang lebih jelas dan konsisten.
 
 ## Manifest/
 
-Berisi seluruh komponen yang berkaitan dengan `module.yaml`.
+Berisi seluruh komponen yang bertanggung jawab mengelola _Module Manifest_ (`module.yaml`).
 
 Contoh:
 
 ```text
+ModuleManifestLoader
 ModuleManifestParser
-
-ManifestValidator
-
+ModuleManifestValidator
 ModuleDefinitionFactory
 ```
 
-Folder ini bertanggung jawab untuk:
+Tanggung jawab setiap komponen dipisahkan sesuai prinsip Single Responsibility Principle (SRP):
 
-- membaca manifest
-- memvalidasi manifest
-- membangun metadata modul
+- **ModuleManifestLoader** membaca isi berkas `module.yaml`.
+- **ModuleManifestParser** mengubah isi YAML menjadi struktur data.
+- **ModuleManifestValidator** memvalidasi struktur dan skema manifest menggunakan pendekatan _Fail Fast_.
+- **ModuleDefinitionFactory** membangun immutable `ModuleDefinition` dari data yang telah tervalidasi.
+
+Folder ini tidak menangani proses discovery maupun penyimpanan metadata.
 
 ---
 
@@ -304,17 +313,21 @@ Hindari membuat folder baru apabila tanggung jawabnya masih sesuai dengan direkt
 
 # Related Documents
 
+- `README.md`
 - `kernel.md`
 - `discovery-flow.md`
 - `module-manager.md`
 - `module-lifecycle.md`
+- `architecture-principles.md`
 
 ---
 
 # Related ADR
 
+## Related ADR
+
 - ADR-001 — Kernel Architecture Overview
 - ADR-002 — Modular Monolith Architecture
-- ADR-005 — Module Registry as Metadata Source of Truth
-- ADR-007 — ModuleManager as Kernel Facade
+- ADR-005 — Module Registry as Source of Truth
+- ADR-007 — Module Manager as Kernel Facade
 - ADR-009 — Separation of Infrastructure and Kernel Domain

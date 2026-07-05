@@ -1,141 +1,223 @@
 # Module Lifecycle
 
-## Overview
+Version : 1.0
+Status : Locked
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-Module Lifecycle menjelaskan seluruh perjalanan hidup sebuah modul dalam Platform Kernel, mulai dari keberadaan di filesystem hingga status runtime di aplikasi berjalan.
+## Related ADR
 
-Lifecycle ini mencakup dua domain utama:
-
-- **Discovery Lifecycle** (metadata creation)
-- **Runtime Lifecycle** (state management)
-
-Keduanya terpisah secara desain tetapi saling berhubungan secara konseptual.
+- ADR-004 — Automatic Module Discovery
+- ADR-005 — Module Registry as Source of Truth
+- ADR-006 — Runtime Module State Repository
+- ADR-007 — Module Manager as Kernel Facade
+- ADR-010 — Module Identity Strategy
 
 ---
 
-# High Level Lifecycle
+# Overview
 
-```text id="life-01"
-Filesystem (Modules/*)
+Module Lifecycle menjelaskan perjalanan hidup sebuah modul di dalam EduCore Platform Kernel, mulai dari keberadaannya di filesystem hingga digunakan pada runtime aplikasi.
+
+Lifecycle dibagi menjadi dua domain utama yang memiliki tanggung jawab berbeda:
+
+- **Discovery Lifecycle** — membangun metadata modul.
+- **Runtime Lifecycle** — mengelola status runtime modul.
+
+Kedua lifecycle tersebut dipisahkan secara desain untuk menjaga pemisahan antara **Metadata** dan **Runtime State**, namun saling terhubung melalui Platform Kernel.
+
+---
+
+# High-Level Lifecycle
+
+```text
+Filesystem (Modules/)
         │
         ▼
-Discovery Process
+Discovery Pipeline
         │
         ▼
-ModuleRegistry (Metadata)
+Immutable ModuleDefinition
         │
         ▼
-ModuleStateRepository (Runtime State)
+ModuleRegistry
         │
         ▼
-Active Application Runtime
+ModuleStateRepository
+        │
+        ▼
+ModuleManager
+        │
+        ▼
+Application Runtime
 ```
 
 ---
 
 # Phase 1 — Filesystem Layer
 
-Pada tahap ini, modul hanya berupa folder di dalam:
+Pada tahap ini, modul hanya berupa direktori di dalam:
 
-```text id="life-02"
+```text
 Modules/
 ```
 
 Contoh:
 
-```text id="life-03"
+```text
 Modules/
 ├── Core/
 ├── Academic/
 ├── PPDB/
+└── Finance/
 ```
 
-Setiap folder **belum dianggap sebagai modul aktif** sampai memiliki `module.yaml`.
+Sebuah direktori belum dianggap sebagai modul sampai memiliki berkas:
+
+```text
+module.yaml
+```
 
 ---
 
 # Phase 2 — Discovery Lifecycle
 
-Tahap ini terjadi saat bootstrap aplikasi.
+Discovery Lifecycle dijalankan setiap kali aplikasi melakukan bootstrap melalui `CoreServiceProvider`.
 
-## Step 1 — Detection
+Pipeline discovery mengikuti tahapan berikut.
 
-Kernel memindai folder `Modules/` untuk menemukan kandidat modul.
+---
+
+## Step 1 — Module Discovery
+
+`ModuleDiscovery` memindai seluruh direktori modul pada folder `Modules/`.
+
+Komponen ini hanya bertanggung jawab menemukan lokasi modul dan tidak membaca isi manifest.
+
+Output:
+
+```text
+Module Directory
+```
 
 ---
 
 ## Step 2 — Manifest Loading
 
-Jika ditemukan `module.yaml`, maka:
+Untuk setiap modul yang ditemukan, `ModuleManifestLoader` membaca isi berkas:
 
-- file dibaca oleh `ModuleManifestParser`
-- diubah menjadi struktur data
+```text
+module.yaml
+```
 
----
+Loader hanya bertanggung jawab membaca isi berkas tanpa melakukan parsing maupun validasi.
 
-## Step 3 — Validation
+Output:
 
-Manifest divalidasi oleh `ManifestValidator`.
-
-Jika gagal:
-
-- modul diabaikan
-- error dicatat atau exception dilempar
+```text
+Raw YAML
+```
 
 ---
 
-## Step 4 — Definition Creation
+## Step 3 — Manifest Parsing
 
-Data valid dikonversi menjadi:
+`ModuleManifestParser` mengubah isi YAML menjadi struktur data yang dapat diproses oleh Kernel.
 
-```text id="life-def"
+Parser tidak melakukan validasi maupun membangun objek domain.
+
+Output:
+
+```text
+Parsed Manifest Data
+```
+
+---
+
+## Step 4 — Manifest Validation
+
+`ModuleManifestValidator` memvalidasi data hasil parsing.
+
+Validator memastikan bahwa manifest memenuhi spesifikasi yang telah ditentukan, seperti:
+
+- field wajib tersedia,
+- nama modul valid,
+- versi valid,
+- provider terdefinisi,
+- dependency memiliki format yang benar.
+
+Discovery menggunakan pendekatan **Fail Fast**, sehingga proses dihentikan segera ketika ditemukan manifest yang tidak valid.
+
+Output:
+
+```text
+Validated Manifest Data
+```
+
+---
+
+## Step 5 — Module Definition Creation
+
+`ModuleDefinitionFactory` membangun immutable `ModuleDefinition` dari data yang telah tervalidasi.
+
+Factory merupakan satu-satunya komponen yang diperbolehkan membuat objek `ModuleDefinition`.
+
+Setelah dibuat, metadata tidak dapat diubah selama runtime aplikasi.
+
+Output:
+
+```text
 ModuleDefinition
 ```
 
 ---
 
-## Step 5 — Registration
+## Step 6 — Module Registration
 
-`ModuleDefinition` disimpan ke:
+`ModuleDefinition` didaftarkan ke dalam `ModuleRegistry`.
 
-```text id="life-reg"
-ModuleRegistry
-```
+`ModuleRegistry` menjadi **Source of Truth** untuk seluruh metadata modul selama aplikasi berjalan.
 
-Pada tahap ini modul sudah **terdaftar secara metadata**, tetapi belum tentu aktif.
+Pada tahap ini modul telah terdaftar secara metadata, tetapi belum tentu aktif.
 
 ---
 
 # Phase 3 — Runtime Lifecycle
 
-Setelah discovery selesai, kernel masuk ke runtime state management.
+Setelah discovery selesai, Platform Kernel memasuki Runtime Lifecycle.
+
+Pada fase ini tidak ada lagi proses discovery maupun perubahan metadata.
+
+Kernel hanya mengelola status runtime setiap modul.
 
 ---
 
-## State Source
+# Runtime State Source
 
-Runtime state disimpan di:
+Status runtime disimpan melalui:
 
-```text id="life-state"
-storage/framework/modules.json
-```
-
-Melalui:
-
-```text id="life-repo"
+```text
 ModuleStateRepository
 ```
 
+Dengan media penyimpanan:
+
+```text
+storage/framework/modules.json
+```
+
+Runtime State dipisahkan sepenuhnya dari metadata modul.
+
 ---
 
-## State Model
+# Runtime State Model
 
-Sebuah modul hanya memiliki dua state utama:
+Saat ini setiap modul memiliki dua state utama:
 
 - `enabled`
 - `disabled`
 
-Tidak ada state transisi lain dalam desain saat ini.
+Belum terdapat state transisi lain pada Sprint CORE-001.
 
 ---
 
@@ -143,16 +225,19 @@ Tidak ada state transisi lain dalam desain saat ini.
 
 ## Initial State
 
-Setelah discovery:
+Setelah discovery selesai:
 
-```text id="life-init"
-ModuleRegistry → exists
-ModuleStateRepository → default (disabled)
+```text
+ModuleRegistry
+      │
+      └── ModuleDefinition tersedia
+
+ModuleStateRepository
+      │
+      └── disabled (default)
 ```
 
-Artinya:
-
-> Modul terdaftar tetapi belum aktif.
+Artinya modul telah terdaftar, tetapi belum tentu aktif.
 
 ---
 
@@ -160,16 +245,20 @@ Artinya:
 
 Ketika `ModuleManager::enable()` dipanggil:
 
-```text id="life-en"
-disabled → enabled
+```text
+disabled
+      │
+      ▼
+enabled
 ```
 
-Flow:
+Proses yang dilakukan:
 
-1. Validasi modul ada di registry
-2. Cek state saat ini
-3. Jika disabled → ubah menjadi enabled
-4. Simpan ke repository
+1. Memastikan modul terdaftar di `ModuleRegistry`.
+2. Membaca status dari `ModuleStateRepository`.
+3. Memastikan modul belum aktif.
+4. Mengubah status menjadi `enabled`.
+5. Menyimpan perubahan ke `ModuleStateRepository`.
 
 ---
 
@@ -177,153 +266,186 @@ Flow:
 
 Ketika `ModuleManager::disable()` dipanggil:
 
-```text id="life-dis"
-enabled → disabled
+```text
+enabled
+      │
+      ▼
+disabled
 ```
 
-Flow:
+Proses yang dilakukan:
 
-1. Validasi modul ada di registry
-2. Cek state saat ini
-3. Jika enabled → ubah menjadi disabled
-4. Simpan ke repository
+1. Memastikan modul terdaftar di `ModuleRegistry`.
+2. Membaca status runtime.
+3. Memastikan modul masih aktif.
+4. Mengubah status menjadi `disabled`.
+5. Menyimpan perubahan ke `ModuleStateRepository`.
 
 ---
 
-# Lifecycle Diagram End-to-End
+## Important Note
 
-```text id="life-diag"
-[Filesystem]
-     │
-     ▼
-[module.yaml exists?]
-     │ yes
-     ▼
-[Discovery Process]
-     │
-     ▼
-[ModuleRegistry]
-     │
-     ▼
-[ModuleStateRepository]
-     │
-     ▼
-[ModuleManager]
-     │
-     ├── enable()
-     ├── disable()
-     └── isEnabled()
-     │
-     ▼
-[Runtime Application]
+Perubahan runtime hanya memengaruhi `ModuleStateRepository`.
+
+`ModuleDefinition` yang berada di dalam `ModuleRegistry` tetap bersifat immutable dan tidak berubah selama aplikasi berjalan.
+
+---
+
+# End-to-End Lifecycle
+
+```text
+Filesystem
+      │
+      ▼
+ModuleDiscovery
+      │
+      ▼
+ModuleManifestLoader
+      │
+      ▼
+ModuleManifestParser
+      │
+      ▼
+ModuleManifestValidator
+      │
+      ▼
+ModuleDefinitionFactory
+      │
+      ▼
+ModuleRegistry
+      │
+      ▼
+ModuleStateRepository
+      │
+      ▼
+ModuleManager
+      │
+      ▼
+Application Runtime
 ```
 
 ---
 
 # Key Separation Rules
 
-## 1. Metadata vs Runtime
+## Metadata vs Runtime
 
-| Aspect          | Location              |
+| Aspect          | Source of Truth       |
 | --------------- | --------------------- |
-| Module identity | ModuleRegistry        |
-| Module status   | ModuleStateRepository |
+| Module Metadata | ModuleRegistry        |
+| Runtime State   | ModuleStateRepository |
 
-Tidak boleh dicampur.
-
----
-
-## 2. Static vs Dynamic
-
-- Discovery = static (filesystem)
-- Runtime = dynamic (application state)
+Metadata dan Runtime State tidak boleh dicampur.
 
 ---
 
-## 3. Immutable vs Mutable
+## Static vs Dynamic
 
-- ModuleDefinition = immutable
-- ModuleState = mutable
+| Static             | Dynamic       |
+| ------------------ | ------------- |
+| Discovery Pipeline | Runtime State |
+
+Discovery hanya membangun metadata.
+
+Runtime hanya mengelola status modul.
+
+---
+
+## Immutable vs Mutable
+
+| Object           | Characteristic |
+| ---------------- | -------------- |
+| ModuleDefinition | Immutable      |
+| Module State     | Mutable        |
 
 ---
 
 # Lifecycle Constraints
 
-## Constraint 1 — No Runtime Discovery
+## Discovery Only During Bootstrap
 
-Discovery hanya terjadi saat bootstrap.
+Discovery hanya dilakukan pada proses bootstrap aplikasi.
 
-Tidak boleh dilakukan ulang saat runtime.
-
----
-
-## Constraint 2 — State Does Not Affect Registry
-
-Enable/disable tidak mengubah registry.
-
-Registry tetap sebagai sumber metadata.
+Kernel tidak melakukan discovery ulang selama runtime.
 
 ---
 
-## Constraint 3 — Registry Does Not Persist State
+## Runtime Does Not Modify Metadata
 
-Registry tidak menyimpan status modul.
+Enable maupun disable modul tidak mengubah metadata yang berada di `ModuleRegistry`.
+
+---
+
+## Registry Does Not Persist Runtime State
+
+`ModuleRegistry` hanya menyimpan metadata.
+
+Status runtime disimpan secara terpisah melalui `ModuleStateRepository`.
 
 ---
 
 # Failure Scenarios
 
-## Scenario 1 — Module Missing in Registry
+## Scenario 1 — Module Not Found
 
-Jika enable/disable dipanggil untuk modul yang tidak ada:
+Jika `ModuleManager` menerima nama modul yang tidak terdaftar:
 
-→ `ModuleNotFoundException`
+- `ModuleNotFoundException` dilempar.
+- Runtime State tidak berubah.
 
 ---
 
-## Scenario 2 — Corrupted State File
+## Scenario 2 — Corrupted Runtime State
 
-Jika `modules.json` rusak:
+Apabila `storage/framework/modules.json` rusak:
 
-- fallback ke default disabled state
-- log error
-- tidak menghentikan bootstrap
+- Repository menggunakan state bawaan.
+- Error dicatat pada log.
+- Bootstrap aplikasi tetap dilanjutkan.
 
 ---
 
 ## Scenario 3 — Invalid Manifest
 
-Jika manifest gagal validasi:
+Apabila manifest tidak memenuhi spesifikasi:
 
-- modul tidak masuk registry
-- lifecycle berhenti di discovery phase
+- Discovery dihentikan untuk modul tersebut.
+- `ModuleDefinition` tidak dibuat.
+- Modul tidak dimasukkan ke `ModuleRegistry`.
+
+---
+
+## Scenario 4 — Invalid Module Definition
+
+Apabila `ModuleDefinitionFactory` gagal membangun objek karena data tidak memenuhi invariants:
+
+- Registrasi dibatalkan.
+- Metadata tidak disimpan.
+- Bootstrap dihentikan sesuai prinsip **Fail Fast**.
 
 ---
 
 # Design Philosophy
 
-Lifecycle ini dibangun berdasarkan:
+Module Lifecycle dibangun berdasarkan prinsip berikut:
 
-- Clear separation between metadata & runtime
-- Predictable state transitions
-- Fail-safe boot process
-- Idempotent operations
-- Deterministic module behavior
+- Separation of Metadata and Runtime
+- Explicit Processing Pipeline
+- Single Responsibility Principle
+- Immutable Metadata
+- Mutable Runtime State
+- Fail Fast Validation
+- Source of Truth
+- Deterministic Module Behavior
+- Idempotent Runtime Operations
 
 ---
 
 # Related Documents
 
+- `README.md`
 - `kernel.md`
 - `folder-structure.md`
 - `discovery-flow.md`
 - `module-manager.md`
-
----
-
-# Related ADR
-
-- ADR-004 — Automatic Module Discovery
-- ADR-005 — Module Registry as Metadata Source of Truth
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — ModuleManager as Kernel Facade
+- `architecture-principles.md`

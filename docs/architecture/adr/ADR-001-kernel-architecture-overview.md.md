@@ -1,23 +1,31 @@
 # ADR-001 — Kernel Architecture Overview
 
-**Status** : Accepted
+Version : 1.0
+Status : Accepted
+Date : 2026-07-01
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-**Date** : 2026-07-01
+## Related ADR
 
-**Sprint** : CORE-001
+- ADR-002 — Modular Monolith Architecture
+- ADR-005 — Module Registry as Source of Truth
+- ADR-006 — Runtime Module State Repository
+- ADR-007 — Module Manager as Kernel Facade
+- ADR-009 — Separation of Infrastructure and Kernel Domain
 
 ---
 
 # Context
 
-EduCore dirancang sebagai sebuah platform yang akan menjadi fondasi bagi berbagai aplikasi pendidikan, seperti PPDB, Academic, Finance, HR, Library, Inventory, Learning Management System (LMS), dan modul lainnya.
+EduCore dirancang sebagai sebuah platform yang menjadi fondasi bagi berbagai aplikasi pendidikan, seperti PPDB, Academic, Finance, HR, Library, Inventory, Learning Management System (LMS), dan modul lainnya.
 
 Pada tahap awal pengembangan terdapat dua pendekatan yang dipertimbangkan:
 
-1. Membangun setiap aplikasi secara mandiri.
-2. Membangun sebuah Platform Kernel yang menyediakan layanan inti dan dapat digunakan oleh seluruh modul.
+1. Membangun setiap aplikasi sebagai aplikasi mandiri.
+2. Membangun sebuah Platform Kernel yang menyediakan layanan inti bagi seluruh modul.
 
-Pendekatan pertama lebih sederhana pada awal proyek, tetapi akan menghasilkan duplikasi implementasi, inkonsistensi antar aplikasi, serta biaya pemeliharaan yang tinggi.
+Pendekatan pertama lebih sederhana pada awal proyek, tetapi menghasilkan duplikasi implementasi, inkonsistensi antar aplikasi, serta biaya pemeliharaan yang tinggi.
 
 ---
 
@@ -25,23 +33,24 @@ Pendekatan pertama lebih sederhana pada awal proyek, tetapi akan menghasilkan du
 
 EduCore menggunakan **Platform Kernel Architecture** sebagai fondasi sistem.
 
-Kernel bertanggung jawab menyediakan layanan inti yang digunakan bersama oleh seluruh modul.
+Platform Kernel menyediakan layanan teknis yang dapat digunakan bersama oleh seluruh modul.
 
-Kernel tidak berisi business logic dari setiap domain, tetapi hanya menyediakan kemampuan dasar platform.
+Kernel **tidak** berisi business logic domain, melainkan hanya menyediakan kemampuan fundamental platform.
 
 Contoh layanan Kernel meliputi:
 
 - Module Discovery
-- Module Loading
+- Manifest Processing Pipeline
 - Module Registry
-- Module State Management
+- Runtime Module State Management
+- Module Manager
 - Health Check
 - Dependency Resolution (future)
 - Event Bus (future)
 - Scheduler (future)
 - Configuration Engine (future)
 
-Seluruh modul dibangun di atas layanan yang disediakan oleh Kernel.
+Seluruh modul dibangun di atas layanan yang disediakan oleh Platform Kernel.
 
 ---
 
@@ -52,7 +61,7 @@ Keputusan ini dipilih karena:
 - Menghindari duplikasi implementasi antar modul.
 - Menyediakan fondasi yang konsisten.
 - Mempermudah pengembangan modul baru.
-- Mendukung evolusi platform tanpa mengubah modul yang sudah ada.
+- Mendukung evolusi platform tanpa mengubah modul yang telah ada.
 - Memungkinkan pengembangan bertahap melalui sprint.
 
 Kernel menjadi pusat layanan teknis (_technical capabilities_), sedangkan setiap modul berfokus pada business domain masing-masing.
@@ -64,16 +73,17 @@ Kernel menjadi pusat layanan teknis (_technical capabilities_), sedangkan setiap
 ## Positive
 
 - Arsitektur lebih konsisten.
-- Modul menjadi lebih independen.
-- Layanan platform dapat digunakan ulang.
+- Modul dapat dikembangkan secara independen.
+- Layanan platform dapat digunakan kembali.
 - Pengembangan modul baru menjadi lebih cepat.
 - Risiko duplikasi kode berkurang.
+- Evolusi platform lebih terkontrol.
 
 ## Negative
 
-- Membutuhkan desain awal yang lebih matang.
+- Membutuhkan desain awal yang matang.
 - Kompleksitas Kernel meningkat seiring bertambahnya kemampuan platform.
-- Membutuhkan dokumentasi arsitektur yang baik.
+- Membutuhkan dokumentasi arsitektur yang konsisten.
 
 ---
 
@@ -83,7 +93,7 @@ Kernel menjadi pusat layanan teknis (_technical capabilities_), sedangkan setiap
 
 Setiap aplikasi memiliki implementasi sendiri terhadap discovery, konfigurasi, dependency, dan layanan platform lainnya.
 
-**Ditolak** karena menghasilkan banyak duplikasi.
+**Rejected**, karena menghasilkan banyak duplikasi.
 
 ---
 
@@ -91,39 +101,41 @@ Setiap aplikasi memiliki implementasi sendiri terhadap discovery, konfigurasi, d
 
 Layanan bersama disediakan sebagai library yang digunakan oleh setiap aplikasi.
 
-**Ditolak** karena sinkronisasi versi menjadi lebih sulit dan integrasi antar modul menjadi terbatas.
+**Rejected**, karena sinkronisasi versi menjadi lebih sulit dan integrasi antar aplikasi menjadi terbatas.
 
 ---
 
-## Option C — Platform Kernel (**Dipilih**)
+## Option C — Platform Kernel (**Accepted**)
 
-Layanan inti berada dalam satu Kernel yang digunakan oleh seluruh modul.
+Layanan inti berada dalam satu Platform Kernel yang digunakan bersama oleh seluruh modul.
 
-Pendekatan ini memberikan keseimbangan antara modularitas, maintainability, dan kemudahan evolusi platform.
+Pendekatan ini memberikan keseimbangan antara modularitas, maintainability, skalabilitas, dan kemudahan evolusi platform.
 
 ---
 
 # Current Implementation
 
-Status implementasi pada Sprint CORE-001:
+Status implementasi pada akhir Sprint CORE-001:
 
 - ✅ Module Discovery
-- ✅ Manifest Parser
-- ✅ Manifest Validator
+- ✅ Module Manifest Loader
+- ✅ Module Manifest Parser
+- ✅ Module Manifest Validator
+- ✅ Module Definition Factory
 - ✅ Module Definition
 - ✅ Module Registry
 - ✅ Module Loader
-- ✅ Module State Repository
+- ✅ Runtime Module State Repository
 - ✅ Module Manager
-- 🚧 UUID v7
-- 🚧 Health Check
-- ⏳ Unit Test
+- ✅ UUID v7 Strategy
+- ⏳ Health Check System
+- ⏳ Unit Testing Suite
 
 ---
 
 # Future Evolution
 
-Kernel akan terus berkembang pada sprint berikutnya dengan menambahkan kemampuan seperti:
+Platform Kernel akan terus berkembang pada sprint berikutnya dengan menambahkan kemampuan seperti:
 
 - Dependency Resolver
 - Module Installer
@@ -135,13 +147,14 @@ Kernel akan terus berkembang pada sprint berikutnya dengan menambahkan kemampuan
 - Configuration Engine
 - Plugin Marketplace
 
-Seluruh kemampuan tersebut akan menjadi bagian dari Kernel tanpa mengubah kontrak publik yang digunakan oleh modul.
+Kemampuan tersebut akan ditambahkan tanpa mengubah kontrak publik yang digunakan oleh modul.
 
 ---
 
 # References
 
 - PRD CORE-001
-- Sprint 001
+- Sprint CORE-001
 - `docs/architecture/kernel.md`
+- `docs/architecture/architecture-principles.md`
 - ADR-002 — Modular Monolith Architecture

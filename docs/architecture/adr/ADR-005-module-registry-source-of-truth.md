@@ -1,34 +1,43 @@
 # ADR-005 — Module Registry as Metadata Source of Truth
 
-**Status** : Accepted
+Version : 1.0
+Status : Accepted
+Date : 2026-07-01
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-**Date** : 2026-07-01
+## Related ADR
 
-**Sprint** : CORE-001
+- ADR-003 — Module Manifest Specification
+- ADR-004 — Automatic Module Discovery
+- ADR-006 — Runtime Module State Repository
+- ADR-010 — Module Identity Strategy
 
 ---
 
 # Context
 
-Setelah proses discovery selesai, Kernel telah memperoleh seluruh metadata dari setiap modul melalui `module.yaml`.
+Setelah proses Discovery selesai, Platform Kernel telah memperoleh seluruh metadata dari setiap modul melalui `module.yaml`.
 
 Pertanyaan berikutnya adalah bagaimana metadata tersebut sebaiknya diakses oleh komponen lain selama aplikasi berjalan.
 
-Salah satu pendekatan adalah membaca kembali file manifest setiap kali metadata dibutuhkan.
+Salah satu pendekatan adalah membaca kembali manifest setiap kali metadata dibutuhkan.
 
-Pendekatan lainnya adalah memuat seluruh metadata sekali pada saat bootstrap, kemudian menyimpannya di dalam sebuah registry yang dapat digunakan selama siklus hidup aplikasi.
+Pendekatan lainnya adalah memuat metadata satu kali pada saat bootstrap, kemudian menyimpannya di dalam sebuah registry yang dapat digunakan selama siklus hidup aplikasi.
 
 ---
 
 # Decision
 
-EduCore menggunakan **ModuleRegistry** sebagai satu-satunya sumber metadata modul selama runtime.
+EduCore menggunakan **ModuleRegistry** sebagai **Single Source of Truth** untuk seluruh metadata modul selama runtime.
 
-Seluruh metadata hasil parsing manifest dimuat ke dalam `ModuleRegistry` pada saat bootstrap.
+Seluruh metadata hasil Discovery Pipeline dimuat ke dalam `ModuleRegistry` pada saat bootstrap.
 
-Setelah proses bootstrap selesai, komponen lain **tidak diperbolehkan membaca kembali `module.yaml` secara langsung**.
+Setelah bootstrap selesai, komponen lain **tidak diperbolehkan membaca kembali `module.yaml` secara langsung**.
 
 Seluruh akses metadata harus dilakukan melalui `ModuleRegistry`.
+
+Metadata yang disimpan berupa objek `ModuleDefinition` yang bersifat immutable.
 
 ---
 
@@ -36,13 +45,14 @@ Seluruh akses metadata harus dilakukan melalui `ModuleRegistry`.
 
 Keputusan ini dipilih karena:
 
-- Menghindari pembacaan file berulang.
+- Menghindari pembacaan berulang terhadap filesystem.
 - Menjamin konsistensi metadata.
 - Menyediakan satu titik akses terhadap informasi modul.
 - Mempermudah pengujian.
-- Mengurangi coupling terhadap filesystem.
+- Mengurangi coupling terhadap implementasi manifest.
+- Memisahkan proses discovery dari penggunaan metadata.
 
-Module Registry bertindak sebagai cache metadata di dalam memory selama aplikasi berjalan.
+`ModuleRegistry` bertindak sebagai penyimpanan metadata di dalam memori selama aplikasi berjalan.
 
 ---
 
@@ -50,15 +60,16 @@ Module Registry bertindak sebagai cache metadata di dalam memory selama aplikasi
 
 ## Positive
 
-- Metadata hanya dibaca sekali.
-- Performa bootstrap lebih baik dibanding pembacaan berulang.
-- Semua komponen memperoleh data yang konsisten.
-- Mempermudah perubahan implementasi di masa depan.
+- Metadata hanya dibaca satu kali.
+- Seluruh komponen menggunakan data yang konsisten.
+- Discovery dan runtime terpisah dengan jelas.
+- Metadata bersifat immutable.
+- Implementasi lebih mudah diuji dan dikembangkan.
 
 ## Negative
 
 - Membutuhkan memori tambahan untuk menyimpan metadata.
-- Registry harus dibangun sebelum digunakan oleh komponen lain.
+- Registry harus selesai dibangun sebelum digunakan oleh komponen lain.
 
 ---
 
@@ -68,7 +79,7 @@ Module Registry bertindak sebagai cache metadata di dalam memory selama aplikasi
 
 Setiap komponen membaca `module.yaml` ketika membutuhkan metadata.
 
-**Ditolak** karena:
+**Rejected**, karena:
 
 - Banyak akses filesystem.
 - Metadata dapat menjadi tidak konsisten.
@@ -80,19 +91,19 @@ Setiap komponen membaca `module.yaml` ketika membutuhkan metadata.
 
 Metadata disimpan dalam array global.
 
-**Ditolak** karena:
+**Rejected**, karena:
 
 - Tidak memiliki kontrak yang jelas.
 - Sulit diuji.
-- Tidak mendukung evolusi platform.
+- Tidak mendukung evolusi Platform Kernel.
 
 ---
 
-## Option C — Module Registry (**Dipilih**)
+## Option C — Module Registry (**Accepted**)
 
-Kernel memuat metadata satu kali selama bootstrap dan menyediakannya melalui `ModuleRegistry`.
+Platform Kernel memuat metadata satu kali selama bootstrap dan menyediakannya melalui `ModuleRegistry`.
 
-Pendekatan ini menjaga konsistensi dan memisahkan proses parsing dari proses penggunaan metadata.
+Pendekatan ini menjaga konsistensi metadata serta memisahkan proses discovery dari penggunaan metadata.
 
 ---
 
@@ -100,38 +111,43 @@ Pendekatan ini menjaga konsistensi dan memisahkan proses parsing dari proses pen
 
 `ModuleRegistry` bertanggung jawab untuk:
 
-- Menyimpan seluruh `ModuleDefinition`.
-- Menyediakan pencarian berdasarkan Module ID.
+- Menyimpan seluruh objek `ModuleDefinition`.
+- Menyediakan pencarian berdasarkan nama modul (`name`).
 - Menyediakan daftar seluruh modul.
-- Menyediakan jumlah modul yang berhasil dimuat.
+- Menyediakan jumlah modul yang berhasil diregistrasikan.
 
-Registry **tidak bertanggung jawab** untuk:
+`ModuleRegistry` **tidak bertanggung jawab** untuk:
 
 - Menemukan modul.
-- Membaca file manifest.
-- Mengubah status runtime modul.
+- Membaca `module.yaml`.
+- Melakukan parsing manifest.
+- Memvalidasi manifest.
+- Mengelola runtime state.
 - Menjalankan business rule.
+
+Objek `ModuleDefinition` hanya dapat diregistrasikan melalui Discovery Pipeline.
 
 ---
 
 # Current Implementation
 
-Status implementasi pada Sprint CORE-001:
+Status implementasi pada akhir Sprint CORE-001:
 
-- ✅ Module Registry
-- ✅ register()
-- ✅ get()
-- ✅ has()
-- ✅ all()
-- ✅ count()
+- ✅ Module Registry.
+- ✅ Penyimpanan immutable `ModuleDefinition`.
+- ✅ `register()`.
+- ✅ `get()`.
+- ✅ `has()`.
+- ✅ `all()`.
+- ✅ `count()`.
 
-Registry menyimpan objek `ModuleDefinition` sebagai representasi metadata setiap modul.
+Identity modul menggunakan field `name` sesuai ADR-010.
 
 ---
 
 # Future Evolution
 
-ModuleRegistry dapat berkembang dengan kemampuan tambahan seperti:
+`ModuleRegistry` dapat berkembang dengan kemampuan tambahan seperti:
 
 - Lazy indexing.
 - Lookup berdasarkan kategori.
@@ -139,14 +155,16 @@ ModuleRegistry dapat berkembang dengan kemampuan tambahan seperti:
 - Lookup berdasarkan dependency.
 - Cached registry snapshot.
 
-Seluruh evolusi tersebut tetap mempertahankan prinsip bahwa `ModuleRegistry` merupakan satu-satunya sumber metadata modul selama runtime.
+Seluruh evolusi tersebut tetap mempertahankan prinsip bahwa `ModuleRegistry` merupakan **Single Source of Truth** untuk metadata modul selama runtime.
 
 ---
 
 # References
 
+- PRD CORE-001
+- Sprint CORE-001
+- `docs/architecture/discovery-flow.md`
+- `docs/architecture/module-lifecycle.md`
 - ADR-003 — Module Manifest Specification
 - ADR-004 — Automatic Module Discovery
-- ADR-006 — Runtime Module State Repository
-- PRD CORE-001
-- Sprint 001
+- ADR-010 — Module Identity Strategy

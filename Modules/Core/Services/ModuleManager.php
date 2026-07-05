@@ -20,11 +20,11 @@ final readonly class ModuleManager
      *
      * @throws ModuleNotFoundException
      */
-    public function isEnabled(string $moduleId): bool
+    public function isEnabled(string $moduleName): bool
     {
-        $this->registry->get($moduleId);
+        $this->registry->get($moduleName);
 
-        return $this->stateRepository->isEnabled($moduleId);
+        return $this->stateRepository->isEnabled($moduleName);
     }
 
     /**
@@ -32,15 +32,15 @@ final readonly class ModuleManager
      *
      * @throws ModuleNotFoundException
      */
-    public function enable(string $moduleId): bool
+    public function enable(string $moduleName): bool
     {
-        $this->registry->get($moduleId);
+        $this->registry->get($moduleName);
 
-        if ($this->stateRepository->isEnabled($moduleId)) {
+        if ($this->stateRepository->isEnabled($moduleName)) {
             return false;
         }
 
-        $this->stateRepository->enable($moduleId);
+        $this->stateRepository->enable($moduleName);
 
         return true;
     }
@@ -50,15 +50,15 @@ final readonly class ModuleManager
      *
      * @throws ModuleNotFoundException
      */
-    public function disable(string $moduleId): bool
+    public function disable(string $moduleName): bool
     {
-        $this->registry->get($moduleId);
+        $this->registry->get($moduleName);
 
-        if (! $this->stateRepository->isEnabled($moduleId)) {
+        if (! $this->stateRepository->isEnabled($moduleName)) {
             return false;
         }
 
-        $this->stateRepository->disable($moduleId);
+        $this->stateRepository->disable($moduleName);
 
         return true;
     }

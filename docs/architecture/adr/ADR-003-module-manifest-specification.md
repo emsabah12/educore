@@ -1,20 +1,25 @@
 # ADR-003 — Module Manifest Specification
 
-**Status** : Accepted
+Version : 1.0
+Status : Accepted
+Date : 2026-07-01
+Updated : 2026-07-02
+Sprint : CORE-001 Sprint-1
 
-**Date** : 2026-07-01
+## Related ADR
 
-**Sprint** : CORE-001
+- ADR-004 — Automatic Module Discovery
+- ADR-005 — Module Registry as Source of Truth
+- ADR-006 — Runtime Module State Repository
+- ADR-010 — Module Identity Strategy
 
 ---
 
 # Context
 
-Kernel EduCore membutuhkan mekanisme yang konsisten untuk mengenali setiap modul yang tersedia di dalam platform.
+Platform Kernel membutuhkan mekanisme yang konsisten untuk mengenali setiap modul yang tersedia di dalam platform.
 
-Setiap modul harus menyediakan informasi dasar seperti identitas, versi, provider, dan metadata lainnya sebelum dapat dimuat oleh Kernel.
-
-Pertanyaan yang muncul pada tahap perancangan adalah bagaimana informasi tersebut sebaiknya disimpan.
+Setiap modul harus menyediakan informasi dasar seperti identitas, versi, provider, dependency, dan metadata lainnya sebelum dapat diproses oleh Discovery Pipeline.
 
 Beberapa alternatif dipertimbangkan, mulai dari menggunakan file PHP, JSON, XML, hingga YAML.
 
@@ -22,38 +27,57 @@ Beberapa alternatif dipertimbangkan, mulai dari menggunakan file PHP, JSON, XML,
 
 # Decision
 
-Setiap modul wajib memiliki sebuah file `module.yaml` yang berfungsi sebagai **Module Manifest**.
+Setiap modul **wajib** memiliki sebuah berkas `module.yaml` yang berfungsi sebagai **Module Manifest**.
 
-Manifest merupakan kontrak antara modul dan Kernel.
+Manifest merupakan kontrak deklaratif antara modul dan Platform Kernel.
 
-File ini hanya berisi **metadata statis** yang mendeskripsikan modul dan tidak boleh digunakan untuk menyimpan konfigurasi runtime.
+Manifest hanya berisi **metadata statis** yang mendeskripsikan modul dan tidak boleh digunakan untuk menyimpan konfigurasi runtime.
 
-Minimal informasi yang disediakan meliputi:
+Minimal informasi yang tersedia meliputi:
 
-- Schema Version
-- Module ID
-- Module Name
-- Module Version
-- Description
-- Service Providers
-- Dependencies
-- Metadata
-- Extra Information
+- Schema Version (`schema`)
+- Module Name (`name`)
+- Display Name (`display_name`)
+- Module Version (`version`)
+- Description (`description`)
+- Service Providers (`providers`)
+- Dependencies (`dependencies`)
+- Metadata (`metadata`)
+- Extra Information (`extra`)
 
-Kernel membaca manifest pada saat proses discovery dan mengubahnya menjadi objek `ModuleDefinition`.
+Pada proses discovery, manifest diproses melalui pipeline berikut:
+
+```text
+ModuleManifestLoader
+        │
+        ▼
+ModuleManifestParser
+        │
+        ▼
+ModuleManifestValidator
+        │
+        ▼
+ModuleDefinitionFactory
+        │
+        ▼
+ModuleDefinition
+```
+
+`ModuleDefinition` menjadi representasi immutable dari metadata modul selama aplikasi berjalan.
 
 ---
 
 # Rationale
 
-YAML dipilih karena memiliki sintaks yang ringkas, mudah dibaca oleh manusia, dan cocok untuk menyimpan metadata.
+YAML dipilih karena memiliki sintaks yang ringkas, mudah dibaca manusia, dan sesuai untuk menyimpan metadata.
 
 Dengan menggunakan manifest terpisah:
 
-- Metadata modul menjadi independen dari implementasi PHP.
+- Metadata modul independen dari implementasi PHP.
 - Informasi modul dapat dibaca tanpa melakukan bootstrap Laravel.
-- Struktur manifest dapat divalidasi sebelum modul dimuat.
+- Struktur manifest dapat divalidasi sebelum modul digunakan.
 - Evolusi format dapat dilakukan melalui versioning (`schema`).
+- Metadata dapat diproses secara bertahap melalui Discovery Pipeline.
 
 Manifest diperlakukan sebagai **kontrak deklaratif**, bukan sebagai sumber konfigurasi runtime.
 
@@ -64,15 +88,17 @@ Manifest diperlakukan sebagai **kontrak deklaratif**, bukan sebagai sumber konfi
 ## Positive
 
 - Setiap modul memiliki format metadata yang konsisten.
-- Validasi manifest dapat dilakukan lebih awal.
-- Metadata dapat dibaca tanpa mengeksekusi kode modul.
-- Format mudah dipahami oleh developer.
+- Validasi dapat dilakukan sebelum runtime.
+- Metadata dapat dibaca tanpa mengeksekusi kode PHP.
+- Discovery Pipeline menjadi lebih sederhana dan mudah diuji.
+- Metadata menjadi immutable setelah diproses.
 
 ## Negative
 
 - Membutuhkan parser YAML.
 - Membutuhkan proses validasi manifest.
-- Menambah satu file wajib pada setiap modul.
+- Setiap modul wajib menyediakan `module.yaml`.
+- Perubahan format harus tetap menjaga kompatibilitas melalui versioning.
 
 ---
 
@@ -82,7 +108,7 @@ Manifest diperlakukan sebagai **kontrak deklaratif**, bukan sebagai sumber konfi
 
 Metadata disimpan dalam file PHP yang mengembalikan array.
 
-**Ditolak** karena membutuhkan eksekusi kode PHP hanya untuk membaca metadata.
+**Rejected**, karena membutuhkan eksekusi kode PHP hanya untuk membaca metadata.
 
 ---
 
@@ -90,7 +116,7 @@ Metadata disimpan dalam file PHP yang mengembalikan array.
 
 Metadata disimpan dalam format JSON.
 
-**Ditolak** karena kurang nyaman dibaca dan dipelihara oleh manusia dibandingkan YAML.
+**Rejected**, karena kurang nyaman dibaca dan dipelihara dibandingkan YAML.
 
 ---
 
@@ -98,15 +124,15 @@ Metadata disimpan dalam format JSON.
 
 Metadata disimpan dalam XML.
 
-**Ditolak** karena lebih verbose dan tidak memberikan keuntungan yang signifikan.
+**Rejected**, karena lebih verbose tanpa memberikan keuntungan yang signifikan.
 
 ---
 
-## Option D — YAML (**Dipilih**)
+## Option D — YAML (**Accepted**)
 
 Metadata disimpan dalam `module.yaml`.
 
-Pendekatan ini memberikan keseimbangan antara keterbacaan, fleksibilitas, dan kemudahan validasi.
+Pendekatan ini memberikan keseimbangan antara keterbacaan, fleksibilitas, kemudahan validasi, dan evolusi format.
 
 ---
 
@@ -116,24 +142,29 @@ Manifest hanya boleh berisi metadata.
 
 Manifest **tidak boleh** berisi:
 
-- Status enable/disable.
+- Runtime Module State.
+- Status enable atau disable.
 - Runtime configuration.
 - Dynamic values.
 - Environment-specific configuration.
 
 Status runtime dikelola secara terpisah oleh `ModuleStateRepository`.
 
+Identity modul berasal dari field `name`, sesuai keputusan pada ADR-010.
+
 ---
 
 # Current Implementation
 
-Status implementasi pada Sprint CORE-001:
+Status implementasi pada akhir Sprint CORE-001:
 
 - ✅ `module.yaml` pada setiap modul.
+- ✅ Module Manifest Loader.
 - ✅ Module Manifest Parser.
-- ✅ Manifest Validator.
+- ✅ Module Manifest Validator.
 - ✅ Module Definition Factory.
-- ✅ Module Definition.
+- ✅ Immutable Module Definition.
+- ✅ Discovery Pipeline berbasis tahapan yang terpisah.
 
 ---
 
@@ -147,7 +178,7 @@ Contoh evolusi di masa depan:
 - License
 - Author
 - Homepage
-- Minimum Kernel Version
+- Minimum Platform Kernel Version
 - Compatibility Matrix
 - Required PHP Version
 
@@ -157,8 +188,9 @@ Perubahan format harus tetap menjaga kompatibilitas melalui mekanisme versioning
 
 # References
 
-- ADR-004 — Automatic Module Discovery
-- ADR-005 — Module Registry as Metadata Source of Truth
-- ADR-006 — Runtime Module State Repository
 - PRD CORE-001
-- Sprint 001
+- Sprint CORE-001
+- `docs/architecture/discovery-flow.md`
+- `docs/architecture/module-lifecycle.md`
+- ADR-004 — Automatic Module Discovery
+- ADR-010 — Module Identity Strategy

@@ -6,27 +6,22 @@ namespace Modules\Core\Manifest;
 
 use Modules\Core\Entities\ModuleDefinition;
 
-final class ModuleDefinitionFactory
+final readonly class ModuleDefinitionFactory
 {
     public function __construct(
-        private readonly ManifestValidator $validator,
+        private ModuleManifestValidator $validator,
     ) {
     }
 
+    /**
+     * Create ModuleDefinition from validated manifest.
+     *
+     * @param array<string, mixed> $manifest
+     */
     public function make(array $manifest): ModuleDefinition
     {
-        $this->validator->validate($manifest);
+        $manifest = $this->validator->validate($manifest);
 
-        return new ModuleDefinition(
-            schema: $manifest['schema'],
-            id: $manifest['id'],
-            name: $manifest['name'],
-            version: $manifest['version'],
-            description: $manifest['description'],
-            providers: $manifest['providers'],
-            dependencies: $manifest['dependencies'],
-            metadata: $manifest['metadata'],
-            extra: $manifest['extra'],
-        );
+        return ModuleDefinition::fromArray($manifest);
     }
 }
