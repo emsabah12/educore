@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Modules\Core\Support\Traits\BelongsToTenant;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
@@ -29,4 +30,7 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    // Support Tenant Context
+    use BelongsToTenant; 
 }

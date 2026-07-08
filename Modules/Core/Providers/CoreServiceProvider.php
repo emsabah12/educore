@@ -23,6 +23,7 @@ use Modules\Core\Console\ModuleDisableCommand;
 use Modules\Core\Console\TestModuleLoaderCommand;
 use Modules\Core\Console\KernelHealthCheckCommand;
 use Modules\Core\Support\Uuid\UuidBlueprintMacro;
+use Illuminate\Support\Facades\Log;
 
 final class CoreServiceProvider extends ServiceProvider
 {
@@ -93,8 +94,16 @@ final class CoreServiceProvider extends ServiceProvider
         // JIT TRIGGER: Daftarkan Service Provider dari Modul-Modul yang Aktif 
     $this->registerActiveModules();
     $this->registerMigrations();
+    // Daftarkan TenantServiceProvider secara internal
+    // $this->app->register(\Modules\Core\Providers\TenantServiceProvider::class);
+    // 1. Amankan pendaftaran Tenant Context Service Provider
+    $this->app->register(TenantServiceProvider::class);
+    // 2. Amankan pendaftaran Custom Auth Driver Service Provider
+        $this->app->register(AuthServiceProvider::class);
+
+        // 3. Modifikasi Konfigurasi Driver Autentikasi secara Dynamic Runtime (Bypass config/auth.php)
+        $this->overrideAuthenticationConfig();
     }
-    
     /**
      * Pindai modules.json dan daftarkan Service Provider milik modul yang berstatus ACTIVE.
      */
@@ -155,6 +164,12 @@ final class CoreServiceProvider extends ServiceProvider
                 TestModuleLoaderCommand::class,
             ]);
         }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Modules\Core\Console\TenantProvisionCommand::class,
+            ]);
+        }
     }
 
     /**
@@ -176,5 +191,20 @@ final class CoreServiceProvider extends ServiceProvider
         if (is_dir($migrationPath)) {
             $this->loadMigrationsFrom($migrationPath);
         }
+    }
+
+    /**
+     * Mengubah konfigurasi auth framework secara dinamis agar menggunakan tenant-eloquent.
+     * Pendekatan ini menjaga file config/auth.php bawaan laravel tetap bersih.
+     */
+    private function overrideAuthenticationConfig(): void
+    {
+        // Mengamankan mapping agar provider 'users' beralih ke driver buatan kita
+        config([
+            'auth.providers.users.driver' => 'tenant-eloquent',
+            'auth.providers.users.model' => \App\Models\User::class, // atau model user di level domain
+        ]);
+
+        Log::debug('Authentication driver dynamically set to [tenant-eloquent] via CoreServiceProvider.');
     }
 }
