@@ -5,61 +5,48 @@ declare(strict_types=1);
 namespace Modules\Core\Services;
 
 use Modules\Core\Exceptions\ModuleNotFoundException;
-use Modules\Core\Registry\ModuleRegistry;
 
 final readonly class ModuleManager
 {
+    /**
+     * Menggunakan Lightweight Command Query Separation (CQS).
+     * Seluruh operasi baca didelegasikan ke ModuleRepository, 
+     * sedangkan operasi mutasi status dicatat ke ModuleStateRepository.
+     */
     public function __construct(
-        private ModuleRegistry $registry,
-        private ModuleStateRepository $stateRepository,
-    ) {
+        private ModuleRepository $repository,
+        private ModuleStateRepository $stateRepository
+    ) {}
+
+    public function isEnabled(string $name): bool
+    {
+        $this->ensureModuleExists($name);
+
+        return $this->stateRepository->isEnabled($name);
+    }
+
+    public function enable(string $name): void
+    {
+        $this->ensureModuleExists($name);
+
+        $this->stateRepository->enable($name);
+    }
+
+    public function disable(string $name): void
+    {
+        $this->ensureModuleExists($name);
+
+        $this->stateRepository->disable($name);
     }
 
     /**
-     * Determine whether a module is enabled.
-     *
-     * @throws ModuleNotFoundException
+     * Sesuai business rule platform kernel: Fail Fast jika modul tidak terdaftar.
+     * Ensure properti $this->repository diakses dengan aman tanpa memicu undefined property.
      */
-    public function isEnabled(string $moduleName): bool
+    private function ensureModuleExists(string $name): void
     {
-        $this->registry->get($moduleName);
-
-        return $this->stateRepository->isEnabled($moduleName);
-    }
-
-    /**
-     * Enable a module.
-     *
-     * @throws ModuleNotFoundException
-     */
-    public function enable(string $moduleName): bool
-    {
-        $this->registry->get($moduleName);
-
-        if ($this->stateRepository->isEnabled($moduleName)) {
-            return false;
+        if (!$this->repository->has($name)) {
+            throw new ModuleNotFoundException("Module [{$name}] is not registered in the system.");
         }
-
-        $this->stateRepository->enable($moduleName);
-
-        return true;
-    }
-
-    /**
-     * Disable a module.
-     *
-     * @throws ModuleNotFoundException
-     */
-    public function disable(string $moduleName): bool
-    {
-        $this->registry->get($moduleName);
-
-        if (! $this->stateRepository->isEnabled($moduleName)) {
-            return false;
-        }
-
-        $this->stateRepository->disable($moduleName);
-
-        return true;
     }
 }

@@ -1,5 +1,11 @@
 {
-    "core": true,
-    "academic": false,
-    "ppdb": false
+    "core": {
+        "enabled": true
+    },
+    "academic": {
+        "enabled": true
+    },
+    "ppdb": {
+        "enabled": false
+    }
 }

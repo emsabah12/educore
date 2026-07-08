@@ -3,7 +3,7 @@
 Version : 1.0
 Status : Accepted
 Date : 2026-07-01
-Updated : 2026-07-02
+Updated : 2026-07-07
 Sprint : CORE-001 Sprint-1
 
 ## Related ADR
@@ -23,7 +23,13 @@ Setiap modul harus menyediakan informasi dasar seperti identitas, versi, provide
 
 Beberapa alternatif dipertimbangkan, mulai dari menggunakan file PHP, JSON, XML, hingga YAML.
 
----
+## Update Update 2026-07-07
+
+Pada implementasi awal, `ModuleRegistry` dipicu secara _eager_ (langsung memindai direktori fisik `base_path('Modules')`) saat di-resolve di dalam tingkatan Service Provider.
+
+Ketika perintah Artisan dijalankan, Laravel secara internal melakukan inspeksi instansi Command beserta graf dependensinya. Karena modul `Core` sendiri memiliki manifest fisik di dalam disk, pemindaian _eager_ ini memicu loop rekursif sirkular (_circular dependency loop_) yang menyebabkan kegagalan senyap (_silent hard exit/freeze_) atau kehabisan memori (_memory limit exhausted_) pada CLI.
+
+## Selain itu, penggunaan interface `Contracts/ModuleRepository` dinilai sebagai abstraksi dini (_premature abstraction_) yang meningkatkan beban kognitif kode tanpa keuntungan ekstensibilitas yang nyata untuk saat ini.
 
 # Decision
 
@@ -65,6 +71,13 @@ ModuleDefinition
 
 `ModuleDefinition` menjadi representasi immutable dari metadata modul selama aplikasi berjalan.
 
+## Update Update 2026-07-07
+
+1. **Penerapan Lazy Bootstrap Guard**: `ModuleRegistry` akan di-resolve murni sebagai objek in-memory kosong terlebih dahulu pada IoC Container.
+2. **Just-In-Time (JIT) Discovery**: Proses pemindaian disk fisik (`ModuleBootstrapService->bootstrap()`) dialihkan sepenuhnya ke dalam penutupan (_closure_) resolve `ModuleRepository` (Query Model). Pemindaian hanya berjalan secara _lazy_ (tepat saat data modul pertama kali diminta oleh aplikasi) dan dilindungi oleh _guard condition_ (`$registry->count() === 0`).
+3. **Pensiun Abstraksi Interface**: Menghapus `Modules/Core/Contracts/ModuleRepository.php`. Mengunci kelas konkrit `Modules/Core/Services/ModuleRepository.php` sebagai _Single Source of Truth_ untuk lapisan pembacaan metadata (_Query Model_).
+4. **Thin Commands Pattern**: Semua Artisan Commands (`module:list`, `module:status`, `module:enable`, `module:disable`) wajib dijaga tetap tipis, tanpa logika manipulasi file (I/O) ataupun parsing manifest.
+
 ---
 
 # Rationale
@@ -99,6 +112,13 @@ Manifest diperlakukan sebagai **kontrak deklaratif**, bukan sebagai sumber konfi
 - Membutuhkan proses validasi manifest.
 - Setiap modul wajib menyediakan `module.yaml`.
 - Perubahan format harus tetap menjaga kompatibilitas melalui versioning.
+
+## Update 2026-07-07
+
+- **Positif**: Perintah Artisan kini 100% aman dari resiko crash akibat loop bootstrap sirkular.
+- **Positif**: Arsitektur sasis lebih bersih, mematuhi prinsip YAGNI, KISS, dan memangkas _dead code_.
+- **Positif**: Exception / Error syntax pada manifest modul di disk riil kini dapat ditangkap oleh Laravel dan ditampilkan secara transparan di terminal, bukan mati senyap.
+- **Netral**: Pengujian unit pada repositori wajib diselaraskan untuk mengarah langsung pada kelas layanan konkrit (`Services/ModuleRepository`).
 
 ---
 

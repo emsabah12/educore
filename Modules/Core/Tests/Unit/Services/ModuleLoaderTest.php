@@ -13,11 +13,24 @@ use Tests\TestCase;
 
 final class ModuleLoaderTest extends TestCase
 {
+    private ModuleRegistry $registryStorage;
+    private ModuleLoader $loader;
+
+    /**
+     * Set up lingkungan uji yang bersih sebelum setiap metode test dieksekusi.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Putus hubungan dari IoC Container aplikasi riil demi mengamankan memori sasis
+        $this->registryStorage = new ModuleRegistry();
+        $this->loader = new ModuleLoader($this->registryStorage);
+    }
+
     public function test_load_returns_module_registry(): void
     {
-        $loader = $this->app->make(ModuleLoader::class);
-
-        $registry = $loader->load([
+        $registry = $this->loader->load([
             ModuleDefinitionBuilder::make()
                 ->name('User')
                 ->build(),
@@ -28,9 +41,7 @@ final class ModuleLoaderTest extends TestCase
 
     public function test_load_registers_all_module_definitions(): void
     {
-        $loader = $this->app->make(ModuleLoader::class);
-
-        $registry = $loader->load([
+        $registry = $this->loader->load([
             ModuleDefinitionBuilder::make()->name('User')->build(),
             ModuleDefinitionBuilder::make()->name('Auth')->build(),
             ModuleDefinitionBuilder::make()->name('Academic')->build(),
@@ -43,9 +54,7 @@ final class ModuleLoaderTest extends TestCase
 
     public function test_load_accepts_iterable(): void
     {
-        $loader = $this->app->make(ModuleLoader::class);
-
-        $registry = $loader->load($this->definitions());
+        $registry = $this->loader->load($this->definitions());
 
         $this->assertTrue($registry->has('User'));
         $this->assertTrue($registry->has('Academic'));
@@ -53,18 +62,18 @@ final class ModuleLoaderTest extends TestCase
 
     public function test_load_throws_exception_when_duplicate_module_is_loaded(): void
     {
-        $loader = $this->app->make(ModuleLoader::class);
-
         $this->expectException(ModuleAlreadyRegisteredException::class);
 
-        $loader->load([
+        $this->loader->load([
             ModuleDefinitionBuilder::make()->name('User')->build(),
             ModuleDefinitionBuilder::make()->name('User')->build(),
         ]);
     }
 
     /**
-     * @return Generator<int, mixed>
+     * Penyedia data taktis menggunakan struktur Generator PHP untuk efisiensi memori.
+     * 
+     * @return Generator<int, \Modules\Core\Entities\ModuleDefinition>
      */
     private function definitions(): Generator
     {

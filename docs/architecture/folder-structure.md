@@ -27,16 +27,106 @@ Modules/
 └── Core/
     ├── Config/
     ├── Console/
+        ├── KernelHealthCheckCommand.php
+        ├── ModuleDisableCommand.php
+        ├── ModuleEnableCommand.php
+        ├── ModuleListCommand.php
+        ├── ModuleStatusCommand.php
+        └── TestModuleLoaderCommand.php
     ├── Contracts/
+        └── ModuleRepository.php
+    ├── Database/
+        ├── Factories/
+        ├── Migrations/
+            └── 2026_07_06_000000_create_mock_students_table.php
+        └── Seeders/
     ├── Discovery/
+        └── ModuleDiscovery.php
     ├── Entities/
+        ├── BaseEntity.php
+        ├── MockStudent.php
+        └── ModuleDefinition.php
     ├── Exceptions/
+        ├── InvalidModuleManifestException.php
+        ├── ModuleAlreadyRegisteredException.php
+        └── ModuleNotFoundException.php
+    ├── Http/
+        ├── Controllers
+        ├── Middleware
+        └── Requests
     ├── Manifest/
+        ├── ModuleDefinitionFactory.php
+        ├── ModuleManifestLoader.php
+        ├── ModuleManifestParser.php
+        └── ModuleManifestValidator.php
+    ├── Models/
     ├── Providers/
+        └── CoreServiceProvider.php
     ├── Registry/
+        └── ModuleRegistry.php
+    ├── Resources/
+        ├── lang
+        └── Views
+    ├── Routes
     ├── Services/
+        ├── Health
+            └── DatabaseHealthChecker.php
+        ├── ModuleBootstrapService.php
+        ├── ModuleLoader.php
+        ├── ModuleManager.php
+        ├── ModuleRepository.php
+        └── ModuleStateRepository.php
     ├── Support/
+        ├── Uuid
+            ├── HasUuidV7.php
+            ├── UuidBlueprintMacro.php
+            └── UuidV7.php
     ├── Tests/
+        ├── Assertions/
+            └── ManifestAssertions.php
+        ├── Builders/
+            ├── ManifestBuilder.php
+            ├── ModuleDefinitionBuilder.php
+            └── ModuleFixtureBuilder.php
+        ├── Feature/
+        ├── Filesystem/
+            └── TemporaryFilesystem.php
+        ├── Fixtures/
+            └── ModuleFixture.php
+        ├── Integration/
+            ├── Database/
+                ├── UuidV7IntegrationTest.php
+            ├── Health/
+                ├── HealthCheckIntegrationTest.php
+            └── Services/
+                └── ModuleBootstrapServiceTest.php
+        ├── Support/
+            ├── CreatesManifest.php
+            ├── CreatesModule.php
+            ├── Filesystem.php
+            ├── ManifestFactory.php
+            └── StandardModuleStructure.php
+        ├── Unit/
+            ├── Builders/
+                 └── ModuleDefinitionBuilderTest.php
+            ├── Console
+            ├── Discovery/
+                └── ModuleDiscoveryTest.php
+            ├── Filesystem/
+                └── TemporaryFilesystemTest.php
+            ├── Manifest/
+                ├── ModuleDefinitionFactoryTest.php
+                ├── ModuleManifestParserTest.php
+                └── ModuleManifestValidatorTest.php
+            ├── Registry/
+                └── ModuleRegistryTest.php
+            ├── Services/
+                ├── ModuleLoaderTest.php
+                ├── ModuleManagerTest.php
+                └── ModuleRepositoryTest.php
+            └── Support
+        ├── CreatesModules.php
+        └── TestCase.php
     └── module.yaml
 ```
 
