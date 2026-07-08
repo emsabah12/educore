@@ -1,9 +1,9 @@
 # Core Folder Structure
 
-Version : 1.0
+Version : 1.1
 Status : Locked
-Updated : 2026-07-02
-Sprint : CORE-001 Sprint-1
+Updated : 2026-07-09
+Sprint : CORE-001 Sprint-2 (Platform Services Expansion)
 
 ## Overview
 
@@ -363,6 +363,10 @@ Manifest dibaca saat proses discovery.
 
 ---
 
+## Update
+
+KomponenDiperbolehkan MengonsumsiDigunakan Oleh (Client)Config-Semua KomponenConsoleServices, EntitiesLapisan Presentation CLIContracts-Domain & InfrastructureDiscovery-ServicesEntities-Manifest, Services, Registry, ConsoleExceptions-Semua KomponenManifestEntities, ExceptionsDiscovery, ServicesProvidersServicesConsole (Laravel Runtime)RegistryEntitiesServices, ConsoleServicesContracts, Registry, Manifest, Discovery, Entities, ExceptionsProviders, Console, Presentation LayerSupport-Bebas Efek Samping (Helper Umum)TestsSemua komponen internal Core-
+
 # Dependency Rules
 
 Untuk menjaga arsitektur tetap bersih, setiap direktori mengikuti aturan dependensi berikut:
@@ -396,6 +400,28 @@ Saat menambahkan komponen baru, gunakan panduan berikut:
 - Helper umum ditempatkan di `Support/`.
 - Exception baru ditempatkan di `Exceptions/`.
 - Command baru ditempatkan di `Console/`.
+
+## update
+
+Saat menambahkan komponen baru pada Sprint 2, gunakan panduan ketat berikut:
+
+Parser baru ditempatkan di Manifest/.
+
+Discovery baru ditempatkan di Discovery/.
+
+Komponen analisis grafik, resolusi, atau pemuatan baru ditempatkan di Services/ (seperti DependencyResolver).
+
+Metadata atau Value Object runtime baru ditempatkan di Entities/ (seperti ModuleDefinition).
+
+Kontrak atau Ports baru ditempatkan di Contracts/.
+
+Helper umum yang bersifat murni (pure functions) ditempatkan di Support/.
+
+Exception baru untuk memicu kegagalan cepat ditempatkan di Exceptions/ (seperti CircularDependencyException).
+
+Command Artisan baru ditempatkan di Console/.
+
+Hindari membuat folder baru apabila tanggung jawabnya masih sesuai dengan direktori yang sudah ada demi menjaga kesucian Thin Kernel Base.
 
 Hindari membuat folder baru apabila tanggung jawabnya masih sesuai dengan direktori yang sudah ada.
 

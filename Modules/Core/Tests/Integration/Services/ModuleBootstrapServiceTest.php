@@ -12,6 +12,9 @@ use Modules\Core\Manifest\ModuleManifestValidator;
 use Modules\Core\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Services\ModuleLoader;
+use Modules\Core\Services\DependencyResolver;
+use Modules\Core\Services\EventDiscoveryService;
+use Modules\Core\Registry\ModuleEventRegistry;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
@@ -44,6 +47,13 @@ final class ModuleBootstrapServiceTest extends TestCase
         
         $manifestLoader = new ModuleManifestLoader($parser, $validator, $factory);
         $moduleLoader = new ModuleLoader($this->registryStorage);
+        $dependencyResolver = new \Modules\Core\Services\DependencyResolver();
+        $eventRegistry = new ModuleEventRegistry();
+        $eventDiscoveryService = new EventDiscoveryService($eventRegistry);
+
+        // TAMBAHKAN INI:
+        $eventRegistry = new \Modules\Core\Registry\ModuleEventRegistry();
+        $eventDiscoveryService = new \Modules\Core\Services\EventDiscoveryService($eventRegistry);
 
         // 4. DIKOREKSI: Urutan parameter disesuaikan dengan baris ke-15 ModuleBootstrapService.php
         $this->bootstrapService = new ModuleBootstrapService(
@@ -51,8 +61,10 @@ final class ModuleBootstrapServiceTest extends TestCase
             $manifestLoader,  // Argumen #2
             $parser,          // Argumen #3 (Wajib ModuleManifestParser)
             $factory,         // Argumen #4 (Wajib ModuleDefinitionFactory)
-            $moduleLoader     // Argumen #5 (Wajib ModuleLoader)
-        );
+            $moduleLoader,    // Argumen #5 (Wajib ModuleLoader)
+            $dependencyResolver,  // Argumen #6 (Wajib DependencyResolver)
+            $eventDiscoveryService  // Argumen #7 (Wajib EventDiscoveryService)
+            );
     }
 
     /**

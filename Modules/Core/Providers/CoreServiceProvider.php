@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace Modules\Core\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Database\Schema\Blueprint;
 use Modules\Core\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
+use 
+Modules\Core\Registry\ModuleEventRegistry;
 use Modules\Core\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Services\ModuleLoader;
 use Modules\Core\Services\ModuleManager;
 use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\ModuleStateRepository;
+use Modules\Core\Services\DependencyResolver;
+use Modules\Core\Services\EventDiscoveryService;
 use Modules\Core\Console\ModuleListCommand;
 use Modules\Core\Console\ModuleStatusCommand;
 use Modules\Core\Console\ModuleEnableCommand;
@@ -32,6 +37,12 @@ final class CoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        
+        // Ikat ModuleEventRegistry sebagai objek singleton di container Laravel
+        $this->app->singleton(ModuleEventRegistry::class, function () {
+            return new ModuleEventRegistry();
+        });
+
         // 1. Komponen Infrastruktur Dasar Sasis (Auto-wired Singletons)
         $this->app->singleton(ModuleDiscovery::class);
         $this->app->singleton(ModuleManifestLoader::class);
@@ -170,6 +181,19 @@ final class CoreServiceProvider extends ServiceProvider
                 \Modules\Core\Console\TenantProvisionCommand::class,
             ]);
         }
+
+        // BINDING EVENT LARAVEL SECARA NATIVE
+        // Ambil objek registry event yang telah dikumpulkan selama fase bootstrap modul
+        /** @var ModuleEventRegistry $eventRegistry */
+        $eventRegistry = $this->app->make(ModuleEventRegistry::class);
+
+        // Iterasikan map hasil temuan auto-discovery ke Event Engine Laravel
+        foreach ($eventRegistry->getAll() as $eventClass => $listeners) {
+            foreach ($listeners as $listenerClass) {
+                Event::listen($eventClass, $listenerClass);
+            }
+        }
+
     }
 
     /**
