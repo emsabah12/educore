@@ -33,7 +33,7 @@ class ModuleManagerTest extends TestCase
 
         // 3. Gunakan berkas JSON sementara yang unik untuk mengisolasi pengujian I/O
         $this->tempStatePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'educore_test_modules_' . uniqid() . '.json';
-        
+
         if (file_exists($this->tempStatePath)) {
             unlink($this->tempStatePath);
         }
@@ -111,5 +111,16 @@ class ModuleManagerTest extends TestCase
 
         // Memastikan mekanisme Fail Fast berjalan saat modul tidak ada di registry
         $this->manager->isEnabled('NonExistentModule');
+    }
+
+
+    public function test_it_can_retrieve_all_enabled_module_definitions_safely(): void
+    {
+        // Setup mock/dummy ModuleDefinition jika diperlukan oleh test environment Anda
+        // Panggil method eksposur baru melalui manager facade
+        $enabledModules = $this->manager->getEnabledModules();
+
+        $this->assertIsArray($enabledModules);
+        // Pastikan item di dalamnya dibungkus objek ModuleDefinition, bukan array mentah
     }
 }

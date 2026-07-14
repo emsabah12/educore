@@ -61,4 +61,30 @@ final class ModuleManifestValidatorTest extends TestCase
 
                 $validator->validate($manifest);
             }
+
+        public function test_rejects_manifest_with_non_existent_service_provider_class(): void
+    {
+        // 1. Inisialisasi validator lokal secara eksplisit untuk bypass null state
+        $localValidator = new \Modules\Core\Manifest\ModuleManifestValidator();
+
+        $manifestData = [
+            'schema' => 1,
+            'name' => 'Academic',
+            'display_name' => 'Manajemen Akademik',
+            'version' => '1.0.0',
+            'description' => 'Mengelola akademik',
+            'providers' => [
+                'Modules\Academic\Providers\KelasIniTidakPernahAdaServiceProvider' // Kelas fiktif
+            ],
+            'dependencies' => [],
+            'metadata' => [], // Tambahkan properti wajib agar tidak memicu missing required fields
+            'extra' => []     // Tambahkan properti wajib agar tidak memicu missing required fields
+        ];
+
+       // 2. Ekspektasi exception yang dilempar oleh fail-fast validator core
+        $this->expectException(\Modules\Core\Exceptions\InvalidModuleManifestException::class);
+
+        // 3. Eksekusi menggunakan variabel lokal yang sudah pasti ter-instansiasi
+        $localValidator->validate($manifestData);
+    }
 }
