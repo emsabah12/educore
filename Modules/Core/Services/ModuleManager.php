@@ -10,7 +10,7 @@ final readonly class ModuleManager
 {
     /**
      * Menggunakan Lightweight Command Query Separation (CQS).
-     * Seluruh operasi baca didelegasikan ke ModuleRepository, 
+     * Seluruh operasi baca didelegasikan ke ModuleRepository,
      * sedangkan operasi mutasi status dicatat ke ModuleStateRepository.
      */
     public function __construct(
@@ -48,5 +48,26 @@ final readonly class ModuleManager
         if (!$this->repository->has($name)) {
             throw new ModuleNotFoundException("Module [{$name}] is not registered in the system.");
         }
+    }
+
+    /**
+     * Mengambil seluruh definisi objek modul yang saat ini aktif di sistem secara aman.
+     * * REFACTOR: Mematuhi CQS dengan memanggil $this->repository->all() secara sah.
+     *
+     * @return array<int, \Modules\Core\Entities\ModuleDefinition>
+     */
+    public function getEnabledModules(): array
+    {
+        // Mengambil kumpulan entitas ModuleDefinition melalui Service Repository internal Anda
+        $allModules = $this->repository->all();
+        $enabledModules = [];
+
+        foreach ($allModules as $definition) {
+            if ($this->isEnabled($definition->name)) {
+                $enabledModules[] = $definition;
+            }
+        }
+
+        return $enabledModules;
     }
 }

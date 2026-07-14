@@ -49,6 +49,9 @@ final readonly class ModuleManifestValidator
         $this->assertArray($manifest, 'metadata');
         $this->assertArray($manifest, 'extra');
 
+        // PASTIKAN BARIS INI ADA DI SINI SEBELUM RETURN
+        $this->assertValidServiceProviders($manifest);
+
         return $manifest;
     }
 
@@ -102,6 +105,34 @@ final readonly class ModuleManifestValidator
             throw new InvalidModuleManifestException(
                 sprintf("Field '%s' must be an array.", $field)
             );
+        }
+    }
+
+
+    /**
+     * Memastikan string nama kelas Service Provider benar-benar terdaftar di autoloader PHP.
+     * * @param array<string, mixed> $manifest
+     * @throws InvalidModuleManifestException
+     */
+    private function assertValidServiceProviders(array $manifest): void
+    {
+        foreach ($manifest['providers'] as $providerClass) {
+            if (!is_string($providerClass)) {
+                throw new InvalidModuleManifestException(
+                    sprintf("Module [%s] manifest error: Provider items must be strings.", $manifest['name'])
+                );
+            }
+
+            // Memicu fail-fast jika developer modul salah ketik nama kelas provider di module.yaml
+            if (!class_exists($providerClass)) {
+                throw new InvalidModuleManifestException(
+                    sprintf(
+                        "Gagal memuat modul [%s]. Kelas Service Provider [%s] tidak ditemukan di sistem. Periksa kembali kemungkinan typo ejaan pada berkas module.yaml.",
+                        $manifest['name'],
+                        $providerClass
+                    )
+                );
+            }
         }
     }
 }
