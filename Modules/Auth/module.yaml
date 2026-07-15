@@ -1,0 +1,22 @@
+schema: 1
+
+name: Auth
+
+display_name: Auth
+
+version: 1.0.0
+
+description: "Unified Authentication Platform Services for EduCore"
+
+providers:
+  - Modules\Auth\Providers\AuthServiceProvider
+
+dependencies:
+  - core
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Platform
+
+extra: {}
