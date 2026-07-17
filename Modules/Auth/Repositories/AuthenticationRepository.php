@@ -5,55 +5,56 @@ declare(strict_types=1);
 namespace Modules\Auth\Repositories;
 
 use Modules\Core\Contracts\Auth\AuthenticationRepositoryInterface;
+use Illuminate\Support\Facades\DB;
 
 final class AuthenticationRepository implements AuthenticationRepositoryInterface
 {
-    /**
-     * Data simulasi lokal dengan enkapsulasi UUID v7 dan isolasi tenant.
-     * Password di-hash menggunakan bcrypt bawaan dengan password default: 'secretpassword'
-     */
-    private static array $mockStorage = [
-        [
-            'uuid'        => '018f3b20-6d80-7111-a832-65a8df397a7a',
-            'tenant_uuid' => '018f3b20-6d80-7222-b943-76b9ef408b8b', // Tenant Yayasan A
-            'name'        => 'Administrator Yayasan A',
-            'email'       => 'admin.a@educore.id',
-            'password'    => '$2y$12$eImiTXtA9.vX6KzBshL70OaK581wFkWmXoex4D05kXp8uM8gX6E2y',
-            'status'      => 'ACTIVE'
-        ],
-        [
-            'uuid'        => '018f3b20-6d80-7333-c054-87ca0f419c9c',
-            'tenant_uuid' => '018f3b20-6d80-7444-d165-98db1f52adad', // Tenant Yayasan B
-            'name'        => 'Administrator Yayasan B',
-            'email'       => 'admin.b@educore.id',
-            'password'    => '$2y$12$eImiTXtA9.vX6KzBshL70OaK581wFkWmXoex4D05kXp8uM8gX6E2y',
-            'status'      => 'ACTIVE'
-        ]
-    ];
+    private string $table = 'users';
+    private string $membershipTable = 'memberships';
 
     /**
+     * Mencari user berdasarkan email global dan memastikan memiliki membership aktif di tenant tertentu.
+     * 
      * {@inheritdoc}
      */
     public function findByEmailForTenant(string $email, string $tenantUuid): ?array
     {
-        foreach (self::$mockStorage as $user) {
-            if (strtolower($user['email']) === strtolower($email) && $user['tenant_uuid'] === $tenantUuid) {
-                return $user;
-            }
-        }
-        return null;
+        // SQL Inner Join untuk memverifikasi Akun Global sekaligus status Keanggotaan di Lembaga target
+        $user = DB::table($this->table)
+            ->join($this->membershipTable, "{$this->table}.id", '=', "{$this->membershipTable}.user_id")
+            ->select([
+                "{$this->table}.id",
+                "{$this->table}.name",
+                "{$this->table}.email",
+                "{$this->table}.password",
+                "{$this->table}.status as user_status",
+                "{$this->membershipTable}.id as membership_id",
+                "{$this->membershipTable}.tenant_id",
+                "{$this->membershipTable}.role",
+                "{$this->membershipTable}.status as membership_status"
+            ])
+            ->where("{$this->table}.email", '=', strtolower($email))
+            ->where("{$this->table}.status", '=', 'ACTIVE')
+            ->where("{$this->membershipTable}.tenant_id", '=', $tenantUuid)
+            ->where("{$this->membershipTable}.status", '=', 'ACTIVE')
+            ->first();
+
+        // Mengembalikan array jika ditemukan, null jika tidak ada relasi valid
+        return $user ? (array) $user : null;
     }
 
     /**
+     * Mengambil data profil user global berdasarkan ID uniknya.
+     * 
      * {@inheritdoc}
      */
     public function findByUserUuid(string $userUuid): ?array
     {
-        foreach (self::$mockStorage as $user) {
-            if ($user['uuid'] === $userUuid) {
-                return $user;
-            }
-        }
-        return null;
+        $user = DB::table($this->table)
+            ->where('id', '=', $userUuid)
+            ->where('status', '=', 'ACTIVE')
+            ->first();
+
+        return $user ? (array) $user : null;
     }
 }

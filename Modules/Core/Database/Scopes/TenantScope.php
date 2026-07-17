@@ -1,32 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Database\Scopes;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
-use Modules\Core\Contracts\TenantContextInterface;
-use Illuminate\Support\Facades\Log;
 
-class TenantScope implements Scope
+final class TenantScope implements Scope
 {
     /**
-     * Terapkan scope filter tenant ke Eloquent Query Builder.
+     * Terapkan filter scope global pada Builder Eloquent yang diberikan.
      */
     public function apply(Builder $builder, Model $model): void
     {
-        // Resolve Tenant Context dari IoC Container
-        $tenantContext = app(TenantContextInterface::class);
-        $tenantId = $tenantContext->getCurrentTenantId();
+        // Mengecek secara defensif apakah konteks tenant sudah terikat di Service Container
+        if (app()->bound('current_tenant_uuid')) {
+            $tenantUuid = app('current_tenant_uuid');
 
-        // Scope hanya berjalan jika tenant_id sudah terikat di Context (Request via Subdomain)
-        // Ini memberi fleksibilitas jika diakses via Central Console / Seeder Global
-        if ($tenantId !== null) {
-            $builder->where($model->getTable() . '.tenant_id', $tenantId);
-        } else {
-            Log::debug('TenantScope skipped: No active tenant bound to context.', [
-                'model' => get_class($model)
-            ]);
+            // Suntikkan klausa filter dengan menyertakan nama tabel untuk menghindari ambiguitas kolom
+            $builder->where($model->getTable() . '.tenant_id', '=', $tenantUuid);
         }
     }
 }

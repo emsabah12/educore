@@ -9,22 +9,30 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Jalankan migrasi tabel.
+     * Jalankan migrasi untuk membuat tabel dummy mock_students.
      */
     public function up(): void
     {
         Schema::create('mock_students', function (Blueprint $table) {
-            // Menggunakan macro kustom kita untuk Primary Key UUID v7
-            $table->uuid7('id'); 
-            
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index(); // Menyelaraskan dengan tipe data master tenants.id
+
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('nisn', 20)->nullable(); // Kolom penentu yang menyebabkan error sebelumnya
+            $table->string('status', 20)->default('ACTIVE');
+
             $table->timestamps();
+
+            // Constraint opsional untuk lingkungan testing terisolasi
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->onDelete('cascade');
         });
     }
 
     /**
-     * Batalkan migrasi tabel.
+     * Batalkan migrasi.
      */
     public function down(): void
     {

@@ -11,8 +11,8 @@ use Modules\Core\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use 
-Modules\Core\Registry\ModuleEventRegistry;
+use
+    Modules\Core\Registry\ModuleEventRegistry;
 use Modules\Core\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Services\ModuleLoader;
@@ -37,7 +37,7 @@ final class CoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        
+
         // Ikat ModuleEventRegistry sebagai objek singleton di container Laravel
         $this->app->singleton(ModuleEventRegistry::class, function () {
             return new ModuleEventRegistry();
@@ -74,12 +74,12 @@ final class CoreServiceProvider extends ServiceProvider
                 $bootstrapService = $app->make(ModuleBootstrapService::class);
                 // Isi registry dari hasil pemindaian disk fisik secara lazy
                 $discoveredRegistry = $bootstrapService->bootstrap(base_path('Modules'));
-                
+
                 // Pindahkan hasil discovery ke dalam singleton registry utama
                 foreach ($discoveredRegistry->all() as $moduleDefinition) {
                     // Menggunakan ->name bukan ->getName() sesuai struktur Entity Anda
-                    $moduleName = method_exists($moduleDefinition, 'getName') 
-                        ? $moduleDefinition->getName() 
+                    $moduleName = method_exists($moduleDefinition, 'getName')
+                        ? $moduleDefinition->getName()
                         : $moduleDefinition->name;
 
                     if (!$registry->has($moduleName)) {
@@ -103,13 +103,13 @@ final class CoreServiceProvider extends ServiceProvider
             $this->registerBlueprintMacros();
         };
         // JIT TRIGGER: Daftarkan Service Provider dari Modul-Modul yang Aktif 
-    $this->registerActiveModules();
-    $this->registerMigrations();
-    // Daftarkan TenantServiceProvider secara internal
-    // $this->app->register(\Modules\Core\Providers\TenantServiceProvider::class);
-    // 1. Amankan pendaftaran Tenant Context Service Provider
-    $this->app->register(TenantServiceProvider::class);
-    // 2. Amankan pendaftaran Custom Auth Driver Service Provider
+        $this->registerActiveModules();
+        $this->registerMigrations();
+        // Daftarkan TenantServiceProvider secara internal
+        // $this->app->register(\Modules\Core\Providers\TenantServiceProvider::class);
+        // 1. Amankan pendaftaran Tenant Context Service Provider
+        $this->app->register(TenantServiceProvider::class);
+        // 2. Amankan pendaftaran Custom Auth Driver Service Provider
         $this->app->register(AuthServiceProvider::class);
 
         // 3. Modifikasi Konfigurasi Driver Autentikasi secara Dynamic Runtime (Bypass config/auth.php)
@@ -127,8 +127,8 @@ final class CoreServiceProvider extends ServiceProvider
 
         try {
             foreach ($repository->all() as $module) {
-                $name = method_exists($module, 'getName') 
-                    ? $module->getName() 
+                $name = method_exists($module, 'getName')
+                    ? $module->getName()
                     : $module->name;
 
                 // Abaikan modul Core agar tidak mendaftarkan dirinya sendiri secara rekursif
@@ -150,6 +150,46 @@ final class CoreServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Dynamic Module Registration Failed: ' . $e->getMessage());
         }
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Auth\AuditTrailServiceInterface::class,
+            \Modules\Core\Services\Auth\DatabaseAuditTrailService::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\TenantRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentTenantRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\PegawaiRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentPegawaiRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\AcademicClassRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentAcademicClassRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\AcademicSubjectRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentAcademicSubjectRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\SantriRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentSantriRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\WalisantriRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentWalisantriRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\WalisantriSantriRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentWalisantriSantriRepository::class
+        );
     }
 
     public function boot(): void
@@ -193,7 +233,6 @@ final class CoreServiceProvider extends ServiceProvider
                 Event::listen($eventClass, $listenerClass);
             }
         }
-
     }
 
     /**

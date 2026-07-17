@@ -13,19 +13,19 @@ return new class extends Migration
     {
         Schema::create('tenants', function (Blueprint $blueprint) {
             // Menggunakan tipe data string 36 karakter untuk UUID v7 Primary Key
-            $blueprint->string('id', 36)->primary();
-            
+            $blueprint->uuid('id')->primary();
+
             $blueprint->string('name');
             $blueprint->string('subdomain')->unique()->comment('Contoh: sekolah-a');
             $blueprint->string('domain')->nullable()->unique()->comment('Contoh: sekolah-a.sch.id');
             $blueprint->boolean('is_active')->default(true);
-            
+
             // Kolom JSONB untuk fleksibilitas pengaturan dinamis tiap sekolah (PostgreSQL)
             $blueprint->jsonb('settings')->nullable();
-            
+
             $blueprint->timestamps();
             $blueprint->softDeletes(); // Audit Trail & Safety untuk penghapusan
-            
+
             // Indexing tambahan demi optimasi pencarian subdomain/domain di middleware
             $blueprint->index(['subdomain', 'is_active']);
         });
