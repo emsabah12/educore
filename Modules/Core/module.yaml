@@ -10,6 +10,7 @@ description: EduCore Platform Kernel
 
 providers:
   - Modules\Core\Providers\CoreServiceProvider
+  - Modules\Core\Providers\RouteServiceProvider
 
 dependencies: []
 

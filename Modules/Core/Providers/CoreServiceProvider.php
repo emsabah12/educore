@@ -6,13 +6,14 @@ namespace Modules\Core\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Database\Schema\Blueprint;
 use Modules\Core\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use
-    Modules\Core\Registry\ModuleEventRegistry;
+use Modules\Core\Registry\ModuleEventRegistry;
 use Modules\Core\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Services\ModuleLoader;
@@ -27,6 +28,7 @@ use Modules\Core\Console\ModuleEnableCommand;
 use Modules\Core\Console\ModuleDisableCommand;
 use Modules\Core\Console\TestModuleLoaderCommand;
 use Modules\Core\Console\KernelHealthCheckCommand;
+use Modules\Core\Listeners\QueueWatchdogListener;
 use Modules\Core\Support\Uuid\UuidBlueprintMacro;
 use Illuminate\Support\Facades\Log;
 
@@ -190,10 +192,28 @@ final class CoreServiceProvider extends ServiceProvider
             \Modules\Core\Contracts\Repository\WalisantriSantriRepositoryInterface::class,
             \Modules\Core\Repositories\EloquentWalisantriSantriRepository::class
         );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Repository\AcademicPeriodRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentAcademicPeriodRepository::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Notification\NotificationChannelInterface::class,
+            \Modules\Core\Notification\Channels\WhatsAppNotificationChannel::class
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Contracts\Diagnostics\HealthCheckerInterface::class,
+            \Modules\Core\Services\Diagnostics\SystemHealthService::class
+        );
     }
 
     public function boot(): void
     {
+        // Daftarkan pengawas antrean global terpusat sesuai mandat EPRD-CORE-009
+        Event::listen(JobFailed::class, QueueWatchdogListener::class);
+
         // Daftarkan sistem macro UUID v7 database secara global
         UuidBlueprintMacro::register();
 
@@ -269,5 +289,23 @@ final class CoreServiceProvider extends ServiceProvider
         ]);
 
         Log::debug('Authentication driver dynamically set to [tenant-eloquent] via CoreServiceProvider.');
+    }
+}
+
+class RouteServiceProvider extends ServiceProvider
+{
+    protected string $moduleNamespace = 'Modules\Core\Http\Controllers';
+
+    public function boot(): void
+    {
+        $this->mapApiRoutes();
+    }
+
+    protected function mapApiRoutes(): void
+    {
+        \Illuminate\Support\Facades\Route::prefix('api')
+            ->middleware('api')
+            ->namespace($this->moduleNamespace ?? 'Modules\Core\Http\Controllers')
+            ->group(base_path('Modules/Core/Routes/api.php')); // <-- DIUBAH MENJADI BASE_PATH
     }
 }
