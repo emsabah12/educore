@@ -79,3 +79,7 @@ Route::middleware([InjectTenantContext::class, RequireGlobalSuperadmin::class])-
     Route::post('/v1/core/tenants', [TenantManagementController::class, 'store']);
     Route::put('/v1/core/tenants/{id}', [TenantManagementController::class, 'update']);
 });
+
+Route::middleware(['auth', 'tenant.role:admin'])->group(function () {
+    Route::get('/tenant/{membership_id}/dashboard', [DashboardController::class, 'index']);
+});

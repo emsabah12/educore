@@ -5,23 +5,28 @@
         colors="true"
 >
     <testsuites>
+        <!-- 1. Test Suite Bawaan Akar (Root App Tests) -->
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
-                <!-- <directory>Modules/Core/Tests/Unit</directory> -->
-            <directory>Modules/*/Tests/Unit</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
-                <!-- <directory>Modules/Core/Tests/Feature</directory> -->
-            <directory>Modules/*/Tests/Feature</directory>
         </testsuite>
-        <testsuite name="Integration">
-            <directory>Modules/*/Tests/Integration</directory>
+
+        <!-- 2. TAMBAHKAN: Test Suite Dinamis untuk Seluruh Laravel Modules -->
+        <testsuite name="Modules">
+            <!-- <directory suffix="Test.php">Modules/*/tests/Feature</directory>
+            <directory suffix="Test.php">Modules/*/tests/Unit</directory> -->
+            <!-- Dukungan jika generator modul membuat folder dengan huruf kecil (custom setup) -->
+            <directory suffix="Test.php">Modules/*/Tests/Feature</directory>
+            <directory suffix="Test.php">Modules/*/Tests/Unit</directory>
         </testsuite>
     </testsuites>
+
     <source>
         <include>
             <directory>app</directory>
+            <directory>Modules/*/app</directory>
         </include>
     </source>
     <php>
