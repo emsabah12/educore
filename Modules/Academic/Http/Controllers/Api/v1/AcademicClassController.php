@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Http\Controllers\Api\v1;
+namespace Modules\Academic\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Modules\Core\Contracts\Repository\AcademicClassRepositoryInterface;
+use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class AcademicClassController extends Controller

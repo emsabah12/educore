@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Contracts\Repository;
+namespace Modules\Academic\Contracts\Repository;
 
 interface AcademicSubjectRepositoryInterface
 {
@@ -11,4 +11,7 @@ interface AcademicSubjectRepositoryInterface
     public function findByIdForTenant(string $id, string $tenantId): array;
 
     public function createForTenant(string $tenantId, array $data): array;
+
+    public function allByTenant(string $tenantId): array;
+    public function findByTenant(string $tenantId, string $id): ?object;
 }

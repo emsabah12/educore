@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Contracts\Repository;
+namespace Modules\Academic\Contracts\Repository;
 
 interface AcademicPeriodRepositoryInterface
 {
@@ -30,4 +30,7 @@ interface AcademicPeriodRepositoryInterface
      * Mengaktifkan satu semester tertentu dan menonaktifkan yang lain secara otomatis.
      */
     public function activateSemester(string $tenantId, string $semesterId): bool;
+
+    public function allActiveByTenant(string $tenantId): array;
+    public function findByTenant(string $tenantId, string $id): ?object;
 }

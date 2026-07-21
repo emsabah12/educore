@@ -32,6 +32,8 @@ final class SuperadminAccessTest extends TestCase
                 'database/migrations',
                 'Modules/Core/Database/Migrations',
                 'Modules/Auth/Database/Migrations',
+                'Modules/Academic/Database/Migrations',
+
             ],
             '--realpath' => true
         ]);

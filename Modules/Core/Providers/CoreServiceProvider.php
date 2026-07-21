@@ -169,16 +169,6 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
-            \Modules\Core\Contracts\Repository\AcademicClassRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentAcademicClassRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\AcademicSubjectRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentAcademicSubjectRepository::class
-        );
-
-        $this->app->singleton(
             \Modules\Core\Contracts\Repository\SantriRepositoryInterface::class,
             \Modules\Core\Repositories\EloquentSantriRepository::class
         );

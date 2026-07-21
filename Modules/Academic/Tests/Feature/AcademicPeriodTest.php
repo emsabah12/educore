@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Tests\Feature;
+namespace Modules\Academic\Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +34,7 @@ final class AcademicPeriodTest extends TestCase
      */
     public function test_can_manage_academic_periods_with_automatic_deactivation(): void
     {
-        $repo = app(\Modules\Core\Contracts\Repository\AcademicPeriodRepositoryInterface::class);
+        $repo = app(\Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface::class);
 
         // 1. Daftarkan tahun ajaran pertama sebagai Active
         $year1 = $repo->createYearForTenant($this->tenantId, [

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -9,44 +7,36 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Jalankan pembuatan / penyelarasan tabel santris.
+     * Run the migrations.
      */
     public function up(): void
     {
-        // Menghapus jika ada sisa skema usang agar blueprint menjadi fresh & clean
-        Schema::dropIfExists('santris');
-
         Schema::create('santris', function (Blueprint $table) {
-            // Menggunakan format UUIDv7 sebagai primary key sortable secara kronologis
             $table->uuid('id')->primary();
-
-            // Jembatan Konteks Multi-Tenant & Identitas Global
             $table->uuid('tenant_id')->index();
-            $table->uuid('membership_id')->unique()->index(); // Hubungan 1-to-1 ke tabel memberships (Role: SANTRI)
+            $table->uuid('class_id')->index()->nullable(); // Kunci logis, tanpa foreign key fisik di modul Core
 
-            // Jangkar Relasi Akademik Core (Terikat ke Kelas)
-            $table->uuid('class_id')->index();
-
-            // Atribut Bisnis Spesifik Siswa / Santri
-            $table->string('nis', 50)->nullable()->comment('Nomor Induk Santri Internal Lembaga');
-            $table->string('nisn', 20)->nullable()->comment('Nomor Induk Siswa Nasional (Kemenristek/Kemenag)');
+            $table->string('nis', 50)->index();
+            $table->string('name', 150);
+            $table->enum('gender', ['L', 'P']);
+            $table->string('birth_place', 100)->nullable();
+            $table->date('birth_date')->nullable();
+            $table->text('address')->nullable();
+            $table->enum('status', ['active', 'inactive', 'graduated', 'mutated'])->default('active');
 
             $table->timestamps();
-            $table->softDeletes()->index();
+            $table->softDeletes();
 
-            // Aturan Unik Combo per Sekolah: NIS tidak boleh kembar di sekolah yang sama
-            $table->unique(['tenant_id', 'nis', 'deleted_at']);
-
-            // Foreign Key Constraints untuk menjaga integritas data relasional
+            // Hubungan ke tenant aman karena tabel tenants berada di modul Core yang sama
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
-            $table->foreign('membership_id')->references('id')->on('memberships')->onDelete('cascade');
-            $table->foreign('class_id')->references('id')->on('academic_classes')->onDelete('restrict');
-            // 'restrict' artinya kelas tidak boleh dihapus jika masih ada siswa aktif di dalamnya!
+
+            // Composite unique memastikan NIS unik per lembaga/tenant
+            $table->unique(['tenant_id', 'nis'], 'uq_tenant_nis');
         });
     }
 
     /**
-     * Membatalkan migrasi.
+     * Reverse the migrations.
      */
     public function down(): void
     {

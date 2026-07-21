@@ -28,6 +28,7 @@ final class MembershipContextSwitchTest extends TestCase
                 'Modules/Core/Database/Migrations',
                 'Modules/Auth/Database/Migrations',
                 'Modules/User/Database/Migrations',
+                'Modules/Academic/Database/Migrations',
             ],
             '--realpath' => true
         ]);

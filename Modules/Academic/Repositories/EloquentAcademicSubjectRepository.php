@@ -2,15 +2,27 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Repositories;
+namespace Modules\Academic\Repositories;
 
-use Modules\Core\Contracts\Repository\AcademicSubjectRepositoryInterface;
+use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentAcademicSubjectRepository implements AcademicSubjectRepositoryInterface
 {
+
+    public function allByTenant(string $tenantId): array
+    {
+        return DB::table('academic_subjects')->where('tenant_id', $tenantId)->get()->toArray();
+    }
+
+    public function findByTenant(string $tenantId, string $id): ?object
+    {
+        return DB::table('academic_subjects')->where('tenant_id', $tenantId)->where('id', $id)->first();
+    }
+
+
     public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         return DB::table('academic_subjects')

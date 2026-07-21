@@ -5,16 +5,18 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\Api\v1\TenantManagementController;
 use Modules\Core\Http\Controllers\Api\v1\PegawaiManagementController;
-use Modules\Core\Http\Controllers\Api\v1\AcademicClassController;
-use Modules\Core\Http\Controllers\Api\v1\AcademicSubjectController;
+use Modules\Academic\Http\Controllers\Api\v1\AcademicClassController;
+use Modules\Academic\Http\Controllers\Api\v1\AcademicSubjectController;
 use Modules\Core\Http\Controllers\Api\v1\SantriManagementController;
 use Modules\Core\Http\Controllers\Api\v1\WalisantriManagementController;
 use Modules\Core\Http\Controllers\Api\v1\WalisantriSantriManagementController;
-use Modules\Core\Http\Controllers\Api\v1\AcademicPeriodController;
+use Modules\Academic\Http\Controllers\Api\v1\AcademicPeriodController;
 use Modules\Core\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Http\Controllers\Api\v1\HealthCheckController;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Core\Http\Middleware\RequireGlobalSuperadmin;
+use Modules\Academic\Http\Controllers\Api\v1\BulkGradingController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -56,9 +58,9 @@ Route::middleware([InjectTenantContext::class])->group(function () {
     Route::delete('/v1/core/walisantris/associations', [WalisantriSantriManagementController::class, 'destroy']);
 
     // Academic Period Engine Routes
-    Route::get('/v1/core/academic/years', [AcademicPeriodController::class, 'indexYears']);
-    Route::post('/v1/core/academic/years', [AcademicPeriodController::class, 'storeYear']);
-    Route::post('/v1/core/academic/years/{yearId}/semesters', [AcademicPeriodController::class, 'storeSemester']);
+    Route::get('/v1/Academic/academic/years', [AcademicPeriodController::class, 'indexYears']);
+    Route::post('/v1/Academic/academic/years', [AcademicPeriodController::class, 'storeYear']);
+    Route::post('/v1/Academic/academic/years/{yearId}/semesters', [AcademicPeriodController::class, 'storeSemester']);
 
     // // Centralized Notification Platform Route
     // Route::post('/v1/core/notifications/dispatch', [NotificationController::class, 'send']);
@@ -71,6 +73,11 @@ Route::middleware([InjectTenantContext::class])->group(function () {
 Route::group([], function () {
     Route::post('/v1/core/notifications/dispatch', [NotificationController::class, 'send'])
         ->name('api.core.notifications.dispatch');
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/v1/academic/grades/bulk', [BulkGradingController::class, 'storeBulk'])
+        ->name('api.v1.academic.grades.bulk');
 });
 
 // Global Superadmin Scoped Routes

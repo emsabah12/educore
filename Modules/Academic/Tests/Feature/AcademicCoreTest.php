@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Tests\Feature;
+namespace Modules\Academic\Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,8 +45,8 @@ final class AcademicCoreTest extends TestCase
         ];
 
         // Jalankan pengujian via integrasi repository biner langsung (Robust Fallback Pattern)
-        $classRepo = app(\Modules\Core\Contracts\Repository\AcademicClassRepositoryInterface::class);
-        $subjectRepo = app(\Modules\Core\Contracts\Repository\AcademicSubjectRepositoryInterface::class);
+        $classRepo = app(\Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface::class);
+        $subjectRepo = app(\Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface::class);
 
         $class = $classRepo->createForTenant($this->tenantId, $classPayload);
         $subject = $subjectRepo->createForTenant($this->tenantId, $subjectPayload);

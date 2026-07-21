@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Repositories;
+namespace Modules\Academic\Repositories;
 
-use Modules\Core\Contracts\Repository\AcademicClassRepositoryInterface;
+use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Modules\Core\Support\Uuid\UuidV7;

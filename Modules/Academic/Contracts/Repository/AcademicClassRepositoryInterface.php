@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Contracts\Repository;
+namespace Modules\Academic\Contracts\Repository;
 
 interface AcademicClassRepositoryInterface
 {
