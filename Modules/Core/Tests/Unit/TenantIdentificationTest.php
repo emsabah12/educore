@@ -5,9 +5,9 @@ namespace Modules\Core\Tests\Unit;
 use Tests\TestCase;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Modules\Core\Entities\Tenant;
-use Modules\Core\Http\Middleware\IdentifyTenant;
-use Modules\Core\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Http\Middleware\IdentifyTenant;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 

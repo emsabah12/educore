@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Registry;
 
-use Modules\Core\Entities\ModuleDefinition;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
 use Modules\Core\Exceptions\ModuleNotFoundException;
-use Modules\Core\Registry\ModuleRegistry;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
@@ -44,56 +44,56 @@ final class ModuleRegistryTest extends TestCase
         );
     }
 
-  public function test_prevents_duplicate_module_names(): void
-  {
-      $registry = new ModuleRegistry();
+    public function test_prevents_duplicate_module_names(): void
+    {
+        $registry = new ModuleRegistry();
 
-      $module = ModuleDefinitionBuilder::make()->build();
+        $module = ModuleDefinitionBuilder::make()->build();
 
-      $registry->register($module);
+        $registry->register($module);
 
-      $this->expectException(
-          ModuleAlreadyRegisteredException::class
-      );
+        $this->expectException(
+            ModuleAlreadyRegisteredException::class
+        );
 
-      $this->expectExceptionMessage(
-          "Module 'core' is already registered."
-      );
+        $this->expectExceptionMessage(
+            "Module 'core' is already registered."
+        );
 
-      $registry->register($module);
-  }
+        $registry->register($module);
+    }
 
-  public function test_has_registered_module(): void
-  {
-      $registry = new ModuleRegistry();
+    public function test_has_registered_module(): void
+    {
+        $registry = new ModuleRegistry();
 
-     $module = ModuleDefinitionBuilder::make()->build();
+        $module = ModuleDefinitionBuilder::make()->build();
 
-      $registry->register($module);
+        $registry->register($module);
 
-      $this->assertTrue(
-          $registry->has('core')
-      );
+        $this->assertTrue(
+            $registry->has('core')
+        );
 
-      $this->assertFalse(
-          $registry->has('auth')
-      );
-  }
+        $this->assertFalse(
+            $registry->has('auth')
+        );
+    }
 
-  public function test_gets_module_by_name(): void
-  {
-      $registry = new ModuleRegistry();
+    public function test_gets_module_by_name(): void
+    {
+        $registry = new ModuleRegistry();
 
-      $module = ModuleDefinitionBuilder::make()->build();
+        $module = ModuleDefinitionBuilder::make()->build();
 
-      $registry->register($module);
+        $registry->register($module);
 
-      $result = $registry->get('core');
+        $result = $registry->get('core');
 
-      $this->assertSame($module, $result);
-  }
+        $this->assertSame($module, $result);
+    }
 
-  public function test_throws_when_module_not_found(): void
+    public function test_throws_when_module_not_found(): void
     {
         $registry = new ModuleRegistry();
 

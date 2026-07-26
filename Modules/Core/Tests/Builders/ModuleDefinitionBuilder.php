@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Builders;
 
-use Modules\Core\Entities\ModuleDefinition;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 
 final class ModuleDefinitionBuilder
 {
@@ -13,8 +13,7 @@ final class ModuleDefinitionBuilder
      */
     private function __construct(
         private array $attributes,
-    ) {
-    }
+    ) {}
 
     public static function make(): self
     {

@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\Core\Manifest;
 
-use Modules\Core\Entities\ModuleDefinition;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 
 final readonly class ModuleDefinitionFactory
 {
     public function __construct(
         private ModuleManifestValidator $validator,
-    ) {
-    }
+    ) {}
 
     /**
      * Create ModuleDefinition from validated manifest.

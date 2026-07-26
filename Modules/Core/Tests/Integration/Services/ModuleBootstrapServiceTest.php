@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Integration\Services;
 
-use Modules\Core\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
 use Modules\Core\Manifest\ModuleManifestValidator;
-use Modules\Core\Registry\ModuleRegistry;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
-use Modules\Core\Services\ModuleLoader;
-use Modules\Core\Services\DependencyResolver;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Dependency\DependencyResolver;
 use Modules\Core\Services\EventDiscoveryService;
-use Modules\Core\Registry\ModuleEventRegistry;
+use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
@@ -44,15 +44,15 @@ final class ModuleBootstrapServiceTest extends TestCase
         $parser = new ModuleManifestParser();
         $validator = new ModuleManifestValidator();
         $factory = new ModuleDefinitionFactory($validator);
-        
+
         $manifestLoader = new ModuleManifestLoader($parser, $validator, $factory);
         $moduleLoader = new ModuleLoader($this->registryStorage);
-        $dependencyResolver = new \Modules\Core\Services\DependencyResolver();
+        $dependencyResolver = new \Modules\Core\Platform\Dependency\DependencyResolver();
         $eventRegistry = new ModuleEventRegistry();
         $eventDiscoveryService = new EventDiscoveryService($eventRegistry);
 
         // TAMBAHKAN INI:
-        $eventRegistry = new \Modules\Core\Registry\ModuleEventRegistry();
+        $eventRegistry = new \Modules\Core\Platform\Module\Events\ModuleEventRegistry();
         $eventDiscoveryService = new \Modules\Core\Services\EventDiscoveryService($eventRegistry);
 
         // 4. DIKOREKSI: Urutan parameter disesuaikan dengan baris ke-15 ModuleBootstrapService.php
@@ -64,7 +64,7 @@ final class ModuleBootstrapServiceTest extends TestCase
             $moduleLoader,    // Argumen #5 (Wajib ModuleLoader)
             $dependencyResolver,  // Argumen #6 (Wajib DependencyResolver)
             $eventDiscoveryService  // Argumen #7 (Wajib EventDiscoveryService)
-            );
+        );
     }
 
     /**

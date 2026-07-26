@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Services;
 
-use Modules\Core\Contracts\Auth\TokenManagerInterface;
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Exception;

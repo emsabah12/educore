@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Tests\Feature;
 
-use App\Models\User;
+use Modules\Core\Identity\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -23,8 +23,6 @@ final class AcademicBulkGradingTest extends TestCase
     {
         parent::setUp();
 
-        // Muat migrasi modul Academic secara eksplisit agar tabel academic_classes dll tersedia
-        $this->loadMigrationsFrom(base_path('Modules/Academic/Database/Migrations'));
 
         Route::middleware(['api', \Illuminate\Session\Middleware\StartSession::class])->group(function () {
             Route::post('/api/v1/academic/grades/bulk', [BulkGradingController::class, 'storeBulk'])
@@ -33,7 +31,7 @@ final class AcademicBulkGradingTest extends TestCase
     }
 
     /**
-     * Memastikan guru dapat memasukkan nilai santri secara massal dengan aman.
+     * Memastikan guru dapat memasukkan nilai student secara massal dengan aman.
      */
     public function test_teacher_can_submit_student_grades_in_bulk(): void
     {
@@ -45,20 +43,20 @@ final class AcademicBulkGradingTest extends TestCase
         $teacherId = (string) Str::uuid();
         $classId = (string) Str::uuid();
 
-        $userSantriAId = (string) Str::uuid();
-        $userSantriBId = (string) Str::uuid();
+        $userstudentAId = (string) Str::uuid();
+        $userstudentBId = (string) Str::uuid();
         $membershipAId = (string) Str::uuid();
         $membershipBId = (string) Str::uuid();
 
-        $santriAId = (string) Str::uuid();
-        $santriBId = (string) Str::uuid();
+        $studentAId = (string) Str::uuid();
+        $studentBId = (string) Str::uuid();
         $settingId = (string) Str::uuid();
 
         // 1. Seed Parent Data: Users (Global, tanpa tenant_id) & Tenants
         DB::table('users')->insert([
             ['id' => $teacherId, 'name' => 'Ustadz Ahmad', 'email' => 'ahmad@educore.test', 'password' => 'secret', 'is_superadmin' => false],
-            ['id' => $userSantriAId, 'name' => 'Ali User', 'email' => 'ali@educore.test', 'password' => 'secret', 'is_superadmin' => false],
-            ['id' => $userSantriBId, 'name' => 'Budi User', 'email' => 'budi@educore.test', 'password' => 'secret', 'is_superadmin' => false],
+            ['id' => $userstudentAId, 'name' => 'Ali User', 'email' => 'ali@educore.test', 'password' => 'secret', 'is_superadmin' => false],
+            ['id' => $userstudentBId, 'name' => 'Budi User', 'email' => 'budi@educore.test', 'password' => 'secret', 'is_superadmin' => false],
         ]);
 
         DB::table('tenants')->insert(['id' => $tenantId, 'name' => 'Pondok Lubna', 'subdomain' => 'lubna']);
@@ -84,14 +82,14 @@ final class AcademicBulkGradingTest extends TestCase
         ]);
 
         DB::table('memberships')->insert([
-            ['id' => $membershipAId, 'user_id' => $userSantriAId, 'tenant_id' => $tenantId, 'role' => 'SANTRI', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => $membershipBId, 'user_id' => $userSantriBId, 'tenant_id' => $tenantId, 'role' => 'SANTRI', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => $membershipAId, 'user_id' => $userstudentAId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => $membershipBId, 'user_id' => $userstudentBId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        // 3. Seed Child Data: Santris (Sesuai skema fisik DB)
-        DB::table('santris')->insert([
+        // 3. Seed Child Data: students (Sesuai skema fisik DB)
+        DB::table('students')->insert([
             [
-                'id' => $santriAId,
+                'id' => $studentAId,
                 'tenant_id' => $tenantId,
                 'class_id' => $classId,
                 'nis' => '1001',
@@ -101,7 +99,7 @@ final class AcademicBulkGradingTest extends TestCase
                 'updated_at' => now(),
             ],
             [
-                'id' => $santriBId,
+                'id' => $studentBId,
                 'tenant_id' => $tenantId,
                 'class_id' => $classId,
                 'nis' => '1002',
@@ -128,15 +126,15 @@ final class AcademicBulkGradingTest extends TestCase
             'assessment_setting_id' => $settingId,
             'teacher_id' => $teacherId,
             'grades' => [
-                ['santri_id' => $santriAId, 'score' => 85.50, 'notes' => 'Sangat Baik'],
-                ['santri_id' => $santriBId, 'score' => 70.00, 'notes' => 'Cukup'],
+                ['student_id' => $studentAId, 'score' => 85.50, 'notes' => 'Sangat Baik'],
+                ['student_id' => $studentBId, 'score' => 70.00, 'notes' => 'Cukup'],
             ],
         ];
 
         $response = $this->actingAs($teacherModel)->json('POST', '/api/v1/academic/grades/bulk', $payload);
 
         $response->assertStatus(200);
-        $this->assertDatabaseHas('student_grades', ['santri_id' => $santriAId, 'score' => 85.50]);
+        $this->assertDatabaseHas('student_grades', ['student_id' => $studentAId, 'score' => 85.50]);
     }
 
     /**
@@ -149,14 +147,14 @@ final class AcademicBulkGradingTest extends TestCase
         $teacherId = (string) Str::uuid();
         $classId = (string) Str::uuid();
         $subjectId = (string) Str::uuid();
-        $userSantriId = (string) Str::uuid();
+        $userstudentId = (string) Str::uuid();
         $membershipId = (string) Str::uuid();
-        $santriId = (string) Str::uuid();
+        $studentId = (string) Str::uuid();
         $settingSchoolBId = (string) Str::uuid();
 
         DB::table('users')->insert([
             ['id' => $teacherId, 'name' => 'Guru Sekolah A', 'email' => 'guru@sekolaha.test', 'password' => 'secret', 'is_superadmin' => false],
-            ['id' => $userSantriId, 'name' => 'Santri User', 'email' => 'santri@sekolaha.test', 'password' => 'secret', 'is_superadmin' => false],
+            ['id' => $userstudentId, 'name' => 'student User', 'email' => 'student@sekolaha.test', 'password' => 'secret', 'is_superadmin' => false],
         ]);
 
         DB::table('tenants')->insert([
@@ -183,9 +181,9 @@ final class AcademicBulkGradingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('memberships')->insert(['id' => $membershipId, 'user_id' => $userSantriId, 'tenant_id' => $tenantAId, 'role' => 'SANTRI', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('memberships')->insert(['id' => $membershipId, 'user_id' => $userstudentId, 'tenant_id' => $tenantAId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()]);
 
-        DB::table('santris')->insert(['id' => $santriId, 'tenant_id' => $tenantAId, 'class_id' => $classId, 'nis' => '2001', 'name' => 'Santri Isolation', 'gender' => 'L', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('students')->insert(['id' => $studentId, 'tenant_id' => $tenantAId, 'class_id' => $classId, 'nis' => '2001', 'name' => 'student Isolation', 'gender' => 'L', 'created_at' => now(), 'updated_at' => now()]);
 
         DB::table('assessment_settings')->insert([
             'id' => $settingSchoolBId,
@@ -202,7 +200,7 @@ final class AcademicBulkGradingTest extends TestCase
         $payload = [
             'assessment_setting_id' => $settingSchoolBId,
             'teacher_id' => $teacherId,
-            'grades' => [['santri_id' => $santriId, 'score' => 90.00]],
+            'grades' => [['student_id' => $studentId, 'score' => 90.00]],
         ];
 
         $response = $this->actingAs($teacherModel)->json('POST', '/api/v1/academic/grades/bulk', $payload);
@@ -219,15 +217,15 @@ final class AcademicBulkGradingTest extends TestCase
         $periodId = (string) Str::uuid();
         $subjectId = (string) Str::uuid();
         $classId = (string) Str::uuid();
-        $userSantriId = (string) Str::uuid();
+        $userstudentId = (string) Str::uuid();
         $membershipId = (string) Str::uuid();
-        $santriId = (string) Str::uuid();
+        $studentId = (string) Str::uuid();
 
         $settingTugasId = (string) Str::uuid();
         $settingUtsId = (string) Str::uuid();
         $settingUasId = (string) Str::uuid();
 
-        DB::table('users')->insert(['id' => $userSantriId, 'name' => 'Santri Target', 'email' => 'target@educore.test', 'password' => 'secret', 'is_superadmin' => false]);
+        DB::table('users')->insert(['id' => $userstudentId, 'name' => 'student Target', 'email' => 'target@educore.test', 'password' => 'secret', 'is_superadmin' => false]);
         DB::table('tenants')->insert(['id' => $tenantId, 'name' => 'Pondok Lubna', 'subdomain' => 'lubna']);
 
         DB::table('academic_classes')->insert([
@@ -249,9 +247,9 @@ final class AcademicBulkGradingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('memberships')->insert(['id' => $membershipId, 'user_id' => $userSantriId, 'tenant_id' => $tenantId, 'role' => 'SANTRI', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('memberships')->insert(['id' => $membershipId, 'user_id' => $userstudentId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()]);
 
-        DB::table('santris')->insert(['id' => $santriId, 'tenant_id' => $tenantId, 'class_id' => $classId, 'nis' => '3001', 'name' => 'Santri Target', 'gender' => 'L', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('students')->insert(['id' => $studentId, 'tenant_id' => $tenantId, 'class_id' => $classId, 'nis' => '3001', 'name' => 'student Target', 'gender' => 'L', 'created_at' => now(), 'updated_at' => now()]);
 
         DB::table('assessment_settings')->insert([
             ['id' => $settingTugasId, 'tenant_id' => $tenantId, 'academic_period_id' => $periodId, 'academic_subject_id' => $subjectId, 'component_name' => 'TUGAS', 'weight' => 20.00],
@@ -260,14 +258,14 @@ final class AcademicBulkGradingTest extends TestCase
         ]);
 
         DB::table('student_grades')->insert([
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingTugasId, 'santri_id' => $santriId, 'teacher_id' => (string) Str::uuid(), 'score' => 80.00, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUtsId, 'santri_id' => $santriId, 'teacher_id' => (string) Str::uuid(), 'score' => 70.00, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUasId, 'santri_id' => $santriId, 'teacher_id' => (string) Str::uuid(), 'score' => 90.00, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingTugasId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 80.00, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUtsId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 70.00, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUasId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 90.00, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $reportResult = DB::table('student_grades')
             ->join('assessment_settings', 'student_grades.assessment_setting_id', '=', 'assessment_settings.id')
-            ->where('student_grades.santri_id', $santriId)
+            ->where('student_grades.student_id', $studentId)
             ->where('assessment_settings.academic_period_id', $periodId)
             ->select(DB::raw('SUM(student_grades.score * (assessment_settings.weight / 100)) as final_report_score'))
             ->first();

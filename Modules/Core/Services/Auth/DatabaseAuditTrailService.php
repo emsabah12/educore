@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services\Auth;
 
-use Modules\Core\Contracts\Auth\AuditTrailServiceInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

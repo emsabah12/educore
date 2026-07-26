@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services\Diagnostics;
 
-use Modules\Core\Contracts\Diagnostics\HealthCheckerInterface;
+use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;

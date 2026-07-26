@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Auth\Entities;
 
 use Illuminate\Database\Eloquent\Model;
-use Modules\Core\Support\Traits\BelongsToTenant;
+use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 final class MockStudent extends Model
 {

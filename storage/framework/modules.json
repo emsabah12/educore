@@ -10,5 +10,11 @@
     },
     "Auth": {
         "enabled": true
+    },
+    "HR": {
+        "enabled": true
+    },
+    "Academic": {
+        "enabled": true
     }
 }

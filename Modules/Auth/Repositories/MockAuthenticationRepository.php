@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Repositories;
 
-use Modules\Core\Contracts\Auth\AuthenticationRepositoryInterface;
+use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 

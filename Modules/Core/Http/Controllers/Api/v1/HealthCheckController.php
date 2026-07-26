@@ -6,7 +6,7 @@ namespace Modules\Core\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use Modules\Core\Contracts\Diagnostics\HealthCheckerInterface;
+use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
 
 final class HealthCheckController extends Controller
 {

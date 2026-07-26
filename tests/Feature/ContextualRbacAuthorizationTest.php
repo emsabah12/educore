@@ -8,7 +8,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use App\Models\User;
+use Modules\Core\Identity\Models\User;
 
 final class ContextualRbacAuthorizationTest extends TestCase
 {

@@ -1,0 +1,22 @@
+schema: 1
+
+name: HR
+
+display_name: HR
+
+version: 0.1.0
+
+description: HR Module management human resources
+
+providers:
+  - Modules\HR\Providers\HRServiceProvider
+
+dependencies:
+  - core
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Business
+
+extra: {}

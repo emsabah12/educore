@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Listeners;
 
 use Illuminate\Queue\Events\JobFailed;
-use Modules\Core\Contracts\Auth\AuditTrailServiceInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Jobs\BaseTenantAwareJob;
 use Illuminate\Support\Facades\Log;
 use Throwable;

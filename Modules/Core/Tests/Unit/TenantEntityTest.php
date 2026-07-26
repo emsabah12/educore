@@ -3,7 +3,7 @@
 namespace Modules\Core\Tests\Unit;
 
 use Tests\TestCase;
-use Modules\Core\Entities\Tenant;
+use Modules\Core\Tenancy\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class TenantEntityTest extends TestCase
@@ -28,7 +28,7 @@ class TenantEntityTest extends TestCase
         $reflection = new \ReflectionClass($tenant);
         $method = $reflection->getMethod('fireModelEvent');
         $method->setAccessible(true);
-        
+
         // Picu event 'creating' secara aman via reflection tanpa menyimpan ke DB fisik
         $method->invokeArgs($tenant, ['creating', false]);
 
@@ -36,7 +36,7 @@ class TenantEntityTest extends TestCase
         $this->assertNotEmpty($tenant->id, 'UUID v7 tidak boleh kosong.');
         $this->assertIsString($tenant->id, 'UUID harus berupa tipe data string.');
         $this->assertEquals(36, strlen($tenant->id), 'Panjang UUID v7 standar harus 36 karakter.');
-        
+
         // Memastikan karakter ke-15 (index ke-14) adalah angka '7' sebagai penanda UUID v7
         $this->assertEquals('7', $tenant->id[14], 'Versi UUID yang digenerate bukan versi 7.');
     }
@@ -46,7 +46,7 @@ class TenantEntityTest extends TestCase
         // Gunakan fungsi bawaan untuk refresh database di dalam test ini jika diperlukan
         // (Karena kelas ini turunan TestCase, pastikan database testing terkonfigurasi di phpunit.xml)
 
-        $tenant = \Modules\Core\Entities\Tenant::create([
+        $tenant = \Modules\Core\Tenancy\Models\Tenant::create([
             'name' => 'SMP Digital Indonesia',
             'subdomain' => 'smpdigital',
             'domain' => 'smpdigital.sch.id',

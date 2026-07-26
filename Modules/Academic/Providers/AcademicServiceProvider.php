@@ -1,45 +1,113 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Academic\Providers;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
+use Modules\Academic\Contracts\GuardianRepositoryInterface;
 use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
-use Modules\Academic\Repositories\EloquentAcademicClassRepository;
 use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
-use Modules\Academic\Repositories\EloquentAcademicPeriodRepository;
 use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
+use Modules\Academic\Contracts\StudentRepositoryInterface;
+use Modules\Academic\Repositories\EloquentAcademicClassRepository;
+use Modules\Academic\Repositories\EloquentAcademicPeriodRepository;
 use Modules\Academic\Repositories\EloquentAcademicSubjectRepository;
+use Modules\Academic\Repositories\EloquentGuardianRepository;
+use Modules\Academic\Repositories\EloquentGuardianStudentRepository;
+use Modules\Academic\Repositories\EloquentStudentRepository;
 
-class AcademicServiceProvider extends ServiceProvider
+final class AcademicServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Register Academic module services.
      */
     public function register(): void
     {
-        // Pendaftaran Binding Dependency Injection (Interface -> Eloquent Repository)
-        $this->app->bind(
+        /*
+         * Academic Period Repository
+         */
+        $this->app->singleton(
             AcademicPeriodRepositoryInterface::class,
             EloquentAcademicPeriodRepository::class
         );
 
-        $this->app->bind(
+        /*
+         * Academic Class Repository
+         */
+        $this->app->singleton(
             AcademicClassRepositoryInterface::class,
             EloquentAcademicClassRepository::class
         );
 
-        $this->app->bind(
+        /*
+         * Academic Subject Repository
+         */
+        $this->app->singleton(
             AcademicSubjectRepositoryInterface::class,
             EloquentAcademicSubjectRepository::class
+        );
+
+        /*
+         * Student Repository
+         */
+        $this->app->singleton(
+            StudentRepositoryInterface::class,
+            EloquentStudentRepository::class
+        );
+
+        /*
+         * Guardian Repository
+         */
+        $this->app->singleton(
+            GuardianRepositoryInterface::class,
+            EloquentGuardianRepository::class
+        );
+
+        /*
+         * Guardian-Student Repository
+         */
+        $this->app->singleton(
+            GuardianStudentRepositoryInterface::class,
+            EloquentGuardianStudentRepository::class
         );
     }
 
     /**
-     * Bootstrap any application services.
+     * Bootstrap Academic module services.
      */
     public function boot(): void
     {
-        // Memuat migrasi modul agar tersedia secara otomatis saat testing/runtime
-        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
+        /*
+         * Register Academic API routes.
+         */
+        $this->loadRoutesFrom(
+            base_path('Modules/Academic/Routes/api.php')
+        );
+
+        /*
+         * Register Academic database migrations.
+         */
+        $this->loadMigrationsFrom(
+            __DIR__ . '/../Database/Migrations'
+        );
+
+        /*
+         * Register cross-module event listeners.
+         *
+         * The listener is registered only when both the event
+         * and listener classes are available.
+         */
+        if (
+            class_exists(\Modules\Academic\Events\CoursePublished::class)
+            && class_exists(\Modules\Core\Listeners\LogCoursePublication::class)
+        ) {
+            Event::listen(
+                \Modules\Academic\Events\CoursePublished::class,
+                \Modules\Core\Listeners\LogCoursePublication::class
+            );
+        }
     }
 }

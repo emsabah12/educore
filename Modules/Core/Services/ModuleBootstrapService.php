@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services;
 
-use Modules\Core\Entities\ModuleDefinition;
-use Modules\Core\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use Modules\Core\Services\DependencyResolver;
+use Modules\Core\Platform\Dependency\DependencyResolver;
 use Modules\Core\Services\EventDiscoveryService;
-use Modules\Core\Registry\ModuleRegistry;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 
 final readonly class ModuleBootstrapService
 {
@@ -23,8 +24,7 @@ final readonly class ModuleBootstrapService
         private ModuleLoader $moduleloader,
         private DependencyResolver $dependencyResolver,
         private EventDiscoveryService $eventDiscoveryService
-    ) {
-    }
+    ) {}
 
     public function bootstrap(string $modulesPath): ModuleRegistry
     {
@@ -45,7 +45,7 @@ final readonly class ModuleBootstrapService
         foreach ($orderedDefinitions as $definition) {
             // Tentukan jalur fisik folder Listeners secara dinamis (e.g., Modules/Academic/Listeners)
             $listenersPath = $modulesPath . DIRECTORY_SEPARATOR . $definition->name . DIRECTORY_SEPARATOR . 'Listeners';
-            
+
             // Tentukan base namespace listener (e.g., Modules\Academic\Listeners)
             $listenerNamespace = 'Modules\\' . $definition->name . '\\Listeners';
 
@@ -58,7 +58,5 @@ final readonly class ModuleBootstrapService
         }
 
         return $this->moduleloader->load($definitions);
-
-        
     }
 }

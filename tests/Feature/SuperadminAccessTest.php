@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Database\Seeders\GlobalSuperadminSeeder;
-use App\Models\User; // <-- Pastikan namespace model ini sesuai dengan proyek Anda
+use Modules\Core\Identity\Models\User;
 
 final class SuperadminAccessTest extends TestCase
 {

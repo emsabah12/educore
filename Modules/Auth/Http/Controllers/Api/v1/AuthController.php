@@ -8,9 +8,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
-use Modules\Core\Contracts\Auth\AuthenticationRepositoryInterface;
-use Modules\Core\Contracts\Auth\TokenManagerInterface;
-use Modules\Core\Contracts\Auth\AuditTrailServiceInterface;
+use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 
 final class AuthController extends Controller
 {

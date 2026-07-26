@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Unit\Services;
 
 use PHPUnit\Framework\TestCase;
-use Modules\Core\Registry\ModuleEventRegistry;
+use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use Modules\Core\Services\EventDiscoveryService;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
 
@@ -61,10 +61,9 @@ PHP;
 
             // 5. Validasi: Pastikan EventRegistry sukses merekam relasi pemetaan Event -> Listener
             $listeners = $this->eventRegistry->getListenersFor('Modules\PPDB\Events\StudentRegistered');
-            
+
             $this->assertCount(1, $listeners);
             $this->assertEquals('Modules\Core\Tests\Unit\Services\Fixtures\SendWelcomeEmailFixture', $listeners[0]);
-
         } finally {
             // Pastikan cleanup() dipanggil dengan huruf kecil sesuai source code asli Anda
             $filesystem->cleanup();

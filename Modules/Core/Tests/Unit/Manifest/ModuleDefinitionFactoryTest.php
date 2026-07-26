@@ -43,7 +43,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
         $definition = $factory->make($manifest);
 
         $this->assertInstanceOf(
-            \Modules\Core\Entities\ModuleDefinition::class,
+            \Modules\Core\Platform\Module\Domain\ModuleDefinition::class,
             $definition
         );
 
@@ -101,7 +101,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
             ->displayName('Core')
             ->build();
 
-    unset($manifest['name']);
+        unset($manifest['name']);
 
         $this->expectException(
             InvalidModuleManifestException::class
@@ -109,6 +109,4 @@ final class ModuleDefinitionFactoryTest extends TestCase
 
         $factory->make($manifest);
     }
-
-    
 }

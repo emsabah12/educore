@@ -32,12 +32,12 @@ return new class extends Migration
             $table->unique(['tenant_id', 'academic_period_id', 'academic_subject_id', 'component_name'], 'idx_assessment_settings_unique');
         });
 
-        // 2. TABEL TRANSKRIP NILAI FISIK SANTRI
+        // 2. TABEL TRANSKRIP NILAI FISIK student
         Schema::create('student_grades', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('tenant_id')->index();
             $table->uuid('assessment_setting_id')->index(); // Merujuk ke komponen bobot di atas
-            $table->uuid('santri_id')->index(); // Siswa penerima nilai
+            $table->uuid('student_id')->index(); // Siswa penerima nilai
             $table->uuid('teacher_id')->index(); // Pegawai/Guru penginput nilai (untuk audit trail)
 
             $table->decimal('score', 5, 2); // Nilai mentah, skala 0.00 sampai 100.00
@@ -49,8 +49,8 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
             $table->foreign('assessment_setting_id')->references('id')->on('assessment_settings')->onDelete('cascade');
 
-            // Mencegah seorang santri mendapatkan dua nilai untuk satu komponen penilaian yang sama
-            $table->unique(['assessment_setting_id', 'santri_id'], 'idx_student_grades_unique');
+            // Mencegah seorang student mendapatkan dua nilai untuk satu komponen penilaian yang sama
+            $table->unique(['assessment_setting_id', 'student_id'], 'idx_student_grades_unique');
         });
     }
 

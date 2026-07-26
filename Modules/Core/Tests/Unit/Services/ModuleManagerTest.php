@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Services;
 
-use Modules\Core\Entities\ModuleDefinition;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 use Modules\Core\Exceptions\ModuleNotFoundException;
-use Modules\Core\Registry\ModuleRegistry;
-use Modules\Core\Services\ModuleManager;
+use Modules\Core\Platform\Registry\ModuleRegistry;
+use Modules\Core\Platform\Module\Services\ModuleManager;
 use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\ModuleStateRepository;
 use Modules\Core\Tests\Builders\ManifestBuilder;

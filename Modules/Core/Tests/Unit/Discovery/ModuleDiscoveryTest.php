@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Discovery;
 
-use Modules\Core\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Tests\Builders\ModuleBuilder;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
@@ -87,183 +87,183 @@ final class ModuleDiscoveryTest extends TestCase
     }
 
     public function test_discovers_multiple_module_manifests(): void
-        {
-            $fixtures = [
-                \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('Core')
-                    )
-                    ->build(),
+    {
+        $fixtures = [
+            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+                ->manifest(
+                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                        ->name('Core')
+                )
+                ->build(),
 
-                \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('HR')
-                    )
-                    ->build(),
+            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+                ->manifest(
+                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                        ->name('HR')
+                )
+                ->build(),
 
-                \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('PPDB')
-                    )
-                    ->build(),
-            ];
+            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+                ->manifest(
+                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                        ->name('PPDB')
+                )
+                ->build(),
+        ];
 
-            foreach ($fixtures as $fixture) {
-                $this->filesystem->create($fixture);
-            }
-
-            $discovery = new ModuleDiscovery();
-
-            $result = $discovery->discover(
-                $this->filesystem->path()
-            );
-
-            $this->assertCount(3, $result);
-
-            foreach ($result as $manifest) {
-                $this->assertStringEndsWith(
-                    'module.yaml',
-                    $manifest
-                );
-            }
+        foreach ($fixtures as $fixture) {
+            $this->filesystem->create($fixture);
         }
 
-        public function test_ignores_directories_without_manifest(): void
-            {
-                $fixture = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('Core')
-                    )
-                    ->build();
+        $discovery = new ModuleDiscovery();
 
-                $this->filesystem->create($fixture);
+        $result = $discovery->discover(
+            $this->filesystem->path()
+        );
 
-                mkdir(
-                    $this->filesystem->path()
-                    . DIRECTORY_SEPARATOR
-                    . 'Dummy'
-                );
+        $this->assertCount(3, $result);
 
-                mkdir(
-                    $this->filesystem->path()
-                    . DIRECTORY_SEPARATOR
-                    . 'Empty'
-                );
+        foreach ($result as $manifest) {
+            $this->assertStringEndsWith(
+                'module.yaml',
+                $manifest
+            );
+        }
+    }
 
-                $discovery = new ModuleDiscovery();
+    public function test_ignores_directories_without_manifest(): void
+    {
+        $fixture = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ->manifest(
+                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ->name('Core')
+            )
+            ->build();
 
-                $result = $discovery->discover(
-                    $this->filesystem->path()
-                );
+        $this->filesystem->create($fixture);
 
-                $this->assertCount(1, $result);
+        mkdir(
+            $this->filesystem->path()
+                . DIRECTORY_SEPARATOR
+                . 'Dummy'
+        );
 
-                $this->assertStringEndsWith(
-                    'module.yaml',
-                    $result[0]
-                );
+        mkdir(
+            $this->filesystem->path()
+                . DIRECTORY_SEPARATOR
+                . 'Empty'
+        );
 
-                $this->assertStringContainsString(
-                    'Core',
-                    $result[0]
-                );
-            }
+        $discovery = new ModuleDiscovery();
 
-           public function test_ignores_files_in_modules_root(): void
-                {
-                    $manifest = ManifestBuilder::make()->name('Core');
+        $result = $discovery->discover(
+            $this->filesystem->path()
+        );
 
-                    $fixture = ModuleFixtureBuilder::make()
-                        ->manifest($manifest)
-                        ->build();
+        $this->assertCount(1, $result);
 
-                    $this->filesystem->create($fixture);
+        $this->assertStringEndsWith(
+            'module.yaml',
+            $result[0]
+        );
 
-                    file_put_contents(
-                        $this->filesystem->path()
-                            . DIRECTORY_SEPARATOR
-                            . 'README.md',
-                        '# Modules'
-                    );
+        $this->assertStringContainsString(
+            'Core',
+            $result[0]
+        );
+    }
 
-                    file_put_contents(
-                        $this->filesystem->path()
-                            . DIRECTORY_SEPARATOR
-                            . 'notes.txt',
-                        'temporary'
-                    );
+    public function test_ignores_files_in_modules_root(): void
+    {
+        $manifest = ManifestBuilder::make()->name('Core');
 
-                    $discovery = new ModuleDiscovery();
+        $fixture = ModuleFixtureBuilder::make()
+            ->manifest($manifest)
+            ->build();
 
-                    $result = $discovery->discover(
-                        $this->filesystem->path()
-                    );
+        $this->filesystem->create($fixture);
 
-                    $this->assertCount(1, $result);
+        file_put_contents(
+            $this->filesystem->path()
+                . DIRECTORY_SEPARATOR
+                . 'README.md',
+            '# Modules'
+        );
 
-                    $this->assertStringEndsWith(
-                        'module.yaml',
-                        $result[0]
-                    );
-                } 
+        file_put_contents(
+            $this->filesystem->path()
+                . DIRECTORY_SEPARATOR
+                . 'notes.txt',
+            'temporary'
+        );
 
-        public function test_returns_manifests_in_deterministic_sorted_order(): void
-            {
-                $teacher = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('Teacher')
-                    )
-                    ->build();
+        $discovery = new ModuleDiscovery();
 
-                $core = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('Core')
-                    )
-                    ->build();
+        $result = $discovery->discover(
+            $this->filesystem->path()
+        );
 
-                $student = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('Student')
-                    )
-                    ->build();
+        $this->assertCount(1, $result);
 
-                $ppdb = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
-                    ->manifest(
-                        \Modules\Core\Tests\Builders\ManifestBuilder::make()
-                            ->name('PPDB')
-                    )
-                    ->build();
+        $this->assertStringEndsWith(
+            'module.yaml',
+            $result[0]
+        );
+    }
 
-                // Sengaja dibuat dalam urutan acak.
-                $this->filesystem->create($teacher);
-                $this->filesystem->create($core);
-                $this->filesystem->create($student);
-                $this->filesystem->create($ppdb);
+    public function test_returns_manifests_in_deterministic_sorted_order(): void
+    {
+        $teacher = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ->manifest(
+                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ->name('Teacher')
+            )
+            ->build();
 
-                $discovery = new ModuleDiscovery();
+        $core = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ->manifest(
+                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ->name('Core')
+            )
+            ->build();
 
-                $result = $discovery->discover(
-                    $this->filesystem->path()
-                );
+        $student = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ->manifest(
+                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ->name('Student')
+            )
+            ->build();
 
-                $this->assertSame(
-                    [
-                        'Core',
-                        'PPDB',
-                        'Student',
-                        'Teacher',
-                    ],
-                    array_map(
-                        static fn (string $manifest): string => basename(dirname($manifest)),
-                        $result
-                    )
-                );
-            }
+        $ppdb = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ->manifest(
+                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ->name('PPDB')
+            )
+            ->build();
+
+        // Sengaja dibuat dalam urutan acak.
+        $this->filesystem->create($teacher);
+        $this->filesystem->create($core);
+        $this->filesystem->create($student);
+        $this->filesystem->create($ppdb);
+
+        $discovery = new ModuleDiscovery();
+
+        $result = $discovery->discover(
+            $this->filesystem->path()
+        );
+
+        $this->assertSame(
+            [
+                'Core',
+                'PPDB',
+                'Student',
+                'Teacher',
+            ],
+            array_map(
+                static fn(string $manifest): string => basename(dirname($manifest)),
+                $result
+            )
+        );
+    }
 }

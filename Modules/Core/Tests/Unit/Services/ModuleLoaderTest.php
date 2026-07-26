@@ -6,8 +6,8 @@ namespace Modules\Core\Tests\Unit\Services;
 
 use Generator;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
-use Modules\Core\Registry\ModuleRegistry;
-use Modules\Core\Services\ModuleLoader;
+use Modules\Core\Platform\Registry\ModuleRegistry;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
 use Tests\TestCase;
 

@@ -11,31 +11,31 @@ use Exception;
 class ReportCardAggregationService
 {
     /**
-     * Mengagregasikan nilai mentah santri menjadi nilai akhir rapor per periode akademik.
+     * Mengagregasikan nilai mentah student menjadi nilai akhir rapor per periode akademik.
      *
      * @param string $tenantId
      * @param string $academicPeriodId
-     * @param string $santriId
+     * @param string $studentId
      * @param string $academicClassId
      * @param array $attendanceData
      * @param string|null $teacherNotes
      * @return string ID dari AcademicReportCard yang dibuat/diperbarui
      * @throws InvalidArgumentException|Exception
      */
-    public function aggregateForSantri(
+    public function aggregateForstudent(
         string $tenantId,
         string $academicPeriodId,
-        string $santriId,
+        string $studentId,
         string $academicClassId,
         array $attendanceData = [],
         ?string $teacherNotes = null
     ): string {
         // 1. Validasi Input Dasar
-        if (empty($tenantId) || empty($academicPeriodId) || empty($santriId) || empty($academicClassId)) {
-            throw new InvalidArgumentException("Parameter tenant, periode, santri, dan kelas wajib diisi.");
+        if (empty($tenantId) || empty($academicPeriodId) || empty($studentId) || empty($academicClassId)) {
+            throw new InvalidArgumentException("Parameter tenant, periode, student, dan kelas wajib diisi.");
         }
 
-        return DB::transaction(function () use ($tenantId, $academicPeriodId, $santriId, $academicClassId, $attendanceData, $teacherNotes) {
+        return DB::transaction(function () use ($tenantId, $academicPeriodId, $studentId, $academicClassId, $attendanceData, $teacherNotes) {
 
             // 2. Ambil semua setting komponen penilaian (bobot) untuk periode ini
             $assessmentSettings = DB::table('assessment_settings')
@@ -48,10 +48,10 @@ class ReportCardAggregationService
                 throw new Exception("Tidak ditemukan pengaturan bobot penilaian (assessment_settings) untuk periode akademik ini.");
             }
 
-            // 3. Ambil semua nilai mentah milik santri pada periode ini
+            // 3. Ambil semua nilai mentah milik student pada periode ini
             $grades = DB::table('student_grades')
                 ->where('tenant_id', $tenantId)
-                ->where('santri_id', $santriId)
+                ->where('student_id', $studentId)
                 ->get()
                 ->groupBy('assessment_setting_id');
 
@@ -59,7 +59,7 @@ class ReportCardAggregationService
             $reportCardId = DB::table('academic_report_cards')
                 ->where('tenant_id', $tenantId)
                 ->where('academic_period_id', $academicPeriodId)
-                ->where('santri_id', $santriId)
+                ->where('student_id', $studentId)
                 ->value('id');
 
             if (!$reportCardId) {
@@ -68,7 +68,7 @@ class ReportCardAggregationService
                     'id' => $reportCardId,
                     'tenant_id' => $tenantId,
                     'academic_period_id' => $academicPeriodId,
-                    'santri_id' => $santriId,
+                    'student_id' => $studentId,
                     'academic_class_id' => $academicClassId,
                     'attendance_sick' => $attendanceData['sick'] ?? 0,
                     'attendance_permission' => $attendanceData['permission'] ?? 0,
@@ -82,7 +82,7 @@ class ReportCardAggregationService
                 // Jika status sudah locked, tidak boleh di-update lewat agregasi reguler
                 $currentStatus = DB::table('academic_report_cards')->where('id', $reportCardId)->value('status');
                 if ($currentStatus === 'locked' || $currentStatus === 'published') {
-                    throw new Exception("Gagal mengagregasi nilai: Rapor santri sudah dikunci (locked/published).");
+                    throw new Exception("Gagal mengagregasi nilai: Rapor student sudah dikunci (locked/published).");
                 }
 
                 DB::table('academic_report_cards')
@@ -108,7 +108,7 @@ class ReportCardAggregationService
                 foreach ($settings as $setting) {
                     $totalWeightAllocated += $setting->weight;
 
-                    // Ambil nilai santri untuk komponen ini (jika tidak ada, anggap 0)
+                    // Ambil nilai student untuk komponen ini (jika tidak ada, anggap 0)
                     $studentGrade = $grades->get($setting->id)?->first();
                     $score = $studentGrade ? (float) $studentGrade->score : 0.0;
 
@@ -143,7 +143,7 @@ class ReportCardAggregationService
                 ]);
             }
 
-            Log::info("Agregasi rapor berhasil dijalankan untuk Santri ID: {$santriId} pada Tenant: {$tenantId}");
+            Log::info("Agregasi rapor berhasil dijalankan untuk student ID: {$studentId} pada Tenant: {$tenantId}");
 
             return $reportCardId;
         });

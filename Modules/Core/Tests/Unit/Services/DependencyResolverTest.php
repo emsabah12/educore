@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Unit\Services;
 
 use PHPUnit\Framework\TestCase;
-use Modules\Core\Entities\ModuleDefinition;
-use Modules\Core\Services\DependencyResolver;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
+use Modules\Core\Platform\Dependency\DependencyResolver;
 use Modules\Core\Exceptions\CircularDependencyException;
 use Modules\Core\Exceptions\MissingModuleDependencyException;
 

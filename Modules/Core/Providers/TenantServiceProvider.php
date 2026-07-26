@@ -3,9 +3,9 @@
 namespace Modules\Core\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Modules\Core\Entities\Tenant;
-use Modules\Core\Contracts\TenantContextInterface;
-use Modules\Core\Services\TenantContext;
+use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Services\TenantContext;
 
 class TenantServiceProvider extends ServiceProvider
 {

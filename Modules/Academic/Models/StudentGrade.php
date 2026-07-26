@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use App\Models\User; // Teacher Model
+use Modules\Core\Identity\Models\User;
 
 final class StudentGrade extends Model
 {
@@ -19,7 +19,7 @@ final class StudentGrade extends Model
     protected $fillable = [
         'tenant_id',
         'assessment_setting_id',
-        'santri_id',
+        'student_id',
         'teacher_id',
         'score',
         'notes'

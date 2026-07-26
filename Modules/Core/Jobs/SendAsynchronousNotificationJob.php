@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Jobs;
 
 use Modules\Core\Jobs\BaseTenantAwareJob;
-use Modules\Core\Contracts\Notification\NotificationChannelInterface;
+use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
 use Exception;
 
 final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
@@ -32,5 +32,16 @@ final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
         if (! $result['success']) {
             throw new Exception('Pengiriman notifikasi gagal di level vendor: ' . ($result['error'] ?? 'Unknown Gateway Error'));
         }
+    }
+
+    /**
+     * Get the tenant UUID associated with this notification job.
+     *
+     * This accessor intentionally exposes the tenant context
+     * as read-only state for verification and observability.
+     */
+    public function getTenantId(): string
+    {
+        return $this->tenantId;
     }
 }

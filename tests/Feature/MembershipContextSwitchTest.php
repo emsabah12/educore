@@ -8,8 +8,8 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use App\Models\User;
-use Modules\User\Http\Controllers\Api\v1\MembershipResolutionController;
+use Modules\Core\Identity\Models\User;
+use Modules\Core\Authorization\Http\Controllers\MembershipResolutionController;
 
 final class MembershipContextSwitchTest extends TestCase
 {
@@ -73,7 +73,7 @@ final class MembershipContextSwitchTest extends TestCase
             'id' => $membershipId,
             'user_id' => $userId,
             'tenant_id' => $tenantId,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()
@@ -121,7 +121,7 @@ final class MembershipContextSwitchTest extends TestCase
             'id' => $membershipBId,
             'user_id' => $userBId,
             'tenant_id' => $tenantId,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()

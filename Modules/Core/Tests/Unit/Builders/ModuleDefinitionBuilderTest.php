@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Builders;
 
-use Modules\Core\Entities\ModuleDefinition;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
 use PHPUnit\Framework\TestCase;
 

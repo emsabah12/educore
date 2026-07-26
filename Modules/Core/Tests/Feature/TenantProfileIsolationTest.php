@@ -8,7 +8,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\Auth\Entities\Pegawai;
+use Modules\Auth\Entities\Employee;
 use Exception;
 
 final class TenantProfileIsolationTest extends TestCase
@@ -37,9 +37,9 @@ final class TenantProfileIsolationTest extends TestCase
     }
 
     /**
-     * Uji 1: Memastikan Trait pengisolasi data menyaring query profil Pegawai antar tenant secara otomatis.
+     * Uji 1: Memastikan Trait pengisolasi data menyaring query profil employee antar tenant secara otomatis.
      */
-    public function test_it_strictly_isolates_pegawai_profiles_between_tenants(): void
+    public function test_it_strictly_isolates_employee_profiles_between_tenants(): void
     {
         // 1. Buat User Global & Membership untuk Tenant A
         $userIdA = Str::uuid()->toString();
@@ -59,21 +59,21 @@ final class TenantProfileIsolationTest extends TestCase
             'id' => $membershipIdA,
             'user_id' => $userIdA,
             'tenant_id' => $this->tenantA,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()
         ]);
 
-        // Kunci context ke Tenant A, lalu simpan data Pegawai A
+        // Kunci context ke Tenant A, lalu simpan data employee A
         app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
 
-        $pegawaiA = new Pegawai();
-        $pegawaiA->id = Str::uuid()->toString();
-        $pegawaiA->membership_id = $membershipIdA;
-        $pegawaiA->nip = '19900101AA';
-        $pegawaiA->jabatan = 'GURU';
-        $pegawaiA->save();
+        $employeeA = new Employee();
+        $employeeA->id = Str::uuid()->toString();
+        $employeeA->membership_id = $membershipIdA;
+        $employeeA->nip = '19900101AA';
+        $employeeA->jabatan = 'GURU';
+        $employeeA->save();
 
         // 2. Buat User Global & Membership untuk Tenant B
         $userIdB = Str::uuid()->toString();
@@ -93,25 +93,25 @@ final class TenantProfileIsolationTest extends TestCase
             'id' => $membershipIdB,
             'user_id' => $userIdB,
             'tenant_id' => $this->tenantB,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()
         ]);
 
-        // Alihkan context ke Tenant B, lalu simpan data Pegawai B
+        // Alihkan context ke Tenant B, lalu simpan data employee B
         app()->singleton('current_tenant_uuid', fn() => $this->tenantB);
 
-        $pegawaiB = new Pegawai();
-        $pegawaiB->id = Str::uuid()->toString();
-        $pegawaiB->membership_id = $membershipIdB;
-        $pegawaiB->nip = '19950202BB';
-        $pegawaiB->jabatan = 'STAFF';
-        $pegawaiB->save();
+        $employeeB = new Employee();
+        $employeeB->id = Str::uuid()->toString();
+        $employeeB->membership_id = $membershipIdB;
+        $employeeB->nip = '19950202BB';
+        $employeeB->jabatan = 'STAFF';
+        $employeeB->save();
 
         // 3. VERIFIKASI ASPEK KEAMANAN QUERY ISOLATION (Data Leak Prevention)
-        // Sesi saat ini terkunci di Tenant B. Panggilan Pegawai::all() HANYA boleh mengembalikan data milik Tenant B!
-        $hasilQueryDiTenantB = Pegawai::all();
+        // Sesi saat ini terkunci di Tenant B. Panggilan employee::all() HANYA boleh mengembalikan data milik Tenant B!
+        $hasilQueryDiTenantB = Employee::all();
 
         $this->assertCount(1, $hasilQueryDiTenantB);
         $this->assertEquals('19950202BB', $hasilQueryDiTenantB->first()->nip);
@@ -119,7 +119,7 @@ final class TenantProfileIsolationTest extends TestCase
         // Alihkan kembali ke Tenant A
         app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
 
-        $hasilQueryDiTenantA = Pegawai::all();
+        $hasilQueryDiTenantA = Employee::all();
 
         $this->assertCount(1, $hasilQueryDiTenantA);
         $this->assertEquals('19900101AA', $hasilQueryDiTenantA->first()->nip);
@@ -135,8 +135,8 @@ final class TenantProfileIsolationTest extends TestCase
 
         DB::table('users')->insert([
             'id' => $userId,
-            'name' => 'Pegawai Test',
-            'email' => 'pegawai_test@educore.id',
+            'name' => 'Employee Test',
+            'email' => 'employee_test@educore.id',
             'password' => 'secret',
             'status' => 'ACTIVE',
             'created_at' => now(),
@@ -147,7 +147,7 @@ final class TenantProfileIsolationTest extends TestCase
             'id' => $membershipId,
             'user_id' => $userId,
             'tenant_id' => $this->tenantA,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()
@@ -155,20 +155,20 @@ final class TenantProfileIsolationTest extends TestCase
 
         app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
 
-        $pegawai = new Pegawai();
-        $pegawai->id = Str::uuid()->toString();
-        $pegawai->membership_id = $membershipId;
-        $pegawai->nip = '20269999';
-        $pegawai->jabatan = 'GURU';
-        $pegawai->save();
+        $employee = new Employee();
+        $employee->id = Str::uuid()->toString();
+        $employee->membership_id = $membershipId;
+        $employee->nip = '20269999';
+        $employee->jabatan = 'GURU';
+        $employee->save();
 
         // Pastikan record tersimpan dengan aman
-        $this->assertDatabaseHas('pegawais', ['id' => $pegawai->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
 
         // AKSI: Hapus baris data di tabel induk (memberships)
         DB::table('memberships')->where('id', '=', $membershipId)->delete();
 
-        // ASSERTION: Tabel anak (pegawais) HARUS ikut terhapus secara otomatis oleh PostgreSQL cascade guard
-        $this->assertDatabaseMissing('pegawais', ['id' => $pegawai->id]);
+        // ASSERTION: Tabel anak (employees) HARUS ikut terhapus secara otomatis oleh PostgreSQL cascade guard
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
     }
 }

@@ -127,7 +127,7 @@ final class TenantManagementTest extends TestCase
         $request->attributes->set('authenticated_user_id', $this->pegawaiId);
         $request->attributes->set('authenticated_role', 'PEGAWAI');
 
-        $middleware = new \Modules\Core\Http\Middleware\RequireGlobalSuperadmin();
+        $middleware = new \Modules\Auth\Http\Middleware\RequireGlobalSuperadmin();
         $response = $middleware->handle($request, function ($req) {
             return response()->json(['status' => 'success']);
         });

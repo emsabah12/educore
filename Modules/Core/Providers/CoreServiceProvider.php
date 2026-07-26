@@ -9,25 +9,25 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Database\Schema\Blueprint;
-use Modules\Core\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use Modules\Core\Registry\ModuleEventRegistry;
-use Modules\Core\Registry\ModuleRegistry;
+use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
-use Modules\Core\Services\ModuleLoader;
-use Modules\Core\Services\ModuleManager;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Module\Services\ModuleManager;
 use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\ModuleStateRepository;
 use Modules\Core\Services\DependencyResolver;
 use Modules\Core\Services\EventDiscoveryService;
-use Modules\Core\Console\ModuleListCommand;
-use Modules\Core\Console\ModuleStatusCommand;
-use Modules\Core\Console\ModuleEnableCommand;
-use Modules\Core\Console\ModuleDisableCommand;
-use Modules\Core\Console\TestModuleLoaderCommand;
-use Modules\Core\Console\KernelHealthCheckCommand;
+use Modules\Core\Platform\Console\ModuleListCommand;
+use Modules\Core\Platform\Console\ModuleStatusCommand;
+use Modules\Core\Platform\Console\ModuleEnableCommand;
+use Modules\Core\Platform\Console\ModuleDisableCommand;
+use Modules\Core\Tests\Console\TestModuleLoaderCommand;
+use Modules\Core\Platform\Console\KernelHealthCheckCommand;
 use Modules\Core\Listeners\QueueWatchdogListener;
 use Modules\Core\Support\Uuid\UuidBlueprintMacro;
 use Illuminate\Support\Facades\Log;
@@ -113,9 +113,8 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->register(TenantServiceProvider::class);
         // 2. Amankan pendaftaran Custom Auth Driver Service Provider
         $this->app->register(AuthServiceProvider::class);
-
-        // 3. Modifikasi Konfigurasi Driver Autentikasi secara Dynamic Runtime (Bypass config/auth.php)
-        $this->overrideAuthenticationConfig();
+        // 3. Daftarkan Route Service Provider milik Core
+        $this->app->register(RouteServiceProvider::class);
     }
     /**
      * Pindai modules.json dan daftarkan Service Provider milik modul yang berstatus ACTIVE.
@@ -154,47 +153,17 @@ final class CoreServiceProvider extends ServiceProvider
         }
 
         $this->app->singleton(
-            \Modules\Core\Contracts\Auth\AuditTrailServiceInterface::class,
+            \Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface::class,
             \Modules\Core\Services\Auth\DatabaseAuditTrailService::class
         );
 
         $this->app->singleton(
-            \Modules\Core\Contracts\Repository\TenantRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentTenantRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\PegawaiRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentPegawaiRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\SantriRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentSantriRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\WalisantriRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentWalisantriRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\WalisantriSantriRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentWalisantriSantriRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Repository\AcademicPeriodRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentAcademicPeriodRepository::class
-        );
-
-        $this->app->singleton(
-            \Modules\Core\Contracts\Notification\NotificationChannelInterface::class,
+            \Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface::class,
             \Modules\Core\Notification\Channels\WhatsAppNotificationChannel::class
         );
 
         $this->app->singleton(
-            \Modules\Core\Contracts\Diagnostics\HealthCheckerInterface::class,
+            \Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface::class,
             \Modules\Core\Services\Diagnostics\SystemHealthService::class
         );
     }
@@ -207,13 +176,7 @@ final class CoreServiceProvider extends ServiceProvider
         // Daftarkan sistem macro UUID v7 database secara global
         UuidBlueprintMacro::register();
 
-        // DAFTARKAN CROSS-MODULE EVENT BINDING DI SINI (Prioritas Tertinggi Kernel)
-        if (class_exists(\Modules\Academic\Events\CoursePublished::class) && class_exists(\Modules\Core\Listeners\LogCoursePublication::class)) {
-            \Illuminate\Support\Facades\Event::listen(
-                \Modules\Academic\Events\CoursePublished::class,
-                \Modules\Core\Listeners\LogCoursePublication::class
-            );
-        }
+
         // Daftarkan seluruh perintah Artisan khusus milik modul Core jika berjalan di CLI
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -228,7 +191,7 @@ final class CoreServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Modules\Core\Console\TenantProvisionCommand::class,
+                \Modules\Core\Tenancy\Console\TenantProvisionCommand::class,
             ]);
         }
 
@@ -259,26 +222,29 @@ final class CoreServiceProvider extends ServiceProvider
 
     private function registerMigrations(): void
     {
-        $migrationPath = base_path('Modules/Core/Database/Migrations');
+        $migrationPaths = [
+            base_path('Modules/Core/Database/Migrations'),
+            base_path('Modules/Core/Tenancy/Database/Migrations'),
+            base_path('Modules/Core/Authorization/Database/Migrations'),
+            base_path('Modules/Core/Platform/Database/Migrations'),
+            base_path('Modules/HR/Database/Migrations'),
+            base_path('Modules/Academic/Database/Migrations'),
+        ];
 
-        if (is_dir($migrationPath)) {
+        foreach ($migrationPaths as $migrationPath) {
+            if (!is_dir($migrationPath)) {
+                Log::warning(
+                    'Migration directory not found.',
+                    [
+                        'path' => $migrationPath,
+                    ]
+                );
+
+                continue;
+            }
+
             $this->loadMigrationsFrom($migrationPath);
         }
-    }
-
-    /**
-     * Mengubah konfigurasi auth framework secara dinamis agar menggunakan tenant-eloquent.
-     * Pendekatan ini menjaga file config/auth.php bawaan laravel tetap bersih.
-     */
-    private function overrideAuthenticationConfig(): void
-    {
-        // Mengamankan mapping agar provider 'users' beralih ke driver buatan kita
-        config([
-            'auth.providers.users.driver' => 'tenant-eloquent',
-            'auth.providers.users.model' => \App\Models\User::class, // atau model user di level domain
-        ]);
-
-        Log::debug('Authentication driver dynamically set to [tenant-eloquent] via CoreServiceProvider.');
     }
 }
 

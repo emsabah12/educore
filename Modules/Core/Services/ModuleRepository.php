@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services;
 
-use Modules\Core\Entities\ModuleDefinition;
-use Modules\Core\Registry\ModuleRegistry;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 
 final readonly class ModuleRepository
 {

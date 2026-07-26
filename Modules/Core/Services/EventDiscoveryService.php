@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services;
 
-use Modules\Core\Registry\ModuleEventRegistry;
+use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use ReflectionClass;
 use ReflectionMethod;
 

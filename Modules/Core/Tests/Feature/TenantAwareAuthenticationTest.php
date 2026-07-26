@@ -68,7 +68,7 @@ final class TenantAwareAuthenticationTest extends TestCase
             'id' => UuidV7::generate(),
             'user_id' => $this->userGlobalId,
             'tenant_id' => $this->tenantA,
-            'role' => 'PEGAWAI',
+            'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now()
@@ -94,7 +94,7 @@ final class TenantAwareAuthenticationTest extends TestCase
         $responseData = $response->json();
         $this->assertEquals('success', $responseData['status']);
         $this->assertArrayHasKey('access_token', $responseData['data']);
-        $this->assertEquals('PEGAWAI', $responseData['data']['context']['role']);
+        $this->assertEquals('employee', $responseData['data']['context']['role']);
     }
 
     /**

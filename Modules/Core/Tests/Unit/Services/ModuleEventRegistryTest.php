@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Unit\Services;
 
 use PHPUnit\Framework\TestCase;
-use Modules\Core\Registry\ModuleEventRegistry;
+use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 
 final class ModuleEventRegistryTest extends TestCase
 {
@@ -54,7 +54,7 @@ final class ModuleEventRegistryTest extends TestCase
     public function test_returns_empty_array_if_event_has_no_listeners(): void
     {
         $listeners = $this->eventRegistry->getListenersFor('Modules\NonExistent\Event');
-        
+
         $this->assertIsArray($listeners);
         $this->assertEmpty($listeners);
     }
