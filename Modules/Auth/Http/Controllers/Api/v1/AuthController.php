@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Auth\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
@@ -15,12 +15,11 @@ use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 final class AuthController extends Controller
 {
     private AuthenticationRepositoryInterface $authRepository;
+
     private TokenManagerInterface $tokenManager;
+
     private AuditTrailServiceInterface $auditTrail;
 
-    /**
-     * Dependency Injection melalui Constructor untuk menyuntikkan AuditTrail Engine (SOLID).
-     */
     public function __construct(
         AuthenticationRepositoryInterface $authRepository,
         TokenManagerInterface $tokenManager,
@@ -32,14 +31,32 @@ final class AuthController extends Controller
     }
 
     /**
-     * Mengelola permintaan login token stateless untuk klien Mobile/API + Audit Logging.
+     * Login stateless untuk Mobile/API.
+     *
+     * Authentication hanya menerbitkan token berdasarkan:
+     * - User identity
+     * - Tenant context
+     * - Membership context
+     *
+     * Authorization role tidak dimasukkan ke token.
      */
     public function loginToken(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'email'       => ['required', 'email', 'max:255'],
-            'password'    => ['required', 'string', 'min:6'],
-            'tenant_uuid' => ['required', 'string', 'max:36'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:6',
+            ],
+            'tenant_uuid' => [
+                'required',
+                'uuid',
+            ],
         ]);
 
         $user = $this->authRepository->findByEmailForTenant(
@@ -47,18 +64,29 @@ final class AuthController extends Controller
             $credentials['tenant_uuid']
         );
 
-        // Kasus Gagal Login: Catat kejadian kegagalan ke Audit Trail
-        if (! $user || ! Hash::check($credentials['password'], $user['password'])) {
+        if (
+            $user === null
+            || ! Hash::check(
+                $credentials['password'],
+                (string) $user['password']
+            )
+        ) {
             $this->auditTrail->log(
                 'auth.login_failed',
-                sprintf('Gagal login via token untuk email: %s', $credentials['email']),
+                sprintf(
+                    'Gagal login via token untuk email: %s',
+                    $credentials['email']
+                ),
                 $credentials['tenant_uuid'],
                 $user['id'] ?? null,
-                ['channel' => 'mobile_api', 'email' => $credentials['email']]
+                [
+                    'channel' => 'mobile_api',
+                    'email' => $credentials['email'],
+                ]
             );
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Unauthorized. Invalid identity credentials.',
             ], 401);
         }
@@ -68,30 +96,34 @@ final class AuthController extends Controller
             $user['tenant_id'],
             [
                 'membership_id' => $user['membership_id'],
-                'role'          => $user['role'],
             ]
         );
 
-        // Kasus Sukses Login via Token: Catat ke Audit Trail
         $this->auditTrail->log(
             'auth.login_token_success',
-            sprintf('User %s [%s] sukses login via Mobile Token.', $user['name'], $user['role']),
+            sprintf(
+                'User %s sukses login via Mobile Token.',
+                $user['name']
+            ),
             $user['tenant_id'],
             $user['id'],
-            ['channel' => 'mobile_api']
+            [
+                'channel' => 'mobile_api',
+                'membership_id' => $user['membership_id'],
+            ]
         );
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
+            'data' => [
                 'access_token' => $accessToken,
-                'token_type'   => 'Bearer',
-                'expires_in'   => 7200,
-                'context'      => [
-                    'user_id'   => $user['id'],
-                    'name'      => $user['name'],
-                    'email'     => $user['email'],
-                    'role'      => $user['role'],
+                'token_type' => 'Bearer',
+                'expires_in' => 7200,
+                'context' => [
+                    'user_id' => $user['id'],
+                    'name' => $user['name'],
+                    'email' => $user['email'],
+                    'membership_id' => $user['membership_id'],
                     'tenant_id' => $user['tenant_id'],
                 ],
             ],
@@ -99,14 +131,28 @@ final class AuthController extends Controller
     }
 
     /**
-     * Menerbitkan Sesi Terenkripsi via HTTP-Only Cookie untuk Klien Web + Audit Logging.
+     * Login web session.
+     *
+     * Role tidak disimpan di cookie/token authentication.
+     * Authorization akan di-resolve secara terpisah oleh Authorization layer.
      */
     public function loginSession(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'email'       => ['required', 'email', 'max:255'],
-            'password'    => ['required', 'string', 'min:6'],
-            'tenant_uuid' => ['required', 'string', 'max:36'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:6',
+            ],
+            'tenant_uuid' => [
+                'required',
+                'uuid',
+            ],
         ]);
 
         $user = $this->authRepository->findByEmailForTenant(
@@ -114,18 +160,29 @@ final class AuthController extends Controller
             $credentials['tenant_uuid']
         );
 
-        // Kasus Gagal Login Web Session: Catat ke Audit Trail
-        if (! $user || ! Hash::check($credentials['password'], $user['password'])) {
+        if (
+            $user === null
+            || ! Hash::check(
+                $credentials['password'],
+                (string) $user['password']
+            )
+        ) {
             $this->auditTrail->log(
                 'auth.login_failed',
-                sprintf('Gagal login via web session untuk email: %s', $credentials['email']),
+                sprintf(
+                    'Gagal login via web session untuk email: %s',
+                    $credentials['email']
+                ),
                 $credentials['tenant_uuid'],
                 $user['id'] ?? null,
-                ['channel' => 'web_dashboard', 'email' => $credentials['email']]
+                [
+                    'channel' => 'web_dashboard',
+                    'email' => $credentials['email'],
+                ]
             );
 
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Unauthorized. Invalid identity credentials.',
             ], 401);
         }
@@ -135,7 +192,6 @@ final class AuthController extends Controller
             $user['tenant_id'],
             [
                 'membership_id' => $user['membership_id'],
-                'role'          => $user['role'],
             ]
         );
 
@@ -151,13 +207,18 @@ final class AuthController extends Controller
             'Lax'
         );
 
-        // Kasus Sukses Login Web Session: Catat ke Audit Trail
         $this->auditTrail->log(
             'auth.login_session_success',
-            sprintf('User %s [%s] sukses login via Web Session.', $user['name'], $user['role']),
+            sprintf(
+                'User %s sukses login via Web Session.',
+                $user['name']
+            ),
             $user['tenant_id'],
             $user['id'],
-            ['channel' => 'web_dashboard']
+            [
+                'channel' => 'web_dashboard',
+                'membership_id' => $user['membership_id'],
+            ]
         );
 
         return response()->json([
@@ -165,44 +226,57 @@ final class AuthController extends Controller
             'message' => 'Web session established successfully.',
             'data' => [
                 'context' => [
-                    'user_id'   => $user['id'],
-                    'name'      => $user['name'],
-                    'role'      => $user['role'],
-                    'tenant_id' => $user['tenant_id']
-                ]
-            ]
+                    'user_id' => $user['id'],
+                    'name' => $user['name'],
+                    'email' => $user['email'],
+                    'membership_id' => $user['membership_id'],
+                    'tenant_id' => $user['tenant_id'],
+                ],
+            ],
         ], 200)->withCookie($cookie);
     }
 
     /**
-     * Memutus Sesi Otentikasi Terpadu (Dual-Channel) + Audit Logging.
+     * Memutus sesi autentikasi.
      */
     public function logout(Request $request): JsonResponse
     {
-        // Ekstrak data penanda identitas sebelum dibersihkan dari atribut request
-        $userId = $request->attributes->get('authenticated_user_id');
-        $tenantId = $request->attributes->get('authenticated_tenant_id');
+        $userId = $request->attributes->get(
+            'authenticated_user_id'
+        );
 
-        // Catat aksi keluar sistem ke Audit Trail jika data context tersedia
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id'
+        );
+
         if ($userId) {
             $this->auditTrail->log(
                 'auth.logout',
                 'User berhasil keluar dari sistem (Session Revoked).',
                 $tenantId,
                 $userId,
-                ['status' => 'explicit_logout']
+                [
+                    'status' => 'explicit_logout',
+                ]
             );
         }
 
-        // Evakuasi dan bersihkan data internal request attribute
-        $request->attributes->remove('authenticated_user_id');
-        $request->attributes->remove('authenticated_tenant_id');
+        $request->attributes->remove(
+            'authenticated_user_id'
+        );
 
-        // Susun Kuki Mati untuk memotong hak akses di level browser web
-        $expiredCookie = cookie()->forget('auth_token', '/', null);
+        $request->attributes->remove(
+            'authenticated_tenant_id'
+        );
+
+        $expiredCookie = cookie()->forget(
+            'auth_token',
+            '/',
+            null
+        );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Session cleared and logged out successfully.',
         ], 200)->withCookie($expiredCookie);
     }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Repositories;
 
-
 use Illuminate\Support\Facades\DB;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 
@@ -14,8 +13,15 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
     private const MEMBERSHIPS_TABLE = 'memberships';
 
     /**
-     * Mencari user berdasarkan email global dan memastikan
+     * Mencari identity global berdasarkan email dan memastikan
      * user memiliki membership aktif pada tenant tertentu.
+     *
+     * Authentication layer hanya bertanggung jawab terhadap:
+     * - Global user identity
+     * - Membership context
+     * - Tenant context
+     *
+     * Authorization role TIDAK diambil dari memberships.role.
      *
      * @return array<string, mixed>|null
      */
@@ -41,13 +47,24 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
 
                 self::MEMBERSHIPS_TABLE . '.id as membership_id',
                 self::MEMBERSHIPS_TABLE . '.tenant_id',
-                self::MEMBERSHIPS_TABLE . '.role',
                 self::MEMBERSHIPS_TABLE . '.status as membership_status',
             ])
-            ->where(self::USERS_TABLE . '.email', $normalizedEmail)
-            ->where(self::USERS_TABLE . '.status', 'ACTIVE')
-            ->where(self::MEMBERSHIPS_TABLE . '.tenant_id', $tenantUuid)
-            ->where(self::MEMBERSHIPS_TABLE . '.status', 'ACTIVE')
+            ->where(
+                self::USERS_TABLE . '.email',
+                $normalizedEmail
+            )
+            ->where(
+                self::USERS_TABLE . '.status',
+                'ACTIVE'
+            )
+            ->where(
+                self::MEMBERSHIPS_TABLE . '.tenant_id',
+                $tenantUuid
+            )
+            ->where(
+                self::MEMBERSHIPS_TABLE . '.status',
+                'ACTIVE'
+            )
             ->first();
 
         return $user !== null
@@ -56,13 +73,23 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
     }
 
     /**
-     * Mengambil profil user global berdasarkan UUID.
+     * Mengambil profil identity global berdasarkan UUID user.
+     *
+     * Method ini sengaja tidak mengambil memberships.role
+     * karena role bukan bagian dari identity global.
      *
      * @return array<string, mixed>|null
      */
     public function findByUserUuid(string $userUuid): ?array
     {
         $user = DB::table(self::USERS_TABLE)
+            ->select([
+                'id',
+                'name',
+                'email',
+                'password',
+                'status',
+            ])
             ->where('id', $userUuid)
             ->where('status', 'ACTIVE')
             ->first();
