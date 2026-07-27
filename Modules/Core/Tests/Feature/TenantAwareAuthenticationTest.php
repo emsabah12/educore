@@ -94,7 +94,10 @@ final class TenantAwareAuthenticationTest extends TestCase
         $responseData = $response->json();
         $this->assertEquals('success', $responseData['status']);
         $this->assertArrayHasKey('access_token', $responseData['data']);
-        $this->assertEquals('employee', $responseData['data']['context']['role']);
+        $this->assertArrayNotHasKey(
+            'role',
+            $responseData['data']['context']
+        );
     }
 
     /**

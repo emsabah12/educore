@@ -7,8 +7,9 @@ namespace Modules\Core\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Jobs\SendAsynchronousNotificationJob;
+use Tests\TestCase;
 
 final class NotificationPlatformTest extends TestCase
 {
@@ -16,21 +17,21 @@ final class NotificationPlatformTest extends TestCase
 
     private string $tenantId;
 
+    private string $userId;
+
+    private TokenManagerInterface $tokenManager;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->tenantId = '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
 
-        /*
-        |--------------------------------------------------------------------------
-        | Seed Tenant
-        |--------------------------------------------------------------------------
-        |
-        | Tenant harus tersedia agar context yang dikirim oleh test
-        | merepresentasikan tenant yang valid di database.
-        |
-        */
+        $this->userId = '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
+
+        $this->tokenManager = $this->app->make(
+            TokenManagerInterface::class
+        );
 
         DB::table('tenants')->insert([
             'id' => $this->tenantId,
@@ -44,23 +45,12 @@ final class NotificationPlatformTest extends TestCase
 
     public function test_controller_can_accept_payload_and_push_job_into_queue_correctly(): void
     {
-        /*
-        |--------------------------------------------------------------------------
-        | 1. Fake Queue
-        |--------------------------------------------------------------------------
-        |
-        | Job tidak benar-benar dikirim ke queue.
-        | Laravel hanya mencatat bahwa Job telah di-dispatch.
-        |
-        */
-
         Bus::fake();
 
-        /*
-        |--------------------------------------------------------------------------
-        | 2. Request Payload
-        |--------------------------------------------------------------------------
-        */
+        $token = $this->tokenManager->issueToken(
+            $this->userId,
+            $this->tenantId
+        );
 
         $payload = [
             'recipient' => '089987654321',
@@ -70,38 +60,16 @@ final class NotificationPlatformTest extends TestCase
             ],
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | 3. Execute HTTP Request
-        |--------------------------------------------------------------------------
-        |
-        | InjectTenantContext membaca tenant context dari header
-        | X-Tenant-UUID.
-        |
-        | User UUID sengaja dikosongkan karena endpoint notification
-        | saat ini tidak mewajibkan authenticated user.
-        |
-        */
-
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'X-Tenant-UUID' => $this->tenantId,
+                'Authorization' => 'Bearer ' . $token,
             ])
             ->json(
                 'POST',
                 '/api/v1/core/notifications/dispatch',
                 $payload
             );
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. Assert HTTP Response
-        |--------------------------------------------------------------------------
-        |
-        | HTTP 202 berarti request diterima dan job berhasil dijadwalkan.
-        |
-        */
 
         $response->assertStatus(202);
 
@@ -110,17 +78,11 @@ final class NotificationPlatformTest extends TestCase
             'success'
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 5. Assert Job Dispatch
-        |--------------------------------------------------------------------------
-        |
-        | Pastikan notification job benar-benar dikirim ke Bus.
-        |
-        */
-
         Bus::assertDispatched(
-            SendAsynchronousNotificationJob::class
+            SendAsynchronousNotificationJob::class,
+            function (SendAsynchronousNotificationJob $job): bool {
+                return $job->getTenantId() === $this->tenantId;
+            }
         );
     }
 
@@ -128,8 +90,8 @@ final class NotificationPlatformTest extends TestCase
     {
         Bus::fake();
 
-        $this->app->instance(
-            'current_tenant_uuid',
+        $token = $this->tokenManager->issueToken(
+            $this->userId,
             $this->tenantId
         );
 
@@ -144,12 +106,8 @@ final class NotificationPlatformTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'X-Tenant-UUID' => $this->tenantId,
+                'Authorization' => 'Bearer ' . $token,
             ])
-            ->withCookie(
-                'educore_session',
-                'test-session-bridge'
-            )
             ->json(
                 'POST',
                 '/api/v1/core/notifications/dispatch',

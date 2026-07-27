@@ -20,44 +20,77 @@ final class NotificationController extends Controller
     /**
      * Memicu pengiriman notifikasi secara asynchronous.
      *
-     * Tenant context wajib sudah disediakan oleh InjectTenantContext
-     * sebelum request mencapai controller ini.
+     * Authentication context wajib sudah disediakan oleh
+     * InjectTenantContext sebelum request mencapai controller ini.
+     *
+     * Canonical request context:
+     * - authenticated_tenant_id
+     * - authenticated_user_id
      */
     public function send(Request $request): JsonResponse
     {
         /*
-         * Tenant context menggunakan kontrak standar yang disediakan
-         * oleh Modules\Auth\Http\Middleware\InjectTenantContext.
+         * ----------------------------------------------------------------------
+         * 1. Resolve Canonical Authentication Context
+         * ----------------------------------------------------------------------
+         *
+         * Context HTTP hanya boleh dibaca dari request attributes
+         * yang telah diisi oleh InjectTenantContext.
+         *
+         * Controller tidak membaca:
+         *
+         * - X-Tenant-UUID header
+         * - tenant_uuid legacy attribute
+         * - user_uuid legacy attribute
+         * - current_tenant_uuid dari service container
+         *
+         * Hal ini mencegah client melakukan tenant spoofing melalui header.
          */
-        $tenantUuid = $request->attributes->get('tenant_uuid');
-        $userUuid = $request->attributes->get('user_uuid');
+        $tenantUuid = $request->attributes->get(
+            'authenticated_tenant_id'
+        );
+
+        $userUuid = $request->attributes->get(
+            'authenticated_user_id'
+        );
 
         /*
-         * Defensive check.
+         * ----------------------------------------------------------------------
+         * 2. Defensive Context Validation
+         * ----------------------------------------------------------------------
          *
-         * Secara normal request tanpa tenant context sudah ditolak
-         * oleh InjectTenantContext dengan HTTP 403.
+         * Middleware seharusnya sudah menjamin context tersedia.
          *
-         * Check ini tetap dipertahankan sebagai defense-in-depth
-         * apabila controller dipanggil melalui jalur lain.
+         * Check tambahan ini merupakan defense-in-depth apabila controller
+         * dipanggil melalui jalur yang tidak melewati middleware yang benar.
          */
-        if (! is_string($tenantUuid) || $tenantUuid === '') {
+        if (! is_string($tenantUuid) || trim($tenantUuid) === '') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized. Tenant context missing.',
             ], 401);
         }
 
-        /*
-         * User UUID bersifat nullable karena beberapa flow internal
-         * dapat berjalan tanpa user yang terautentikasi secara langsung.
-         */
-        $operatorUuid = is_string($userUuid) && $userUuid !== ''
-            ? $userUuid
-            : null;
+        $tenantUuid = trim($tenantUuid);
 
         /*
-         * Validasi input dilakukan sebelum proses dispatch job.
+         * User UUID dapat bersifat nullable untuk flow internal tertentu.
+         *
+         * Namun jika tersedia, nilainya harus berupa string non-empty.
+         */
+        $operatorUuid = null;
+
+        if (is_string($userUuid) && trim($userUuid) !== '') {
+            $operatorUuid = trim($userUuid);
+        }
+
+        /*
+         * ----------------------------------------------------------------------
+         * 3. Validate Request Payload
+         * ----------------------------------------------------------------------
+         *
+         * Semua input eksternal divalidasi sebelum masuk ke application/job
+         * layer.
          */
         $payload = $request->validate([
             'recipient' => [
@@ -88,10 +121,15 @@ final class NotificationController extends Controller
 
         try {
             /*
-             * Dispatch asynchronous notification job.
+             * ------------------------------------------------------------------
+             * 4. Dispatch Tenant-Aware Job
+             * ------------------------------------------------------------------
              *
-             * Tenant UUID dan operator UUID diteruskan secara eksplisit
-             * agar job tetap tenant-aware ketika dieksekusi oleh worker.
+             * Tenant UUID dan operator UUID dikirim secara eksplisit
+             * ke asynchronous job.
+             *
+             * Ini penting karena worker queue tidak boleh bergantung pada
+             * HTTP request context yang sudah tidak tersedia.
              */
             SendAsynchronousNotificationJob::dispatch(
                 $tenantUuid,
@@ -104,8 +142,11 @@ final class NotificationController extends Controller
             )->onConnection('database');
 
             /*
-             * Catat aktivitas ke audit trail setelah job berhasil
-             * dijadwalkan.
+             * ------------------------------------------------------------------
+             * 5. Audit Trail
+             * ------------------------------------------------------------------
+             *
+             * Audit dilakukan setelah dispatch berhasil diterima oleh queue.
              */
             $this->auditTrail->log(
                 'notification.dispatched',
@@ -121,16 +162,25 @@ final class NotificationController extends Controller
                 ]
             );
 
+            /*
+             * ------------------------------------------------------------------
+             * 6. Success Response
+             * ------------------------------------------------------------------
+             */
             return response()->json([
                 'status' => 'success',
                 'message' => 'Notification dispatch has been accepted and queued for transmission.',
             ], 202);
         } catch (Throwable $e) {
             /*
-             * Jangan expose detail exception internal ke client.
+             * ------------------------------------------------------------------
+             * 7. Error Handling
+             * ------------------------------------------------------------------
              *
-             * Detail exception sebaiknya dicatat melalui logging
-             * agar dapat digunakan untuk debugging dan observability.
+             * Detail exception internal tidak boleh dikirim ke client.
+             *
+             * report() digunakan agar exception masuk ke Laravel's
+             * configured logging/reporting pipeline.
              */
             report($e);
 

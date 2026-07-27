@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use Modules\Core\Authorization\Traits\HasContextualRoles;
+
 
 #[Fillable([
     'name',
@@ -26,7 +26,7 @@ class User extends Authenticatable
 {
     use HasFactory;
     use Notifiable;
-    use HasContextualRoles;
+
 
     /**
      * Nama tabel database.
@@ -97,7 +97,6 @@ class User extends Authenticatable
      */
     protected static function booted(): void
     {
-
         static::creating(function (self $user): void {
             $user->ensureUuid();
         });

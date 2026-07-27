@@ -40,7 +40,9 @@ final class AcademicBulkGradingTest extends TestCase
         $tenantId = (string) Str::uuid();
         $periodId = (string) Str::uuid();
         $subjectId = (string) Str::uuid();
-        $teacherId = (string) Str::uuid();
+        $teacherUserId = (string) Str::uuid();
+        $teacherMembershipId = (string) Str::uuid();
+        $teacherEmployeeId = (string) Str::uuid();
         $classId = (string) Str::uuid();
 
         $userstudentAId = (string) Str::uuid();
@@ -54,12 +56,70 @@ final class AcademicBulkGradingTest extends TestCase
 
         // 1. Seed Parent Data: Users (Global, tanpa tenant_id) & Tenants
         DB::table('users')->insert([
-            ['id' => $teacherId, 'name' => 'Ustadz Ahmad', 'email' => 'ahmad@educore.test', 'password' => 'secret', 'is_superadmin' => false],
-            ['id' => $userstudentAId, 'name' => 'Ali User', 'email' => 'ali@educore.test', 'password' => 'secret', 'is_superadmin' => false],
-            ['id' => $userstudentBId, 'name' => 'Budi User', 'email' => 'budi@educore.test', 'password' => 'secret', 'is_superadmin' => false],
+            [
+                'id' => $teacherUserId,
+                'name' => 'Ustadz Ahmad',
+                'email' => 'ahmad@educore.test',
+                'password' => 'secret',
+                'is_superadmin' => false,
+            ],
+            [
+                'id' => $userstudentAId,
+                'name' => 'Ali User',
+                'email' => 'ali@educore.test',
+                'password' => 'secret',
+                'is_superadmin' => false,
+            ],
+            [
+                'id' => $userstudentBId,
+                'name' => 'Budi User',
+                'email' => 'budi@educore.test',
+                'password' => 'secret',
+                'is_superadmin' => false,
+            ],
         ]);
 
         DB::table('tenants')->insert(['id' => $tenantId, 'name' => 'Pondok Lubna', 'subdomain' => 'lubna']);
+
+        DB::table('memberships')->insert([
+            [
+                'id' => $teacherMembershipId,
+                'user_id' => $teacherUserId,
+                'tenant_id' => $tenantId,
+                'role' => 'employee',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $membershipAId,
+                'user_id' => $userstudentAId,
+                'tenant_id' => $tenantId,
+                'role' => 'student',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $membershipBId,
+                'user_id' => $userstudentBId,
+                'tenant_id' => $tenantId,
+                'role' => 'student',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('employees')->insert([
+            'id' => $teacherEmployeeId,
+            'tenant_id' => $tenantId,
+            'membership_id' => $teacherMembershipId,
+            'nip' => 'EMP-001',
+            'jabatan' => 'Teacher',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         // 2. Seed Parent Data: Academic Classes, Subjects, & Memberships
         DB::table('academic_classes')->insert([
@@ -81,10 +141,7 @@ final class AcademicBulkGradingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('memberships')->insert([
-            ['id' => $membershipAId, 'user_id' => $userstudentAId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => $membershipBId, 'user_id' => $userstudentBId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()],
-        ]);
+
 
         // 3. Seed Child Data: students (Sesuai skema fisik DB)
         DB::table('students')->insert([
@@ -119,12 +176,12 @@ final class AcademicBulkGradingTest extends TestCase
             'weight' => 20.00,
         ]);
 
-        $teacherModel = User::find($teacherId);
+        $teacherModel = User::findOrFail($teacherUserId);
         session(['active_tenant_id' => $tenantId]);
 
         $payload = [
             'assessment_setting_id' => $settingId,
-            'teacher_id' => $teacherId,
+            'teacher_id' => $teacherEmployeeId,
             'grades' => [
                 ['student_id' => $studentAId, 'score' => 85.50, 'notes' => 'Sangat Baik'],
                 ['student_id' => $studentBId, 'score' => 70.00, 'notes' => 'Cukup'],
@@ -217,6 +274,11 @@ final class AcademicBulkGradingTest extends TestCase
         $periodId = (string) Str::uuid();
         $subjectId = (string) Str::uuid();
         $classId = (string) Str::uuid();
+
+        $teacherUserId = (string) Str::uuid();
+        $teacherMembershipId = (string) Str::uuid();
+        $teacherEmployeeId = (string) Str::uuid();
+
         $userstudentId = (string) Str::uuid();
         $membershipId = (string) Str::uuid();
         $studentId = (string) Str::uuid();
@@ -225,7 +287,54 @@ final class AcademicBulkGradingTest extends TestCase
         $settingUtsId = (string) Str::uuid();
         $settingUasId = (string) Str::uuid();
 
-        DB::table('users')->insert(['id' => $userstudentId, 'name' => 'student Target', 'email' => 'target@educore.test', 'password' => 'secret', 'is_superadmin' => false]);
+        DB::table('users')->insert([
+            [
+                'id' => $teacherUserId,
+                'name' => 'Ustadz Ahmad',
+                'email' => 'teacher@educore.test',
+                'password' => 'secret',
+                'is_superadmin' => false,
+            ],
+            [
+                'id' => $userstudentId,
+                'name' => 'student Target',
+                'email' => 'target@educore.test',
+                'password' => 'secret',
+                'is_superadmin' => false,
+            ],
+        ]);
+
+        DB::table('memberships')->insert([
+            [
+                'id' => $teacherMembershipId,
+                'user_id' => $teacherUserId,
+                'tenant_id' => $tenantId,
+                'role' => 'employee',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $membershipId,
+                'user_id' => $userstudentId,
+                'tenant_id' => $tenantId,
+                'role' => 'student',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('employees')->insert([
+            'id' => $teacherEmployeeId,
+            'tenant_id' => $tenantId,
+            'membership_id' => $teacherMembershipId,
+            'nip' => 'EMP-001',
+            'jabatan' => 'Teacher',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('tenants')->insert(['id' => $tenantId, 'name' => 'Pondok Lubna', 'subdomain' => 'lubna']);
 
         DB::table('academic_classes')->insert([
@@ -247,8 +356,6 @@ final class AcademicBulkGradingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('memberships')->insert(['id' => $membershipId, 'user_id' => $userstudentId, 'tenant_id' => $tenantId, 'role' => 'student', 'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now()]);
-
         DB::table('students')->insert(['id' => $studentId, 'tenant_id' => $tenantId, 'class_id' => $classId, 'nis' => '3001', 'name' => 'student Target', 'gender' => 'L', 'created_at' => now(), 'updated_at' => now()]);
 
         DB::table('assessment_settings')->insert([
@@ -258,9 +365,36 @@ final class AcademicBulkGradingTest extends TestCase
         ]);
 
         DB::table('student_grades')->insert([
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingTugasId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 80.00, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUtsId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 70.00, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => (string) Str::uuid(), 'tenant_id' => $tenantId, 'assessment_setting_id' => $settingUasId, 'student_id' => $studentId, 'teacher_id' => (string) Str::uuid(), 'score' => 90.00, 'created_at' => now(), 'updated_at' => now()],
+            [
+                'id' => (string) Str::uuid(),
+                'tenant_id' => $tenantId,
+                'assessment_setting_id' => $settingTugasId,
+                'student_id' => $studentId,
+                'teacher_id' => $teacherEmployeeId,
+                'score' => 80.00,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'tenant_id' => $tenantId,
+                'assessment_setting_id' => $settingUtsId,
+                'student_id' => $studentId,
+                'teacher_id' => $teacherEmployeeId,
+                'score' => 70.00,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'tenant_id' => $tenantId,
+                'assessment_setting_id' => $settingUasId,
+                'student_id' => $studentId,
+                'teacher_id' => $teacherEmployeeId,
+                'score' => 90.00,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         $reportResult = DB::table('student_grades')

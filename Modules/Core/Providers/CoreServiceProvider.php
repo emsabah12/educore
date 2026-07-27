@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Database\Schema\Blueprint;
+use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
+use Modules\Core\Authorization\Services\AuthorizationService;
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
@@ -115,6 +117,11 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->register(AuthServiceProvider::class);
         // 3. Daftarkan Route Service Provider milik Core
         $this->app->register(RouteServiceProvider::class);
+
+        $this->app->singleton(
+            AuthorizationServiceInterface::class,
+            AuthorizationService::class
+        );
     }
     /**
      * Pindai modules.json dan daftarkan Service Provider milik modul yang berstatus ACTIVE.

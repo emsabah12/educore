@@ -124,8 +124,10 @@ final class TenantManagementTest extends TestCase
         // Simulasi request dari pegawai biasa langsung dipotong oleh RequireGlobalSuperadmin
         // Kita uji logika middleware secara fungsional terintegrasi
         $request = \Illuminate\Http\Request::create('/v1/core/tenants', 'POST', $payload);
-        $request->attributes->set('authenticated_user_id', $this->pegawaiId);
-        $request->attributes->set('authenticated_role', 'PEGAWAI');
+        $request->attributes->set(
+            'authenticated_user_id',
+            $this->pegawaiId
+        );
 
         $middleware = new \Modules\Auth\Http\Middleware\RequireGlobalSuperadmin();
         $response = $middleware->handle($request, function ($req) {

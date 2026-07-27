@@ -13,53 +13,165 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. TABEL PENGATURAN BOBOT KOMPONEN NILAI (Contoh: KOGNITIF, TUGAS, UTS, UAS)
-        Schema::create('assessment_settings', function (Blueprint $table) {
+        /*
+         * 1. TABEL PENGATURAN KOMPONEN PENILAIAN
+         *
+         * Contoh:
+         * - TUGAS
+         * - UTS
+         * - UAS
+         * - KOGNITIF
+         * - ABSENSI
+         */
+        Schema::create('assessment_settings', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->uuid('tenant_id')->index();
-            $table->uuid('academic_period_id')->index(); // Terikat ke Tahun Ajaran/Semester aktif
-            $table->uuid('academic_subject_id')->index(); // Terikat ke Mapel
 
-            $table->string('component_name', 100); // TUGAS, UTS, UAS, ABSENSI, DLL
-            $table->decimal('weight', 5, 2); // Nilai bobot (Persentase), contoh: 20.00 (berarti 20%)
+            $table->uuid('tenant_id')->index();
+
+            $table->uuid('academic_period_id')->index();
+
+            $table->uuid('academic_subject_id')->index();
+
+            $table->string('component_name', 100);
+
+            $table->decimal('weight', 5, 2);
 
             $table->timestamps();
 
-            // Foreign Key Restrictions
-            $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
+            /*
+             * Tenant isolation.
+             */
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->cascadeOnDelete();
 
-            // Mencegah duplikasi nama komponen pada mapel dan semester yang sama di satu sekolah
-            $table->unique(['tenant_id', 'academic_period_id', 'academic_subject_id', 'component_name'], 'idx_assessment_settings_unique');
+            /*
+             * Mencegah duplikasi komponen penilaian
+             * pada tenant, periode akademik, dan mata pelajaran
+             * yang sama.
+             */
+            $table->unique(
+                [
+                    'tenant_id',
+                    'academic_period_id',
+                    'academic_subject_id',
+                    'component_name',
+                ],
+                'idx_assessment_settings_unique'
+            );
         });
 
-        // 2. TABEL TRANSKRIP NILAI FISIK student
-        Schema::create('student_grades', function (Blueprint $table) {
+        /*
+         * 2. TABEL NILAI SISWA
+         */
+        Schema::create('student_grades', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->uuid('tenant_id')->index();
-            $table->uuid('assessment_setting_id')->index(); // Merujuk ke komponen bobot di atas
-            $table->uuid('student_id')->index(); // Siswa penerima nilai
-            $table->uuid('teacher_id')->index(); // Pegawai/Guru penginput nilai (untuk audit trail)
 
-            $table->decimal('score', 5, 2); // Nilai mentah, skala 0.00 sampai 100.00
-            $table->text('notes')->nullable(); // Catatan remedial atau pujian guru
+            /*
+     * Tenant pemilik data nilai.
+     */
+            $table->uuid('tenant_id')->index();
+
+            /*
+     * Komponen penilaian.
+     */
+            $table->uuid('assessment_setting_id')->index();
+
+            /*
+     * Siswa penerima nilai.
+     */
+            $table->uuid('student_id')->index();
+
+            /*
+     * Employee yang bertindak sebagai teacher
+     * dan memasukkan nilai dalam context tertentu.
+     *
+     * teacher_id bukan users.id.
+     *
+     * Authentication:
+     * users
+     *
+     * Identity:
+     * persons
+     *
+     * Organizational persona:
+     * employees
+     *
+     * Domain actor:
+     * employees.id
+     */
+            $table->uuid('teacher_id')->index();
+
+            /*
+     * Nilai mentah dengan rentang 0.00 - 100.00.
+     */
+            $table->decimal('score', 5, 2);
+
+            /*
+     * Catatan tambahan dari guru.
+     */
+            $table->text('notes')->nullable();
 
             $table->timestamps();
 
-            // Foreign Key Restrictions
-            $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
-            $table->foreign('assessment_setting_id')->references('id')->on('assessment_settings')->onDelete('cascade');
+            /*
+     * Tenant isolation.
+     */
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->cascadeOnDelete();
 
-            // Mencegah seorang student mendapatkan dua nilai untuk satu komponen penilaian yang sama
-            $table->unique(['assessment_setting_id', 'student_id'], 'idx_student_grades_unique');
+            /*
+     * Relasi ke komponen penilaian.
+     */
+            $table->foreign('assessment_setting_id')
+                ->references('id')
+                ->on('assessment_settings')
+                ->cascadeOnDelete();
+
+            /*
+     * Relasi ke siswa.
+     */
+            $table->foreign('student_id')
+                ->references('id')
+                ->on('students')
+                ->cascadeOnDelete();
+
+            /*
+     * Relasi ke employee yang bertindak sebagai teacher.
+     */
+            $table->foreign('teacher_id')
+                ->references('id')
+                ->on('employees')
+                ->restrictOnDelete();
+
+            /*
+     * Satu siswa hanya boleh memiliki
+     * satu nilai untuk satu komponen penilaian.
+     */
+            $table->unique(
+                [
+                    'assessment_setting_id',
+                    'student_id',
+                ],
+                'idx_student_grades_unique'
+            );
         });
     }
 
     /**
-     * Batalkan migrasi tabel jika terjadi rollback.
+     * Batalkan migrasi tabel penilaian akademik.
      */
     public function down(): void
     {
+        /*
+         * student_grades harus dihapus terlebih dahulu
+         * karena memiliki foreign key ke assessment_settings.
+         */
         Schema::dropIfExists('student_grades');
+
         Schema::dropIfExists('assessment_settings');
     }
 };

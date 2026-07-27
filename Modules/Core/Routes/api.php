@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
-use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
-use Modules\Core\Http\Controllers\Api\v1\HealthCheckController;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\RequireGlobalSuperadmin;
+use Modules\Core\Http\Controllers\Api\v1\HealthCheckController;
+use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,35 +27,38 @@ use Modules\Auth\Http\Middleware\RequireGlobalSuperadmin;
 |--------------------------------------------------------------------------
 | Public Platform Health
 |--------------------------------------------------------------------------
+|
+| Health check tidak membutuhkan authentication context.
+|
 */
 
-
-Route::get('/v1/core/health', HealthCheckController::class)
-    ->name('api.core.health');
-
+Route::get(
+    '/v1/core/health',
+    HealthCheckController::class
+)->name('api.core.health');
 
 /*
 |--------------------------------------------------------------------------
-| Centralized Notification Platform
+| Tenant-Scoped Notification Platform
 |--------------------------------------------------------------------------
 |
-| Tenant context akan divalidasi oleh middleware
-| InjectTenantContext pada route group yang sesuai.
+| Notification dispatch membutuhkan authenticated tenant context.
+|
+| InjectTenantContext bertanggung jawab untuk:
+|
+| - memvalidasi Bearer Token;
+| - mengekstrak user_id;
+| - mengekstrak tenant_id;
+| - menginjeksikan authenticated_user_id;
+| - menginjeksikan authenticated_tenant_id.
+|
+| Controller tidak boleh dapat diakses tanpa middleware ini.
 |
 */
-Route::post(
-    '/v1/core/notifications/dispatch',
-    [NotificationController::class, 'send']
-)->name('api.v1.core.notifications.dispatch');
 
-
-/*
-|--------------------------------------------------------------------------
-| Tenant-Scoped Platform Routes
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware([InjectTenantContext::class])->group(function (): void {
+Route::middleware([
+    InjectTenantContext::class,
+])->group(function (): void {
     Route::post(
         '/v1/core/notifications/dispatch',
         [NotificationController::class, 'send']
@@ -66,6 +69,15 @@ Route::middleware([InjectTenantContext::class])->group(function (): void {
 |--------------------------------------------------------------------------
 | Global Superadmin Tenant Management
 |--------------------------------------------------------------------------
+|
+| Tenant management membutuhkan dua security boundary:
+|
+| 1. InjectTenantContext
+|    Memastikan request memiliki authentication context yang valid.
+|
+| 2. RequireGlobalSuperadmin
+|    Memastikan authenticated user memiliki status global superadmin.
+|
 */
 
 Route::middleware([

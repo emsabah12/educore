@@ -11,8 +11,8 @@ final class BulkGradeRequest extends FormRequest
     /**
      * Menentukan apakah request diizinkan diproses.
      *
-     * Otorisasi bisnis tenant dan role tetap dilakukan
-     * pada layer authorization/controller/service.
+     * Otorisasi bisnis tenant, active context, dan role/position
+     * dilakukan pada application/service layer.
      */
     public function authorize(): bool
     {
@@ -23,11 +23,12 @@ final class BulkGradeRequest extends FormRequest
      * Aturan validasi input bulk grading.
      *
      * Catatan:
+     * - teacher_id TIDAK diterima dari client.
+     * - Identitas guru/penginput harus diturunkan dari authenticated user
+     *   dan active context pada application layer.
      * - student_id mengacu pada tabel canonical `students`.
-     * - Validasi tenant isolation tidak cukup hanya dengan
-     *   exists:students,id.
-     * - Validasi lintas tenant wajib dilakukan kembali
-     *   pada application/service layer.
+     * - Validasi tenant isolation tetap wajib dilakukan pada
+     *   application/service layer.
      */
     public function rules(): array
     {
@@ -36,12 +37,6 @@ final class BulkGradeRequest extends FormRequest
                 'required',
                 'uuid',
                 'exists:assessment_settings,id',
-            ],
-
-            'teacher_id' => [
-                'required',
-                'uuid',
-                'exists:users,id',
             ],
 
             'grades' => [
@@ -85,15 +80,6 @@ final class BulkGradeRequest extends FormRequest
 
             'assessment_setting_id.exists' =>
             'Pengaturan penilaian tidak ditemukan.',
-
-            'teacher_id.required' =>
-            'ID guru wajib diisi.',
-
-            'teacher_id.uuid' =>
-            'ID guru harus berupa UUID yang valid.',
-
-            'teacher_id.exists' =>
-            'Guru tidak ditemukan.',
 
             'grades.required' =>
             'Data nilai wajib diisi.',
