@@ -12,7 +12,7 @@ return new class extends Migration
             $bluePrint->uuid('id')->primary();
             $bluePrint->uuid('tenant_id')->index();
             $bluePrint->uuid('academic_period_id')->index();
-            $bluePrint->uuid('santri_id')->index();
+            $bluePrint->uuid('student_id')->index();
             $bluePrint->uuid('academic_class_id')->index();
 
             // Attendance & Notes
@@ -31,8 +31,8 @@ return new class extends Migration
             // Foreign Key Constraints (Assuming users table holds staff info)
             $bluePrint->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
 
-            // Composite Index untuk optimasi pencarian rapor per santri per periode
-            $bluePrint->unique(['tenant_id', 'academic_period_id', 'santri_id'], 'uq_tenant_period_santri');
+            // Composite Index untuk optimasi pencarian rapor per student per periode
+            $bluePrint->unique(['tenant_id', 'academic_period_id', 'student_id'], 'uq_tenant_period_student');
         });
     }
 

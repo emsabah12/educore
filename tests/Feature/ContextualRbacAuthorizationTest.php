@@ -4,24 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Identity\Models\User;
+use Tests\Feature\Middleware\InjectTestTenantContext;
+use Tests\TestCase;
 
 final class ContextualRbacAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Mengatur rute tiruan (mocking routes) untuk mensimulasikan endpoint riil yang diproteksi.
+     * Mengatur rute tiruan untuk mensimulasikan endpoint
+     * yang diproteksi oleh contextual tenant RBAC.
      */
     protected function setUp(): void
     {
         parent::setUp();
 
-        // 1. Jalankan migrasi modular untuk membangun seluruh skema tabel dasar & modular
         $this->artisan('migrate', [
             '--path' => [
                 'database/migrations',
@@ -30,19 +33,40 @@ final class ContextualRbacAuthorizationTest extends TestCase
                 'Modules/User/Database/Migrations',
                 'Modules/Academic/Database/Migrations',
             ],
-            '--realpath' => true
+            '--realpath' => true,
         ]);
 
-        // 2. Daftarkan rute testing tiruan yang dilindungi oleh middleware tenant.role
-        Route::middleware(['web', 'tenant.role:admin'])->group(function () {
-            Route::get('/test-tenant/dashboard', function () {
-                return response()->json(['status' => 'success', 'data' => 'Welcome to Tenant Dashboard']);
-            })->name('test.tenant.dashboard');
+        Route::middleware([
+            'web',
+            \Tests\Feature\Middleware\InjectTestTenantContext::class,
+            'tenant.role:admin',
+        ])->group(function (): void {
+            Route::get(
+                '/test-tenant/dashboard',
+                function () {
+                    return response()->json([
+                        'status' => 'success',
+                        'data' => 'Welcome to Tenant Dashboard',
+                    ]);
+                }
+            )->name('test.tenant.dashboard');
+
+            Route::get(
+                '/test-tenant/dashboard/{membership_id}',
+                function (string $membership_id) {
+                    return response()->json([
+                        'status' => 'success',
+                        'data' => 'Welcome to Tenant Dashboard',
+                        'membership_id' => $membership_id,
+                    ]);
+                }
+            )->name('test.tenant.dashboard.membership');
         });
     }
 
     /**
-     * Memastikan user yang memiliki role admin pada membership yang bersangkutan diizinkan masuk.
+     * Memastikan user yang memiliki role admin pada membership
+     * yang bersangkutan diizinkan masuk.
      */
     public function test_user_with_admin_role_in_current_membership_is_allowed_access(): void
     {
@@ -58,19 +82,19 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'password' => 'secret',
             'is_superadmin' => false,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        // Mematuhi NOT NULL constraint kolom subdomain
+
         DB::table('tenants')->insert([
             'id' => $tenantId,
             'name' => 'Sekolah Menengah A',
             'subdomain' => 'sma-a',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        // Mematuhi skema asli memberships Anda dengan menyertakan role makro dan status
+
         DB::table('memberships')->insert([
             'id' => $membershipId,
             'user_id' => $userId,
@@ -78,7 +102,7 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'role' => 'PEGAWAI',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('roles')->insert([
@@ -86,39 +110,52 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'name' => 'admin',
             'display_name' => 'Admin Sekolah',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        // Menghubungkan hak akses granular mikro (admin) ke dalam keanggotaan institusi
+
         DB::table('membership_roles')->insert([
             'membership_id' => $membershipId,
-            'role_id' => $roleId
+            'role_id' => $roleId,
         ]);
 
-        // Act
-        $userModel = User::find($userId);
+        $userModel = User::findOrFail($userId);
 
         $response = $this->actingAs($userModel)
-            ->withHeaders(['X-Membership-ID' => $membershipId])
-            ->json('GET', '/test-tenant/dashboard');
+            ->withHeaders([
+                'X-Membership-ID' => $membershipId,
+                'X-Tenant-ID' => $tenantId,
+            ])
+            ->json(
+                'GET',
+                '/test-tenant/dashboard'
+            );
 
-        // Assert
         $response->assertStatus(200);
-        $response->assertJsonPath('status', 'success');
+        $response->assertJsonPath(
+            'status',
+            'success'
+        );
     }
 
     /**
-     * Memastikan user ditolak jika mencoba mengakses data menggunakan ID Membership institusi lain.
+     * Memastikan user ditolak jika mencoba mengakses
+     * menggunakan membership yang bukan miliknya.
+     *
+     * Security invariant:
+     *
+     * User A tidak boleh menggunakan membership milik User B,
+     * walaupun membership tersebut memiliki role admin.
      */
     public function test_user_is_forbidden_when_accessing_with_unauthorized_membership_context(): void
     {
         $userId = '111aa11f-4c99-4484-8249-cfcce8c45651';
         $tenantAId = '222aa22f-4c99-4484-8249-cfcce8c45652';
         $membershipAId = '333aa33f-4c99-4484-8249-cfcce8c45653';
+        $membershipBId = '999bb99f-4c99-4484-8249-cfcce8c45699';
         $roleId = '444aa44f-4c99-4484-8249-cfcce8c45654';
 
-        // Konteks membership ilegal
-        $membershipBId = '999bb99f-4c99-4484-8249-cfcce8c45699';
+
 
         DB::table('users')->insert([
             'id' => $userId,
@@ -127,7 +164,7 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'password' => 'secret',
             'is_superadmin' => false,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('tenants')->insert([
@@ -135,9 +172,12 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'name' => 'Sekolah Menengah A',
             'subdomain' => 'sma-a',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
+        /*
+         * Membership valid milik authenticated user.
+         */
         DB::table('memberships')->insert([
             'id' => $membershipAId,
             'user_id' => $userId,
@@ -145,7 +185,7 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'role' => 'PEGAWAI',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('roles')->insert([
@@ -153,23 +193,231 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'name' => 'admin',
             'display_name' => 'Admin Sekolah',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('membership_roles')->insert([
             'membership_id' => $membershipAId,
-            'role_id' => $roleId
+            'role_id' => $roleId,
         ]);
 
-        // Act
-        $userModel = User::find($userId);
+        $userModel = User::findOrFail($userId);
+
+        /*
+         * membershipBId sengaja tidak dimiliki oleh user.
+         *
+         * Test ini memverifikasi bahwa CheckTenantRole
+         * tidak mempercayai X-Membership-ID secara blind.
+         */
+        $response = $this->actingAs($userModel)
+            ->withHeaders([
+                'X-Membership-ID' => $membershipBId,
+                'X-Tenant-ID' => $tenantAId,
+            ])
+            ->json(
+                'GET',
+                '/test-tenant/dashboard'
+            );
+
+        $response->assertStatus(403);
+        $response->assertJsonPath(
+            'message',
+            'Unauthorized: Your role does not possess the required clearance level for this tenant domain.'
+        );
+    }
+
+    public function test_user_cannot_use_membership_from_another_tenant_in_current_tenant_context(): void
+    {
+        $userId = '111aa11f-4c99-4484-8249-cfcce8c45651';
+
+        $tenantAId = '222aa22f-4c99-4484-8249-cfcce8c45652';
+        $tenantBId = '888bb88f-4c99-4484-8249-cfcce8c45688';
+
+        $membershipAId = '333aa33f-4c99-4484-8249-cfcce8c45653';
+        $membershipBId = '777bb77f-4c99-4484-8249-cfcce8c45677';
+
+        $roleId = '444aa44f-4c99-4484-8249-cfcce8c45654';
+
+        DB::table('users')->insert([
+            'id' => $userId,
+            'name' => 'Multi Tenant Admin',
+            'email' => 'multi-tenant-admin@educore.test',
+            'password' => 'secret',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tenants')->insert([
+            [
+                'id' => $tenantAId,
+                'name' => 'Sekolah Menengah A',
+                'subdomain' => 'sma-a',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $tenantBId,
+                'name' => 'Sekolah Menengah B',
+                'subdomain' => 'sma-b',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('memberships')->insert([
+            [
+                'id' => $membershipAId,
+                'user_id' => $userId,
+                'tenant_id' => $tenantAId,
+                'role' => 'PEGAWAI',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $membershipBId,
+                'user_id' => $userId,
+                'tenant_id' => $tenantBId,
+                'role' => 'PEGAWAI',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('roles')->insert([
+            'id' => $roleId,
+            'name' => 'admin',
+            'display_name' => 'Admin Sekolah',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('membership_roles')->insert([
+            [
+                'membership_id' => $membershipAId,
+                'role_id' => $roleId,
+            ],
+            [
+                'membership_id' => $membershipBId,
+                'role_id' => $roleId,
+            ],
+        ]);
+
+        $userModel = User::findOrFail($userId);
 
         $response = $this->actingAs($userModel)
-            ->withHeaders(['X-Membership-ID' => $membershipBId])
-            ->json('GET', '/test-tenant/dashboard');
+            ->withHeaders([
+                // Authentication context dipercaya berasal dari
+                // middleware authentication.
+                'X-Tenant-ID' => $tenantAId,
 
-        // Assert
+                // Attacker mencoba menggunakan membership
+                // yang sebenarnya berada di Tenant B.
+                'X-Membership-ID' => $membershipBId,
+            ])
+            ->json(
+                'GET',
+                '/test-tenant/dashboard'
+            );
+
         $response->assertStatus(403);
-        $response->assertJsonPath('message', 'Unauthorized: Your role does not possess the required clearance level for this tenant domain.');
+
+        $response->assertJsonPath(
+            'message',
+            'Unauthorized: Your role does not possess the required clearance level for this tenant domain.'
+        );
+    }
+    public function test_route_membership_context_takes_precedence_over_membership_header(): void
+    {
+        $userId = '111aa11f-4c99-4484-8249-cfcce8c45651';
+
+        $tenantAId = '222aa22f-4c99-4484-8249-cfcce8c45652';
+        $tenantBId = '888bb88f-4c99-4484-8249-cfcce8c45688';
+
+        $membershipAId = '333aa33f-4c99-4484-8249-cfcce8c45653';
+        $membershipBId = '999bb99f-4c99-4484-8249-cfcce8c45699';
+
+        $roleId = '444aa44f-4c99-4484-8249-cfcce8c45654';
+
+        DB::table('users')->insert([
+            'id' => $userId,
+            'name' => 'Saeful Admin',
+            'email' => 'admin-route-context@educore.test',
+            'password' => 'secret',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tenants')->insert([
+            [
+                'id' => $tenantAId,
+                'name' => 'Sekolah Menengah A',
+                'subdomain' => 'sma-route-a',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $tenantBId,
+                'name' => 'Sekolah Menengah B',
+                'subdomain' => 'sma-route-b',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('memberships')->insert([
+            [
+                'id' => $membershipAId,
+                'user_id' => $userId,
+                'tenant_id' => $tenantAId,
+                'role' => 'PEGAWAI',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $membershipBId,
+                'user_id' => $userId,
+                'tenant_id' => $tenantBId,
+                'role' => 'PEGAWAI',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('roles')->insert([
+            'id' => $roleId,
+            'name' => 'admin',
+            'display_name' => 'Admin Sekolah',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('membership_roles')->insert([
+            'membership_id' => $membershipBId,
+            'role_id' => $roleId,
+        ]);
+
+        $userModel = User::findOrFail($userId);
+
+        $response = $this->actingAs($userModel)
+            ->withHeaders([
+                // Sengaja menunjuk membership A.
+                // Middleware seharusnya TIDAK menggunakan ini.
+                'X-Membership-ID' => $membershipAId,
+
+                // Context tenant berasal dari authenticated context.
+                'X-Tenant-ID' => $tenantBId,
+            ])
+            ->get(
+                "/test-tenant/dashboard/{$membershipBId}"
+            );
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('status', 'success');
     }
 }

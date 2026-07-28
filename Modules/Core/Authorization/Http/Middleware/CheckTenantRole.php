@@ -20,6 +20,9 @@ final class CheckTenantRole
      * Menangani intersepsi HTTP request untuk memvalidasi
      * role kontekstual user di dalam tenant.
      *
+     * Tenant context wajib berasal dari authenticated request context
+     * yang sudah divalidasi oleh InjectTenantContext.
+     *
      * @param Closure(Request): Response $next
      * @param string $role Nama role yang diizinkan, misalnya "admin".
      */
@@ -28,7 +31,6 @@ final class CheckTenantRole
         Closure $next,
         string $role
     ): Response {
-        // 1. Pastikan user sudah terautentikasi pada platform.
         $user = Auth::user();
 
         if ($user === null) {
@@ -38,58 +40,36 @@ final class CheckTenantRole
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        // 2. Superadmin global memiliki akses lintas tenant.
         if ($user->is_superadmin) {
             return $next($request);
         }
 
-        // 3. Resolusi membership context.
-        //
-        // Prioritas:
-        // route parameter
-        // -> X-Membership-ID header
-        // -> active session context
-        $membershipId = $request->route('membership_id')
-            ?? $request->header('X-Membership-ID')
-            ?? ($request->hasSession()
-                ? $request->session()->get('active_membership_id')
-                : null);
+        $authenticatedUserId = $this->resolveAuthenticatedUserId($request);
+        $authenticatedTenantId = $this->resolveAuthenticatedTenantId($request);
+        $membershipId = $this->resolveMembershipId($request);
 
-        if ($membershipId === null || $membershipId === '') {
+        if ($authenticatedUserId === null || $authenticatedTenantId === null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Forbidden: Authentication context is incomplete.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($membershipId === null) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bad Request: Missing tenant membership context attributes.',
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // 4. Resolusi tenant context.
-        //
-        // Tenant context dapat berasal dari:
-        // route parameter
-        // -> X-Tenant-ID header
-        // -> active session context
-        $tenantId = $request->route('tenant_id')
-            ?? $request->header('X-Tenant-ID')
-            ?? ($request->hasSession()
-                ? $request->session()->get('active_tenant_id')
-                : null);
-
-        // 5. Delegasikan seluruh business rule authorization
-        // kepada AuthorizationService.
-        //
-        // Service akan memvalidasi:
-        // - membership ownership
-        // - membership status
-        // - tenant ownership
-        // - contextual role
         $hasRequiredRole = $this->authorizationService->hasRoleInMembership(
-            (string) $user->getAuthIdentifier(),
-            (string) $membershipId,
+            $authenticatedUserId,
+            $membershipId,
             $role,
-            $tenantId !== null ? (string) $tenantId : null,
+            $authenticatedTenantId
         );
 
-        if (!$hasRequiredRole) {
+        if (! $hasRequiredRole) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
@@ -97,5 +77,69 @@ final class CheckTenantRole
         }
 
         return $next($request);
+    }
+
+    /**
+     * Mengambil authenticated user ID dari canonical request context.
+     */
+    private function resolveAuthenticatedUserId(Request $request): ?string
+    {
+        $userId = $request->attributes->get('authenticated_user_id');
+
+        if (! is_string($userId)) {
+            return null;
+        }
+
+        $userId = trim($userId);
+
+        return $userId !== '' ? $userId : null;
+    }
+
+    /**
+     * Mengambil authenticated tenant ID dari canonical request context.
+     *
+     * Sumber kebenaran tenant authorization hanya request attribute
+     * yang telah diisi oleh InjectTenantContext.
+     */
+    private function resolveAuthenticatedTenantId(Request $request): ?string
+    {
+        $tenantId = $request->attributes->get('authenticated_tenant_id');
+
+        if (! is_string($tenantId)) {
+            return null;
+        }
+
+        $tenantId = trim($tenantId);
+
+        return $tenantId !== '' ? $tenantId : null;
+    }
+
+    /**
+     * Mengambil membership context yang sedang aktif.
+     *
+     * Urutan fallback tetap dipertahankan untuk konteks membership,
+     * tetapi tenant authorization tidak lagi membaca X-Tenant-ID.
+     */
+    private function resolveMembershipId(Request $request): ?string
+    {
+        $membershipId = $request->route('membership_id');
+
+        if (! is_string($membershipId) || trim($membershipId) === '') {
+            $membershipId = $request->header('X-Membership-ID');
+
+            if (! is_string($membershipId) || trim($membershipId) === '') {
+                $membershipId = $request->hasSession()
+                    ? $request->session()->get('active_membership_id')
+                    : null;
+            }
+        }
+
+        if (! is_string($membershipId)) {
+            return null;
+        }
+
+        $membershipId = trim($membershipId);
+
+        return $membershipId !== '' ? $membershipId : null;
     }
 }
