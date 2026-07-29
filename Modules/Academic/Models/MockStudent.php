@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Auth\Entities;
+namespace Modules\Academic\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;

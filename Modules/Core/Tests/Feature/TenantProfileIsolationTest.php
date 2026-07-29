@@ -8,7 +8,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\Auth\Entities\Employee;
+use Modules\HR\Models\Employee;
 use Exception;
 
 final class TenantProfileIsolationTest extends TestCase

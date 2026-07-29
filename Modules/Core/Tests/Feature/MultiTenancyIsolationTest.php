@@ -7,7 +7,7 @@ namespace Modules\Core\Tests\Feature;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Modules\Auth\Entities\MockStudent;
+use Modules\Academic\Models\MockStudent;
 use Illuminate\Support\Str;
 use Exception;
 

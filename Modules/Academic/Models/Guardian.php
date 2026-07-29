@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Modules\Auth\Entities;
+namespace Modules\Academic\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
-final class Student extends Model
+final class Guardian extends Model
 {
     use BelongsToTenant;
 
-    protected $table = 'santris';
+    protected $table = 'walisantris';
 
     public $incrementing = false;
 
@@ -22,9 +22,8 @@ final class Student extends Model
         'id',
         'tenant_id',
         'membership_id',
-        'nisn',
-        'kelas',
-        'kamar_asrama'
+        'no_hp',
+        'alamat_domisili'
     ];
 
     /**

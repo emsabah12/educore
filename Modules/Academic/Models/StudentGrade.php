@@ -4,34 +4,36 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Modules\Core\Identity\Models\User;
+use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 final class StudentGrade extends Model
 {
     use HasUuids;
+    use BelongsToTenant;
 
     protected $table = 'student_grades';
 
     protected $fillable = [
-        'tenant_id',
+
         'assessment_setting_id',
         'student_id',
         'teacher_id',
         'score',
-        'notes'
+        'notes',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(fn(self $model) => $model->id = $model->id ?? (string) Str::uuid());
-    }
+    protected $casts = [
+        'score' => 'decimal:2',
+    ];
 
     public function setting(): BelongsTo
     {
-        return $this->belongsTo(AssessmentSetting::class, 'assessment_setting_id');
+        return $this->belongsTo(
+            AssessmentSetting::class,
+            'assessment_setting_id'
+        );
     }
 }
