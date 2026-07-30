@@ -4,59 +4,64 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tenancy\Traits;
 
-use Modules\Core\Tenancy\Infrastructure\Scopes\TenantScope;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
-use Modules\Core\Tenancy\Models\Tenant;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Log;
-use Exception;
+use Modules\Core\Tenancy\Exceptions\TenantContextMismatchException;
+use Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException;
 
 trait BelongsToTenant
 {
-    /**
-     * Boot trait ini secara otomatis untuk model Eloquent yang menggunakannya.
-     */
-    public static function bootBelongsToTenant(): void
+    protected static function bootBelongsToTenant(): void
     {
-        // 1. Daftarkan TenantScope sebagai Global Scope Query
-        static::addGlobalScope(new TenantScope());
+        static::addGlobalScope('tenant', function (Builder $builder): void {
+            $tenantContext = app(TenantContextInterface::class);
 
-        // 2. Intersepsi model event 'creating' untuk mengotomatisasi pengisian tenant_id
-        static::creating(function ($model) {
-            $tenantId = null;
+            $tenantId = $tenantContext->getCurrentTenantId();
 
-            // Coba dapatkan konteks melalui interface bawaan secara aman
-            if (app()->bound(TenantContextInterface::class)) {
-                $tenantId = app(TenantContextInterface::class)->getCurrentTenantId();
-            }
-
-            // Fallback: Jika kosong, coba ambil langsung dari container UUID yang diikat middleware/test
-            if ($tenantId === null && app()->bound('current_tenant_uuid')) {
-                $tenantId = app('current_tenant_uuid');
-            }
-
-            // DEFENSIVE GUARD: Jika data dicoba ditulis tanpa konteks tenant yang jelas
             if ($tenantId === null) {
-                throw new Exception('Bypass Blocked: Cannot write tenant data without an authenticated tenant context.');
+                return;
             }
 
-            // Isi kolom tenant_id secara otomatis jika belum diisi manual
-            if (empty($model->tenant_id)) {
-                $model->tenant_id = $tenantId;
+            $builder->where(
+                $builder->getModel()->qualifyColumn('tenant_id'),
+                $tenantId,
+            );
+        });
 
-                Log::debug('Tenant ID automatically injected into model creation.', [
-                    'model' => get_class($model),
-                    'tenant_id' => $tenantId
-                ]);
-            }
+        static::creating(function (Model $model): void {
+            self::guardTenantWrite($model);
+        });
+
+        static::updating(function (Model $model): void {
+            self::guardTenantWrite($model);
         });
     }
 
-    /**
-     * Definisi Relasi: Setiap entitas tenant-aware terikat ke satu Tenant.
-     */
-    public function tenant(): BelongsTo
+    protected static function guardTenantWrite(Model $model): void
     {
-        return $this->belongsTo(Tenant::class, 'tenant_id', 'id');
+        $tenantContext = app(TenantContextInterface::class);
+
+        $activeTenantId = $tenantContext->getCurrentTenantId();
+
+        if ($activeTenantId === null) {
+            throw new TenantContextNotResolvedException();
+        }
+
+        $modelTenantId = $model->getAttribute('tenant_id');
+
+        if ($modelTenantId === null) {
+            $model->setAttribute('tenant_id', $activeTenantId);
+
+            return;
+        }
+
+        if ($modelTenantId !== $activeTenantId) {
+            throw new TenantContextMismatchException(
+                modelClass: $model::class,
+                activeTenantId: $activeTenantId,
+                modelTenantId: $modelTenantId,
+            );
+        }
     }
 }

@@ -10,7 +10,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Database\Schema\Blueprint;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
+use Modules\Core\Authorization\Context\AuthorizationContext;
+use Modules\Core\Authorization\Contracts\AuthorizationContextInterface;
 use Modules\Core\Authorization\Services\AuthorizationService;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Authorization\Repositories\MembershipRepository;
+use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
+use Modules\Core\Authorization\Services\AuthorizationContextResolver;
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
@@ -32,6 +38,16 @@ use Modules\Core\Tests\Console\TestModuleLoaderCommand;
 use Modules\Core\Platform\Console\KernelHealthCheckCommand;
 use Modules\Core\Listeners\QueueWatchdogListener;
 use Modules\Core\Support\Uuid\UuidBlueprintMacro;
+use Modules\Core\Shared\Database\TransactionManager;
+use Modules\Core\Shared\Repositories\Contracts\TransactionManagerInterface;
+use Modules\Core\Shared\Contracts\UnitOfWorkInterface;
+use Modules\Core\Shared\UnitOfWork\UnitOfWork;
+use Modules\Core\Shared\Contracts\CommandBusInterface;
+use Modules\Core\Shared\Bus\CommandBus;
+use Modules\Core\Shared\Bus\CommandHandlerResolver;
+use Modules\Core\Shared\Bus\QueryHandlerResolver;
+use Modules\Core\Shared\Bus\QueryBus;
+use Modules\Core\Shared\Contracts\QueryBusInterface;
 use Illuminate\Support\Facades\Log;
 
 final class CoreServiceProvider extends ServiceProvider
@@ -121,6 +137,68 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(
             AuthorizationServiceInterface::class,
             AuthorizationService::class
+        );
+
+        $this->app->singleton(
+            AuthorizationContextResolverInterface::class,
+            AuthorizationContextResolver::class,
+        );
+
+        $this->app->bind(
+            AuthorizationContextInterface::class,
+            AuthorizationContext::class,
+        );
+
+        $this->app->bind(
+            MembershipRepositoryInterface::class,
+            MembershipRepository::class,
+        );
+
+        $this->app->singleton(
+            TransactionManagerInterface::class,
+            TransactionManager::class,
+        );
+
+        $this->app->singleton(
+            UnitOfWorkInterface::class,
+            UnitOfWork::class,
+        );
+
+        /*
+         * Command Bus
+         */
+        $this->app->singleton(
+            CommandBusInterface::class,
+            CommandBus::class,
+        );
+
+        /*
+         * Command Handler Resolver
+         *
+         * Resolver bertanggung jawab menemukan dan membuat
+         * handler berdasarkan command yang diterima.
+         */
+        $this->app->singleton(
+            CommandHandlerResolver::class,
+        );
+
+        /*
+         * Query Handler Resolver
+         *
+         * Resolver bertanggung jawab menemukan dan membuat
+         * handler berdasarkan query yang diterima.
+         */
+        $this->app->singleton(
+            QueryHandlerResolver::class,
+        );
+
+        /*
+         * Query Handler Resolver
+         *
+         */
+        $this->app->singleton(
+            QueryBusInterface::class,
+            QueryBus::class,
         );
     }
     /**

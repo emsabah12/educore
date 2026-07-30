@@ -8,30 +8,28 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException;
 
 final class TenantScope implements Scope
 {
     /**
-     * Terapkan filter tenant pada query Eloquent.
+     * Terapkan tenant isolation pada query Eloquent.
      *
-     * Tenant aktif diambil dari TenantContextInterface sebagai
-     * single source of truth untuk tenant context.
+     * Tenant context merupakan single source of truth.
+     *
+     * Jika tenant context belum tersedia, operasi tenant-scoped
+     * harus dihentikan untuk mencegah data leakage lintas tenant.
      */
     public function apply(Builder $builder, Model $model): void
     {
+        /** @var TenantContextInterface $tenantContext */
         $tenantContext = app(TenantContextInterface::class);
 
         $tenantId = $tenantContext->getCurrentTenantId();
 
-        /*
-         * Jika tidak ada tenant context aktif, jangan menambahkan
-         * filter tenant secara parsial.
-         *
-         * Perilaku fail-safe penuh untuk query tenant-aware akan
-         * difinalisasi pada tahap enforcement berikutnya.
-         */
+
         if ($tenantId === null) {
-            return;
+            throw new TenantContextNotResolvedException();
         }
 
         $builder->where(
