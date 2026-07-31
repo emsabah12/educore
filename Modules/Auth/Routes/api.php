@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
@@ -15,18 +16,20 @@ Route::prefix('v1/auth')->group(function () {
 });
 
 Route::post('/v1/auth/login-token', [AuthController::class, 'loginToken']);
-Route::post('/v1/auth/login-session', [AuthController::class, 'loginSession']); // Tambahkan baris ini
+Route::post('/v1/auth/login-session', [AuthController::class, 'loginSession']);
 
-// 2. Rute Terproteksi: Wajib melewati Interseptor Ekstraksi Token
+// Protected routes: authentication context must be resolved first.
 Route::middleware([InjectTenantContext::class])->group(function () {
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
 });
 
 Route::middleware([InjectTenantContext::class])->group(function () {
-    Route::get('/v1/auth/me', function () {
+    Route::get('/v1/auth/me', function (Request $request) {
         return response()->json([
             'status' => 'success',
-            'current_tenant' => app()->bound('current_tenant_uuid') ? app('current_tenant_uuid') : null
+            'current_tenant' => $request->attributes->get(
+                'authenticated_tenant_id'
+            ),
         ]);
     });
 });

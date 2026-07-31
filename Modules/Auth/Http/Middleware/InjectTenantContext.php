@@ -8,44 +8,29 @@ use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Symfony\Component\HttpFoundation\Response;
 
 final class InjectTenantContext
 {
     public function __construct(
-        private readonly TokenManagerInterface $tokenManager
+        private readonly TokenManagerInterface $tokenManager,
+        private readonly TenantContextInterface $tenantContext,
     ) {}
 
     /**
      * Inject authenticated user and tenant context into the current request.
      *
      * Token parsing and validation are delegated entirely to TokenManagerInterface.
-     * This middleware must not know whether the token is JWT, encrypted, opaque,
-     * or implemented using another token strategy.
      */
     public function handle(
         Request $request,
-        Closure $next
+        Closure $next,
     ): Response {
         $userUuid = null;
         $tenantUuid = null;
 
-        /*
-         * --------------------------------------------------------------------------
-         * 1. Resolve Authentication Context from Bearer Token
-         * --------------------------------------------------------------------------
-         *
-         * The middleware delegates token parsing and validation to the token manager.
-         *
-         * This is the single source of truth for token handling.
-         *
-         * The middleware must never:
-         *
-         * - manually decode JWT payloads;
-         * - manually decrypt tokens;
-         * - trust unsigned token payloads;
-         * - assume a specific token format.
-         */
+
         $bearerToken = $request->bearerToken();
 
         if ($bearerToken !== null && $bearerToken !== '') {
@@ -54,104 +39,63 @@ final class InjectTenantContext
             if ($payload !== null) {
                 $userUuid = $this->extractStringClaim(
                     $payload,
-                    'user_id'
+                    'user_id',
                 );
 
                 $tenantUuid = $this->extractStringClaim(
                     $payload,
-                    'tenant_id'
+                    'tenant_id',
                 );
             }
         }
 
-        /*
-         * --------------------------------------------------------------------------
-         * 2. Validate Authentication Context
-         * --------------------------------------------------------------------------
-         *
-         * A valid token must contain both user_id and tenant_id.
-         *
-         * At this stage we only validate that the token contains the required
-         * structural claims.
-         *
-         * IMPORTANT:
-         * Membership authorization is intentionally NOT handled here yet.
-         *
-         * That responsibility will be implemented in the next security boundary
-         * step through Membership Resolution.
-         */
+
         if ($userUuid === null || $tenantUuid === null) {
             return $this->contextErrorResponse();
         }
 
         /*
-         * --------------------------------------------------------------------------
-         * 3. Bind Tenant and User Context to Service Container
-         * --------------------------------------------------------------------------
+         * Canonical tenant runtime context.
          *
-         * The context is scoped to the current application request lifecycle.
+         * TenantContextInterface is now the single source of truth
+         * for the currently authenticated tenant.
          */
-        app()->instance(
-            'current_tenant_uuid',
-            $tenantUuid
-        );
+        $tenant = \Modules\Core\Tenancy\Models\Tenant::query()
+            ->find($tenantUuid);
 
-        app()->instance(
-            'current_user_uuid',
-            $userUuid
-        );
+        if ($tenant === null || ! $tenant->is_active) {
+            return $this->contextErrorResponse();
+        }
+
+        $this->tenantContext->setCurrentTenant($tenant);
 
         /*
-         * --------------------------------------------------------------------------
-         * 4. Bind Canonical Request Attributes
-         * --------------------------------------------------------------------------
-         *
-         * These attributes are the canonical context contract consumed by
-         * downstream controllers and services.
+         * User context remains available through the application container
+         * for existing consumers until user-context consolidation is completed.
+         */
+
+        /*
+         * Canonical HTTP request attributes.
          */
         $request->attributes->set(
             'authenticated_tenant_id',
-            $tenantUuid
+            $tenantUuid,
         );
 
         $request->attributes->set(
             'authenticated_user_id',
-            $userUuid
-        );
-
-        /*
-         * --------------------------------------------------------------------------
-         * 5. Backward Compatibility Attributes
-         * --------------------------------------------------------------------------
-         *
-         * These aliases are temporarily retained for legacy consumers.
-         *
-         * New code should use:
-         *
-         * - authenticated_tenant_id
-         * - authenticated_user_id
-         */
-        $request->attributes->set(
-            'tenant_uuid',
-            $tenantUuid
-        );
-
-        $request->attributes->set(
-            'user_uuid',
-            $userUuid
+            $userUuid,
         );
 
         return $next($request);
     }
 
     /**
-     * Extract a non-empty string claim from a validated token payload.
-     *
      * @param array<string, mixed> $payload
      */
     private function extractStringClaim(
         array $payload,
-        string $claim
+        string $claim,
     ): ?string {
         $value = $payload[$claim] ?? null;
 
@@ -166,19 +110,7 @@ final class InjectTenantContext
             : null;
     }
 
-    /**
-     * Return a generic authentication context error.
-     *
-     * The response intentionally does not expose whether the token was:
-     *
-     * - missing;
-     * - malformed;
-     * - expired;
-     * - tampered with;
-     * - missing required claims.
-     *
-     * This prevents unnecessary information disclosure to clients.
-     */
+
     private function contextErrorResponse(): JsonResponse
     {
         return response()->json([

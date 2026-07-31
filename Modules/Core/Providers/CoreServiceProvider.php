@@ -14,9 +14,17 @@ use Modules\Core\Authorization\Context\AuthorizationContext;
 use Modules\Core\Authorization\Contracts\AuthorizationContextInterface;
 use Modules\Core\Authorization\Services\AuthorizationService;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
-use Modules\Core\Authorization\Repositories\MembershipRepository;
 use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
 use Modules\Core\Authorization\Services\AuthorizationContextResolver;
+use Modules\Core\Authorization\Repositories\Contracts\PermissionRepositoryInterface;
+use Modules\Core\Authorization\Repositories\EloquentPermissionRepository;
+use Modules\Core\Authorization\Repositories\EloquentMembershipRepository;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use Modules\Core\Authorization\Repositories\EloquentMembershipRoleRepository;
+use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
+use Modules\Core\Authorization\Repositories\EloquentRolePermissionRepository;
+use Modules\Core\Authorization\Contracts\AccessCheckerInterface;
+use Modules\Core\Authorization\Services\AccessChecker;
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
@@ -30,6 +38,10 @@ use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\ModuleStateRepository;
 use Modules\Core\Services\DependencyResolver;
 use Modules\Core\Services\EventDiscoveryService;
+use Modules\Core\Person\Repositories\EloquentPersonRepository;
+use Modules\Core\Person\Contracts\PersonRepositoryInterface;
+use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
+use Modules\Core\Person\Repositories\EloquentPersonLifecycleEventRepository;
 use Modules\Core\Platform\Console\ModuleListCommand;
 use Modules\Core\Platform\Console\ModuleStatusCommand;
 use Modules\Core\Platform\Console\ModuleEnableCommand;
@@ -150,8 +162,43 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            PermissionRepositoryInterface::class,
+            EloquentPermissionRepository::class,
+        );
+
+        $this->app->bind(
             MembershipRepositoryInterface::class,
-            MembershipRepository::class,
+            EloquentMembershipRepository::class,
+        );
+
+        $this->app->bind(
+            MembershipRoleRepositoryInterface::class,
+            EloquentMembershipRoleRepository::class,
+        );
+
+        $this->app->bind(
+            RolePermissionRepositoryInterface::class,
+            EloquentRolePermissionRepository::class,
+        );
+
+        $this->app->singleton(
+            AccessCheckerInterface::class,
+            AccessChecker::class,
+        );
+
+        $this->app->singleton(
+            PersonRepositoryInterface::class,
+            EloquentPersonRepository::class,
+        );
+
+        $this->app->singleton(
+            PersonLifecycleEventRepositoryInterface::class,
+            EloquentPersonLifecycleEventRepository::class,
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Person\Contracts\PersonLifecycleServiceInterface::class,
+            \Modules\Core\Person\Services\PersonLifecycleService::class,
         );
 
         $this->app->singleton(
@@ -311,6 +358,7 @@ final class CoreServiceProvider extends ServiceProvider
             base_path('Modules/Core/Database/Migrations'),
             base_path('Modules/Core/Tenancy/Database/Migrations'),
             base_path('Modules/Core/Authorization/Database/Migrations'),
+            base_path('Modules/Core/Person/Database/Migrations'),
             base_path('Modules/Core/Platform/Database/Migrations'),
             base_path('Modules/HR/Database/Migrations'),
             base_path('Modules/Academic/Database/Migrations'),

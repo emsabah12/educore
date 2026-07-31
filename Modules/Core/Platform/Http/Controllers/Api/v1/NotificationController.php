@@ -42,7 +42,7 @@ final class NotificationController extends Controller
          * - X-Tenant-UUID header
          * - tenant_uuid legacy attribute
          * - user_uuid legacy attribute
-         * - current_tenant_uuid dari service container
+         * - authenticated_tenant_id dari request attributes
          *
          * Hal ini mencegah client melakukan tenant spoofing melalui header.
          */

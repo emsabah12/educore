@@ -5,100 +5,79 @@ declare(strict_types=1);
 namespace Modules\Core\Authorization\Services;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
 
 final class AuthorizationService implements AuthorizationServiceInterface
 {
+    public function __construct(
+        private readonly AuthorizationContextResolverInterface $contextResolver,
+        private readonly MembershipRepositoryInterface $membershipRepository,
+        private readonly MembershipRoleRepositoryInterface $membershipRoleRepository,
+        private readonly RolePermissionRepositoryInterface $rolePermissionRepository,
+    ) {}
+
     /**
-     * Menentukan apakah user memiliki role tertentu
-     * pada membership yang valid dan aktif.
+     * Menentukan apakah authenticated user memiliki role
+     * pada authorization context saat ini.
      *
-     * Security invariant:
+     * Security invariants:
      *
-     * 1. Membership harus dimiliki oleh user.
-     * 2. Membership harus ACTIVE.
-     * 3. Jika tenantId diberikan, membership harus berada
-     *    pada tenant tersebut.
-     * 4. Role harus terhubung ke membership melalui membership_roles.
+     * 1. Identity berasal dari authenticated user.
+     * 2. Tenant berasal dari current tenant context.
+     * 3. Membership berasal dari AuthorizationContextResolver.
+     * 4. Membership harus ACTIVE.
+     * 5. Role harus terhubung melalui membership_roles.
+     * 6. memberships.role tidak pernah digunakan sebagai
+     *    authorization source.
      */
-    public function hasRoleInMembership(
-        string $userId,
-        string $membershipId,
+    public function hasRole(
         string $roleName,
-        ?string $tenantId = null
     ): bool {
-        $query = DB::table('memberships')
-            ->join(
-                'membership_roles',
-                'memberships.id',
-                '=',
-                'membership_roles.membership_id'
-            )
-            ->join(
-                'roles',
-                'membership_roles.role_id',
-                '=',
-                'roles.id'
-            )
-            ->where('memberships.id', $membershipId)
-            ->where('memberships.user_id', $userId)
-            ->where('memberships.status', 'ACTIVE')
-            ->where('roles.name', $roleName);
+        $context = $this->contextResolver->resolve();
 
-        if ($tenantId !== null) {
-            $query->where('memberships.tenant_id', $tenantId);
-        }
-
-        return $query->exists();
+        return $this->membershipRoleRepository->membershipHasRole(
+            $context->membershipId(),
+            $roleName,
+        );
     }
 
     /**
-     * Menentukan apakah user memiliki permission tertentu
-     * pada membership yang valid dan aktif.
+     * Menentukan apakah authenticated user memiliki permission
+     * pada authorization context saat ini.
      *
-     * Security invariant:
+     * Security invariants:
      *
-     * 1. Membership harus dimiliki oleh user.
-     * 2. Membership harus ACTIVE.
-     * 3. Jika tenantId diberikan, membership harus berada
-     *    pada tenant tersebut.
-     * 4. Permission harus berasal dari role yang diberikan
-     *    kepada membership tersebut.
+     * 1. Identity berasal dari authenticated user.
+     * 2. Tenant berasal dari current tenant context.
+     * 3. Membership berasal dari AuthorizationContextResolver.
+     * 4. Membership harus ACTIVE.
+     * 5. Permission harus berasal dari role membership.
+     * 6. Permission resolution tidak menggunakan memberships.role.
      */
-    public function hasPermissionInMembership(
-        string $userId,
-        string $membershipId,
+    public function hasPermission(
         string $permissionName,
-        ?string $tenantId = null
     ): bool {
-        $query = DB::table('memberships')
-            ->join(
-                'membership_roles',
-                'memberships.id',
-                '=',
-                'membership_roles.membership_id'
-            )
-            ->join(
-                'role_permissions',
-                'membership_roles.role_id',
-                '=',
-                'role_permissions.role_id'
-            )
-            ->join(
-                'permissions',
-                'role_permissions.permission_id',
-                '=',
-                'permissions.id'
-            )
-            ->where('memberships.id', $membershipId)
-            ->where('memberships.user_id', $userId)
-            ->where('memberships.status', 'ACTIVE')
-            ->where('permissions.name', $permissionName);
+        $context = $this->contextResolver->resolve();
 
-        if ($tenantId !== null) {
-            $query->where('memberships.tenant_id', $tenantId);
+        $roles = $this->membershipRoleRepository->rolesForMembership(
+            $context->membershipId(),
+        );
+
+        foreach ($roles as $role) {
+            if (
+                $this->rolePermissionRepository->roleHasPermission(
+                    $role->id,
+                    $permissionName,
+                )
+            ) {
+                return true;
+            }
         }
 
-        return $query->exists();
+        return false;
     }
 }

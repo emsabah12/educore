@@ -4,51 +4,64 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Modules\Academic\Models\MockStudent;
 use Illuminate\Support\Str;
-use Exception;
+use Modules\Academic\Models\MockStudent;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Models\Tenant;
+use Tests\TestCase;
 
 final class MultiTenancyIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Uji 1: Sistem wajib memblokir pembuatan data bisnis jika tidak ada konteks tenant aktif.
+     * Ensure tenant-aware writes are blocked when no tenant
+     * has been resolved into the canonical tenant context.
      */
     public function test_it_blocks_creation_without_tenant_context(): void
     {
-        app()->offsetUnset('current_tenant_uuid');
+        $tenantContext = app(TenantContextInterface::class);
 
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Bypass Blocked: Cannot write tenant data without an authenticated tenant context.');
+        $tenantContext->clear();
+
+        $this->expectException(
+            \Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException::class,
+        );
 
         $student = new MockStudent();
         $student->id = Str::uuid()->toString();
         $student->name = 'Santri Tanpa Lembaga';
         $student->nisn = '1234567890';
         $student->status = 'ACTIVE';
+
         $student->save();
     }
 
     /**
-     * Uji 2: Sistem harus secara otomatis menginjeksi tenant_id dan mengisolasi query antar tenant.
+     * Ensure tenant-aware writes automatically receive the active
+     * tenant id and queries remain isolated between tenants.
      */
     public function test_it_automatically_injects_tenant_id_and_scopes_queries(): void
     {
-        $tenantA = Str::uuid()->toString();
-        $tenantB = Str::uuid()->toString();
+        $tenantContext = app(TenantContextInterface::class);
 
-        // FIX: DAFTARKAN TENANT KE DATABASE TERLEBIH DAHULU
-        DB::table('tenants')->insert([
-            ['id' => $tenantA, 'name' => 'Lembaga A', 'subdomain' => 'a', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => $tenantB, 'name' => 'Lembaga B', 'subdomain' => 'b', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        $tenantA = Tenant::query()->create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Lembaga A',
+            'subdomain' => 'a',
+            'is_active' => true,
         ]);
 
-        // --- STEP 1: Masuk Konteks Tenant A ---
-        app()->singleton('current_tenant_uuid', fn() => $tenantA);
+        $tenantB = Tenant::query()->create([
+            'id' => Str::uuid()->toString(),
+            'name' => 'Lembaga B',
+            'subdomain' => 'b',
+            'is_active' => true,
+        ]);
+
+        $tenantContext->setCurrentTenant($tenantA);
 
         $studentA = new MockStudent();
         $studentA->id = Str::uuid()->toString();
@@ -57,10 +70,12 @@ final class MultiTenancyIsolationTest extends TestCase
         $studentA->status = 'ACTIVE';
         $studentA->save();
 
-        $this->assertEquals($tenantA, $studentA->tenant_id);
+        $this->assertEquals(
+            $tenantA->id,
+            $studentA->tenant_id,
+        );
 
-        // --- STEP 2: Masuk Konteks Tenant B ---
-        app()->singleton('current_tenant_uuid', fn() => $tenantB);
+        $tenantContext->setCurrentTenant($tenantB);
 
         $studentB = new MockStudent();
         $studentB->id = Str::uuid()->toString();
@@ -69,16 +84,37 @@ final class MultiTenancyIsolationTest extends TestCase
         $studentB->status = 'ACTIVE';
         $studentB->save();
 
-        // --- STEP 3: Verifikasi Isolasi Data ---
-        $studentsInTenantB = MockStudent::all();
-        $this->assertCount(1, $studentsInTenantB);
-        $this->assertEquals('Siswa Lembaga B', $studentsInTenantB->first()->name);
+        $this->assertEquals(
+            $tenantB->id,
+            $studentB->tenant_id,
+        );
 
-        // --- STEP 4: Kembali ke Tenant A ---
-        app()->singleton('current_tenant_uuid', fn() => $tenantA);
+        $studentsInTenantB = MockStudent::query()->get();
 
-        $studentsInTenantA = MockStudent::all();
-        $this->assertCount(1, $studentsInTenantA);
-        $this->assertEquals('Siswa Lembaga A', $studentsInTenantA->first()->name);
+        $this->assertCount(
+            1,
+            $studentsInTenantB,
+        );
+
+        $this->assertEquals(
+            'Siswa Lembaga B',
+            $studentsInTenantB->first()->name,
+        );
+
+        $tenantContext->setCurrentTenant($tenantA);
+
+        $studentsInTenantA = MockStudent::query()->get();
+
+        $this->assertCount(
+            1,
+            $studentsInTenantA,
+        );
+
+        $this->assertEquals(
+            'Siswa Lembaga A',
+            $studentsInTenantA->first()->name,
+        );
+
+        $tenantContext->clear();
     }
 }

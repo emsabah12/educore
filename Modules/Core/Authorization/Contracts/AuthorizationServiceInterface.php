@@ -7,48 +7,47 @@ namespace Modules\Core\Authorization\Contracts;
 interface AuthorizationServiceInterface
 {
     /**
-     * Menentukan apakah user memiliki role tertentu
-     * pada membership yang valid dan aktif.
+     * Menentukan apakah authenticated user memiliki role
+     * pada authorization context saat ini.
      *
-     * Authorization bersifat contextual:
+     * Authorization context ditentukan secara internal melalui:
      *
-     * User
-     *   -> Membership
-     *      -> Tenant
-     *         -> Role
+     * Authenticated User
+     *      ↓
+     * AuthorizationContextResolver
+     *      ↓
+     * Active Membership
+     *      ↓
+     * membership_roles
+     *      ↓
+     * roles
      *
-     * @param string $userId
-     * @param string $membershipId
-     * @param string $roleName
-     * @param string|null $tenantId
+     * Caller tidak boleh memberikan userId, membershipId,
+     * atau tenantId secara langsung.
      */
-    public function hasRoleInMembership(
-        string $userId,
-        string $membershipId,
+    public function hasRole(
         string $roleName,
-        ?string $tenantId = null
     ): bool;
 
     /**
-     * Menentukan apakah user memiliki permission tertentu
-     * pada membership yang valid dan aktif.
+     * Menentukan apakah authenticated user memiliki permission
+     * pada authorization context saat ini.
      *
      * Permission diperoleh melalui:
      *
      * membership_roles
-     *   -> roles
-     *   -> role_permissions
-     *   -> permissions
+     *      ↓
+     * roles
+     *      ↓
+     * role_permissions
+     *      ↓
+     * permissions
      *
-     * @param string $userId
-     * @param string $membershipId
-     * @param string $permissionName
-     * @param string|null $tenantId
+     * Caller tidak boleh memberikan userId, membershipId,
+     * atau tenantId secara langsung.
      */
-    public function hasPermissionInMembership(
-        string $userId,
-        string $membershipId,
+    public function hasPermission(
         string $permissionName,
-        ?string $tenantId = null
+
     ): bool;
 }

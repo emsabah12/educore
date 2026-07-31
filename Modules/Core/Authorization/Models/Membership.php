@@ -7,6 +7,8 @@ namespace Modules\Core\Authorization\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
@@ -37,6 +39,24 @@ final class Membership extends Model
             User::class,
             'user_id',
             'id'
+        );
+    }
+
+    public function membershipRoles(): HasMany
+    {
+        return $this->hasMany(
+            MembershipRole::class,
+            'membership_id',
+        );
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Role::class,
+            'membership_roles',
+            'membership_id',
+            'role_id',
         );
     }
 }

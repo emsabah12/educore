@@ -46,11 +46,10 @@ final readonly class AuthorizationContextResolver implements AuthorizationContex
             );
         }
 
-        $membership = $this->membershipRepository->findOneBy([
-            'user_id' => $userId,
-            'tenant_id' => $tenantId,
-            'status' => 'ACTIVE',
-        ]);
+        $membership = $this->membershipRepository->findActiveMembership(
+            $userId,
+            $tenantId,
+        );
 
         if ($membership === null) {
             throw new RuntimeException(

@@ -4,24 +4,22 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Models\Employee;
-use Exception;
+use Tests\TestCase;
 
 final class TenantProfileIsolationTest extends TestCase
 {
-    // Memastikan database testing di-refresh total dengan skema bersih sebelum tes dijalankan
     use RefreshDatabase;
 
     private string $tenantA;
+
     private string $tenantB;
 
-    /**
-     * Set up state awal data pengujian sebelum setiap metode tes dijalankan.
-     */
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,19 +27,49 @@ final class TenantProfileIsolationTest extends TestCase
         $this->tenantA = Str::uuid()->toString();
         $this->tenantB = Str::uuid()->toString();
 
-        // Menyediakan data master tenant untuk mematuhi integritas Foreign Key
         DB::table('tenants')->insert([
-            ['id' => $this->tenantA, 'name' => 'Sekolah Pusat A', 'subdomain' => 'pusata', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => $this->tenantB, 'name' => 'Sekolah Cabang B', 'subdomain' => 'cabangb', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            [
+                'id' => $this->tenantA,
+                'name' => 'Sekolah Pusat A',
+                'subdomain' => 'pusata',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $this->tenantB,
+                'name' => 'Sekolah Cabang B',
+                'subdomain' => 'cabangb',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
     }
 
+    protected function tearDown(): void
+    {
+        if (app()->bound(TenantContextInterface::class)) {
+            app(TenantContextInterface::class)->clear();
+        }
+
+        parent::tearDown();
+    }
+
     /**
-     * Uji 1: Memastikan Trait pengisolasi data menyaring query profil employee antar tenant secara otomatis.
+     * Ensure employee profiles are strictly isolated between tenants.
      */
     public function test_it_strictly_isolates_employee_profiles_between_tenants(): void
     {
-        // 1. Buat User Global & Membership untuk Tenant A
+        $tenantContext = app(TenantContextInterface::class);
+
+        $tenantA = Tenant::query()->findOrFail($this->tenantA);
+        $tenantB = Tenant::query()->findOrFail($this->tenantB);
+
+        // ---------------------------------------------------------
+        // Tenant A
+        // ---------------------------------------------------------
+
         $userIdA = Str::uuid()->toString();
         $membershipIdA = Str::uuid()->toString();
 
@@ -52,7 +80,7 @@ final class TenantProfileIsolationTest extends TestCase
             'password' => 'secret',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('memberships')->insert([
@@ -62,11 +90,10 @@ final class TenantProfileIsolationTest extends TestCase
             'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        // Kunci context ke Tenant A, lalu simpan data employee A
-        app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
+        $tenantContext->setCurrentTenant($tenantA);
 
         $employeeA = new Employee();
         $employeeA->id = Str::uuid()->toString();
@@ -75,7 +102,15 @@ final class TenantProfileIsolationTest extends TestCase
         $employeeA->jabatan = 'GURU';
         $employeeA->save();
 
-        // 2. Buat User Global & Membership untuk Tenant B
+        $this->assertEquals(
+            $this->tenantA,
+            $employeeA->tenant_id,
+        );
+
+        // ---------------------------------------------------------
+        // Tenant B
+        // ---------------------------------------------------------
+
         $userIdB = Str::uuid()->toString();
         $membershipIdB = Str::uuid()->toString();
 
@@ -86,7 +121,7 @@ final class TenantProfileIsolationTest extends TestCase
             'password' => 'secret',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('memberships')->insert([
@@ -96,11 +131,10 @@ final class TenantProfileIsolationTest extends TestCase
             'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        // Alihkan context ke Tenant B, lalu simpan data employee B
-        app()->singleton('current_tenant_uuid', fn() => $this->tenantB);
+        $tenantContext->setCurrentTenant($tenantB);
 
         $employeeB = new Employee();
         $employeeB->id = Str::uuid()->toString();
@@ -109,27 +143,56 @@ final class TenantProfileIsolationTest extends TestCase
         $employeeB->jabatan = 'STAFF';
         $employeeB->save();
 
-        // 3. VERIFIKASI ASPEK KEAMANAN QUERY ISOLATION (Data Leak Prevention)
-        // Sesi saat ini terkunci di Tenant B. Panggilan employee::all() HANYA boleh mengembalikan data milik Tenant B!
-        $hasilQueryDiTenantB = Employee::all();
+        $this->assertEquals(
+            $this->tenantB,
+            $employeeB->tenant_id,
+        );
 
-        $this->assertCount(1, $hasilQueryDiTenantB);
-        $this->assertEquals('19950202BB', $hasilQueryDiTenantB->first()->nip);
+        // ---------------------------------------------------------
+        // Verify Tenant B isolation
+        // ---------------------------------------------------------
 
-        // Alihkan kembali ke Tenant A
-        app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
+        $studentsInTenantB = Employee::query()->get();
 
-        $hasilQueryDiTenantA = Employee::all();
+        $this->assertCount(
+            1,
+            $studentsInTenantB,
+        );
 
-        $this->assertCount(1, $hasilQueryDiTenantA);
-        $this->assertEquals('19900101AA', $hasilQueryDiTenantA->first()->nip);
+        $this->assertEquals(
+            '19950202BB',
+            $studentsInTenantB->first()->nip,
+        );
+
+        // ---------------------------------------------------------
+        // Verify Tenant A isolation
+        // ---------------------------------------------------------
+
+        $tenantContext->setCurrentTenant($tenantA);
+
+        $employeesInTenantA = Employee::query()->get();
+
+        $this->assertCount(
+            1,
+            $employeesInTenantA,
+        );
+
+        $this->assertEquals(
+            '19900101AA',
+            $employeesInTenantA->first()->nip,
+        );
     }
 
     /**
-     * Uji 2: Memastikan integritas Cascading Delete berjalan di PostgreSQL level.
+     * Ensure employee profiles are removed when their membership
+     * is deleted through the database foreign-key cascade.
      */
     public function test_it_cascades_delete_on_profile_when_membership_is_removed(): void
     {
+        $tenantContext = app(TenantContextInterface::class);
+
+        $tenantA = Tenant::query()->findOrFail($this->tenantA);
+
         $userId = Str::uuid()->toString();
         $membershipId = Str::uuid()->toString();
 
@@ -140,7 +203,7 @@ final class TenantProfileIsolationTest extends TestCase
             'password' => 'secret',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         DB::table('memberships')->insert([
@@ -150,10 +213,10 @@ final class TenantProfileIsolationTest extends TestCase
             'role' => 'employee',
             'status' => 'ACTIVE',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
-        app()->singleton('current_tenant_uuid', fn() => $this->tenantA);
+        $tenantContext->setCurrentTenant($tenantA);
 
         $employee = new Employee();
         $employee->id = Str::uuid()->toString();
@@ -162,13 +225,22 @@ final class TenantProfileIsolationTest extends TestCase
         $employee->jabatan = 'GURU';
         $employee->save();
 
-        // Pastikan record tersimpan dengan aman
-        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas(
+            'employees',
+            [
+                'id' => $employee->id,
+            ],
+        );
 
-        // AKSI: Hapus baris data di tabel induk (memberships)
-        DB::table('memberships')->where('id', '=', $membershipId)->delete();
+        DB::table('memberships')
+            ->where('id', $membershipId)
+            ->delete();
 
-        // ASSERTION: Tabel anak (employees) HARUS ikut terhapus secara otomatis oleh PostgreSQL cascade guard
-        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
+        $this->assertDatabaseMissing(
+            'employees',
+            [
+                'id' => $employee->id,
+            ],
+        );
     }
 }
