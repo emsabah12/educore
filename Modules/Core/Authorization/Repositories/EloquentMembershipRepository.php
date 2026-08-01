@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Core\Authorization\Repositories;
 
-
 use Illuminate\Support\Collection;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
@@ -14,7 +13,8 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
     public function findById(
         string $id,
     ): ?Membership {
-        return Membership::query()->find($id);
+        return Membership::query()
+            ->find($id);
     }
 
     public function findActiveMembership(

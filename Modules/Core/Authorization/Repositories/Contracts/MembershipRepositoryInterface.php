@@ -18,18 +18,6 @@ interface MembershipRepositoryInterface
         string $tenantId,
     ): ?Membership;
 
-    public function findActiveMembershipForUser(
-        string $membershipId,
-        string $userId,
-    ): ?Membership;
-
-    /**
-     * @return Collection<int, Membership>
-     */
-    public function findActiveMembershipsForUser(
-        string $userId,
-    ): Collection;
-
     /**
      * @return Collection<int, Membership>
      */

@@ -2,110 +2,38 @@
 
 declare(strict_types=1);
 
-namespace Modules\Core\Authorization\Repositories;
+namespace Modules\Core\Authorization\Repositories\Contracts;
 
 use Illuminate\Support\Collection;
-use Modules\Core\Authorization\Models\Membership;
-use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Authorization\Models\MembershipRole;
+use Modules\Core\Authorization\Models\Role;
 
-final class EloquentMembershipRepository implements MembershipRepositoryInterface
+interface MembershipRoleRepositoryInterface
 {
-    public function findById(
-        string $id,
-    ): ?Membership {
-        return Membership::query()
-            ->find($id);
-    }
-
-    public function findActiveMembership(
-        string $userId,
-        string $tenantId,
-    ): ?Membership {
-        return Membership::query()
-            ->where('user_id', $userId)
-            ->where('tenant_id', $tenantId)
-            ->where('status', 'ACTIVE')
-            ->orderByDesc('created_at')
-            ->first();
-    }
-
-    public function findActiveMembershipForUser(
+    /**
+     * @return Collection<int, Role>
+     */
+    public function rolesForMembership(
         string $membershipId,
-        string $userId,
-    ): ?Membership {
-        return Membership::query()
-            ->whereKey($membershipId)
-            ->where('user_id', $userId)
-            ->where('status', 'ACTIVE')
-            ->first();
-    }
+    ): Collection;
+
+    public function membershipHasRole(
+        string $membershipId,
+        string $roleName,
+    ): bool;
 
     /**
-     * @return Collection<int, Membership>
+     * @return Collection<int, MembershipRole>
      */
-    public function findActiveMembershipsForUser(
-        string $userId,
-    ): Collection {
-        return Membership::query()
-            ->where('user_id', $userId)
-            ->where('status', 'ACTIVE')
-            ->orderBy('created_at')
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, Membership>
-     */
-    public function findByUser(
-        string $userId,
-    ): Collection {
-        return Membership::query()
-            ->where('user_id', $userId)
-            ->orderBy('created_at')
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, Membership>
-     */
-    public function findByTenant(
-        string $tenantId,
-    ): Collection {
-        return Membership::query()
-            ->where('tenant_id', $tenantId)
-            ->orderBy('created_at')
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, Membership>
-     */
-    public function all(): Collection
-    {
-        return Membership::query()
-            ->orderBy('created_at')
-            ->get();
-    }
-
-    public function exists(
-        string $id,
-    ): bool {
-        return Membership::query()
-            ->whereKey($id)
-            ->exists();
-    }
+    public function findByMembership(
+        string $membershipId,
+    ): Collection;
 
     public function save(
-        Membership $membership,
-    ): Membership {
-        $membership->save();
-
-        return $membership;
-    }
+        MembershipRole $membershipRole,
+    ): MembershipRole;
 
     public function delete(
-        Membership $membership,
-    ): void {
-        $membership->delete();
-    }
+        MembershipRole $membershipRole,
+    ): void;
 }
