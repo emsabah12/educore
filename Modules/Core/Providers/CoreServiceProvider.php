@@ -25,6 +25,8 @@ use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryIn
 use Modules\Core\Authorization\Repositories\EloquentRolePermissionRepository;
 use Modules\Core\Authorization\Contracts\AccessCheckerInterface;
 use Modules\Core\Authorization\Services\AccessChecker;
+use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
+use Modules\Core\Authorization\Services\MembershipContextResolver;
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
@@ -149,6 +151,11 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(
             AuthorizationServiceInterface::class,
             AuthorizationService::class
+        );
+
+        $this->app->singleton(
+            MembershipContextResolverInterface::class,
+            MembershipContextResolver::class,
         );
 
         $this->app->singleton(
