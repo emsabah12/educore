@@ -5,14 +5,62 @@ declare(strict_types=1);
 namespace Modules\Auth\Tests\Feature;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
+use RefreshDatabase;
 
 final class InjectTenantContextTest extends TestCase
 {
+
+    /**
+     * @return array{
+     *     user_id: string,
+     *     tenant_id: string
+     * }
+     */
+    private function createCanonicalAuthenticationFixture(): array
+    {
+        $userId = Str::uuid()->toString();
+        $tenantId = Str::uuid()->toString();
+
+        DB::table('users')->insert([
+            'id' => $userId,
+            'name' => 'Inject Tenant Context User',
+            'email' => sprintf(
+                'inject-context-%s@educore.test',
+                Str::lower(Str::random(10)),
+            ),
+            'password' => bcrypt('secret123'),
+            'status' => 'ACTIVE',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tenants')->insert([
+            'id' => $tenantId,
+            'name' => 'Inject Tenant Context Tenant',
+            'subdomain' => sprintf(
+                'inject-context-%s',
+                Str::lower(Str::random(10)),
+            ),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [
+            'user_id' => $userId,
+            'tenant_id' => $tenantId,
+        ];
+    }
+
     /**
      * TokenManager mock yang digunakan untuk mengisolasi
      * middleware dari implementasi token sebenarnya.
@@ -28,7 +76,20 @@ final class InjectTenantContextTest extends TestCase
         $this->tokenManager = $this->createMock(
             TokenManagerInterface::class
         );
+
+        $this->app->instance(
+            TokenManagerInterface::class,
+            $this->tokenManager,
+        );
     }
+
+    private function middleware(): InjectTenantContext
+    {
+        return $this->app->make(
+            InjectTenantContext::class,
+        );
+    }
+
 
     /**
      * Token valid dengan user_id dan tenant_id wajib
@@ -36,56 +97,71 @@ final class InjectTenantContextTest extends TestCase
      */
     public function test_valid_token_injects_authenticated_user_and_tenant_context(): void
     {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+
         $this->tokenManager
             ->expects($this->once())
             ->method('validateAndExtract')
             ->with('valid-token')
             ->willReturn([
-                'user_id' => 'user-uuid-123',
-                'tenant_id' => 'tenant-uuid-456',
+                'user_id' => $fixture['user_id'],
+                'tenant_id' => $fixture['tenant_id'],
             ]);
 
         $request = Request::create(
-            '/v1/test',
-            'GET'
+            '/api/protected',
+            'GET',
+            server: [
+                'HTTP_AUTHORIZATION' => 'Bearer valid-token',
+            ],
         );
 
-        $request->headers->set(
-            'Authorization',
-            'Bearer valid-token'
-        );
-
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
-            function (Request $request): Response {
+            function (Request $request) use ($fixture): Response {
                 $this->assertSame(
-                    'user-uuid-123',
-                    $request->attributes->get(
-                        'authenticated_user_id'
-                    )
+                    $fixture['user_id'],
+                    auth()->id(),
                 );
 
                 $this->assertSame(
-                    'tenant-uuid-456',
-                    $request->attributes->get(
-                        'authenticated_tenant_id'
-                    )
+                    $fixture['user_id'],
+                    $request->attributes->get('authenticated_user_id'),
+                );
+
+                $this->assertSame(
+                    $fixture['tenant_id'],
+                    $request->attributes->get('authenticated_tenant_id'),
+                );
+
+                $this->assertSame(
+                    $fixture['tenant_id'],
+                    app(TenantContextInterface::class)
+                        ->getCurrentTenantId(),
                 );
 
                 return response()->json([
                     'status' => 'success',
                 ]);
-            }
+            },
         );
 
         $this->assertSame(
-            200,
-            $response->getStatusCode()
+            Response::HTTP_OK,
+            $response->getStatusCode(),
         );
+
+        /*
+     * Middleware melakukan cleanup setelah request selesai.
+     */
+        $this->assertNull(
+            app(TenantContextInterface::class)
+                ->getCurrentTenantId(),
+        );
+
+        $this->assertNull(auth()->user());
     }
 
     /**
@@ -109,9 +185,7 @@ final class InjectTenantContextTest extends TestCase
             'Bearer invalid-token'
         );
 
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
@@ -163,9 +237,7 @@ final class InjectTenantContextTest extends TestCase
             'Bearer missing-user-token'
         );
 
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
@@ -205,9 +277,7 @@ final class InjectTenantContextTest extends TestCase
             'Bearer missing-tenant-token'
         );
 
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
@@ -232,48 +302,48 @@ final class InjectTenantContextTest extends TestCase
      */
     public function test_role_claim_is_not_injected_into_request_context(): void
     {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+
         $this->tokenManager
             ->expects($this->once())
             ->method('validateAndExtract')
-            ->with('token-with-role')
+            ->with('valid-token-with-role')
             ->willReturn([
-                'user_id' => 'user-uuid-123',
-                'tenant_id' => 'tenant-uuid-456',
-                'role' => 'SUPERADMIN',
+                'user_id' => $fixture['user_id'],
+                'tenant_id' => $fixture['tenant_id'],
+                'role' => 'admin',
             ]);
 
         $request = Request::create(
-            '/v1/test',
-            'GET'
+            '/api/protected',
+            'GET',
+            server: [
+                'HTTP_AUTHORIZATION' => 'Bearer valid-token-with-role',
+            ],
         );
 
-        $request->headers->set(
-            'Authorization',
-            'Bearer token-with-role'
-        );
-
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
             function (Request $request): Response {
-                $this->assertNull(
-                    $request->attributes->get(
-                        'authenticated_role'
-                    )
+                $this->assertFalse(
+                    $request->attributes->has('role'),
+                );
+
+                $this->assertFalse(
+                    $request->attributes->has('authenticated_role'),
                 );
 
                 return response()->json([
                     'status' => 'success',
                 ]);
-            }
+            },
         );
 
         $this->assertSame(
-            200,
-            $response->getStatusCode()
+            Response::HTTP_OK,
+            $response->getStatusCode(),
         );
     }
 
@@ -291,9 +361,7 @@ final class InjectTenantContextTest extends TestCase
             'GET'
         );
 
-        $middleware = new InjectTenantContext(
-            $this->tokenManager
-        );
+        $middleware = $this->middleware();
 
         $response = $middleware->handle(
             $request,
