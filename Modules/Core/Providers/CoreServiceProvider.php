@@ -172,6 +172,11 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            \Modules\Core\Tenancy\Contracts\TenantRepositoryInterface::class,
+            \Modules\Core\Repositories\EloquentTenantRepository::class,
+        );
+
+        $this->app->bind(
             MembershipRepositoryInterface::class,
             EloquentMembershipRepository::class,
         );
