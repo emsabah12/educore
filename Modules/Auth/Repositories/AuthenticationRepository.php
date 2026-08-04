@@ -17,17 +17,17 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
      * user memiliki membership aktif pada tenant tertentu.
      *
      * Authentication layer hanya bertanggung jawab terhadap:
-     * - Global user identity
-     * - Membership context
-     * - Tenant context
+     * - global user identity;
+     * - membership context;
+     * - tenant context.
      *
-     * Authorization role TIDAK diambil dari memberships.role.
+     * Authorization role tidak dibaca dari memberships.role.
      *
      * @return array<string, mixed>|null
      */
     public function findByEmailForTenant(
         string $email,
-        string $tenantUuid
+        string $tenantUuid,
     ): ?array {
         $normalizedEmail = strtolower(trim($email));
 
@@ -36,7 +36,7 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
                 self::MEMBERSHIPS_TABLE,
                 self::USERS_TABLE . '.id',
                 '=',
-                self::MEMBERSHIPS_TABLE . '.user_id'
+                self::MEMBERSHIPS_TABLE . '.user_id',
             )
             ->select([
                 self::USERS_TABLE . '.id',
@@ -51,47 +51,20 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
             ])
             ->where(
                 self::USERS_TABLE . '.email',
-                $normalizedEmail
+                $normalizedEmail,
             )
             ->where(
                 self::USERS_TABLE . '.status',
-                'ACTIVE'
+                'ACTIVE',
             )
             ->where(
                 self::MEMBERSHIPS_TABLE . '.tenant_id',
-                $tenantUuid
+                $tenantUuid,
             )
             ->where(
                 self::MEMBERSHIPS_TABLE . '.status',
-                'ACTIVE'
+                'ACTIVE',
             )
-            ->first();
-
-        return $user !== null
-            ? (array) $user
-            : null;
-    }
-
-    /**
-     * Mengambil profil identity global berdasarkan UUID user.
-     *
-     * Method ini sengaja tidak mengambil memberships.role
-     * karena role bukan bagian dari identity global.
-     *
-     * @return array<string, mixed>|null
-     */
-    public function findByUserUuid(string $userUuid): ?array
-    {
-        $user = DB::table(self::USERS_TABLE)
-            ->select([
-                'id',
-                'name',
-                'email',
-                'password',
-                'status',
-            ])
-            ->where('id', $userUuid)
-            ->where('status', 'ACTIVE')
             ->first();
 
         return $user !== null

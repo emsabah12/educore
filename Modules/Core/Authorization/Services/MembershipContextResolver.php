@@ -97,15 +97,26 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     }
 
     /**
-     * Prioritas membership context:
+     * Urutan prioritas membership context:
      *
-     * 1. Route parameter membership_id
-     * 2. X-Membership-ID header
-     * 3. active_membership_id session
-     * 4. Membership aktif user–tenant sebagai fallback
+     * 1. authenticated_membership_id dari token tervalidasi
+     * 2. Route parameter membership_id
+     * 3. X-Membership-ID header
+     * 4. active_membership_id session
+     * 5. null, lalu resolver menggunakan membership aktif user–tenant
      */
     private function resolveRequestedMembershipId(): ?string
     {
+        $membershipId = $this->normalizeIdentifier(
+            $this->request->attributes->get(
+                'authenticated_membership_id',
+            ),
+        );
+
+        if ($membershipId !== null) {
+            return $membershipId;
+        }
+
         $membershipId = $this->normalizeIdentifier(
             $this->request->route('membership_id'),
         );
@@ -127,7 +138,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         }
 
         return $this->normalizeIdentifier(
-            $this->request->session()->get('active_membership_id'),
+            $this->request->session()->get(
+                'active_membership_id',
+            ),
         );
     }
 

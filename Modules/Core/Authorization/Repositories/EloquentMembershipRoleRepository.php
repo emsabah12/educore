@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Authorization\Repositories;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Authorization\Models\MembershipRole;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
@@ -23,11 +24,11 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
                 'membership_roles',
                 'roles.id',
                 '=',
-                'membership_roles.role_id'
+                'membership_roles.role_id',
             )
             ->where(
                 'membership_roles.membership_id',
-                $membershipId
+                $membershipId,
             )
             ->orderBy('roles.name')
             ->get();
@@ -42,15 +43,15 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
                 'membership_roles',
                 'roles.id',
                 '=',
-                'membership_roles.role_id'
+                'membership_roles.role_id',
             )
             ->where(
                 'membership_roles.membership_id',
-                $membershipId
+                $membershipId,
             )
             ->where(
                 'roles.name',
-                $roleName
+                $roleName,
             )
             ->exists();
     }
@@ -62,12 +63,25 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
         string $membershipId,
     ): Collection {
         return MembershipRole::query()
-            ->where(
-                'membership_id',
-                $membershipId
-            )
+            ->where('membership_id', $membershipId)
             ->orderBy('role_id')
             ->get();
+    }
+
+    public function assignRole(
+        string $membershipId,
+        string $roleId,
+    ): void {
+        DB::table('membership_roles')->updateOrInsert(
+            [
+                'membership_id' => $membershipId,
+                'role_id' => $roleId,
+            ],
+            [
+                'membership_id' => $membershipId,
+                'role_id' => $roleId,
+            ],
+        );
     }
 
     public function save(

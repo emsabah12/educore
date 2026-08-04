@@ -143,8 +143,6 @@ final class CoreServiceProvider extends ServiceProvider
         // $this->app->register(\Modules\Core\Providers\TenantServiceProvider::class);
         // 1. Amankan pendaftaran Tenant Context Service Provider
         $this->app->register(TenantServiceProvider::class);
-        // 2. Amankan pendaftaran Custom Auth Driver Service Provider
-        $this->app->register(AuthServiceProvider::class);
         // 3. Daftarkan Route Service Provider milik Core
         $this->app->register(RouteServiceProvider::class);
 

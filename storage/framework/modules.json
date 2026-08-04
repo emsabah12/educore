@@ -16,5 +16,8 @@
     },
     "Academic": {
         "enabled": true
+    },
+    "User": {
+        "enabled": true
     }
 }

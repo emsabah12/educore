@@ -1,0 +1,22 @@
+schema: 1
+
+name: User
+
+display_name: User
+
+version: 0.1.0
+
+description: User Management Module
+
+providers:
+  - Modules\User\Providers\UserServiceProvider
+
+dependencies:
+  - core
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Business
+
+extra: {}

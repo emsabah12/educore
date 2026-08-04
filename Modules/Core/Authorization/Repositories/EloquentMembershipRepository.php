@@ -29,6 +29,48 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
             ->first();
     }
 
+    public function findActiveMembershipByIdAndTenant(
+        string $membershipId,
+        string $tenantId,
+    ): ?Membership {
+        return Membership::query()
+            ->whereKey($membershipId)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->first();
+    }
+
+    public function findActiveMembershipByIdForUser(
+        string $membershipId,
+        string $userId,
+    ): ?Membership {
+        return Membership::query()
+            ->select('memberships.*')
+            ->join(
+                'tenants',
+                'memberships.tenant_id',
+                '=',
+                'tenants.id',
+            )
+            ->where(
+                'memberships.id',
+                $membershipId,
+            )
+            ->where(
+                'memberships.user_id',
+                $userId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
+            )
+            ->where(
+                'tenants.is_active',
+                true,
+            )
+            ->first();
+    }
+
     /**
      * @return Collection<int, Membership>
      */

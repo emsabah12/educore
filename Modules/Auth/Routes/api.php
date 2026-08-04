@@ -7,29 +7,42 @@ use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 
-Route::prefix('v1/auth')->group(function () {
-    // Route Discovery (Public)
-    Route::get('tenant-discovery', [AuthController::class, 'discoverTenant']);
+Route::prefix('v1/auth')->group(function (): void {
+    /*
+     * Public stateless authentication route.
+     */
+    Route::post(
+        '/login-token',
+        [
+            AuthController::class,
+            'loginToken',
+        ],
+    )->name('api.v1.auth.login-token');
 
-    // Route Login (Public)
-    Route::post('login-token', [AuthController::class, 'loginToken']);
-});
+    /*
+     * Tenant-aware authenticated routes.
+     */
+    Route::middleware([
+        InjectTenantContext::class,
+    ])->group(function (): void {
+        Route::post(
+            '/logout',
+            [
+                AuthController::class,
+                'logout',
+            ],
+        )->name('api.v1.auth.logout');
 
-Route::post('/v1/auth/login-token', [AuthController::class, 'loginToken']);
-Route::post('/v1/auth/login-session', [AuthController::class, 'loginSession']);
-
-// Protected routes: authentication context must be resolved first.
-Route::middleware([InjectTenantContext::class])->group(function () {
-    Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
-});
-
-Route::middleware([InjectTenantContext::class])->group(function () {
-    Route::get('/v1/auth/me', function (Request $request) {
-        return response()->json([
-            'status' => 'success',
-            'current_tenant' => $request->attributes->get(
-                'authenticated_tenant_id'
-            ),
-        ]);
+        Route::get(
+            '/me',
+            static function (Request $request) {
+                return response()->json([
+                    'status' => 'success',
+                    'current_tenant' => $request->attributes->get(
+                        'authenticated_tenant_id',
+                    ),
+                ]);
+            },
+        )->name('api.v1.auth.me');
     });
 });

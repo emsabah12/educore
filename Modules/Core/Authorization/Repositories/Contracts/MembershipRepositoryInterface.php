@@ -13,9 +13,39 @@ interface MembershipRepositoryInterface
         string $id,
     ): ?Membership;
 
+    /**
+     * Mengambil membership aktif berdasarkan user dan tenant.
+     */
     public function findActiveMembership(
         string $userId,
         string $tenantId,
+    ): ?Membership;
+
+    /**
+     * Mengambil target membership aktif dalam tenant tertentu.
+     *
+     * Digunakan untuk use case tenant-scoped seperti assignment role.
+     */
+    public function findActiveMembershipByIdAndTenant(
+        string $membershipId,
+        string $tenantId,
+    ): ?Membership;
+
+    /**
+     * Mengambil membership aktif yang dimiliki user tertentu.
+     *
+     * Membership hanya dikembalikan jika:
+     * - membership ID sesuai;
+     * - dimiliki authenticated user;
+     * - membership berstatus ACTIVE;
+     * - tenant membership masih aktif.
+     *
+     * Digunakan untuk use case pemilihan atau perpindahan
+     * active membership context.
+     */
+    public function findActiveMembershipByIdForUser(
+        string $membershipId,
+        string $userId,
     ): ?Membership;
 
     /**

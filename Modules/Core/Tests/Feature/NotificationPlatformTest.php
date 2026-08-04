@@ -7,9 +7,11 @@ namespace Modules\Core\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Jobs\SendAsynchronousNotificationJob;
 use Tests\TestCase;
+
 
 final class NotificationPlatformTest extends TestCase
 {
@@ -32,6 +34,20 @@ final class NotificationPlatformTest extends TestCase
         $this->tokenManager = $this->app->make(
             TokenManagerInterface::class
         );
+
+        DB::table('users')->insert([
+            'id' => $this->userId,
+            'name' => 'Notification Platform User',
+            'email' => sprintf(
+                'notification-platform-%s@educore.test',
+                Str::lower(Str::random(10)),
+            ),
+            'password' => bcrypt('secret123'),
+            'status' => 'ACTIVE',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         DB::table('tenants')->insert([
             'id' => $this->tenantId,

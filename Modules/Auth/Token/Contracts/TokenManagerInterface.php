@@ -5,25 +5,37 @@ declare(strict_types=1);
 namespace Modules\Auth\Token\Contracts;
 
 /**
- * Interface TokenManagerInterface
- * * Kontrak platform untuk penerbitan dan pembedahan token otentikasi terpadu.
+ * Contract untuk penerbitan dan validasi authentication token.
  */
 interface TokenManagerInterface
 {
     /**
-     * Menerbitkan token unik (JWT/Opaque) yang membawa klaim identitas tenant.
-     * 
-     * @param string $userUuid
-     * @param string $tenantUuid
-     * @param array $customClaims Klaim kustom tambahan yang ingin disertakan dalam token.
-     * @return string
+     * Menerbitkan token terenkripsi yang membawa canonical identity
+     * dan tenant context.
+     *
+     * Core claims tidak boleh ditimpa oleh custom claims.
+     *
+     * @param array<string, mixed> $customClaims
      */
-    public function issueToken(string $userUuid, string $tenantUuid, array $customClaims = []): string;
+    public function issueToken(
+        string $userUuid,
+        string $tenantUuid,
+        array $customClaims = [],
+    ): string;
 
     /**
-     * Validasi token runtime dan ekstrak seluruh klaim payload di dalamnya (Fail-Fast).
-     * @param string $token
-     * @return array|null Mengembalikan array payload [user_id, tenant_id] jika valid, atau null jika tidak sah/expired.
+     * Memvalidasi token dan mengembalikan payload jika token sah
+     * serta belum kedaluwarsa.
+     *
+     * @return array<string, mixed>|null
      */
     public function validateAndExtract(string $token): ?array;
+
+    /**
+     * Masa aktif token dalam detik.
+     *
+     * Nilai ini menjadi sumber kebenaran bagi token payload
+     * dan metadata response authentication.
+     */
+    public function lifetimeInSeconds(): int;
 }

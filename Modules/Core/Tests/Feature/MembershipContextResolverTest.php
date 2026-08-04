@@ -243,4 +243,132 @@ final class MembershipContextResolverTest extends TestCase
         app(TenantContextInterface::class)
             ->setCurrentTenant($tenant);
     }
+
+    public function test_authenticated_membership_context_takes_precedence_over_header(): void
+    {
+        $otherUserId = Str::uuid()->toString();
+        $otherMembershipId = Str::uuid()->toString();
+
+        DB::table('users')->insert([
+            'id' => $otherUserId,
+            'name' => 'Header Membership User',
+            'email' => sprintf(
+                'header-membership-%s@educore.id',
+                Str::lower(Str::random(10)),
+            ),
+            'password' => 'secret',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('memberships')->insert([
+            'id' => $otherMembershipId,
+            'user_id' => $otherUserId,
+            'tenant_id' => $this->tenantA,
+            'role' => 'employee',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->authenticateAsUser(
+            $this->userId,
+        );
+
+        $this->setTenantContext(
+            $this->tenantA,
+        );
+
+        /*
+     * Trusted membership context dari token tervalidasi.
+     */
+        request()->attributes->set(
+            'authenticated_membership_id',
+            $this->membershipA,
+        );
+
+        /*
+     * Untrusted client input mencoba mengganti membership
+     * dengan membership milik user lain.
+     */
+        request()->headers->set(
+            'X-Membership-ID',
+            $otherMembershipId,
+        );
+
+        $resolver = app(
+            MembershipContextResolverInterface::class,
+        );
+
+        $context = $resolver->resolve();
+
+        $this->assertSame(
+            $this->userId,
+            $context->userId,
+        );
+
+        $this->assertSame(
+            $this->tenantA,
+            $context->tenantId,
+        );
+
+        $this->assertSame(
+            $this->membershipA,
+            $context->membershipId,
+        );
+
+        $this->assertNotSame(
+            $otherMembershipId,
+            $context->membershipId,
+        );
+    }
+
+    public function test_it_rejects_invalid_authenticated_membership_context(): void
+    {
+        $otherUserId = Str::uuid()->toString();
+        $otherMembershipId = Str::uuid()->toString();
+
+        DB::table('users')->insert([
+            'id' => $otherUserId,
+            'name' => 'Invalid Token Membership User',
+            'email' => 'invalid-token-membership@educore.id',
+            'password' => 'secret',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('memberships')->insert([
+            'id' => $otherMembershipId,
+            'user_id' => $otherUserId,
+            'tenant_id' => $this->tenantA,
+            'role' => 'employee',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->authenticateAsUser($this->userId);
+        $this->setTenantContext($this->tenantA);
+
+        request()->attributes->set(
+            'authenticated_membership_id',
+            $otherMembershipId,
+        );
+
+        $resolver = app(
+            MembershipContextResolverInterface::class,
+        );
+
+        $this->expectException(
+            MembershipContextResolutionException::class,
+        );
+
+        $this->expectExceptionMessage(
+            'Cannot resolve membership context: requested membership is not active or does not belong to the authenticated user and tenant.',
+        );
+
+        $resolver->resolve();
+    }
 }

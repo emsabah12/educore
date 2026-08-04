@@ -29,6 +29,11 @@ interface MembershipRoleRepositoryInterface
         string $membershipId,
     ): Collection;
 
+    public function assignRole(
+        string $membershipId,
+        string $roleId,
+    ): void;
+
     public function save(
         MembershipRole $membershipRole,
     ): MembershipRole;

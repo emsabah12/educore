@@ -259,38 +259,57 @@ final class InjectTenantContextTest extends TestCase
      */
     public function test_token_without_tenant_id_is_rejected(): void
     {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+
         $this->tokenManager
             ->expects($this->once())
             ->method('validateAndExtract')
-            ->with('missing-tenant-token')
+            ->with('token-without-tenant')
             ->willReturn([
-                'user_id' => 'user-uuid-123',
+                'user_id' => $fixture['user_id'],
             ]);
 
         $request = Request::create(
-            '/v1/test',
-            'GET'
+            '/api/protected',
+            'GET',
+            server: [
+                'HTTP_AUTHORIZATION' => 'Bearer token-without-tenant',
+            ],
         );
 
-        $request->headers->set(
-            'Authorization',
-            'Bearer missing-tenant-token'
-        );
+        $nextWasCalled = false;
 
-        $middleware = $this->middleware();
-
-        $response = $middleware->handle(
+        $response = $this->middleware()->handle(
             $request,
-            function (): Response {
+            static function () use (&$nextWasCalled): Response {
+                $nextWasCalled = true;
+
                 return response()->json([
                     'status' => 'success',
                 ]);
-            }
+            },
         );
 
         $this->assertSame(
-            403,
-            $response->getStatusCode()
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+
+        $this->assertFalse(
+            $nextWasCalled,
+            'Request tanpa tenant_id tidak boleh diteruskan.',
+        );
+
+        $this->assertSame(
+            'error',
+            $response->getData(true)['status'] ?? null,
+        );
+
+        $this->assertNull(auth()->user());
+
+        $this->assertNull(
+            app(TenantContextInterface::class)
+                ->getCurrentTenantId(),
         );
     }
 
@@ -375,6 +394,151 @@ final class InjectTenantContextTest extends TestCase
         $this->assertSame(
             403,
             $response->getStatusCode()
+        );
+    }
+
+    public function test_suspended_user_is_rejected(): void
+    {
+        $userId = Str::uuid()->toString();
+        $tenantId = Str::uuid()->toString();
+
+        DB::table('users')->insert([
+            'id' => $userId,
+            'name' => 'Suspended Tenant User',
+            'email' => sprintf(
+                'suspended-tenant-%s@educore.test',
+                Str::lower(Str::random(10)),
+            ),
+            'password' => bcrypt('secret123'),
+            'status' => 'SUSPENDED',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('tenants')->insert([
+            'id' => $tenantId,
+            'name' => 'Suspended User Tenant',
+            'subdomain' => sprintf(
+                'suspended-user-%s',
+                Str::lower(Str::random(10)),
+            ),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->tokenManager
+            ->expects($this->once())
+            ->method('validateAndExtract')
+            ->with('suspended-user-token')
+            ->willReturn([
+                'user_id' => $userId,
+                'tenant_id' => $tenantId,
+            ]);
+
+        $request = Request::create(
+            '/api/protected',
+            'GET',
+            server: [
+                'HTTP_AUTHORIZATION' => 'Bearer suspended-user-token',
+            ],
+        );
+
+        $middleware = $this->middleware();
+
+        $nextWasCalled = false;
+
+        $response = $middleware->handle(
+            $request,
+            static function () use (&$nextWasCalled): Response {
+                $nextWasCalled = true;
+
+                return response()->json([
+                    'status' => 'success',
+                ]);
+            },
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+
+        $this->assertFalse(
+            $nextWasCalled,
+            'Request dengan user suspended tidak boleh diteruskan.',
+        );
+
+        $this->assertSame(
+            'error',
+            $response->getData(true)['status'] ?? null,
+        );
+
+        $this->assertNull(
+            auth()->user(),
+        );
+
+        $this->assertNull(
+            app(TenantContextInterface::class)
+                ->getCurrentTenantId(),
+        );
+    }
+
+    public function test_malformed_tenant_id_claim_is_rejected(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+
+        $this->tokenManager
+            ->expects($this->once())
+            ->method('validateAndExtract')
+            ->with('malformed-tenant-id-token')
+            ->willReturn([
+                'user_id' => $fixture['user_id'],
+                'tenant_id' => 'tenant-uuid-123',
+            ]);
+
+        $request = Request::create(
+            '/api/protected',
+            'GET',
+            server: [
+                'HTTP_AUTHORIZATION' => 'Bearer malformed-tenant-id-token',
+            ],
+        );
+
+        $nextWasCalled = false;
+
+        $response = $this->middleware()->handle(
+            $request,
+            static function () use (&$nextWasCalled): Response {
+                $nextWasCalled = true;
+
+                return response()->json([
+                    'status' => 'success',
+                ]);
+            },
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+
+        $this->assertFalse(
+            $nextWasCalled,
+            'Request dengan tenant_id malformed tidak boleh diteruskan.',
+        );
+
+        $this->assertSame(
+            'error',
+            $response->getData(true)['status'] ?? null,
+        );
+
+        $this->assertNull(auth()->user());
+
+        $this->assertNull(
+            app(TenantContextInterface::class)
+                ->getCurrentTenantId(),
         );
     }
 }

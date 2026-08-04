@@ -3,27 +3,35 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Modules\User\Http\Controllers\Api\v1\ContextualRbacController;
-use Modules\User\Http\Controllers\Api\v1\MembershipResolutionController;
+use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
+use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\User\Http\Controllers\Api\v1\AssignMembershipRoleController;
+use Modules\User\Http\Controllers\Api\v1\MembershipController;
+use Modules\User\Http\Controllers\Api\v1\SwitchMembershipController;
 
-/*
-|--------------------------------------------------------------------------
-| User Module API Routes
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth:sanctum', 'tenant.role:admin'])->group(function () {
-    // Jalur eksekusi mutasi hak akses mikro
-    Route::post('/v1/user/memberships/{membership_id}/assign-role', [ContextualRbacController::class, 'assignRoleToMembership'])
-        ->name('api.v1.user.rbac.assign');
+Route::middleware([
+    InjectTenantContext::class,
+    'tenant.role:admin',
+])->group(function (): void {
+    Route::post(
+        '/v1/user/memberships/{target_membership_id}/assign-role',
+        AssignMembershipRoleController::class,
+    )->name('api.v1.user.rbac.assign');
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
-    // Mendapatkan seluruh daftar sekolah saya
-    Route::get('/v1/user/my-memberships', [MembershipResolutionController::class, 'index'])
-        ->name('api.v1.user.memberships.index');
+Route::middleware([
+    InjectAuthenticatedUser::class,
+])->group(function (): void {
+    Route::get(
+        '/v1/user/my-memberships',
+        [
+            MembershipController::class,
+            'index',
+        ],
+    )->name('api.v1.user.memberships.index');
 
-    // Beralih konteks sekolah aktif
-    Route::post('/v1/user/memberships/{membership_id}/switch', [MembershipResolutionController::class, 'switchContext'])
-        ->name('api.v1.user.memberships.switch');
+    Route::post(
+        '/v1/user/memberships/{membership_id}/switch',
+        SwitchMembershipController::class,
+    )->name('api.v1.user.memberships.switch');
 });
