@@ -308,8 +308,13 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
+            \Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface::class,
+            \Modules\Core\Notification\Gateways\UnavailableWhatsAppGateway::class,
+        );
+
+        $this->app->singleton(
             \Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface::class,
-            \Modules\Core\Notification\Channels\WhatsAppNotificationChannel::class
+            \Modules\Core\Notification\Channels\WhatsAppNotificationChannel::class,
         );
 
         $this->app->singleton(
