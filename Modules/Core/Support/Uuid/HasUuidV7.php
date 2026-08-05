@@ -4,32 +4,45 @@ declare(strict_types=1);
 
 namespace Modules\Core\Support\Uuid;
 
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 
 trait HasUuidV7
 {
     /**
-     * Mencegat siklus hidup booting model Laravel untuk menyuntikkan UUID v7 secara otomatis.
-     * Laravel secara otomatis mengeksekusi metode dengan konvensi nama 'boot[NamaTrait]'.
+     * Menghasilkan UUIDv7 ketika model baru belum memiliki primary key.
+     *
+     * ID yang sudah diberikan oleh caller tidak akan ditimpa.
      */
     protected static function bootHasUuidV7(): void
     {
-        static::creating(function (Model $model) {
-            // Evaluasi apakah model dikonfigurasi untuk menggunakan incrementing integer biasa atau tidak
-            if (! $model->getIncrementing()) {
-                $keyName = $model->getKeyName();
-                
-                // Menyuntikkan UUID v7 hanya jika primary key belum diisi secara manual
-                if (empty($model->getAttribute($keyName))) {
-                    $model->setAttribute($keyName, Str::uuid7()->toString());
+        static::creating(
+            static function (Model $model): void {
+                if ($model->getIncrementing()) {
+                    return;
                 }
-            }
-        });
+
+                $keyName = $model->getKeyName();
+                $currentKey = $model->getAttribute(
+                    $keyName,
+                );
+
+                if (
+                    $currentKey !== null
+                    && $currentKey !== ''
+                ) {
+                    return;
+                }
+
+                $model->setAttribute(
+                    $keyName,
+                    UuidV7::generate(),
+                );
+            },
+        );
     }
 
     /**
-     * Menegaskan ke framework Laravel bahwa model ini tidak menggunakan auto-incrementing integer.
+     * Model UUID tidak memakai auto-incrementing integer.
      */
     public function getIncrementing(): bool
     {
@@ -37,7 +50,7 @@ trait HasUuidV7
     }
 
     /**
-     * Menegaskan tipe data Primary Key yang digunakan pada level model adalah string.
+     * Primary key UUID direpresentasikan sebagai string.
      */
     public function getKeyType(): string
     {

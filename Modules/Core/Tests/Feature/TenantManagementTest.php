@@ -6,11 +6,16 @@ namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Log;
+use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
+use RuntimeException;
+
 
 final class TenantManagementTest extends TestCase
 {
@@ -57,6 +62,147 @@ final class TenantManagementTest extends TestCase
         $this->pegawaiMembershipId = UuidV7::generate();
 
         $this->createFixtures();
+    }
+
+    public function test_repository_failure_returns_generic_error_and_is_logged(): void
+    {
+        Log::spy();
+
+        $repository = $this->createMock(
+            TenantRepositoryInterface::class,
+        );
+
+        $repository
+            ->expects($this->once())
+            ->method('create')
+            ->willThrowException(
+                new RuntimeException(
+                    'Database connection password=internal-secret',
+                ),
+            );
+
+        $this->app->instance(
+            TenantRepositoryInterface::class,
+            $repository,
+        );
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => 'Tenant Repository Gagal',
+                    'subdomain' => 'repository-gagal',
+                ],
+            );
+
+        $response
+            ->assertInternalServerError()
+            ->assertExactJson([
+                'status' => 'error',
+                'message' => 'Failed to register tenant.',
+            ])
+            ->assertDontSee('internal-secret');
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'repository-gagal',
+        ]);
+
+        Log::shouldHaveReceived('error')
+            ->once()
+            ->withArgs(
+                function (
+                    string $message,
+                    array $context,
+                ): bool {
+                    return $message
+                        === 'Tenant management operation failed.'
+                        && $context['operation']
+                        === 'tenant.create'
+                        && $context['operator_id']
+                        === $this->superadminId
+                        && $context['tenant_id'] === null
+                        && $context['exception']
+                        instanceof RuntimeException;
+                },
+            );
+    }
+
+    public function test_audit_failure_does_not_change_success_response(): void
+    {
+        Log::spy();
+
+        $auditTrail = $this->createMock(
+            AuditTrailServiceInterface::class,
+        );
+
+        $auditTrail
+            ->expects($this->once())
+            ->method('log')
+            ->willThrowException(
+                new RuntimeException(
+                    'Audit storage unavailable.',
+                ),
+            );
+
+        $this->app->instance(
+            AuditTrailServiceInterface::class,
+            $auditTrail,
+        );
+
+        $payload = [
+            'name' => 'Tenant Audit Gagal',
+            'subdomain' => 'audit-gagal',
+        ];
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                $payload,
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath(
+                'data.subdomain',
+                $payload['subdomain'],
+            );
+
+        $this->assertDatabaseHas('tenants', [
+            'name' => $payload['name'],
+            'subdomain' => $payload['subdomain'],
+            'is_active' => true,
+        ]);
+
+        Log::shouldHaveReceived('critical')
+            ->once()
+            ->withArgs(
+                function (
+                    string $message,
+                    array $context,
+                ): bool {
+                    return $message
+                        === 'Tenant audit trail failed.'
+                        && $context['event_type']
+                        === 'tenant.created'
+                        && $context['operator_id']
+                        === $this->superadminId
+                        && $context['exception']
+                        instanceof RuntimeException;
+                },
+            );
     }
 
     public function test_global_superadmin_can_create_new_tenant(): void
@@ -150,6 +296,138 @@ final class TenantManagementTest extends TestCase
 
         $this->assertDatabaseMissing('tenants', [
             'subdomain' => 'tanpa-auth',
+        ]);
+    }
+
+    public function test_update_rejects_malformed_tenant_id(): void
+    {
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->putJson(
+                self::TENANTS_ENDPOINT . '/not-a-uuid',
+                [
+                    'name' => 'Nama Tenant Baru',
+                ],
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'id',
+            ])
+            ->assertJsonPath(
+                'errors.id.0',
+                'The tenant id must be a valid UUIDv7.',
+            );
+    }
+
+    public function test_update_rejects_uuid_other_than_version_seven(): void
+    {
+        $uuidV4 = (string) Str::uuid();
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->putJson(
+                self::TENANTS_ENDPOINT . '/' . $uuidV4,
+                [
+                    'name' => 'Nama Tenant Baru',
+                ],
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'id',
+            ]);
+
+        $this->assertDatabaseMissing('tenants', [
+            'id' => $uuidV4,
+        ]);
+    }
+
+    public function test_update_rejects_empty_payload(): void
+    {
+        $beforeUpdate = DB::table('tenants')
+            ->where('id', $this->tenantId)
+            ->value('updated_at');
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->putJson(
+                self::TENANTS_ENDPOINT . '/' . $this->tenantId,
+                [],
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'payload',
+            ])
+            ->assertJsonPath(
+                'errors.payload.0',
+                'At least one of name or is_active must be provided.',
+            );
+
+        $afterUpdate = DB::table('tenants')
+            ->where('id', $this->tenantId)
+            ->value('updated_at');
+
+        $this->assertEquals(
+            $beforeUpdate,
+            $afterUpdate,
+        );
+    }
+
+    public function test_global_superadmin_can_deactivate_tenant(): void
+    {
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->putJson(
+                self::TENANTS_ENDPOINT . '/' . $this->tenantId,
+                [
+                    'is_active' => false,
+                ],
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath(
+                'message',
+                'Tenant updated successfully.',
+            )
+            ->assertJsonPath(
+                'data.id',
+                $this->tenantId,
+            )
+            ->assertJsonPath(
+                'data.is_active',
+                false,
+            );
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $this->tenantId,
+            'is_active' => false,
         ]);
     }
 
@@ -275,5 +553,138 @@ final class TenantManagementTest extends TestCase
             'subdomain' => $payload['subdomain'],
             'is_active' => true,
         ]);
+    }
+
+    public function test_index_rejects_invalid_per_page_value(): void
+    {
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->getJson(
+                self::TENANTS_ENDPOINT . '?per_page=101',
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'per_page',
+            ])
+            ->assertJsonPath(
+                'errors.per_page.0',
+                'The per page value may not exceed 100.',
+            );
+    }
+
+    public function test_global_superadmin_can_list_tenants_with_requested_page_size(): void
+    {
+        DB::table('tenants')->insert([
+            [
+                'id' => UuidV7::generate(),
+                'name' => 'Tenant Pagination A',
+                'subdomain' => 'pagination-a',
+                'is_active' => true,
+                'created_at' => now()->subMinute(),
+                'updated_at' => now()->subMinute(),
+            ],
+            [
+                'id' => UuidV7::generate(),
+                'name' => 'Tenant Pagination B',
+                'subdomain' => 'pagination-b',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->getJson(
+                self::TENANTS_ENDPOINT . '?per_page=2',
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('meta.per_page', 2)
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_store_normalizes_name_and_subdomain_before_persistence(): void
+    {
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => '  Sekolah Normalisasi  ',
+                    'subdomain' => '  SEKOLAH-NORMALISASI  ',
+                ],
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.name',
+                'Sekolah Normalisasi',
+            )
+            ->assertJsonPath(
+                'data.subdomain',
+                'sekolah-normalisasi',
+            );
+
+        $this->assertDatabaseHas('tenants', [
+            'name' => 'Sekolah Normalisasi',
+            'subdomain' => 'sekolah-normalisasi',
+        ]);
+    }
+
+    public function test_store_rejects_duplicate_subdomain_after_normalization(): void
+    {
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => 'Tenant Duplikat',
+                    'subdomain' => '  PUSAT  ',
+                ],
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'subdomain',
+            ])
+            ->assertJsonPath(
+                'errors.subdomain.0',
+                'The tenant subdomain has already been registered.',
+            );
+
+        $this->assertSame(
+            1,
+            DB::table('tenants')
+                ->where('subdomain', 'pusat')
+                ->count(),
+        );
     }
 }

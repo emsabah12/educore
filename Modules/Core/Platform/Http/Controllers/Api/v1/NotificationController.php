@@ -6,188 +6,140 @@ namespace Modules\Core\Platform\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Jobs\SendAsynchronousNotificationJob;
+use Modules\Core\Platform\Http\Requests\SendNotificationRequest;
 use Throwable;
 
 final class NotificationController extends Controller
 {
     public function __construct(
-        private readonly AuditTrailServiceInterface $auditTrail
+        private readonly AuditTrailServiceInterface $auditTrail,
     ) {}
 
     /**
      * Memicu pengiriman notifikasi secara asynchronous.
      *
-     * Authentication context wajib sudah disediakan oleh
-     * InjectTenantContext sebelum request mencapai controller ini.
+     * Canonical authentication context harus sudah disediakan oleh
+     * InjectTenantContext:
      *
-     * Canonical request context:
      * - authenticated_tenant_id
      * - authenticated_user_id
      */
-    public function send(Request $request): JsonResponse
-    {
-        /*
-         * ----------------------------------------------------------------------
-         * 1. Resolve Canonical Authentication Context
-         * ----------------------------------------------------------------------
-         *
-         * Context HTTP hanya boleh dibaca dari request attributes
-         * yang telah diisi oleh InjectTenantContext.
-         *
-         * Controller tidak membaca:
-         *
-         * - X-Tenant-UUID header
-         * - tenant_uuid legacy attribute
-         * - user_uuid legacy attribute
-         * - authenticated_tenant_id dari request attributes
-         *
-         * Hal ini mencegah client melakukan tenant spoofing melalui header.
-         */
-        $tenantUuid = $request->attributes->get(
-            'authenticated_tenant_id'
+    public function send(
+        SendNotificationRequest $request,
+    ): JsonResponse {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
         );
 
-        $userUuid = $request->attributes->get(
-            'authenticated_user_id'
+        $operatorId = $request->attributes->get(
+            'authenticated_user_id',
         );
 
         /*
-         * ----------------------------------------------------------------------
-         * 2. Defensive Context Validation
-         * ----------------------------------------------------------------------
-         *
-         * Middleware seharusnya sudah menjamin context tersedia.
-         *
-         * Check tambahan ini merupakan defense-in-depth apabila controller
-         * dipanggil melalui jalur yang tidak melewati middleware yang benar.
+         * Defense-in-depth bila controller dipanggil tanpa middleware
+         * atau canonical tenant context tidak valid.
          */
-        if (! is_string($tenantUuid) || trim($tenantUuid) === '') {
+        if (
+            ! is_string($tenantId)
+            || ! Str::isUuid(trim($tenantId))
+        ) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized. Tenant context missing.',
             ], 401);
         }
 
-        $tenantUuid = trim($tenantUuid);
-
         /*
-         * User UUID dapat bersifat nullable untuk flow internal tertentu.
-         *
-         * Namun jika tersedia, nilainya harus berupa string non-empty.
+         * Route ini selalu memakai InjectTenantContext, sehingga
+         * authenticated user wajib tersedia dan berupa UUID valid.
          */
-        $operatorUuid = null;
+        if (
+            ! is_string($operatorId)
+            || ! Str::isUuid(trim($operatorId))
+        ) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized. User context missing.',
+            ], 401);
+        }
 
-        if (is_string($userUuid) && trim($userUuid) !== '') {
-            $operatorUuid = trim($userUuid);
+        $tenantId = trim($tenantId);
+        $operatorId = trim($operatorId);
+
+        /** @var array{
+         *     recipient: string,
+         *     body: string,
+         *     options?: array{title?: string|null}|null
+         * } $payload
+         */
+        $payload = $request->validated();
+
+        $options = $payload['options'] ?? [];
+
+        if (! is_array($options)) {
+            $options = [];
         }
 
         /*
-         * ----------------------------------------------------------------------
-         * 3. Validate Request Payload
-         * ----------------------------------------------------------------------
+         * ------------------------------------------------------------------
+         * Dispatch Error Boundary
+         * ------------------------------------------------------------------
          *
-         * Semua input eksternal divalidasi sebelum masuk ke application/job
-         * layer.
+         * Hanya kegagalan dispatch yang boleh membuat endpoint mengembalikan
+         * HTTP 500. Jika bagian ini berhasil, notification sudah diterima
+         * oleh queue dan response akhir harus tetap 202.
          */
-        $payload = $request->validate([
-            'recipient' => [
-                'required',
-                'string',
-                'max:150',
-            ],
-            'body' => [
-                'required',
-                'string',
-                'max:5000',
-            ],
-            'options' => [
-                'nullable',
-                'array',
-            ],
-            'options.title' => [
-                'nullable',
-                'string',
-                'max:200',
-            ],
-            'options.user_id' => [
-                'nullable',
-                'string',
-                'uuid',
-            ],
-        ]);
-
         try {
-            /*
-             * ------------------------------------------------------------------
-             * 4. Dispatch Tenant-Aware Job
-             * ------------------------------------------------------------------
-             *
-             * Tenant UUID dan operator UUID dikirim secara eksplisit
-             * ke asynchronous job.
-             *
-             * Ini penting karena worker queue tidak boleh bergantung pada
-             * HTTP request context yang sudah tidak tersedia.
-             */
             SendAsynchronousNotificationJob::dispatch(
-                $tenantUuid,
-                $operatorUuid,
+                $tenantId,
+                $operatorId,
                 [
                     'recipient' => $payload['recipient'],
                     'body' => $payload['body'],
-                    'options' => $payload['options'] ?? [],
-                ]
+                    'options' => $options,
+                ],
             )->onConnection('database');
-
-            /*
-             * ------------------------------------------------------------------
-             * 5. Audit Trail
-             * ------------------------------------------------------------------
-             *
-             * Audit dilakukan setelah dispatch berhasil diterima oleh queue.
-             */
-            $this->auditTrail->log(
-                'notification.dispatched',
-                sprintf(
-                    'Notifikasi berhasil dijadwalkan ke penerima: %s',
-                    $payload['recipient']
-                ),
-                $tenantUuid,
-                $operatorUuid,
-                [
-                    'recipient' => $payload['recipient'],
-                    'channel' => 'WHATSAPP',
-                ]
-            );
-
-            /*
-             * ------------------------------------------------------------------
-             * 6. Success Response
-             * ------------------------------------------------------------------
-             */
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Notification dispatch has been accepted and queued for transmission.',
-            ], 202);
-        } catch (Throwable $e) {
-            /*
-             * ------------------------------------------------------------------
-             * 7. Error Handling
-             * ------------------------------------------------------------------
-             *
-             * Detail exception internal tidak boleh dikirim ke client.
-             *
-             * report() digunakan agar exception masuk ke Laravel's
-             * configured logging/reporting pipeline.
-             */
-            report($e);
+        } catch (Throwable $exception) {
+            report($exception);
 
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to queue notification.',
             ], 500);
         }
+
+        /*
+         * ------------------------------------------------------------------
+         * Best-Effort Audit Boundary
+         * ------------------------------------------------------------------
+         *
+         * Audit failure tetap dilaporkan untuk observability, tetapi tidak
+         * boleh mengubah queue dispatch yang sudah berhasil menjadi gagal.
+         */
+        try {
+            $this->auditTrail->log(
+                'notification.dispatched',
+                sprintf(
+                    'Notifikasi berhasil dijadwalkan ke penerima: %s',
+                    $payload['recipient'],
+                ),
+                $tenantId,
+                $operatorId,
+                [
+                    'recipient' => $payload['recipient'],
+                    'channel' => 'WHATSAPP',
+                ],
+            );
+        } catch (Throwable $auditException) {
+            report($auditException);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Notification dispatch has been accepted and queued for transmission.',
+        ], 202);
     }
 }

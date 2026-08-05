@@ -5,51 +5,51 @@ declare(strict_types=1);
 namespace Modules\Auth\Http\Middleware;
 
 use Closure;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Modules\Core\Identity\Models\User;
 use Symfony\Component\HttpFoundation\Response;
 
 final class RequireGlobalSuperadmin
 {
+    public function __construct(
+        private readonly AuthFactory $auth,
+    ) {}
+
     /**
-     * Memastikan request hanya dapat dilanjutkan oleh user
+     * Memastikan request hanya dapat dilanjutkan oleh canonical user
      * yang memiliki privilege global superadmin.
      *
      * Sumber kebenaran authorization global:
      *
      * users.is_superadmin
      *
-     * Middleware ini TIDAK menggunakan:
-     *
-     * - memberships.role
-     * - authenticated_role
-     * - role dari token
-     *
-     * karena role membership merupakan authorization kontekstual tenant,
-     * sedangkan superadmin merupakan privilege global.
+     * Middleware ini tidak menggunakan membership, tenant role,
+     * authenticated role, ataupun role claim dari token.
      *
      * @param Closure(Request): Response $next
      */
     public function handle(
         Request $request,
-        Closure $next
+        Closure $next,
     ): Response {
-        $userId = $this->resolveAuthenticatedUserId($request);
+        $user = $this->resolveAuthenticatedUser($request);
 
-        if ($userId === null) {
-            return $this->forbiddenResponse();
-        }
-
-        if (! $this->isGlobalSuperadmin($userId)) {
+        if (
+            $user === null
+            || ! $this->isGlobalSuperadmin($user)
+        ) {
             Log::warning(
                 'Global superadmin authorization denied.',
                 [
-                    'user_id' => $userId,
+                    'user_id' => $user !== null
+                        ? (string) $user->getAuthIdentifier()
+                        : null,
                     'path' => $request->path(),
                     'method' => $request->method(),
-                ]
+                ],
             );
 
             return $this->forbiddenResponse();
@@ -59,49 +59,63 @@ final class RequireGlobalSuperadmin
     }
 
     /**
-     * Mengambil authenticated user ID dari canonical request context.
+     * Mengambil canonical authenticated user dari request-scoped guard.
      *
-     * @return string|null
+     * authenticated_user_id diverifikasi agar guard identity dan request
+     * context tidak dapat menunjuk ke dua identity berbeda.
      */
-    private function resolveAuthenticatedUserId(
-        Request $request
-    ): ?string {
-        $userId = $request->attributes->get(
-            'authenticated_user_id'
-        );
+    private function resolveAuthenticatedUser(
+        Request $request,
+    ): ?User {
+        $user = $this->auth->guard()->user();
 
-        if (! is_string($userId)) {
+        if (! $user instanceof User) {
             return null;
         }
 
-        $userId = trim($userId);
+        $contextUserId = $request->attributes->get(
+            'authenticated_user_id',
+        );
 
-        return $userId !== ''
-            ? $userId
-            : null;
+        if (! is_string($contextUserId)) {
+            return null;
+        }
+
+        $contextUserId = trim($contextUserId);
+
+        if ($contextUserId === '') {
+            return null;
+        }
+
+        $guardUserId = (string) $user->getAuthIdentifier();
+
+        if (! hash_equals($guardUserId, $contextUserId)) {
+            return null;
+        }
+
+        return $user;
     }
 
     /**
-     * Memverifikasi privilege global superadmin berdasarkan
-     * source of truth users.is_superadmin.
+     * Memeriksa global privilege pada canonical User.
      *
-     * Query hanya mengambil satu scalar boolean sehingga
-     * tidak mengambil data user yang tidak diperlukan.
+     * Status ACTIVE diperiksa kembali sebagai defense-in-depth walaupun
+     * identity resolver juga telah memvalidasi status user.
      */
     private function isGlobalSuperadmin(
-        string $userId
+        User $user,
     ): bool {
-        return DB::table('users')
-            ->where('id', $userId)
-            ->where('status', 'ACTIVE')
-            ->where('is_superadmin', true)
-            ->exists();
+        return strtoupper(
+            (string) $user->getAttribute('status'),
+        ) === 'ACTIVE'
+            && (bool) $user->getAttribute(
+                'is_superadmin',
+            );
     }
 
     /**
-     * Response generik untuk authorization failure.
-     *
-     * Detail internal sengaja tidak dibocorkan kepada client.
+     * Response generik agar detail authorization internal
+     * tidak dibocorkan kepada client.
      */
     private function forbiddenResponse(): JsonResponse
     {

@@ -146,20 +146,28 @@ final class CoreServiceProvider extends ServiceProvider
         // 3. Daftarkan Route Service Provider milik Core
         $this->app->register(RouteServiceProvider::class);
 
-        $this->app->singleton(
-            AuthorizationServiceInterface::class,
-            AuthorizationService::class
-        );
-
-        $this->app->singleton(
+        /*
+        * Authorization services membaca request-scoped authentication,
+        * membership, dan tenant context.
+        *
+        * Seluruh dependency chain harus memiliki lifecycle scoped agar
+        * tidak menyimpan Request atau TenantContext dari request sebelumnya.
+        */
+        $this->app->scoped(
             MembershipContextResolverInterface::class,
             MembershipContextResolver::class,
         );
 
-        $this->app->singleton(
+        $this->app->scoped(
             AuthorizationContextResolverInterface::class,
             AuthorizationContextResolver::class,
         );
+
+        $this->app->scoped(
+            AuthorizationServiceInterface::class,
+            AuthorizationService::class,
+        );
+
 
         $this->app->bind(
             AuthorizationContextInterface::class,
@@ -191,7 +199,7 @@ final class CoreServiceProvider extends ServiceProvider
             EloquentRolePermissionRepository::class,
         );
 
-        $this->app->singleton(
+        $this->app->scoped(
             AccessCheckerInterface::class,
             AccessChecker::class,
         );

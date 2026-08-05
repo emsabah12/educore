@@ -7,14 +7,12 @@ namespace Modules\Core\Repositories;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 
 final class EloquentTenantRepository implements TenantRepositoryInterface
 {
-    /**
-     * Mengambil seluruh tenant menggunakan pagination.
-     */
     public function getAllPaginated(
         int $perPage = 15,
     ): LengthAwarePaginator {
@@ -23,16 +21,16 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
                 'id',
                 'name',
                 'subdomain',
+                'domain',
                 'is_active',
                 'created_at',
             ])
+            ->whereNull('deleted_at')
             ->orderByDesc('created_at')
             ->paginate($perPage);
     }
 
     /**
-     * Mengambil tenant berdasarkan canonical UUID.
-     *
      * @throws ModelNotFoundException
      *
      * @return array<string, mixed>
@@ -41,6 +39,7 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
     {
         $tenant = DB::table('tenants')
             ->where('id', $id)
+            ->whereNull('deleted_at')
             ->first();
 
         if ($tenant === null) {
@@ -58,8 +57,6 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
     }
 
     /**
-     * Membuat tenant baru secara atomik.
-     *
      * @param array<string, mixed> $data
      *
      * @return array<string, mixed>
@@ -69,6 +66,18 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
         return DB::transaction(
             function () use ($data): array {
                 $tenantId = UuidV7::generate();
+                $settings = $data['settings'] ?? null;
+
+                if (
+                    $settings !== null
+                    && ! is_array($settings)
+                ) {
+                    throw new InvalidArgumentException(
+                        'Tenant settings must be an array.',
+                    );
+                }
+
+                $domain = $data['domain'] ?? null;
 
                 DB::table('tenants')->insert([
                     'id' => $tenantId,
@@ -76,21 +85,31 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
                     'subdomain' => strtolower(
                         (string) $data['subdomain'],
                     ),
+                    'domain' => is_string($domain)
+                        && trim($domain) !== ''
+                        ? strtolower(trim($domain))
+                        : null,
                     'is_active' => (bool) (
                         $data['is_active'] ?? true
                     ),
+                    'settings' => $settings !== null
+                        ? json_encode(
+                            $settings,
+                            JSON_THROW_ON_ERROR,
+                        )
+                        : null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                return $this->findById($tenantId);
+                return $this->findById(
+                    $tenantId,
+                );
             },
         );
     }
 
     /**
-     * Memperbarui tenant secara atomik.
-     *
      * @param array<string, mixed> $data
      *
      * @throws ModelNotFoundException
@@ -121,6 +140,7 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
 
                 DB::table('tenants')
                     ->where('id', $id)
+                    ->whereNull('deleted_at')
                     ->update($updatePayload);
 
                 return $this->findById($id);

@@ -5,38 +5,55 @@ declare(strict_types=1);
 namespace Modules\Core\Tenancy\Http\Api\v1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
-use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
+use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
+use Modules\Core\Tenancy\Http\Requests\ListTenantsRequest;
+use Modules\Core\Tenancy\Http\Requests\StoreTenantRequest;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 final class TenantManagementController extends Controller
 {
-    private TenantRepositoryInterface $tenantRepository;
-    private AuditTrailServiceInterface $auditTrail;
-
-    /**
-     * Dependency Injection via Constructor (SOLID Compliance).
-     */
     public function __construct(
-        TenantRepositoryInterface $tenantRepository,
-        AuditTrailServiceInterface $auditTrail
-    ) {
-        $this->tenantRepository = $tenantRepository;
-        $this->auditTrail = $auditTrail;
-    }
+        private readonly TenantRepositoryInterface $tenantRepository,
+        private readonly AuditTrailServiceInterface $auditTrail,
+    ) {}
 
     /**
-     * Menampilkan daftar seluruh tenant dengan paginasi.
-     * Diakses oleh Global Superadmin.
+     * Menampilkan daftar seluruh tenant dengan pagination.
      */
-    public function index(Request $request): JsonResponse
-    {
-        // Catatan: Proteksi Role Guard diletakkan di tingkatan routing middleware demi fleksibilitas
-        $perPage = (int) $request->query('per_page', '15');
-        $tenants = $this->tenantRepository->getAllPaginated($perPage);
+    public function index(
+        ListTenantsRequest $request,
+    ): JsonResponse {
+        $validated = $request->validated();
+
+        $perPage = (int) (
+            $validated['per_page'] ?? 15
+        );
+
+        $operatorId = $this->resolveOperatorId(
+            $request,
+        );
+
+        try {
+            $tenants = $this->tenantRepository
+                ->getAllPaginated($perPage);
+        } catch (Throwable $exception) {
+            $this->logOperationFailure(
+                exception: $exception,
+                operation: 'tenant.index',
+                operatorId: $operatorId,
+            );
+
+            return $this->internalServerErrorResponse(
+                'Failed to retrieve tenants.',
+            );
+        }
 
         return response()->json([
             'status' => 'success',
@@ -46,86 +63,212 @@ final class TenantManagementController extends Controller
                 'last_page' => $tenants->lastPage(),
                 'per_page' => $tenants->perPage(),
                 'total' => $tenants->total(),
-            ]
-        ], 200);
+            ],
+        ], Response::HTTP_OK);
     }
 
     /**
-     * Membuat lembaga sekolah/tenant baru dalam ekosistem SaaS.
+     * Mendaftarkan tenant baru.
      */
-    public function store(Request $request): JsonResponse
-    {
-        // 1. Validasi Input Ketat (Fail-Fast)
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'min:3'],
-            'subdomain' => ['required', 'string', 'alpha_dash', 'max:50', 'unique:tenants,subdomain'],
-            'is_active' => ['boolean']
+    public function store(
+        StoreTenantRequest $request,
+    ): JsonResponse {
+        $payload = $request->safe()->only([
+            'name',
+            'subdomain',
+            'is_active',
         ]);
 
-        try {
-            // 2. Eksekusi Pembuatan Data via Repository
-            $tenant = $this->tenantRepository->create($payload);
+        $operatorId = $this->resolveOperatorId(
+            $request,
+        );
 
-            // 3. Catat Aktivitas Penting ke Audit Trail
-            $operatorId = $request->attributes->get('authenticated_user_id');
-            $this->auditTrail->log(
-                'tenant.created',
-                sprintf('Superadmin berhasil mendaftarkan tenant baru: %s (%s)', $tenant['name'], $tenant['subdomain']),
-                $tenant['id'],
-                $operatorId,
-                $payload
+        try {
+            $tenant = $this->tenantRepository->create(
+                $payload,
+            );
+        } catch (Throwable $exception) {
+            $this->logOperationFailure(
+                exception: $exception,
+                operation: 'tenant.create',
+                operatorId: $operatorId,
             );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Tenant registered successfully.',
-                'data' => $tenant
-            ], 201);
-        } catch (Throwable $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to register tenant. Internal System Failure.'
-            ], 500);
+            return $this->internalServerErrorResponse(
+                'Failed to register tenant.',
+            );
         }
+
+        $tenantId = (string) $tenant['id'];
+
+        $this->recordAuditSafely(
+            eventType: 'tenant.created',
+            description: sprintf(
+                'Superadmin berhasil mendaftarkan tenant baru: %s (%s)',
+                $tenant['name'],
+                $tenant['subdomain'],
+            ),
+            tenantId: $tenantId,
+            operatorId: $operatorId,
+            payload: $payload,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Tenant registered successfully.',
+            'data' => $tenant,
+        ], Response::HTTP_CREATED);
     }
 
     /**
-     * Memperbarui data atau status keaktifan tenant.
+     * Memperbarui informasi atau status tenant.
      */
-    public function update(Request $request, string $id): JsonResponse
-    {
-        $payload = $request->validate([
-            'name' => ['string', 'max:255', 'min:3'],
-            'is_active' => ['boolean']
+    public function update(
+        UpdateTenantRequest $request,
+        string $id,
+    ): JsonResponse {
+        /*
+     * Jangan menyertakan route parameter "id" ke repository
+     * update payload.
+     */
+        $payload = $request->safe()->only([
+            'name',
+            'is_active',
         ]);
 
-        try {
-            $updatedTenant = $this->tenantRepository->update($id, $payload);
+        $operatorId = $this->resolveOperatorId(
+            $request,
+        );
 
-            $operatorId = $request->attributes->get('authenticated_user_id');
-            $this->auditTrail->log(
-                'tenant.updated',
-                sprintf('Superadmin memperbarui data tenant ID: %s', $id),
+        try {
+            $updatedTenant = $this->tenantRepository->update(
                 $id,
-                $operatorId,
-                $payload
+                $payload,
+            );
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tenant not found.',
+            ], Response::HTTP_NOT_FOUND);
+        } catch (Throwable $exception) {
+            $this->logOperationFailure(
+                exception: $exception,
+                operation: 'tenant.update',
+                operatorId: $operatorId,
+                tenantId: $id,
             );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Tenant updated successfully.',
-                'data' => $updatedTenant
-            ], 200);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 404);
-        } catch (Throwable $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to update tenant.'
-            ], 500);
+            return $this->internalServerErrorResponse(
+                'Failed to update tenant.',
+            );
         }
+
+        $this->recordAuditSafely(
+            eventType: 'tenant.updated',
+            description: sprintf(
+                'Superadmin memperbarui data tenant ID: %s',
+                $id,
+            ),
+            tenantId: $id,
+            operatorId: $operatorId,
+            payload: $payload,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Tenant updated successfully.',
+            'data' => $updatedTenant,
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Audit bersifat best-effort.
+     *
+     * Operasi bisnis yang sudah berhasil tidak boleh dilaporkan gagal
+     * hanya karena media penyimpanan audit mengalami gangguan.
+     *
+     * @param array<string, mixed>|null $payload
+     */
+    private function recordAuditSafely(
+        string $eventType,
+        string $description,
+        ?string $tenantId,
+        ?string $operatorId,
+        ?array $payload,
+    ): void {
+        try {
+            $this->auditTrail->log(
+                $eventType,
+                $description,
+                $tenantId,
+                $operatorId,
+                $payload,
+            );
+        } catch (Throwable $exception) {
+            /*
+             * Defense-in-depth apabila implementation audit lain
+             * tidak menerapkan fail-safe seperti DatabaseAuditTrailService.
+             */
+            Log::critical(
+                'Tenant audit trail failed.',
+                [
+                    'event_type' => $eventType,
+                    'tenant_id' => $tenantId,
+                    'operator_id' => $operatorId,
+                    'exception' => $exception,
+                ],
+            );
+        }
+    }
+
+    /**
+     * Mengambil operator ID dari canonical request context.
+     */
+    private function resolveOperatorId(
+        Request $request,
+    ): ?string {
+        $operatorId = $request->attributes->get(
+            'authenticated_user_id',
+        );
+
+        if (! is_string($operatorId)) {
+            return null;
+        }
+
+        $operatorId = trim($operatorId);
+
+        return $operatorId !== ''
+            ? $operatorId
+            : null;
+    }
+
+    /**
+     * Mencatat kegagalan internal tanpa menyimpan bearer token,
+     * header, password, atau request payload mentah.
+     */
+    private function logOperationFailure(
+        Throwable $exception,
+        string $operation,
+        ?string $operatorId,
+        ?string $tenantId = null,
+    ): void {
+        Log::error(
+            'Tenant management operation failed.',
+            [
+                'operation' => $operation,
+                'operator_id' => $operatorId,
+                'tenant_id' => $tenantId,
+                'exception' => $exception,
+            ],
+        );
+    }
+
+    private function internalServerErrorResponse(
+        string $message,
+    ): JsonResponse {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 }

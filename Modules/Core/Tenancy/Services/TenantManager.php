@@ -1,43 +1,169 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Tenancy\Services;
 
-use Modules\Core\Tenancy\Models\Tenant;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Exception;
+use InvalidArgumentException;
+use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 
-class TenantManager
+final class TenantManager
 {
+    public function __construct(
+        private readonly TenantRepositoryInterface $tenantRepository,
+    ) {}
+
     /**
-     * Membuat data tenant baru di dalam database global.
+     * Membuat tenant melalui canonical persistence repository.
      *
-     * @param array{name: string, subdomain: string, domain: ?string, settings: ?array} $data
-     * @return Tenant
-     * @throws Exception
+     * Service ini digunakan oleh jalur non-HTTP seperti Artisan command,
+     * sehingga tetap melakukan validasi input internal.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
      */
-    public function createTenant(array $data): Tenant
+    public function createTenant(array $data): array
     {
-        // Validasi internal level service untuk menjamin integritas data
-        if (empty($data['name']) || empty($data['subdomain'])) {
-            throw new \InvalidArgumentException('Tenant name and subdomain are strictly required.');
+        $payload = $this->normalizeAndValidate(
+            $data,
+        );
+
+        return $this->tenantRepository->create(
+            $payload,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{
+     *     name: string,
+     *     subdomain: string,
+     *     domain: string|null,
+     *     is_active: bool,
+     *     settings: array<string, mixed>
+     * }
+     */
+    private function normalizeAndValidate(
+        array $data,
+    ): array {
+        $name = $this->normalizeRequiredString(
+            $data['name'] ?? null,
+            'Tenant name',
+        );
+
+        $subdomain = strtolower(
+            $this->normalizeRequiredString(
+                $data['subdomain'] ?? null,
+                'Tenant subdomain',
+            ),
+        );
+
+        if (
+            mb_strlen($name) < 3
+            || mb_strlen($name) > 255
+        ) {
+            throw new InvalidArgumentException(
+                'Tenant name must contain between 3 and 255 characters.',
+            );
         }
 
-        // Gunakan Database Transaction demi keamanan data atomik
-        return DB::transaction(function () use ($data) {
-            Log::info('Initiating tenant provisioning pipeline...', ['subdomain' => $data['subdomain']]);
+        if (
+            preg_match(
+                '/^(?:[a-z0-9]|[a-z0-9][a-z0-9-]{0,48}[a-z0-9])$/',
+                $subdomain,
+            ) !== 1
+        ) {
+            throw new InvalidArgumentException(
+                'Tenant subdomain must contain only lowercase letters, numbers, and hyphens.',
+            );
+        }
 
-            $tenant = Tenant::create([
-                'name' => $data['name'],
-                'subdomain' => strtolower($data['subdomain']),
-                'domain' => isset($data['domain']) ? strtolower($data['domain']) : null,
-                'is_active' => true,
-                'settings' => $data['settings'] ?? [],
-            ]);
+        $domain = $this->normalizeOptionalString(
+            $data['domain'] ?? null,
+        );
 
-            Log::info('Tenant provisioned successfully.', ['tenant_id' => $tenant->id]);
+        if ($domain !== null) {
+            $domain = strtolower($domain);
 
-            return $tenant;
-        });
+            if (
+                mb_strlen($domain) > 255
+                || filter_var(
+                    $domain,
+                    FILTER_VALIDATE_DOMAIN,
+                    FILTER_FLAG_HOSTNAME,
+                ) === false
+            ) {
+                throw new InvalidArgumentException(
+                    'Tenant custom domain is invalid.',
+                );
+            }
+        }
+
+        $settings = $data['settings'] ?? [];
+
+        if (! is_array($settings)) {
+            throw new InvalidArgumentException(
+                'Tenant settings must be an array.',
+            );
+        }
+
+        $isActive = $data['is_active'] ?? true;
+
+        if (! is_bool($isActive)) {
+            throw new InvalidArgumentException(
+                'Tenant active status must be boolean.',
+            );
+        }
+
+        return [
+            'name' => $name,
+            'subdomain' => $subdomain,
+            'domain' => $domain,
+            'is_active' => $isActive,
+            'settings' => $settings,
+        ];
+    }
+
+    private function normalizeRequiredString(
+        mixed $value,
+        string $field,
+    ): string {
+        if (! is_string($value)) {
+            throw new InvalidArgumentException(
+                sprintf('%s is required.', $field),
+            );
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new InvalidArgumentException(
+                sprintf('%s is required.', $field),
+            );
+        }
+
+        return $value;
+    }
+
+    private function normalizeOptionalString(
+        mixed $value,
+    ): ?string {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            throw new InvalidArgumentException(
+                'Tenant custom domain must be a string.',
+            );
+        }
+
+        $value = trim($value);
+
+        return $value !== ''
+            ? $value
+            : null;
     }
 }

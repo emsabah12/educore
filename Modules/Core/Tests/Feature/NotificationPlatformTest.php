@@ -10,8 +10,66 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Jobs\SendAsynchronousNotificationJob;
+use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use RuntimeException;
 use Tests\TestCase;
 
+/**
+ * Fake notification channel untuk mengamati context runtime job.
+ */
+final class RecordingNotificationChannel implements NotificationChannelInterface
+{
+    public ?string $observedTenantContextId = null;
+
+    public ?string $tenantIdArgument = null;
+
+    public ?string $recipient = null;
+
+    public ?string $body = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $options = [];
+
+    public function __construct(
+        private readonly TenantContextInterface $tenantContext,
+    ) {}
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return array{
+     *     success: bool,
+     *     metadata: array<string, mixed>,
+     *     error: null
+     * }
+     */
+    public function send(
+        string $tenantId,
+        string $recipient,
+        string $body,
+        array $options = [],
+    ): array {
+        $this->observedTenantContextId =
+            $this->tenantContext->getCurrentTenantId();
+
+        $this->tenantIdArgument = $tenantId;
+        $this->recipient = $recipient;
+        $this->body = $body;
+        $this->options = $options;
+
+        return [
+            'success' => true,
+            'metadata' => [
+                'provider' => 'recording-test-channel',
+            ],
+            'error' => null,
+        ];
+    }
+}
 
 final class NotificationPlatformTest extends TestCase
 {
@@ -27,12 +85,14 @@ final class NotificationPlatformTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenantId = '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
+        $this->tenantId =
+            '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
 
-        $this->userId = '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
+        $this->userId =
+            '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
 
         $this->tokenManager = $this->app->make(
-            TokenManagerInterface::class
+            TokenManagerInterface::class,
         );
 
         DB::table('users')->insert([
@@ -40,7 +100,9 @@ final class NotificationPlatformTest extends TestCase
             'name' => 'Notification Platform User',
             'email' => sprintf(
                 'notification-platform-%s@educore.test',
-                Str::lower(Str::random(10)),
+                Str::lower(
+                    Str::random(10),
+                ),
             ),
             'password' => bcrypt('secret123'),
             'status' => 'ACTIVE',
@@ -59,13 +121,13 @@ final class NotificationPlatformTest extends TestCase
         ]);
     }
 
-    public function test_controller_can_accept_payload_and_push_job_into_queue_correctly(): void
+    public function test_controller_accepts_payload_and_dispatches_tenant_scoped_job(): void
     {
         Bus::fake();
 
         $token = $this->tokenManager->issueToken(
             $this->userId,
-            $this->tenantId
+            $this->tenantId,
         );
 
         $payload = [
@@ -81,34 +143,46 @@ final class NotificationPlatformTest extends TestCase
                 'Accept' => 'application/json',
                 'Authorization' => 'Bearer ' . $token,
             ])
-            ->json(
-                'POST',
+            ->postJson(
                 '/api/v1/core/notifications/dispatch',
-                $payload
+                $payload,
             );
 
-        $response->assertStatus(202);
-
-        $response->assertJsonPath(
-            'status',
-            'success'
-        );
+        $response
+            ->assertAccepted()
+            ->assertJsonPath(
+                'status',
+                'success',
+            );
 
         Bus::assertDispatched(
             SendAsynchronousNotificationJob::class,
-            function (SendAsynchronousNotificationJob $job): bool {
-                return $job->getTenantId() === $this->tenantId;
-            }
+            function (
+                SendAsynchronousNotificationJob $job,
+            ): bool {
+                return $job->getTenantId()
+                    === $this->tenantId;
+            },
         );
     }
 
-    public function test_dispatched_notification_job_preserves_tenant_context(): void
+    public function test_notification_job_executes_channel_inside_restored_tenant_context(): void
     {
-        Bus::fake();
+        $tenantContext = $this->app->make(
+            TenantContextInterface::class,
+        );
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId
+        $recordingChannel =
+            new RecordingNotificationChannel(
+                $tenantContext,
+            );
+
+        /*
+         * Override binding production hanya untuk test ini.
+         */
+        $this->app->instance(
+            NotificationChannelInterface::class,
+            $recordingChannel,
         );
 
         $payload = [
@@ -116,27 +190,148 @@ final class NotificationPlatformTest extends TestCase
             'body' => 'Pengumuman tenant isolation test.',
             'options' => [
                 'title' => 'Tenant Isolation Test',
+                'user_id' => $this->userId,
             ],
         ];
+
+        $job = new SendAsynchronousNotificationJob(
+            $this->tenantId,
+            $this->userId,
+            $payload,
+        );
+
+        $middlewares = $job->middleware();
+
+        $this->assertCount(
+            1,
+            $middlewares,
+        );
+
+        $middlewares[0]->handle(
+            $job,
+            static function (
+                object $queuedJob,
+            ): void {
+                if (
+                    ! $queuedJob
+                        instanceof SendAsynchronousNotificationJob
+                ) {
+                    throw new \RuntimeException(
+                        'Unexpected queue job type.',
+                    );
+                }
+
+                $queuedJob->handle();
+            },
+        );
+
+        /*
+         * Channel harus dieksekusi ketika TenantContext sudah aktif.
+         */
+        $this->assertSame(
+            $this->tenantId,
+            $recordingChannel->observedTenantContextId,
+        );
+
+        $this->assertSame(
+            $this->tenantId,
+            $recordingChannel->tenantIdArgument,
+        );
+
+        $this->assertSame(
+            $payload['recipient'],
+            $recordingChannel->recipient,
+        );
+
+        $this->assertSame(
+            $payload['body'],
+            $recordingChannel->body,
+        );
+
+        $this->assertSame(
+            $payload['options'],
+            $recordingChannel->options,
+        );
+
+        /*
+         * RestoreTenantContext wajib membersihkan mutable state
+         * setelah job selesai.
+         */
+        $this->assertNull(
+            $tenantContext->getCurrentTenantId(),
+        );
+
+        $this->assertNull(
+            $tenantContext->getCurrentTenant(),
+        );
+    }
+
+    public function test_audit_failure_does_not_change_accepted_response_or_duplicate_dispatch(): void
+    {
+        Bus::fake();
+
+        $this->app->instance(
+            AuditTrailServiceInterface::class,
+            new class implements AuditTrailServiceInterface
+            {
+                /**
+                 * @param array<string, mixed>|null $payload
+                 */
+                public function log(
+                    string $eventType,
+                    string $description,
+                    ?string $tenantId = null,
+                    ?string $userId = null,
+                    ?array $payload = null,
+                ): void {
+                    throw new RuntimeException(
+                        'Simulated notification audit failure.',
+                    );
+                }
+            },
+        );
+
+        $token = $this->tokenManager->issueToken(
+            $this->userId,
+            $this->tenantId,
+        );
 
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
                 'Authorization' => 'Bearer ' . $token,
             ])
-            ->json(
-                'POST',
+            ->postJson(
                 '/api/v1/core/notifications/dispatch',
-                $payload
+                [
+                    'recipient' => '089987654321',
+                    'body' => 'Notification must remain accepted.',
+                    'options' => [
+                        'title' => 'Audit Failure Test',
+                    ],
+                ],
             );
 
-        $response->assertStatus(202);
+        $response
+            ->assertAccepted()
+            ->assertJsonPath(
+                'status',
+                'success',
+            );
+
+        Bus::assertDispatchedTimes(
+            SendAsynchronousNotificationJob::class,
+            1,
+        );
 
         Bus::assertDispatched(
             SendAsynchronousNotificationJob::class,
-            function (SendAsynchronousNotificationJob $job): bool {
-                return $job->getTenantId() === $this->tenantId;
-            }
+            function (
+                SendAsynchronousNotificationJob $job,
+            ): bool {
+                return $job->getTenantId()
+                    === $this->tenantId;
+            },
         );
     }
 }
