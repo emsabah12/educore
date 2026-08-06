@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
 use Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface;
 use Modules\Core\Platform\Notification\DTO\WhatsAppGatewayResult;
-use Modules\Core\Support\Uuid\UuidV7;
+use RuntimeException;
 use Throwable;
 
 final readonly class WhatsAppNotificationChannel implements NotificationChannelInterface
@@ -19,8 +19,6 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
     ) {}
 
     /**
-     * Mengirim notifikasi WhatsApp dan mencatat lifecycle pengiriman.
-     *
      * @param array<string, mixed> $options
      *
      * @return array{
@@ -32,19 +30,99 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
      */
     public function send(
         string $tenantId,
+        string $notificationId,
         string $recipient,
         string $body,
         array $options = [],
     ): array {
-        $notificationId = UuidV7::generate();
+        /*
+         * Membuat atau memulihkan durable attempt record.
+         *
+         * Bila notification sudah SENT, hasil sebelumnya dikembalikan dan
+         * gateway tidak dipanggil lagi.
+         */
+        $cachedResult = $this->prepareNotificationAttempt(
+            tenantId: $tenantId,
+            notificationId: $notificationId,
+            recipient: $recipient,
+            body: $body,
+            options: $options,
+        );
+
+        if ($cachedResult !== null) {
+            return $cachedResult;
+        }
+
+        try {
+            $gatewayResult = $this->gateway->send(
+                tenantId: $tenantId,
+                notificationId: $notificationId,
+                recipient: $recipient,
+                body: $body,
+                options: $options,
+            );
+        } catch (Throwable $exception) {
+            return $this->recordUnexpectedGatewayFailure(
+                tenantId: $tenantId,
+                notificationId: $notificationId,
+                exception: $exception,
+            );
+        }
+
+        if (! $gatewayResult->successful) {
+            return $this->recordGatewayFailure(
+                tenantId: $tenantId,
+                notificationId: $notificationId,
+                result: $gatewayResult,
+            );
+        }
+
+        DB::table('notification_logs')
+            ->where('id', $notificationId)
+            ->where('tenant_id', $tenantId)
+            ->update([
+                'status' => 'SENT',
+                'failure_reason' => null,
+                'metadata' => $this->encodeMetadata(
+                    $gatewayResult->metadata,
+                ),
+                'updated_at' => now(),
+            ]);
+
+        return [
+            'success' => true,
+            'log_id' => $notificationId,
+            'metadata' => $gatewayResult->metadata,
+            'error' => null,
+        ];
+    }
+
+    /**
+     * Membuat record baru atau memulihkan record pada retry.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array{
+     *     success: true,
+     *     log_id: string,
+     *     metadata: array<string, mixed>,
+     *     error: null
+     * }|null
+     */
+    private function prepareNotificationAttempt(
+        string $tenantId,
+        string $notificationId,
+        string $recipient,
+        string $body,
+        array $options,
+    ): ?array {
+        $now = now();
 
         /*
-         * PENDING dibuat terlebih dahulu sebagai durable attempt record.
-         *
-         * Bila worker mati setelah insert, record ini dapat ditemukan
-         * oleh reconciliation atau watchdog pada pengembangan berikutnya.
+         * insertOrIgnore menggunakan primary key notification ID untuk
+         * memastikan retry tidak membuat row baru.
          */
-        DB::table('notification_logs')->insert([
+        DB::table('notification_logs')->insertOrIgnore([
             'id' => $notificationId,
             'tenant_id' => $tenantId,
             'user_id' => $options['user_id'] ?? null,
@@ -55,80 +133,62 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
             'status' => 'PENDING',
             'failure_reason' => null,
             'metadata' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
 
-        try {
-            $gatewayResult = $this->gateway->send(
-                tenantId: $tenantId,
-                notificationId: $notificationId,
-                recipient: $recipient,
-                body: $body,
-                options: $options,
+        $existingLog = DB::table('notification_logs')
+            ->where('id', $notificationId)
+            ->first();
+
+        if ($existingLog === null) {
+            throw new RuntimeException(
+                'Notification attempt could not be persisted.',
             );
+        }
 
-            if (! $gatewayResult->successful) {
-                return $this->recordGatewayFailure(
-                    tenantId: $tenantId,
-                    notificationId: $notificationId,
-                    result: $gatewayResult,
-                );
-            }
+        if (
+            (string) $existingLog->tenant_id !== $tenantId
+            || (string) $existingLog->channel !== 'WHATSAPP'
+        ) {
+            throw new RuntimeException(
+                'Notification identity collision was detected.',
+            );
+        }
 
-            DB::table('notification_logs')
-                ->where('id', $notificationId)
-                ->update([
-                    'status' => 'SENT',
-                    'failure_reason' => null,
-                    'metadata' => $this->encodeMetadata(
-                        $gatewayResult->metadata,
-                    ),
-                    'updated_at' => now(),
-                ]);
+        $status = strtoupper(
+            trim((string) $existingLog->status),
+        );
 
+        /*
+         * Redelivery dari job yang sudah berhasil tidak boleh
+         * mengirim pesan ke provider untuk kedua kalinya.
+         */
+        if ($status === 'SENT') {
             return [
                 'success' => true,
                 'log_id' => $notificationId,
-                'metadata' => $gatewayResult->metadata,
+                'metadata' => $this->decodeMetadata(
+                    $existingLog->metadata ?? null,
+                ),
                 'error' => null,
             ];
-        } catch (Throwable $exception) {
-            /*
-             * Raw exception tidak dikembalikan ke job maupun disimpan
-             * ke notification_logs.
-             */
-            Log::error(
-                'WhatsApp gateway execution failed unexpectedly.',
-                [
-                    'notification_id' => $notificationId,
-                    'tenant_id' => $tenantId,
-                    'exception' => $exception,
-                ],
-            );
-
-            $failureReason =
-                'WhatsApp gateway communication failed.';
-
-            try {
-                DB::table('notification_logs')
-                    ->where('id', $notificationId)
-                    ->update([
-                        'status' => 'FAILED',
-                        'failure_reason' => $failureReason,
-                        'updated_at' => now(),
-                    ]);
-            } catch (Throwable $persistenceException) {
-                report($persistenceException);
-            }
-
-            return [
-                'success' => false,
-                'log_id' => $notificationId,
-                'metadata' => [],
-                'error' => $failureReason,
-            ];
         }
+
+        /*
+         * Retry dari FAILED/PENDING menggunakan row yang sama.
+         */
+        DB::table('notification_logs')
+            ->where('id', $notificationId)
+            ->where('tenant_id', $tenantId)
+            ->update([
+                'status' => 'PENDING',
+                'failure_reason' => null,
+                'metadata' => null,
+                'updated_at' => $now,
+            ]);
+
+        return null;
     }
 
     /**
@@ -150,6 +210,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
 
         DB::table('notification_logs')
             ->where('id', $notificationId)
+            ->where('tenant_id', $tenantId)
             ->update([
                 'status' => 'FAILED',
                 'failure_reason' => $failureReason,
@@ -174,6 +235,53 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
             'success' => false,
             'log_id' => $notificationId,
             'metadata' => $result->metadata,
+            'error' => $failureReason,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     success: false,
+     *     log_id: string,
+     *     metadata: array<string, mixed>,
+     *     error: string
+     * }
+     */
+    private function recordUnexpectedGatewayFailure(
+        string $tenantId,
+        string $notificationId,
+        Throwable $exception,
+    ): array {
+        Log::error(
+            'WhatsApp gateway execution failed unexpectedly.',
+            [
+                'notification_id' => $notificationId,
+                'tenant_id' => $tenantId,
+                'exception' => $exception,
+            ],
+        );
+
+        $failureReason =
+            'WhatsApp gateway communication failed.';
+
+        try {
+            DB::table('notification_logs')
+                ->where('id', $notificationId)
+                ->where('tenant_id', $tenantId)
+                ->update([
+                    'status' => 'FAILED',
+                    'failure_reason' => $failureReason,
+                    'metadata' => null,
+                    'updated_at' => now(),
+                ]);
+        } catch (Throwable $persistenceException) {
+            report($persistenceException);
+        }
+
+        return [
+            'success' => false,
+            'log_id' => $notificationId,
+            'metadata' => [],
             'error' => $failureReason,
         ];
     }
@@ -210,5 +318,40 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
             $metadata,
             JSON_THROW_ON_ERROR,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeMetadata(
+        mixed $metadata,
+    ): array {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (
+            ! is_string($metadata)
+            || trim($metadata) === ''
+        ) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode(
+                $metadata,
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            return is_array($decoded)
+                ? $decoded
+                : [];
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
     }
 }

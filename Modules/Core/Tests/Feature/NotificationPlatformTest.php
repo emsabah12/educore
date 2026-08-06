@@ -25,6 +25,8 @@ final class RecordingNotificationChannel implements NotificationChannelInterface
 
     public ?string $tenantIdArgument = null;
 
+    public ?string $notificationIdArgument = null;
+
     public ?string $recipient = null;
 
     public ?string $body = null;
@@ -43,12 +45,14 @@ final class RecordingNotificationChannel implements NotificationChannelInterface
      *
      * @return array{
      *     success: bool,
+     *     log_id: string,
      *     metadata: array<string, mixed>,
      *     error: null
      * }
      */
     public function send(
         string $tenantId,
+        string $notificationId,
         string $recipient,
         string $body,
         array $options = [],
@@ -57,12 +61,14 @@ final class RecordingNotificationChannel implements NotificationChannelInterface
             $this->tenantContext->getCurrentTenantId();
 
         $this->tenantIdArgument = $tenantId;
+        $this->notificationIdArgument = $notificationId;
         $this->recipient = $recipient;
         $this->body = $body;
         $this->options = $options;
 
         return [
             'success' => true,
+            'log_id' => $notificationId,
             'metadata' => [
                 'provider' => 'recording-test-channel',
             ],
@@ -264,6 +270,11 @@ final class NotificationPlatformTest extends TestCase
         $this->assertNull(
             $tenantContext->getCurrentTenant(),
         );
+
+        $this->assertSame(
+            $job->getNotificationId(),
+            $recordingChannel->notificationIdArgument,
+        );
     }
 
     public function test_audit_failure_does_not_change_accepted_response_or_duplicate_dispatch(): void
@@ -329,9 +340,53 @@ final class NotificationPlatformTest extends TestCase
             function (
                 SendAsynchronousNotificationJob $job,
             ): bool {
-                return $job->getTenantId()
-                    === $this->tenantId;
+                return $job->getTenantId() === $this->tenantId
+                    && $job->getNotificationId() !== '';
             },
+        );
+    }
+
+    public function test_notification_id_is_preserved_across_queue_serialization(): void
+    {
+        $job = new SendAsynchronousNotificationJob(
+            tenantId: $this->tenantId,
+            operatorId: $this->userId,
+            payload: [
+                'recipient' => '089987654321',
+                'body' => 'Queue serialization notification.',
+                'options' => [
+                    'title' => 'Serialization Test',
+                ],
+            ],
+        );
+
+        $originalNotificationId =
+            $job->getNotificationId();
+
+        $serializedJob = serialize(
+            $job,
+        );
+
+        $restoredJob = unserialize(
+            $serializedJob,
+            [
+                'allowed_classes' => true,
+            ],
+        );
+
+        $this->assertInstanceOf(
+            SendAsynchronousNotificationJob::class,
+            $restoredJob,
+        );
+
+        $this->assertSame(
+            $originalNotificationId,
+            $restoredJob->getNotificationId(),
+        );
+
+        $this->assertSame(
+            $this->tenantId,
+            $restoredJob->getTenantId(),
         );
     }
 }

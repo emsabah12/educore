@@ -16,7 +16,10 @@ final class Permission extends Model
 
     protected $keyType = 'string';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'name',
+        'display_name',
+    ];
 
     public function rolePermissions(): HasMany
     {

@@ -16,8 +16,6 @@ use Modules\Core\Authorization\Services\AuthorizationService;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
 use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
 use Modules\Core\Authorization\Services\AuthorizationContextResolver;
-use Modules\Core\Authorization\Repositories\Contracts\PermissionRepositoryInterface;
-use Modules\Core\Authorization\Repositories\EloquentPermissionRepository;
 use Modules\Core\Authorization\Repositories\EloquentMembershipRepository;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
 use Modules\Core\Authorization\Repositories\EloquentMembershipRoleRepository;
@@ -172,11 +170,6 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->bind(
             AuthorizationContextInterface::class,
             AuthorizationContext::class,
-        );
-
-        $this->app->bind(
-            PermissionRepositoryInterface::class,
-            EloquentPermissionRepository::class,
         );
 
         $this->app->bind(

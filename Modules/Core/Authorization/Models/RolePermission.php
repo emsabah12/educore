@@ -13,9 +13,14 @@ final class RolePermission extends Model
 
     public $incrementing = false;
 
+    public $timestamps = false;
+
     protected $keyType = 'string';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'role_id',
+        'permission_id',
+    ];
 
     public function role(): BelongsTo
     {

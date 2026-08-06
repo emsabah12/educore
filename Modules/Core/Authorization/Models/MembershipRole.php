@@ -13,9 +13,14 @@ final class MembershipRole extends Model
 
     public $incrementing = false;
 
+    public $timestamps = false;
+
     protected $keyType = 'string';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'membership_id',
+        'role_id',
+    ];
 
     public function membership(): BelongsTo
     {

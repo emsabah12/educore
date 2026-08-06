@@ -6,9 +6,9 @@ namespace Modules\Core\Authorization\Repositories;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Modules\Core\Authorization\Models\MembershipRole;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use RuntimeException;
 
 final class EloquentMembershipRoleRepository implements MembershipRoleRepositoryInterface
 {
@@ -17,7 +17,15 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
      */
     public function rolesForMembership(
         string $membershipId,
+        string $tenantId,
     ): Collection {
+        $membershipId = trim($membershipId);
+        $tenantId = trim($tenantId);
+
+        if ($membershipId === '' || $tenantId === '') {
+            return collect();
+        }
+
         return Role::query()
             ->select('roles.*')
             ->join(
@@ -26,9 +34,23 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
                 '=',
                 'membership_roles.role_id',
             )
+            ->join(
+                'memberships',
+                'membership_roles.membership_id',
+                '=',
+                'memberships.id',
+            )
             ->where(
                 'membership_roles.membership_id',
                 $membershipId,
+            )
+            ->where(
+                'memberships.tenant_id',
+                $tenantId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
             )
             ->orderBy('roles.name')
             ->get();
@@ -36,8 +58,21 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
 
     public function membershipHasRole(
         string $membershipId,
+        string $tenantId,
         string $roleName,
     ): bool {
+        $membershipId = trim($membershipId);
+        $tenantId = trim($tenantId);
+        $roleName = trim($roleName);
+
+        if (
+            $membershipId === ''
+            || $tenantId === ''
+            || $roleName === ''
+        ) {
+            return false;
+        }
+
         return Role::query()
             ->join(
                 'membership_roles',
@@ -45,9 +80,23 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
                 '=',
                 'membership_roles.role_id',
             )
+            ->join(
+                'memberships',
+                'membership_roles.membership_id',
+                '=',
+                'memberships.id',
+            )
             ->where(
                 'membership_roles.membership_id',
                 $membershipId,
+            )
+            ->where(
+                'memberships.tenant_id',
+                $tenantId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
             )
             ->where(
                 'roles.name',
@@ -56,45 +105,63 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
             ->exists();
     }
 
-    /**
-     * @return Collection<int, MembershipRole>
-     */
-    public function findByMembership(
-        string $membershipId,
-    ): Collection {
-        return MembershipRole::query()
-            ->where('membership_id', $membershipId)
-            ->orderBy('role_id')
-            ->get();
-    }
-
     public function assignRole(
         string $membershipId,
+        string $tenantId,
         string $roleId,
     ): void {
-        DB::table('membership_roles')->updateOrInsert(
-            [
-                'membership_id' => $membershipId,
-                'role_id' => $roleId,
-            ],
-            [
-                'membership_id' => $membershipId,
-                'role_id' => $roleId,
-            ],
-        );
-    }
+        $membershipId = trim($membershipId);
+        $tenantId = trim($tenantId);
+        $roleId = trim($roleId);
 
-    public function save(
-        MembershipRole $membershipRole,
-    ): MembershipRole {
-        $membershipRole->save();
+        if ($membershipId === '') {
+            throw new RuntimeException(
+                'Membership identifier is required.',
+            );
+        }
 
-        return $membershipRole;
-    }
+        if ($tenantId === '') {
+            throw new RuntimeException(
+                'Tenant identifier is required.',
+            );
+        }
 
-    public function delete(
-        MembershipRole $membershipRole,
-    ): void {
-        $membershipRole->delete();
+        if ($roleId === '') {
+            throw new RuntimeException(
+                'Role identifier is required.',
+            );
+        }
+
+        $membershipExists = DB::table('memberships')
+            ->where('id', $membershipId)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->exists();
+
+        if (! $membershipExists) {
+            throw new RuntimeException(
+                'Active membership was not found in the requested tenant.',
+            );
+        }
+
+        $roleExists = DB::table('roles')
+            ->where('id', $roleId)
+            ->exists();
+
+        if (! $roleExists) {
+            throw new RuntimeException(
+                'Role was not found.',
+            );
+        }
+
+        /*
+         * Composite primary key membership_id + role_id membuat operasi
+         * ini idempotent. insertOrIgnore menghindari UPDATE tanpa perubahan
+         * seperti yang terjadi pada updateOrInsert sebelumnya.
+         */
+        DB::table('membership_roles')->insertOrIgnore([
+            'membership_id' => $membershipId,
+            'role_id' => $roleId,
+        ]);
     }
 }

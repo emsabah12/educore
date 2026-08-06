@@ -29,7 +29,11 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         $requestedMembershipId = $this->resolveRequestedMembershipId();
 
         $membership = $requestedMembershipId !== null
-            ? $this->membershipRepository->findById($requestedMembershipId)
+            ? $this->membershipRepository
+            ->findActiveMembershipByIdAndTenant(
+                $requestedMembershipId,
+                $tenantId,
+            )
             : $this->membershipRepository->findActiveMembership(
                 $userId,
                 $tenantId,
@@ -47,7 +51,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
             tenantId: $tenantId,
         );
 
-        $membershipId = trim((string) $membership->getKey());
+        $membershipId = trim(
+            (string) $membership->getKey(),
+        );
 
         if ($membershipId === '') {
             throw new MembershipContextResolutionException(
@@ -72,7 +78,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
             );
         }
 
-        $userId = trim((string) $user->getAuthIdentifier());
+        $userId = trim(
+            (string) $user->getAuthIdentifier(),
+        );
 
         if ($userId === '') {
             throw new MembershipContextResolutionException(
@@ -87,7 +95,10 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     {
         $tenantId = $this->tenantContext->getCurrentTenantId();
 
-        if (! is_string($tenantId) || trim($tenantId) === '') {
+        if (
+            ! is_string($tenantId)
+            || trim($tenantId) === ''
+        ) {
             throw new MembershipContextResolutionException(
                 'Cannot resolve membership context: tenant context has not been resolved.',
             );
@@ -104,6 +115,8 @@ final readonly class MembershipContextResolver implements MembershipContextResol
      * 3. X-Membership-ID header
      * 4. active_membership_id session
      * 5. null, lalu resolver menggunakan membership aktif user–tenant
+     *
+     * Header dan session fallback akan ditinjau pada Step 1E.
      */
     private function resolveRequestedMembershipId(): ?string
     {
@@ -144,8 +157,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         );
     }
 
-    private function normalizeIdentifier(mixed $value): ?string
-    {
+    private function normalizeIdentifier(
+        mixed $value,
+    ): ?string {
         if (! is_string($value)) {
             return null;
         }

@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Identity\Models\User;
-use Modules\Core\Tenancy\Traits\BelongsToTenant;
+
 
 final class Membership extends Model
 {
     use HasUuids;
-    use BelongsToTenant;
+
 
     protected $table = 'memberships';
 

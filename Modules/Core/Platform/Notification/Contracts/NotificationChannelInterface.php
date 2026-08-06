@@ -7,13 +7,26 @@ namespace Modules\Core\Platform\Notification\Contracts;
 interface NotificationChannelInterface
 {
     /**
-     * Mengirimkan pesan notifikasi secara terstandarisasi.
-     * 
-     * @param string $tenantId ID lembaga asal pengirim.
-     * @param string $recipient Alamat tujuan pengiriman (Email/No HP/UUID).
-     * @param string $body Konten isi pesan utama.
-     * @param array $options Konfigurasi tambahan seperti title atau attachment payload.
-     * @return array Mengembalikan array terstruktur yang berisi ['success' => bool, 'metadata' => array, 'error' => ?string]
+     * Mengirim notifikasi melalui channel yang dipilih.
+     *
+     * Notification ID dibuat oleh job dan harus tetap sama pada setiap retry.
+     * ID tersebut dapat digunakan sebagai idempotency/reference key oleh
+     * concrete gateway.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array{
+     *     success: bool,
+     *     log_id: string,
+     *     metadata: array<string, mixed>,
+     *     error: string|null
+     * }
      */
-    public function send(string $tenantId, string $recipient, string $body, array $options = []): array;
+    public function send(
+        string $tenantId,
+        string $notificationId,
+        string $recipient,
+        string $body,
+        array $options = [],
+    ): array;
 }

@@ -217,7 +217,7 @@ final class MembershipContextResolverTest extends TestCase
         );
 
         $this->expectExceptionMessage(
-            'Cannot resolve membership context: requested membership is not active or does not belong to the authenticated user and tenant.',
+            'Cannot resolve membership context: active membership was not found.',
         );
 
         $resolver->resolve();

@@ -4,44 +4,93 @@ declare(strict_types=1);
 
 namespace Modules\Core\Jobs;
 
-use Modules\Core\Jobs\BaseTenantAwareJob;
+use RuntimeException;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
-use Exception;
 
 final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
 {
     /**
-     * Mengeksekusi pengiriman notifikasi di background worker process.
+     * Logical notification identifier.
+     *
+     * Property ini dibuat sekali ketika job didispatch dan ikut
+     * diserialisasi oleh queue, sehingga nilainya stabil pada retry.
+     */
+    private string $notificationId;
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function __construct(
+        string $tenantId,
+        ?string $operatorId,
+        array $payload = [],
+    ) {
+        parent::__construct(
+            tenantId: $tenantId,
+            operatorId: $operatorId,
+            payload: $payload,
+        );
+
+        $this->notificationId = UuidV7::generate();
+    }
+
+    /**
+     * Mengeksekusi pengiriman notifikasi di background worker.
      */
     public function handle(): void
     {
-        // Resolusikan driver konkret melalui Service Container internal Laravel
-        $channelDriver = app(NotificationChannelInterface::class);
+        $channel = app(
+            NotificationChannelInterface::class,
+        );
 
         $recipient = $this->payload['recipient'] ?? null;
         $body = $this->payload['body'] ?? null;
         $options = $this->payload['options'] ?? [];
 
-        if (! $recipient || ! $body) {
-            throw new Exception('Payload antrean notifikasi korup. Kehilangan recipient atau konten body.');
+        if (
+            ! is_string($recipient)
+            || trim($recipient) === ''
+            || ! is_string($body)
+            || trim($body) === ''
+        ) {
+            throw new RuntimeException(
+                'Notification queue payload is invalid.',
+            );
         }
 
-        // Jalankan pengiriman aman terisolasi di level tenant context middleware bawaan BaseJob
-        $result = $channelDriver->send($this->tenantId, $recipient, $body, $options);
+        if (! is_array($options)) {
+            throw new RuntimeException(
+                'Notification queue options are invalid.',
+            );
+        }
 
-        if (! $result['success']) {
-            throw new Exception('Pengiriman notifikasi gagal di level vendor: ' . ($result['error'] ?? 'Unknown Gateway Error'));
+        $result = $channel->send(
+            tenantId: $this->tenantId,
+            notificationId: $this->notificationId,
+            recipient: trim($recipient),
+            body: trim($body),
+            options: $options,
+        );
+
+        if (($result['success'] ?? false) !== true) {
+            $error = $result['error'] ?? null;
+
+            throw new RuntimeException(
+                is_string($error) && trim($error) !== ''
+                    ? trim($error)
+                    : 'Notification delivery failed.',
+            );
         }
     }
 
-    /**
-     * Get the tenant UUID associated with this notification job.
-     *
-     * This accessor intentionally exposes the tenant context
-     * as read-only state for verification and observability.
-     */
     public function getTenantId(): string
     {
         return $this->tenantId;
+    }
+
+    public function getNotificationId(): string
+    {
+        return $this->notificationId;
     }
 }

@@ -19,12 +19,6 @@ final readonly class AssignRoleToMembership
         private MembershipRoleRepositoryInterface $membershipRoleRepository,
     ) {}
 
-    /**
-     * Menetapkan role kepada target membership dalam tenant actor.
-     *
-     * Actor membership diperoleh dari trusted authorization context.
-     * Target membership diperoleh dari parameter use case.
-     */
     public function execute(
         string $targetMembershipId,
         string $roleId,
@@ -44,7 +38,8 @@ final readonly class AssignRoleToMembership
             );
         }
 
-        $actorContext = $this->authorizationContextResolver->resolve();
+        $actorContext =
+            $this->authorizationContextResolver->resolve();
 
         $targetMembership = $this->membershipRepository
             ->findActiveMembershipByIdAndTenant(
@@ -61,10 +56,12 @@ final readonly class AssignRoleToMembership
         DB::transaction(function () use (
             $targetMembershipId,
             $roleId,
+            $actorContext,
         ): void {
             $this->membershipRoleRepository->assignRole(
-                $targetMembershipId,
-                $roleId,
+                membershipId: $targetMembershipId,
+                tenantId: $actorContext->tenantId(),
+                roleId: $roleId,
             );
         });
 
