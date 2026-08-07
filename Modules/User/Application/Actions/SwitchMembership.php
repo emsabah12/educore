@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\User\Application\Actions;
 
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
-use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Modules\User\Application\DTO\MembershipSwitchResult;
 use RuntimeException;
 
@@ -13,6 +13,7 @@ final readonly class SwitchMembership
 {
     public function __construct(
         private MembershipRepositoryInterface $membershipRepository,
+        private TenantRuntimeResolverInterface $tenantRuntimeResolver,
     ) {}
 
     public function execute(
@@ -46,11 +47,12 @@ final readonly class SwitchMembership
             );
         }
 
-        $tenant = Tenant::query()->find(
-            (string) $membership->tenant_id,
-        );
+        $tenant = $this->tenantRuntimeResolver
+            ->findActiveById(
+                (string) $membership->tenant_id,
+            );
 
-        if ($tenant === null || ! (bool) $tenant->is_active) {
+        if ($tenant === null) {
             throw new RuntimeException(
                 'Akses ditolak: Tenant tujuan tidak aktif.',
             );

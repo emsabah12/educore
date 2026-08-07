@@ -340,6 +340,94 @@ final class WhatsAppNotificationChannelTest extends TestCase
         );
     }
 
+    public function test_notification_identity_collision_across_tenants_is_rejected_before_gateway_execution(): void
+    {
+        $tenantAId = $this->createTenant();
+        $tenantBId = $this->createTenant();
+        $notificationId = UuidV7::generate();
+
+        DB::table('notification_logs')->insert([
+            'id' => $notificationId,
+            'tenant_id' => $tenantAId,
+            'user_id' => null,
+            'recipient' => '081111111111',
+            'channel' => 'WHATSAPP',
+            'title' => 'Tenant A Notification',
+            'body' => 'Existing notification owned by tenant A.',
+            'status' => 'PENDING',
+            'failure_reason' => null,
+            'metadata' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $gateway = new RecordingWhatsAppGateway(
+            WhatsAppGatewayResult::success([
+                'provider_message_id' => 'must-not-be-used',
+            ]),
+        );
+
+        $channel = new WhatsAppNotificationChannel(
+            $gateway,
+        );
+
+        try {
+            $channel->send(
+                tenantId: $tenantBId,
+                notificationId: $notificationId,
+                recipient: '082222222222',
+                body: 'Tenant B must not reuse tenant A notification ID.',
+            );
+
+            $this->fail(
+                'Cross-tenant notification identity collision must be rejected.',
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertSame(
+                'Notification identity collision was detected.',
+                $exception->getMessage(),
+            );
+        }
+
+        /*
+     * Gateway tidak boleh pernah menerima request tenant B karena
+     * collision harus dideteksi pada persistence boundary terlebih dahulu.
+     */
+        $this->assertSame(
+            0,
+            $gateway->attempts,
+        );
+
+        /*
+     * Existing durable attempt milik tenant A tidak boleh berubah.
+     */
+        $this->assertDatabaseHas(
+            'notification_logs',
+            [
+                'id' => $notificationId,
+                'tenant_id' => $tenantAId,
+                'recipient' => '081111111111',
+                'channel' => 'WHATSAPP',
+                'status' => 'PENDING',
+            ],
+        );
+
+        $this->assertDatabaseMissing(
+            'notification_logs',
+            [
+                'id' => $notificationId,
+                'tenant_id' => $tenantBId,
+            ],
+        );
+
+        $this->assertSame(
+            1,
+            DB::table('notification_logs')
+                ->where('id', $notificationId)
+                ->count(),
+        );
+    }
+
     private function createTenant(): string
     {
         $tenantId = UuidV7::generate();

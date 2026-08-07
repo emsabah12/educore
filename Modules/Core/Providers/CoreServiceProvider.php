@@ -48,18 +48,10 @@ use Modules\Core\Platform\Console\ModuleEnableCommand;
 use Modules\Core\Platform\Console\ModuleDisableCommand;
 use Modules\Core\Tests\Console\TestModuleLoaderCommand;
 use Modules\Core\Platform\Console\KernelHealthCheckCommand;
+use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
+use Modules\Core\Tenancy\Infrastructure\EloquentTenantRuntimeResolver;
 use Modules\Core\Listeners\QueueWatchdogListener;
 use Modules\Core\Support\Uuid\UuidBlueprintMacro;
-use Modules\Core\Shared\Database\TransactionManager;
-use Modules\Core\Shared\Repositories\Contracts\TransactionManagerInterface;
-use Modules\Core\Shared\Contracts\UnitOfWorkInterface;
-use Modules\Core\Shared\UnitOfWork\UnitOfWork;
-use Modules\Core\Shared\Contracts\CommandBusInterface;
-use Modules\Core\Shared\Bus\CommandBus;
-use Modules\Core\Shared\Bus\CommandHandlerResolver;
-use Modules\Core\Shared\Bus\QueryHandlerResolver;
-use Modules\Core\Shared\Bus\QueryBus;
-use Modules\Core\Shared\Contracts\QueryBusInterface;
 use Illuminate\Support\Facades\Log;
 
 final class CoreServiceProvider extends ServiceProvider
@@ -213,52 +205,11 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
-            TransactionManagerInterface::class,
-            TransactionManager::class,
-        );
-
-        $this->app->singleton(
-            UnitOfWorkInterface::class,
-            UnitOfWork::class,
-        );
-
-        /*
-         * Command Bus
-         */
-        $this->app->singleton(
-            CommandBusInterface::class,
-            CommandBus::class,
-        );
-
-        /*
-         * Command Handler Resolver
-         *
-         * Resolver bertanggung jawab menemukan dan membuat
-         * handler berdasarkan command yang diterima.
-         */
-        $this->app->singleton(
-            CommandHandlerResolver::class,
-        );
-
-        /*
-         * Query Handler Resolver
-         *
-         * Resolver bertanggung jawab menemukan dan membuat
-         * handler berdasarkan query yang diterima.
-         */
-        $this->app->singleton(
-            QueryHandlerResolver::class,
-        );
-
-        /*
-         * Query Handler Resolver
-         *
-         */
-        $this->app->singleton(
-            QueryBusInterface::class,
-            QueryBus::class,
+            TenantRuntimeResolverInterface::class,
+            EloquentTenantRuntimeResolver::class,
         );
     }
+
     /**
      * Pindai modules.json dan daftarkan Service Provider milik modul yang berstatus ACTIVE.
      */

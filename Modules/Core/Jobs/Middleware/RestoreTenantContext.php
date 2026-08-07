@@ -7,7 +7,7 @@ namespace Modules\Core\Jobs\Middleware;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
-use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use RuntimeException;
 
 final readonly class RestoreTenantContext
@@ -44,16 +44,20 @@ final readonly class RestoreTenantContext
             TenantContextInterface::class,
         );
 
+        /** @var TenantRuntimeResolverInterface $tenantRuntimeResolver */
+        $tenantRuntimeResolver = app(
+            TenantRuntimeResolverInterface::class,
+        );
+
         /*
          * Defense-in-depth terhadap state yang mungkin tersisa
          * pada worker lifecycle yang sama.
          */
         $tenantContext->clear();
 
-        $tenant = Tenant::query()
-            ->whereKey($tenantId)
-            ->where('is_active', true)
-            ->first();
+        $tenant = $tenantRuntimeResolver->findActiveById(
+            $tenantId,
+        );
 
         if ($tenant === null) {
             throw new RuntimeException(
@@ -68,6 +72,12 @@ final readonly class RestoreTenantContext
         try {
             return $next($job);
         } finally {
+            /*
+             * Queue worker bersifat long-running.
+             *
+             * Tenant context dari job saat ini tidak boleh bocor
+             * ke job berikutnya pada worker yang sama.
+             */
             $tenantContext->clear();
         }
     }

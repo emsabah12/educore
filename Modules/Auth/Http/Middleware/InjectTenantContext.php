@@ -8,11 +8,11 @@ use Closure;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Modules\Auth\Application\Services\AuthenticatedIdentityResolver;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
-use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Str;
 
 final class InjectTenantContext
 {
@@ -20,6 +20,7 @@ final class InjectTenantContext
         private readonly AuthenticatedIdentityResolver $identityResolver,
         private readonly AuthFactory $auth,
         private readonly TenantContextInterface $tenantContext,
+        private readonly TenantRuntimeResolverInterface $tenantRuntimeResolver,
     ) {}
 
     /**
@@ -32,9 +33,9 @@ final class InjectTenantContext
      *   ↓
      * Active canonical user
      *   ↓
-     * Laravel Auth Guard
+     * Active runtime tenant
      *   ↓
-     * Active Tenant
+     * Laravel Auth Guard
      *   ↓
      * TenantContext
      */
@@ -60,24 +61,36 @@ final class InjectTenantContext
             'tenant_id',
         );
 
-        if ($tenantId === null || ! Str::isUuid($tenantId)) {
+        if (
+            $tenantId === null
+            || ! Str::isUuid($tenantId)
+        ) {
             return $this->contextErrorResponse();
         }
 
         /*
-         * Tenant wajib ditemukan dan aktif sebelum runtime tenant boundary
-         * dibentuk.
+         * Runtime tenant resolver menjadi satu-satunya persistence
+         * boundary untuk memastikan tenant tersedia dan aktif sebelum
+         * TenantContext dibentuk.
          */
-        $tenant = Tenant::query()->find($tenantId);
+        $tenant = $this->tenantRuntimeResolver
+            ->findActiveById(
+                $tenantId,
+            );
 
-        if ($tenant === null || ! (bool) $tenant->is_active) {
+        if ($tenant === null) {
             return $this->contextErrorResponse();
         }
 
         $guard = $this->auth->guard();
-        $guard->setUser($identity->user);
 
-        $this->tenantContext->setCurrentTenant($tenant);
+        $guard->setUser(
+            $identity->user,
+        );
+
+        $this->tenantContext->setCurrentTenant(
+            $tenant,
+        );
 
         $request->attributes->set(
             'authenticated_user_id',
@@ -93,8 +106,9 @@ final class InjectTenantContext
             return $next($request);
         } finally {
             /*
-             * Hindari state bocor pada Octane, long-running worker,
-             * parallel testing, dan request berikutnya.
+             * Hindari mutable authentication/tenant state bocor pada
+             * Octane, long-running worker, parallel testing, ataupun
+             * request berikutnya.
              */
             $this->tenantContext->clear();
             $guard->forgetUser();
@@ -111,9 +125,12 @@ final class InjectTenantContext
 
     private function contextErrorResponse(): JsonResponse
     {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Authentication context missing or invalid.',
-        ], Response::HTTP_FORBIDDEN);
+        return response()->json(
+            [
+                'status' => 'error',
+                'message' => 'Authentication context missing or invalid.',
+            ],
+            Response::HTTP_FORBIDDEN,
+        );
     }
 }
