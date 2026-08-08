@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Modules\Core\Notification\Channels\WhatsAppNotificationChannel;
+use Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface;
 use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
 use Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface;
 use Modules\Core\Platform\Notification\DTO\WhatsAppGatewayResult;
@@ -81,8 +82,10 @@ final class WhatsAppNotificationChannelTest extends TestCase
 {
     use RefreshDatabase;
 
+
     public function test_successful_gateway_result_marks_notification_as_sent(): void
     {
+
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
 
@@ -93,7 +96,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = new WhatsAppNotificationChannel(
+        $channel = $this->channel(
             $gateway,
         );
 
@@ -157,7 +160,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ),
         );
 
-        $channel = new WhatsAppNotificationChannel(
+        $channel = $this->channel(
             $gateway,
         );
 
@@ -241,7 +244,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = new WhatsAppNotificationChannel(
+        $channel = $this->channel(
             $gateway,
         );
 
@@ -301,7 +304,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = new WhatsAppNotificationChannel(
+        $channel = $this->channel(
             $gateway,
         );
 
@@ -367,7 +370,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = new WhatsAppNotificationChannel(
+        $channel = $this->channel(
             $gateway,
         );
 
@@ -425,6 +428,17 @@ final class WhatsAppNotificationChannelTest extends TestCase
             DB::table('notification_logs')
                 ->where('id', $notificationId)
                 ->count(),
+        );
+    }
+
+    private function channel(
+        WhatsAppGatewayInterface $gateway,
+    ): WhatsAppNotificationChannel {
+        return new WhatsAppNotificationChannel(
+            gateway: $gateway,
+            attemptStore: $this->app->make(
+                NotificationAttemptStoreInterface::class,
+            ),
         );
     }
 

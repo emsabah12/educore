@@ -6,14 +6,14 @@ namespace Modules\Auth\Application\Services;
 
 use Modules\Auth\Application\DTO\ResolvedAuthenticatedIdentity;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
-use Modules\Core\Identity\Models\User;
-use Illuminate\Support\Str;
+use Modules\Core\Identity\Contracts\ActiveUserResolverInterface;
 use Throwable;
 
 final readonly class AuthenticatedIdentityResolver
 {
     public function __construct(
         private TokenManagerInterface $tokenManager,
+        private ActiveUserResolverInterface $activeUserResolver,
     ) {}
 
     /**
@@ -50,17 +50,16 @@ final readonly class AuthenticatedIdentityResolver
             'user_id',
         );
 
-        if (! Str::isUuid($userId)) {
-            return null;
-        }
-
         if ($userId === null) {
             return null;
         }
 
-        $user = User::query()->find($userId);
+        $user = $this->activeUserResolver
+            ->findActiveById(
+                $userId,
+            );
 
-        if ($user === null || ! $this->isActiveUser($user)) {
+        if ($user === null) {
             return null;
         }
 
@@ -89,14 +88,5 @@ final readonly class AuthenticatedIdentityResolver
         return $value !== ''
             ? $value
             : null;
-    }
-
-    private function isActiveUser(
-        User $user,
-    ): bool {
-        $status = $user->getAttribute('status');
-
-        return is_string($status)
-            && strtoupper(trim($status)) === 'ACTIVE';
     }
 }

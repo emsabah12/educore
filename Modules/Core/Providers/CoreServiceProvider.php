@@ -262,6 +262,16 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
+            \Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface::class,
+            \Modules\Core\Notification\Persistence\DatabaseNotificationAttemptStore::class,
+        );
+
+        $this->app->singleton(
+            \Modules\Core\Identity\Contracts\ActiveUserResolverInterface::class,
+            \Modules\Core\Identity\Infrastructure\EloquentActiveUserResolver::class,
+        );
+
+        $this->app->singleton(
             \Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface::class,
             \Modules\Core\Services\Diagnostics\SystemHealthService::class
         );
