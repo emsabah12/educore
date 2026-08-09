@@ -20,6 +20,8 @@ final class NotificationRequestValidationTest extends TestCase
 
     private string $userId;
 
+    private string $membershipId;
+
     private TokenManagerInterface $tokenManager;
 
     protected function setUp(): void
@@ -31,6 +33,9 @@ final class NotificationRequestValidationTest extends TestCase
 
         $this->userId =
             '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
+
+        $this->membershipId =
+            '019f62f3-f5b5-7216-9578-0af9cb3b5b56';
 
         $this->tokenManager = $this->app->make(
             TokenManagerInterface::class,
@@ -60,16 +65,34 @@ final class NotificationRequestValidationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        DB::table('memberships')->insert([
+            'id' => $this->membershipId,
+            'user_id' => $this->userId,
+            'tenant_id' => $this->tenantId,
+            'role' => 'notification-user',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function issueAuthenticatedToken(): string
+    {
+        return $this->tokenManager->issueToken(
+            $this->userId,
+            $this->tenantId,
+            [
+                'membership_id' => $this->membershipId,
+            ],
+        );
     }
 
     public function test_client_cannot_supply_notification_user_identity(): void
     {
         Bus::fake();
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId,
-        );
+        $token = $this->issueAuthenticatedToken();
 
         $response = $this
             ->withHeaders([
@@ -104,10 +127,7 @@ final class NotificationRequestValidationTest extends TestCase
     {
         Bus::fake();
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId,
-        );
+        $token = $this->issueAuthenticatedToken();
 
         $response = $this
             ->withHeaders([
@@ -141,10 +161,7 @@ final class NotificationRequestValidationTest extends TestCase
     {
         Bus::fake();
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId,
-        );
+        $token = $this->issueAuthenticatedToken();
 
         $response = $this
             ->withHeaders([

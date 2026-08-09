@@ -7,6 +7,7 @@ namespace Modules\Core\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
 use Modules\Core\Identity\Models\User;
@@ -55,6 +56,12 @@ final class AuthorizationServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->app->make(Request::class)
+            ->attributes
+            ->remove(
+                'authenticated_membership_id',
+            );
+
         app(TenantContextInterface::class)->clear();
 
         auth()->guard()->forgetUser();
@@ -72,6 +79,10 @@ final class AuthorizationServiceTest extends TestCase
             $this->tenantAId,
         );
 
+        $this->setAuthenticatedMembership(
+            $this->membershipAId,
+        );
+
         $service = app(
             AuthorizationServiceInterface::class,
         );
@@ -87,13 +98,12 @@ final class AuthorizationServiceTest extends TestCase
             $this->userAId,
         );
 
-        /*
-         * Tenant B hanya mempunyai membership milik User B.
-         * User A tidak boleh membentuk authorization context
-         * menggunakan membership milik User B.
-         */
         $this->setTenantContext(
             $this->tenantBId,
+        );
+
+        $this->setAuthenticatedMembership(
+            $this->membershipBId,
         );
 
         $service = app(
@@ -113,13 +123,12 @@ final class AuthorizationServiceTest extends TestCase
             $this->userAId,
         );
 
-        /*
-         * Membership User A berada pada Tenant A.
-         * Tenant B tidak boleh digunakan untuk mengakses role
-         * pada membership Tenant A.
-         */
         $this->setTenantContext(
             $this->tenantBId,
+        );
+
+        $this->setAuthenticatedMembership(
+            $this->membershipAId,
         );
 
         $service = app(
@@ -136,7 +145,10 @@ final class AuthorizationServiceTest extends TestCase
     public function test_inactive_membership_cannot_authorize_role(): void
     {
         DB::table('memberships')
-            ->where('id', $this->membershipAId)
+            ->where(
+                'id',
+                $this->membershipAId,
+            )
             ->update([
                 'status' => 'SUSPENDED',
                 'updated_at' => now(),
@@ -148,6 +160,10 @@ final class AuthorizationServiceTest extends TestCase
 
         $this->setTenantContext(
             $this->tenantAId,
+        );
+
+        $this->setAuthenticatedMembership(
+            $this->membershipAId,
         );
 
         $service = app(
@@ -171,6 +187,10 @@ final class AuthorizationServiceTest extends TestCase
             $this->tenantAId,
         );
 
+        $this->setAuthenticatedMembership(
+            $this->membershipAId,
+        );
+
         $service = app(
             AuthorizationServiceInterface::class,
         );
@@ -192,6 +212,10 @@ final class AuthorizationServiceTest extends TestCase
             $this->tenantBId,
         );
 
+        $this->setAuthenticatedMembership(
+            $this->membershipBId,
+        );
+
         $service = app(
             AuthorizationServiceInterface::class,
         );
@@ -203,6 +227,18 @@ final class AuthorizationServiceTest extends TestCase
         $service->hasPermission(
             'notification.dispatch',
         );
+    }
+
+
+    private function setAuthenticatedMembership(
+        string $membershipId,
+    ): void {
+        $this->app->make(Request::class)
+            ->attributes
+            ->set(
+                'authenticated_membership_id',
+                $membershipId,
+            );
     }
 
     private function createTenants(): void

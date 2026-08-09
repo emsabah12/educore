@@ -85,6 +85,8 @@ final class NotificationPlatformTest extends TestCase
 
     private string $userId;
 
+    private string $membershipId;
+
     private TokenManagerInterface $tokenManager;
 
     protected function setUp(): void
@@ -96,6 +98,9 @@ final class NotificationPlatformTest extends TestCase
 
         $this->userId =
             '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
+
+        $this->membershipId =
+            '019f62f3-f5b5-7216-9578-0af9cb3b5b56';
 
         $this->tokenManager = $this->app->make(
             TokenManagerInterface::class,
@@ -125,16 +130,40 @@ final class NotificationPlatformTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        DB::table('memberships')->insert([
+            'id' => $this->membershipId,
+            'user_id' => $this->userId,
+            'tenant_id' => $this->tenantId,
+
+            /*
+     * Legacy schema compatibility only.
+     * Authorization tidak membaca field role ini.
+     */
+            'role' => 'notification-user',
+
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function issueAuthenticatedToken(): string
+    {
+        return $this->tokenManager->issueToken(
+            $this->userId,
+            $this->tenantId,
+            [
+                'membership_id' => $this->membershipId,
+            ],
+        );
     }
 
     public function test_controller_accepts_payload_and_dispatches_tenant_scoped_job(): void
     {
         Bus::fake();
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId,
-        );
+        $token = $this->issueAuthenticatedToken();
 
         $payload = [
             'recipient' => '089987654321',
@@ -302,10 +331,7 @@ final class NotificationPlatformTest extends TestCase
             },
         );
 
-        $token = $this->tokenManager->issueToken(
-            $this->userId,
-            $this->tenantId,
-        );
+        $token = $this->issueAuthenticatedToken();
 
         $response = $this
             ->withHeaders([

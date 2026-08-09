@@ -18,8 +18,15 @@ final class TenantMembershipBoundaryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const TENANT_HEADER = 'X-Tenant-ID';
+
+    private const MEMBERSHIP_HEADER =
+    'X-Test-Authenticated-Membership-ID';
+
     private string $userId;
+
     private string $tenantId;
+
     private string $membershipId;
 
     protected function setUp(): void
@@ -40,6 +47,8 @@ final class TenantMembershipBoundaryTest extends TestCase
     {
         app(TenantContextInterface::class)->clear();
 
+        auth()->guard()->forgetUser();
+
         parent::tearDown();
     }
 
@@ -56,19 +65,25 @@ final class TenantMembershipBoundaryTest extends TestCase
 
         $response = $this
             ->actingAs($user)
-            ->withHeader(
-                'X-Tenant-ID',
+            ->withHeaders([
+                self::TENANT_HEADER =>
                 $this->tenantId,
-            )
+
+                self::MEMBERSHIP_HEADER =>
+                $this->membershipId,
+            ])
             ->getJson(
                 '/test-tenant/membership-boundary',
             );
 
         $response
-            ->assertStatus(Response::HTTP_OK)
+            ->assertStatus(
+                Response::HTTP_OK,
+            )
             ->assertJson([
                 'status' => 'success',
-                'message' => 'Tenant membership boundary passed.',
+                'message' =>
+                'Tenant membership boundary passed.',
             ]);
     }
 
@@ -78,21 +93,34 @@ final class TenantMembershipBoundaryTest extends TestCase
             $this->userId,
         );
 
+        /*
+         * Membership identifier tetap diberikan secara eksplisit
+         * seperti claim bearer token production.
+         *
+         * Record membership sengaja tidak dibuat sehingga canonical
+         * MembershipContextResolver harus menolaknya.
+         */
         $response = $this
             ->actingAs($user)
-            ->withHeader(
-                'X-Tenant-ID',
+            ->withHeaders([
+                self::TENANT_HEADER =>
                 $this->tenantId,
-            )
+
+                self::MEMBERSHIP_HEADER =>
+                $this->membershipId,
+            ])
             ->getJson(
                 '/test-tenant/membership-boundary',
             );
 
         $response
-            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertStatus(
+                Response::HTTP_FORBIDDEN,
+            )
             ->assertJson([
                 'status' => 'error',
-                'message' => 'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
+                'message' =>
+                'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
             ]);
     }
 
@@ -109,19 +137,25 @@ final class TenantMembershipBoundaryTest extends TestCase
 
         $response = $this
             ->actingAs($user)
-            ->withHeader(
-                'X-Tenant-ID',
+            ->withHeaders([
+                self::TENANT_HEADER =>
                 $this->tenantId,
-            )
+
+                self::MEMBERSHIP_HEADER =>
+                $this->membershipId,
+            ])
             ->getJson(
                 '/test-tenant/membership-boundary',
             );
 
         $response
-            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertStatus(
+                Response::HTTP_FORBIDDEN,
+            )
             ->assertJson([
                 'status' => 'error',
-                'message' => 'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
+                'message' =>
+                'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
             ]);
     }
 
@@ -134,7 +168,8 @@ final class TenantMembershipBoundaryTest extends TestCase
             static function () {
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'Tenant membership boundary passed.',
+                    'message' =>
+                    'Tenant membership boundary passed.',
                 ], Response::HTTP_OK);
             },
         )->name(
@@ -149,7 +184,9 @@ final class TenantMembershipBoundaryTest extends TestCase
             'name' => 'Tenant Boundary User',
             'email' => sprintf(
                 'tenant-boundary-%s@educore.test',
-                Str::lower(Str::random(10)),
+                Str::lower(
+                    Str::random(10),
+                ),
             ),
             'password' => bcrypt('secret123'),
             'status' => 'ACTIVE',
@@ -166,7 +203,9 @@ final class TenantMembershipBoundaryTest extends TestCase
             'name' => 'Tenant Membership Boundary',
             'subdomain' => sprintf(
                 'membership-boundary-%s',
-                Str::lower(Str::random(8)),
+                Str::lower(
+                    Str::random(8),
+                ),
             ),
             'is_active' => true,
             'created_at' => now(),
@@ -184,8 +223,8 @@ final class TenantMembershipBoundaryTest extends TestCase
             'tenant_id' => $this->tenantId,
 
             /*
-             * Field role masih diperlukan oleh skema database lama,
-             * tetapi tidak digunakan sebagai authorization source.
+             * Field role hanya untuk kompatibilitas schema legacy.
+             * Authorization canonical menggunakan membership_roles.
              */
             'role' => 'employee',
 

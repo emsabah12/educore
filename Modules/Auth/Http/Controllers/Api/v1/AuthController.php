@@ -12,6 +12,10 @@ use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Http\Requests\LoginTokenRequest;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Illuminate\Support\Facades\Log;
+use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 final class AuthController extends Controller
 {
@@ -21,13 +25,17 @@ final class AuthController extends Controller
 
     private AuditTrailServiceInterface $auditTrail;
 
+    private TokenRevocationStoreInterface $tokenRevocationStore;
+
     public function __construct(
         AuthenticationRepositoryInterface $authRepository,
         TokenManagerInterface $tokenManager,
+        TokenRevocationStoreInterface $tokenRevocationStore,
         AuditTrailServiceInterface $auditTrail
     ) {
         $this->authRepository = $authRepository;
         $this->tokenManager = $tokenManager;
+        $this->tokenRevocationStore = $tokenRevocationStore;
         $this->auditTrail = $auditTrail;
     }
 
@@ -124,11 +132,11 @@ final class AuthController extends Controller
     }
 
     /**
-     * Mengakhiri authentication context untuk request saat ini.
+     * Mencabut bearer token yang sedang digunakan.
      *
-     * Token deterministic saat ini bersifat stateless dan belum memiliki
-     * server-side revocation storage. Karena itu logout hanya mencatat audit
-     * dan membersihkan runtime request attributes.
+     * Endpoint berada di belakang InjectTenantContext sehingga request
+     * harus sudah memiliki canonical authenticated user, tenant, dan
+     * membership context sebelum revocation dijalankan.
      */
     public function logout(Request $request): JsonResponse
     {
@@ -140,21 +148,132 @@ final class AuthController extends Controller
             'authenticated_tenant_id',
         );
 
-        if (is_string($userId) && trim($userId) !== '') {
+        $membershipId = $request->attributes->get(
+            'authenticated_membership_id',
+        );
+
+        $bearerToken = $request->bearerToken();
+
+        if (
+            ! is_string($bearerToken)
+            || trim($bearerToken) === ''
+            || ! is_string($userId)
+            || trim($userId) === ''
+        ) {
+            return response()->json(
+                [
+                    'status' => 'error',
+                    'message' => 'Authenticated logout context is invalid.',
+                ],
+                Response::HTTP_UNAUTHORIZED,
+            );
+        }
+
+        /*
+     * Token sudah divalidasi oleh InjectTenantContext sebelum controller
+     * berjalan. Validasi ulang di sini diperlukan untuk mendapatkan
+     * canonical expires_at yang akan menentukan retention revocation row.
+     *
+     * Raw bearer token tidak dicatat ke log atau audit.
+     */
+        $claims = $this->tokenManager->validateAndExtract(
+            $bearerToken,
+        );
+
+        $expiresAt = is_array($claims)
+            ? ($claims['expires_at'] ?? null)
+            : null;
+
+        if (! is_int($expiresAt)) {
+            Log::warning(
+                'Authenticated logout token claims could not be resolved.',
+                [
+                    'user_id' => $userId,
+                    'tenant_id' => is_string($tenantId)
+                        ? $tenantId
+                        : null,
+                ],
+            );
+
+            return response()->json(
+                [
+                    'status' => 'error',
+                    'message' => 'Unable to resolve logout credential.',
+                ],
+                Response::HTTP_UNAUTHORIZED,
+            );
+        }
+
+        try {
+            $this->tokenRevocationStore->revoke(
+                token: $bearerToken,
+                expiresAt: $expiresAt,
+            );
+        } catch (Throwable $exception) {
+            /*
+         * Logout tidak boleh mengklaim sukses jika server gagal
+         * menyimpan revocation state.
+         */
+            Log::error(
+                'Authentication token revocation failed during logout.',
+                [
+                    'user_id' => $userId,
+                    'tenant_id' => is_string($tenantId)
+                        ? $tenantId
+                        : null,
+                    'exception' => $exception::class,
+                ],
+            );
+
             $this->auditTrail->log(
-                'auth.logout',
-                'User berhasil keluar dari sistem.',
+                'auth.logout_failed',
+                'Logout gagal karena token tidak dapat direvoke.',
                 is_string($tenantId)
                     ? $tenantId
                     : null,
                 $userId,
                 [
-                    'status' => 'explicit_logout',
+                    'status' => 'revocation_failed',
                     'token_revoked' => false,
+                    'membership_id' => is_string($membershipId)
+                        ? $membershipId
+                        : null,
                 ],
+            );
+
+            return response()->json(
+                [
+                    'status' => 'error',
+                    'message' => 'Unable to complete logout securely.',
+                    'data' => [
+                        'token_revoked' => false,
+                    ],
+                ],
+                Response::HTTP_SERVICE_UNAVAILABLE,
             );
         }
 
+        $this->auditTrail->log(
+            'auth.logout',
+            'User berhasil keluar dari sistem.',
+            is_string($tenantId)
+                ? $tenantId
+                : null,
+            $userId,
+            [
+                'status' => 'explicit_logout',
+                'token_revoked' => true,
+                'membership_id' => is_string($membershipId)
+                    ? $membershipId
+                    : null,
+            ],
+        );
+
+        /*
+     * Middleware tetap menjadi pemilik lifecycle cleanup utama.
+     * Removal di sini memastikan controller juga tidak mempertahankan
+     * authenticated attributes setelah logout acknowledgement dibuat.
+     */
         $request->attributes->remove(
             'authenticated_user_id',
         );
@@ -163,12 +282,16 @@ final class AuthController extends Controller
             'authenticated_tenant_id',
         );
 
+        $request->attributes->remove(
+            'authenticated_membership_id',
+        );
+
         return response()->json([
             'status' => 'success',
-            'message' => 'Logout acknowledged successfully.',
+            'message' => 'Logout completed successfully.',
             'data' => [
-                'token_revoked' => false,
+                'token_revoked' => true,
             ],
-        ], 200);
+        ], Response::HTTP_OK);
     }
 }

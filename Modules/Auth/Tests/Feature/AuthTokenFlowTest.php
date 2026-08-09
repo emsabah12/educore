@@ -106,7 +106,20 @@ final class AuthTokenFlowTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath(
                 'data.token_revoked',
-                false,
+                true,
+            );
+
+        /*
+        * Bearer credential yang sama tidak boleh digunakan kembali
+        * setelah explicit logout.
+        */
+        $this
+            ->withToken($accessToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertJsonPath(
+                'status',
+                'error',
             );
     }
 
