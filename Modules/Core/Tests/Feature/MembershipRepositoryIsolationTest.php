@@ -70,15 +70,17 @@ final class MembershipRepositoryIsolationTest extends TestCase
             MembershipRepositoryInterface::class,
         );
 
-        $membershipA = $repository->findActiveMembership(
-            $userId,
-            $tenantAId,
-        );
+        $membershipA =
+            $repository->findActiveMembershipByIdAndTenant(
+                $membershipAId,
+                $tenantAId,
+            );
 
-        $membershipB = $repository->findActiveMembership(
-            $userId,
-            $tenantBId,
-        );
+        $membershipB =
+            $repository->findActiveMembershipByIdAndTenant(
+                $membershipBId,
+                $tenantBId,
+            );
 
         $this->assertNotNull(
             $membershipA,

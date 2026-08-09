@@ -123,7 +123,8 @@ final class ContextualRbacAuthorizationTest extends TestCase
 
         $response = $this->actingAs($userModel)
             ->withHeaders([
-                'X-Membership-ID' => $membershipId,
+                'X-Test-Authenticated-Membership-ID' =>
+                $membershipId,
                 'X-Tenant-ID' => $tenantId,
             ])
             ->json(
@@ -204,14 +205,19 @@ final class ContextualRbacAuthorizationTest extends TestCase
         $userModel = User::findOrFail($userId);
 
         /*
-         * membershipBId sengaja tidak dimiliki oleh user.
-         *
-         * Test ini memverifikasi bahwa CheckTenantRole
-         * tidak mempercayai X-Membership-ID secara blind.
-         */
+        * membershipBId sengaja bukan membership
+        * milik authenticated user.
+        *
+        * Test-only middleware mensimulasikan membership_id
+        * yang berasal dari token tervalidasi.
+        *
+        * MembershipContextResolver wajib tetap menolak
+        * ownership yang tidak cocok.
+        */
         $response = $this->actingAs($userModel)
             ->withHeaders([
-                'X-Membership-ID' => $membershipBId,
+                'X-Test-Authenticated-Membership-ID' =>
+                $membershipBId,
                 'X-Tenant-ID' => $tenantAId,
             ])
             ->json(
@@ -315,7 +321,8 @@ final class ContextualRbacAuthorizationTest extends TestCase
 
                 // Attacker mencoba menggunakan membership
                 // yang sebenarnya berada di Tenant B.
-                'X-Membership-ID' => $membershipBId,
+                'X-Test-Authenticated-Membership-ID' =>
+                $membershipBId,
             ])
             ->json(
                 'GET',
@@ -329,7 +336,7 @@ final class ContextualRbacAuthorizationTest extends TestCase
             'Unauthorized: Your role does not possess the required clearance level for this tenant domain.'
         );
     }
-    public function test_route_membership_context_takes_precedence_over_membership_header(): void
+    public function test_route_membership_cannot_override_authenticated_membership_context(): void
     {
         $userId = '111aa11f-4c99-4484-8249-cfcce8c45651';
 
@@ -406,18 +413,26 @@ final class ContextualRbacAuthorizationTest extends TestCase
 
         $response = $this->actingAs($userModel)
             ->withHeaders([
-                // Sengaja menunjuk membership A.
-                // Middleware seharusnya TIDAK menggunakan ini.
-                'X-Membership-ID' => $membershipAId,
+                /*
+         * Authenticated membership berasal dari Tenant A.
+         */
+                'X-Test-Authenticated-Membership-ID' =>
+                $membershipAId,
 
-                // Context tenant berasal dari authenticated context.
+                /*
+         * Current tenant sengaja Tenant B.
+         */
                 'X-Tenant-ID' => $tenantBId,
             ])
             ->get(
                 "/test-tenant/dashboard/{$membershipBId}"
             );
 
-        $response->assertStatus(200);
-        $response->assertJsonPath('status', 'success');
+        $response->assertStatus(403);
+
+        $response->assertJsonPath(
+            'message',
+            'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
+        );
     }
 }

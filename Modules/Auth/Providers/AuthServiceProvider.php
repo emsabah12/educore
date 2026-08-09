@@ -10,40 +10,61 @@ use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\Repositories\AuthenticationRepository;
 use Modules\Auth\Services\DeterministicTokenManager;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
+use Modules\Auth\Token\Persistence\DatabaseTokenRevocationStore;
 
 final class AuthServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Register application services owned by Auth.
      */
     public function register(): void
     {
-
         $this->app->singleton(
             AuthenticationRepositoryInterface::class,
-            AuthenticationRepository::class
+            AuthenticationRepository::class,
+        );
+
+        $this->app->singleton(
+            TokenRevocationStoreInterface::class,
+            DatabaseTokenRevocationStore::class,
         );
 
         $this->app->singleton(
             TokenManagerInterface::class,
-            DeterministicTokenManager::class
+            DeterministicTokenManager::class,
         );
     }
 
     /**
-     * Bootstrap any application services.
+     * Bootstrap Auth-owned infrastructure.
      */
     public function boot(): void
     {
-
-
-
+        $this->registerMigrations();
         $this->registerRoutes();
+    }
+
+    private function registerMigrations(): void
+    {
+        $migrationPath = base_path(
+            'Modules/Auth/Database/Migrations',
+        );
+
+        if (! is_dir($migrationPath)) {
+            return;
+        }
+
+        $this->loadMigrationsFrom(
+            $migrationPath,
+        );
     }
 
     private function registerRoutes(): void
     {
-        $routeFilePath = base_path('Modules/Auth/Routes/api.php');
+        $routeFilePath = base_path(
+            'Modules/Auth/Routes/api.php',
+        );
 
         if (! is_file($routeFilePath)) {
             return;

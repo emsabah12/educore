@@ -7,6 +7,7 @@ namespace Tests\Feature\Middleware;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
@@ -15,6 +16,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class InjectTestTenantContext
 {
+    private const TENANT_HEADER = 'X-Tenant-ID';
+
+    private const MEMBERSHIP_HEADER =
+    'X-Test-Authenticated-Membership-ID';
+
     public function __construct(
         private readonly TenantContextInterface $tenantContext,
         private readonly MembershipContextResolverInterface $membershipContextResolver,
@@ -24,12 +30,17 @@ final class InjectTestTenantContext
      * Menyediakan authentication, tenant, dan membership context
      * untuk integration test.
      *
-     * Perbedaan dengan production middleware hanya pada sumber identity:
+     * Perbedaan dengan production middleware hanya pada sumber
+     * authentication context:
      *
-     * - Production menggunakan bearer token tervalidasi.
-     * - Testing menggunakan actingAs().
+     * Production:
+     * Bearer token tervalidasi.
      *
-     * Membership tetap divalidasi menggunakan resolver production.
+     * Testing:
+     * actingAs() + explicit test-only headers.
+     *
+     * X-Test-Authenticated-Membership-ID mensimulasikan membership_id
+     * yang pada production berasal dari bearer token tervalidasi.
      */
     public function handle(
         Request $request,
@@ -52,31 +63,42 @@ final class InjectTestTenantContext
             return $this->incompleteContextResponse();
         }
 
-        $tenantId = $this->normalizeIdentifier(
-            $request->header('X-Tenant-ID'),
+        $tenantId = $this->normalizeUuid(
+            $request->header(
+                self::TENANT_HEADER,
+            ),
         );
 
         if ($tenantId === null) {
             return $this->incompleteContextResponse();
         }
 
-        $tenant = Tenant::query()->find($tenantId);
+        $membershipId = $this->normalizeUuid(
+            $request->header(
+                self::MEMBERSHIP_HEADER,
+            ),
+        );
 
-        if ($tenant === null || ! (bool) $tenant->is_active) {
+        if ($membershipId === null) {
             return $this->incompleteContextResponse();
         }
 
-        /*
-         * Canonical runtime tenant context.
-         *
-         * MembershipContextResolver memerlukan TenantContext
-         * yang telah terikat sebelum melakukan validasi membership.
-         */
-        $this->tenantContext->setCurrentTenant($tenant);
+        $tenant = Tenant::query()
+            ->whereKey($tenantId)
+            ->where('is_active', true)
+            ->first();
+
+        if ($tenant === null) {
+            return $this->incompleteContextResponse();
+        }
+
+        $this->tenantContext->setCurrentTenant(
+            $tenant,
+        );
 
         /*
-         * Canonical request attributes yang berasal dari authenticated
-         * testing context.
+         * Mirror canonical attributes yang dibentuk
+         * InjectTenantContext production.
          */
         $request->attributes->set(
             'authenticated_user_id',
@@ -88,40 +110,34 @@ final class InjectTestTenantContext
             (string) $tenant->getKey(),
         );
 
+        $request->attributes->set(
+            'authenticated_membership_id',
+            $membershipId,
+        );
+
         try {
             /*
-             * Jangan menetapkan authenticated_membership_id dari header.
+             * Resolver production tetap bertanggung jawab memastikan:
              *
-             * Resolver production menentukan membership berdasarkan:
-             * 1. authenticated_membership_id jika sudah trusted
-             * 2. route membership_id
-             * 3. X-Membership-ID
-             * 4. session
-             * 5. fallback user–tenant
+             * - membership exists;
+             * - ACTIVE;
+             * - milik authenticated user;
+             * - berada pada current tenant.
              */
-            $membershipContext = $this->membershipContextResolver->resolve();
-
-            /*
-             * Setelah tervalidasi, membership baru boleh dipromosikan
-             * menjadi trusted request context untuk downstream service.
-             */
-            $request->attributes->set(
-                'authenticated_membership_id',
-                $membershipContext->membershipId,
-            );
+            $this->membershipContextResolver->resolve();
 
             return $next($request);
-        } catch (MembershipContextResolutionException $exception) {
+        } catch (
+            MembershipContextResolutionException $exception
+        ) {
             report($exception);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
+                'message' =>
+                'Unauthorized: Your role does not possess the required clearance level for this tenant domain.',
             ], Response::HTTP_FORBIDDEN);
         } finally {
-            /*
-             * Hindari state bocor ke test atau request berikutnya.
-             */
             $this->tenantContext->clear();
 
             $request->attributes->remove(
@@ -138,24 +154,31 @@ final class InjectTestTenantContext
         }
     }
 
-    private function normalizeIdentifier(mixed $value): ?string
-    {
+    private function normalizeUuid(
+        mixed $value,
+    ): ?string {
         if (! is_string($value)) {
             return null;
         }
 
         $value = trim($value);
 
-        return $value !== ''
-            ? $value
-            : null;
+        if (
+            $value === ''
+            || ! Str::isUuid($value)
+        ) {
+            return null;
+        }
+
+        return $value;
     }
 
     private function incompleteContextResponse(): JsonResponse
     {
         return response()->json([
             'status' => 'error',
-            'message' => 'Forbidden: Authentication context is incomplete.',
+            'message' =>
+            'Forbidden: Authentication context is incomplete.',
         ], Response::HTTP_FORBIDDEN);
     }
 }

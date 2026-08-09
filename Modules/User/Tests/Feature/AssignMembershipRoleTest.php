@@ -187,32 +187,54 @@ final class AssignMembershipRoleTest extends TestCase
 
     public function test_assigning_same_role_twice_is_idempotent(): void
     {
+        /*
+     * Kondisi awal:
+     *
+     * target membership sudah memiliki role employee.
+     * Request berikutnya harus tetap berhasil tanpa membuat
+     * duplicate assignment.
+     */
+        DB::table('membership_roles')->insert([
+            'membership_id' => $this->targetMembershipId,
+            'role_id' => $this->employeeRoleId,
+        ]);
+
         $token = $this->issueToken(
             userId: $this->adminUserId,
             tenantId: $this->tenantAId,
             membershipId: $this->adminMembershipId,
         );
 
-        $uri = sprintf(
-            '/api/v1/user/memberships/%s/assign-role',
-            $this->targetMembershipId,
-        );
-
-        $payload = [
-            'role_id' => $this->employeeRoleId,
-        ];
-
-        $this
+        $response = $this
             ->withToken($token)
-            ->postJson($uri, $payload)
-            ->assertOk();
+            ->postJson(
+                sprintf(
+                    '/api/v1/user/memberships/%s/assign-role',
+                    $this->targetMembershipId,
+                ),
+                [
+                    'role_id' => $this->employeeRoleId,
+                ],
+            );
 
-        $this
-            ->withToken($token)
-            ->postJson($uri, $payload)
-            ->assertOk();
+        $response
+            ->assertOk()
+            ->assertJsonPath(
+                'status',
+                'success',
+            )
+            ->assertJsonPath(
+                'data.target_membership_id',
+                $this->targetMembershipId,
+            )
+            ->assertJsonPath(
+                'data.role_id',
+                $this->employeeRoleId,
+            );
 
-        $assignmentCount = DB::table('membership_roles')
+        $assignmentCount = DB::table(
+            'membership_roles',
+        )
             ->where(
                 'membership_id',
                 $this->targetMembershipId,

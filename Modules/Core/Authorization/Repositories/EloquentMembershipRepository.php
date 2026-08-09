@@ -10,26 +10,6 @@ use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterf
 
 final class EloquentMembershipRepository implements MembershipRepositoryInterface
 {
-
-    public function findActiveMembership(
-        string $userId,
-        string $tenantId,
-    ): ?Membership {
-        $userId = trim($userId);
-        $tenantId = trim($tenantId);
-
-        if ($userId === '' || $tenantId === '') {
-            return null;
-        }
-
-        return $this->explicitBoundaryQuery()
-            ->where('memberships.user_id', $userId)
-            ->where('memberships.tenant_id', $tenantId)
-            ->where('memberships.status', 'ACTIVE')
-            ->orderByDesc('memberships.created_at')
-            ->first();
-    }
-
     public function findActiveMembershipByIdAndTenant(
         string $membershipId,
         string $tenantId,
@@ -37,14 +17,23 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
         $membershipId = trim($membershipId);
         $tenantId = trim($tenantId);
 
-        if ($membershipId === '' || $tenantId === '') {
+        if (
+            $membershipId === ''
+            || $tenantId === ''
+        ) {
             return null;
         }
 
         return $this->explicitBoundaryQuery()
             ->whereKey($membershipId)
-            ->where('memberships.tenant_id', $tenantId)
-            ->where('memberships.status', 'ACTIVE')
+            ->where(
+                'memberships.tenant_id',
+                $tenantId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
+            )
             ->first();
     }
 
@@ -55,7 +44,10 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
         $membershipId = trim($membershipId);
         $userId = trim($userId);
 
-        if ($membershipId === '' || $userId === '') {
+        if (
+            $membershipId === ''
+            || $userId === ''
+        ) {
             return null;
         }
 
@@ -67,22 +59,34 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
                 '=',
                 'tenants.id',
             )
-            ->where('memberships.id', $membershipId)
-            ->where('memberships.user_id', $userId)
-            ->where('memberships.status', 'ACTIVE')
-            ->where('tenants.is_active', true)
+            ->where(
+                'memberships.id',
+                $membershipId,
+            )
+            ->where(
+                'memberships.user_id',
+                $userId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
+            )
+            ->where(
+                'tenants.is_active',
+                true,
+            )
             ->first();
     }
 
     /**
      * Membership merupakan explicit tenant-bound aggregate.
      *
-     * Repository tidak menggunakan ambient TenantContext karena beberapa
-     * operasi membership dijalankan sebelum tenant context tersedia,
-     * misalnya login dan switch membership.
+     * Repository tidak menggunakan ambient TenantContext karena
+     * beberapa operasi membership terjadi sebelum current tenant
+     * context tersedia, terutama switch membership.
      *
-     * Setiap public query wajib mengganti scope tersebut dengan boundary
-     * user atau tenant yang eksplisit.
+     * Setiap public query wajib membawa boundary eksplisit
+     * melalui membership ID + tenant atau membership ID + owner.
      *
      * @return Builder<Membership>
      */

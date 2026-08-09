@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use JsonException;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
 use Throwable;
 
 final class DeterministicTokenManager implements TokenManagerInterface
@@ -19,6 +20,10 @@ final class DeterministicTokenManager implements TokenManagerInterface
      * Dua jam = 7.200 detik.
      */
     private const TOKEN_LIFETIME = 7200;
+
+    public function __construct(
+        private readonly TokenRevocationStoreInterface $revocationStore,
+    ) {}
 
     public function lifetimeInSeconds(): int
     {
@@ -54,16 +59,28 @@ final class DeterministicTokenManager implements TokenManagerInterface
             JSON_THROW_ON_ERROR,
         );
 
-        return Crypt::encryptString($encodedPayload);
+        return Crypt::encryptString(
+            $encodedPayload,
+        );
     }
 
     /**
      * @return array<string, mixed>|null
      */
-    public function validateAndExtract(string $token): ?array
-    {
+    public function validateAndExtract(
+        string $token,
+    ): ?array {
+        /*
+         * Tahap pertama hanya memvalidasi cryptographic envelope
+         * dan canonical claims.
+         *
+         * Revocation store tidak disentuh untuk token malformed agar
+         * request sampah tidak menghasilkan database lookup.
+         */
         try {
-            $decryptedPayload = Crypt::decryptString($token);
+            $decryptedPayload = Crypt::decryptString(
+                $token,
+            );
 
             $payload = json_decode(
                 $decryptedPayload,
@@ -108,12 +125,9 @@ final class DeterministicTokenManager implements TokenManagerInterface
 
                 return null;
             }
-
-            return $payload;
         } catch (Throwable $exception) {
             /*
-             * Jangan mencatat token mentah atau decrypted payload.
-             * Keduanya merupakan data sensitif.
+             * Jangan mencatat raw token atau decrypted payload.
              */
             Log::warning(
                 'Tampered or invalid authentication token blocked.',
@@ -124,6 +138,48 @@ final class DeterministicTokenManager implements TokenManagerInterface
 
             return null;
         }
+
+        /*
+         * Revocation diperiksa hanya setelah token terbukti:
+         *
+         * - decryptable
+         * - structurally valid
+         * - belum expired
+         *
+         * Database failure harus fail-closed: authentication token
+         * tidak boleh dianggap valid jika revocation state tidak
+         * dapat diverifikasi.
+         */
+        try {
+            if (
+                $this->revocationStore->isRevoked(
+                    $token,
+                )
+            ) {
+                Log::warning(
+                    'Revoked authentication token blocked.',
+                    [
+                        'user_id' => $userId,
+                        'tenant_id' => $tenantId,
+                    ],
+                );
+
+                return null;
+            }
+        } catch (Throwable $exception) {
+            Log::error(
+                'Authentication token revocation validation failed.',
+                [
+                    'user_id' => $userId,
+                    'tenant_id' => $tenantId,
+                    'exception' => $exception::class,
+                ],
+            );
+
+            return null;
+        }
+
+        return $payload;
     }
 
     private function currentTimestamp(): int

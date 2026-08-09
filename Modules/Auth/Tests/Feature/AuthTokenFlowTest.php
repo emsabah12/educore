@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
 use Tests\TestCase;
 
 final class AuthTokenFlowTest extends TestCase
@@ -312,6 +313,71 @@ final class AuthTokenFlowTest extends TestCase
             ->assertJsonPath(
                 'data.expires_in',
                 $tokenManager->lifetimeInSeconds(),
+            );
+    }
+
+    public function test_revoked_token_cannot_access_tenant_context(): void
+    {
+        $loginResponse = $this->postJson(
+            '/api/v1/auth/login-token',
+            [
+                'email' => $this->email,
+                'password' => 'secret123',
+                'tenant_uuid' => $this->tenantId,
+            ],
+        );
+
+        $loginResponse->assertOk();
+
+        $accessToken = $loginResponse->json(
+            'data.access_token',
+        );
+
+        $this->assertIsString(
+            $accessToken,
+        );
+
+        $tokenManager = $this->app->make(
+            TokenManagerInterface::class,
+        );
+
+        /*
+     * Token masih valid sebelum direvoke.
+     */
+        $claims = $tokenManager->validateAndExtract(
+            $accessToken,
+        );
+
+        $this->assertIsArray(
+            $claims,
+        );
+
+        $expiresAt = $claims['expires_at'] ?? null;
+
+        $this->assertIsInt(
+            $expiresAt,
+        );
+
+        $revocationStore = $this->app->make(
+            TokenRevocationStoreInterface::class,
+        );
+
+        $revocationStore->revoke(
+            token: $accessToken,
+            expiresAt: $expiresAt,
+        );
+
+        /*
+     * Exact bearer credential yang sama sekarang tidak lagi
+     * boleh membentuk authenticated tenant context.
+     */
+        $this
+            ->withToken($accessToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertJsonPath(
+                'status',
+                'error',
             );
     }
 }

@@ -79,26 +79,55 @@ final class MembershipContextResolverTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_it_resolves_active_membership_for_authenticated_user_and_tenant(): void
+    public function test_it_rejects_missing_authenticated_membership_context(): void
     {
-        $this->authenticateAsUser($this->userId);
-        $this->setTenantContext($this->tenantA);
+        $this->authenticateAsUser(
+            $this->userId,
+        );
 
-        $resolver = app(MembershipContextResolverInterface::class);
+        $this->setTenantContext(
+            $this->tenantA,
+        );
 
-        $context = $resolver->resolve();
+        $resolver = app(
+            MembershipContextResolverInterface::class,
+        );
 
-        $this->assertSame($this->userId, $context->userId);
-        $this->assertSame($this->tenantA, $context->tenantId);
-        $this->assertSame($this->membershipA, $context->membershipId);
+        $this->expectException(
+            MembershipContextResolutionException::class,
+        );
+
+        $this->expectExceptionMessage(
+            'Cannot resolve membership context: authenticated membership identifier is required.',
+        );
+
+        $resolver->resolve();
     }
 
     public function test_it_rejects_user_without_membership_in_current_tenant(): void
     {
-        $this->authenticateAsUser($this->userId);
-        $this->setTenantContext($this->tenantB);
+        $this->authenticateAsUser(
+            $this->userId,
+        );
 
-        $resolver = app(MembershipContextResolverInterface::class);
+        $this->setTenantContext(
+            $this->tenantB,
+        );
+
+        /*
+     * Authentication context membawa membership A,
+     * tetapi current tenant adalah B.
+     *
+     * Exact tenant-bound lookup harus menolak membership tersebut.
+     */
+        request()->attributes->set(
+            'authenticated_membership_id',
+            $this->membershipA,
+        );
+
+        $resolver = app(
+            MembershipContextResolverInterface::class,
+        );
 
         $this->expectException(
             MembershipContextResolutionException::class,
@@ -175,8 +204,8 @@ final class MembershipContextResolverTest extends TestCase
         $this->authenticateAsUser($this->userId);
         $this->setTenantContext($this->tenantA);
 
-        request()->headers->set(
-            'X-Membership-ID',
+        request()->attributes->set(
+            'authenticated_membership_id',
             $otherMembershipId,
         );
 
@@ -205,8 +234,8 @@ final class MembershipContextResolverTest extends TestCase
         $this->authenticateAsUser($this->userId);
         $this->setTenantContext($this->tenantA);
 
-        request()->headers->set(
-            'X-Membership-ID',
+        request()->attributes->set(
+            'authenticated_membership_id',
             $this->membershipA,
         );
 
@@ -244,34 +273,10 @@ final class MembershipContextResolverTest extends TestCase
             ->setCurrentTenant($tenant);
     }
 
-    public function test_authenticated_membership_context_takes_precedence_over_header(): void
+
+
+    public function test_it_resolves_explicit_authenticated_membership_context(): void
     {
-        $otherUserId = Str::uuid()->toString();
-        $otherMembershipId = Str::uuid()->toString();
-
-        DB::table('users')->insert([
-            'id' => $otherUserId,
-            'name' => 'Header Membership User',
-            'email' => sprintf(
-                'header-membership-%s@educore.id',
-                Str::lower(Str::random(10)),
-            ),
-            'password' => 'secret',
-            'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('memberships')->insert([
-            'id' => $otherMembershipId,
-            'user_id' => $otherUserId,
-            'tenant_id' => $this->tenantA,
-            'role' => 'employee',
-            'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $this->authenticateAsUser(
             $this->userId,
         );
@@ -280,22 +285,12 @@ final class MembershipContextResolverTest extends TestCase
             $this->tenantA,
         );
 
-        /*
-     * Trusted membership context dari token tervalidasi.
-     */
+
         request()->attributes->set(
             'authenticated_membership_id',
             $this->membershipA,
         );
 
-        /*
-     * Untrusted client input mencoba mengganti membership
-     * dengan membership milik user lain.
-     */
-        request()->headers->set(
-            'X-Membership-ID',
-            $otherMembershipId,
-        );
 
         $resolver = app(
             MembershipContextResolverInterface::class,
@@ -315,11 +310,6 @@ final class MembershipContextResolverTest extends TestCase
 
         $this->assertSame(
             $this->membershipA,
-            $context->membershipId,
-        );
-
-        $this->assertNotSame(
-            $otherMembershipId,
             $context->membershipId,
         );
     }

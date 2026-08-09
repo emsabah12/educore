@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use JsonException;
 use Modules\Auth\Services\DeterministicTokenManager;
+use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
 use Tests\TestCase;
 
 final class DeterministicTokenManagerTest extends TestCase
@@ -17,6 +18,21 @@ final class DeterministicTokenManagerTest extends TestCase
         Carbon::setTestNow();
 
         parent::tearDown();
+    }
+
+    private function createTokenManager(): DeterministicTokenManager
+    {
+        $revocationStore = $this->createStub(
+            TokenRevocationStoreInterface::class,
+        );
+
+        $revocationStore
+            ->method('isRevoked')
+            ->willReturn(false);
+
+        return new DeterministicTokenManager(
+            $revocationStore,
+        );
     }
 
     /**
@@ -31,7 +47,7 @@ final class DeterministicTokenManagerTest extends TestCase
 
         Carbon::setTestNow($now);
 
-        $manager = new DeterministicTokenManager();
+        $manager = $this->createTokenManager();
 
         $token = $manager->issueToken(
             '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
@@ -84,7 +100,7 @@ final class DeterministicTokenManagerTest extends TestCase
 
         Carbon::setTestNow($now);
 
-        $manager = new DeterministicTokenManager();
+        $manager = $this->createTokenManager();
 
         $token = $this->encryptPayload([
             'user_id' =>
@@ -111,7 +127,7 @@ final class DeterministicTokenManagerTest extends TestCase
 
         Carbon::setTestNow($now);
 
-        $manager = new DeterministicTokenManager();
+        $manager = $this->createTokenManager();
 
         $expectedPayload = [
             'user_id' =>
@@ -144,6 +160,37 @@ final class DeterministicTokenManagerTest extends TestCase
             json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR,
+            ),
+        );
+    }
+    public function test_revoked_token_is_rejected(): void
+    {
+        $revocationStore = $this->createMock(
+            TokenRevocationStoreInterface::class,
+        );
+
+        $manager = new DeterministicTokenManager(
+            $revocationStore,
+        );
+
+        $token = $manager->issueToken(
+            '11111111-1111-4111-8111-111111111111',
+            '22222222-2222-4222-8222-222222222222',
+            [
+                'membership_id' =>
+                '33333333-3333-4333-8333-333333333333',
+            ],
+        );
+
+        $revocationStore
+            ->expects($this->once())
+            ->method('isRevoked')
+            ->with($token)
+            ->willReturn(true);
+
+        $this->assertNull(
+            $manager->validateAndExtract(
+                $token,
             ),
         );
     }

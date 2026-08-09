@@ -68,6 +68,17 @@ final class InjectTenantContext
             return $this->contextErrorResponse();
         }
 
+        $membershipId = $identity->stringClaim(
+            'membership_id',
+        );
+
+        if (
+            $membershipId === null
+            || ! Str::isUuid($membershipId)
+        ) {
+            return $this->contextErrorResponse();
+        }
+
         /*
          * Runtime tenant resolver menjadi satu-satunya persistence
          * boundary untuk memastikan tenant tersedia dan aktif sebelum
@@ -102,6 +113,11 @@ final class InjectTenantContext
             $tenantId,
         );
 
+        $request->attributes->set(
+            'authenticated_membership_id',
+            $membershipId,
+        );
+
         try {
             return $next($request);
         } finally {
@@ -119,6 +135,10 @@ final class InjectTenantContext
 
             $request->attributes->remove(
                 'authenticated_tenant_id',
+            );
+
+            $request->attributes->remove(
+                'authenticated_membership_id',
             );
         }
     }

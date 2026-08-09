@@ -26,16 +26,11 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     {
         $userId = $this->resolveAuthenticatedUserId();
         $tenantId = $this->resolveTenantId();
-        $requestedMembershipId = $this->resolveRequestedMembershipId();
+        $membershipId = $this->resolveAuthenticatedMembershipId();
 
-        $membership = $requestedMembershipId !== null
-            ? $this->membershipRepository
+        $membership = $this->membershipRepository
             ->findActiveMembershipByIdAndTenant(
-                $requestedMembershipId,
-                $tenantId,
-            )
-            : $this->membershipRepository->findActiveMembership(
-                $userId,
+                $membershipId,
                 $tenantId,
             );
 
@@ -51,11 +46,11 @@ final readonly class MembershipContextResolver implements MembershipContextResol
             tenantId: $tenantId,
         );
 
-        $membershipId = trim(
+        $resolvedMembershipId = trim(
             (string) $membership->getKey(),
         );
 
-        if ($membershipId === '') {
+        if ($resolvedMembershipId === '') {
             throw new MembershipContextResolutionException(
                 'Cannot resolve membership context: membership identifier is empty.',
             );
@@ -64,7 +59,7 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         return new MembershipContext(
             userId: $userId,
             tenantId: $tenantId,
-            membershipId: $membershipId,
+            membershipId: $resolvedMembershipId,
         );
     }
 
@@ -108,17 +103,13 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     }
 
     /**
-     * Urutan prioritas membership context:
+     * Resolve trusted membership context yang telah dibentuk
+     * oleh authentication middleware.
      *
-     * 1. authenticated_membership_id dari token tervalidasi
-     * 2. Route parameter membership_id
-     * 3. X-Membership-ID header
-     * 4. active_membership_id session
-     * 5. null, lalu resolver menggunakan membership aktif user–tenant
-     *
-     * Header dan session fallback akan ditinjau pada Step 1E.
+     * Tenant-aware authorization tidak boleh menebak membership
+     * dari user + tenant apabila explicit membership context hilang.
      */
-    private function resolveRequestedMembershipId(): ?string
+    private function resolveAuthenticatedMembershipId(): string
     {
         $membershipId = $this->normalizeIdentifier(
             $this->request->attributes->get(
@@ -126,35 +117,13 @@ final readonly class MembershipContextResolver implements MembershipContextResol
             ),
         );
 
-        if ($membershipId !== null) {
-            return $membershipId;
+        if ($membershipId === null) {
+            throw new MembershipContextResolutionException(
+                'Cannot resolve membership context: authenticated membership identifier is required.',
+            );
         }
 
-        $membershipId = $this->normalizeIdentifier(
-            $this->request->route('membership_id'),
-        );
-
-        if ($membershipId !== null) {
-            return $membershipId;
-        }
-
-        $membershipId = $this->normalizeIdentifier(
-            $this->request->header('X-Membership-ID'),
-        );
-
-        if ($membershipId !== null) {
-            return $membershipId;
-        }
-
-        if (! $this->request->hasSession()) {
-            return null;
-        }
-
-        return $this->normalizeIdentifier(
-            $this->request->session()->get(
-                'active_membership_id',
-            ),
-        );
+        return $membershipId;
     }
 
     private function normalizeIdentifier(
@@ -177,15 +146,21 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         string $tenantId,
     ): void {
         $membershipUserId = trim(
-            (string) $membership->getAttribute('user_id'),
+            (string) $membership->getAttribute(
+                'user_id',
+            ),
         );
 
         $membershipTenantId = trim(
-            (string) $membership->getAttribute('tenant_id'),
+            (string) $membership->getAttribute(
+                'tenant_id',
+            ),
         );
 
         $membershipStatus = strtoupper(trim(
-            (string) $membership->getAttribute('status'),
+            (string) $membership->getAttribute(
+                'status',
+            ),
         ));
 
         if (

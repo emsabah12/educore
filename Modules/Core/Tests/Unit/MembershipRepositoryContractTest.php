@@ -28,7 +28,6 @@ final class MembershipRepositoryContractTest extends TestCase
         sort($methodNames);
 
         $expectedMethods = [
-            'findActiveMembership',
             'findActiveMembershipByIdAndTenant',
             'findActiveMembershipByIdForUser',
         ];
@@ -38,7 +37,7 @@ final class MembershipRepositoryContractTest extends TestCase
         $this->assertSame(
             $expectedMethods,
             $methodNames,
-            'Membership repository must not expose unbounded lookup, listing, or mutation methods.',
+            'Membership repository must expose only explicit membership-bound lookup operations.',
         );
     }
 }
