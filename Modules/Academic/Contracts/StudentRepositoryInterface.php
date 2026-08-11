@@ -4,20 +4,42 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Contracts;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 interface StudentRepositoryInterface
 {
     /**
-     * Mengambil daftar santri/siswa yang terisolasi per lembaga dengan informasi kelasnya.
+     * @return LengthAwarePaginator<int, object>
      */
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    public function getByTenantPaginated(
+        string $tenantId,
+        int $perPage = 15,
+    ): LengthAwarePaginator;
 
     /**
-     * Mendapatkan detail profil santri spesifik di dalam scope tenant yang sah.
+     * @return array<string, mixed>
      */
-    public function findByIdForTenant(string $id, string $tenantId): array;
+    public function findByIdForTenant(
+        string $id,
+        string $tenantId,
+    ): array;
 
     /**
-     * Mendaftarkan profil santri baru terikat lintas 3 tabel (users, memberships, santris).
+     * Persist only the Student profile. Person and Membership provisioning
+     * belong to the application orchestration service.
+     *
+     * @param array{
+     *     class_id?: string|null,
+     *     nis?: string|null,
+     *     nisn?: string|null,
+     *     status?: string
+     * } $data
+     *
+     * @return array<string, mixed>
      */
-    public function createForTenant(string $tenantId, array $data): array;
+    public function createProfileForTenant(
+        string $tenantId,
+        string $membershipId,
+        array $data,
+    ): array;
 }

@@ -1,0 +1,13 @@
+diff --git a/bootstrap/app.php b/bootstrap/app.php
+index 64db9b6..a43b4da 100644
+--- a/bootstrap/app.php
++++ b/bootstrap/app.php
+@@ -19,6 +19,7 @@
+     })
+     ->withExceptions(function (Exceptions $exceptions): void {
+         $exceptions->shouldRenderJsonWhen(
+-            fn(Request $request) => $request->is('api/*'),
++            fn (Request $request): bool => $request->is('api/*')
++                || $request->expectsJson(),
+         );
+     })->create();
