@@ -6,6 +6,9 @@ namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
@@ -26,7 +29,7 @@ final class NotificationAttemptStoreTest extends TestCase
         );
     }
 
-    public function test_store_creates_pending_notification_attempt(): void
+    public function test_store_creates_canonical_pending_attempt_without_delivery_pii(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -34,34 +37,47 @@ final class NotificationAttemptStoreTest extends TestCase
         $attempt = $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
-            channel: 'WHATSAPP',
-            title: 'Persistence Test',
-            body: 'Notification persistence test.',
+            channel: ' whatsapp ',
         );
 
+        $this->assertFalse($attempt->alreadySent);
+        $this->assertSame([], $attempt->providerMetadata);
+
+        $this->assertTrue(
+            Schema::hasTable('notification_attempts'),
+        );
         $this->assertFalse(
-            $attempt->alreadySent,
+            Schema::hasTable('notification_logs'),
         );
 
-        $this->assertSame(
-            [],
-            $attempt->metadata,
-        );
+        foreach ([
+            'user_id',
+            'recipient',
+            'title',
+            'body',
+        ] as $legacyColumn) {
+            $this->assertFalse(
+                Schema::hasColumn(
+                    'notification_attempts',
+                    $legacyColumn,
+                ),
+            );
+        }
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
                 'channel' => 'WHATSAPP',
                 'status' => 'PENDING',
+                'failure_code' => null,
+                'failure_reason' => null,
             ],
         );
     }
 
-    public function test_store_reuses_failed_attempt_without_creating_duplicate_row(): void
+    public function test_store_reuses_failed_attempt_and_clears_previous_failure_telemetry(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -69,18 +85,15 @@ final class NotificationAttemptStoreTest extends TestCase
         $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Retry persistence test.',
         );
 
         $this->store->markFailed(
             tenantId: $tenantId,
             notificationId: $notificationId,
+            failureCode: 'provider_rejected',
             failureReason: 'Provider rejected.',
-            metadata: [
+            providerMetadata: [
                 'provider_status' => 'rejected',
             ],
         );
@@ -88,36 +101,30 @@ final class NotificationAttemptStoreTest extends TestCase
         $attempt = $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Retry persistence test.',
         );
 
-        $this->assertFalse(
-            $attempt->alreadySent,
-        );
+        $this->assertFalse($attempt->alreadySent);
 
         $this->assertSame(
             1,
-            DB::table('notification_logs')
+            DB::table('notification_attempts')
                 ->where('id', $notificationId)
                 ->count(),
         );
 
-        $this->assertDatabaseHas(
-            'notification_logs',
-            [
-                'id' => $notificationId,
-                'tenant_id' => $tenantId,
-                'status' => 'PENDING',
-                'failure_reason' => null,
-            ],
-        );
+        $row = DB::table('notification_attempts')
+            ->where('id', $notificationId)
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame('PENDING', $row->status);
+        $this->assertNull($row->failure_code);
+        $this->assertNull($row->failure_reason);
+        $this->assertNull($row->provider_metadata);
     }
 
-    public function test_store_returns_cached_sent_attempt(): void
+    public function test_store_returns_provider_metadata_for_cached_sent_attempt(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -125,17 +132,13 @@ final class NotificationAttemptStoreTest extends TestCase
         $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Already sent test.',
         );
 
         $this->store->markSent(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            metadata: [
+            providerMetadata: [
                 'provider_message_id' => 'provider-123',
             ],
         );
@@ -143,28 +146,24 @@ final class NotificationAttemptStoreTest extends TestCase
         $attempt = $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Already sent test.',
         );
 
-        $this->assertTrue(
-            $attempt->alreadySent,
-        );
-
+        $this->assertTrue($attempt->alreadySent);
         $this->assertSame(
             'provider-123',
-            $attempt->metadata['provider_message_id'] ?? null,
+            $attempt->providerMetadata['provider_message_id']
+                ?? null,
         );
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
                 'status' => 'SENT',
+                'failure_code' => null,
+                'failure_reason' => null,
             ],
         );
     }
@@ -178,22 +177,14 @@ final class NotificationAttemptStoreTest extends TestCase
         $this->store->prepareAttempt(
             tenantId: $tenantAId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '081111111111',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Tenant A notification.',
         );
 
         try {
             $this->store->prepareAttempt(
                 tenantId: $tenantBId,
                 notificationId: $notificationId,
-                userId: null,
-                recipient: '082222222222',
                 channel: 'WHATSAPP',
-                title: null,
-                body: 'Tenant B notification.',
             );
 
             $this->fail(
@@ -207,16 +198,16 @@ final class NotificationAttemptStoreTest extends TestCase
         }
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantAId,
-                'recipient' => '081111111111',
+                'channel' => 'WHATSAPP',
             ],
         );
 
         $this->assertDatabaseMissing(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantBId,
@@ -225,13 +216,13 @@ final class NotificationAttemptStoreTest extends TestCase
 
         $this->assertSame(
             1,
-            DB::table('notification_logs')
+            DB::table('notification_attempts')
                 ->where('id', $notificationId)
                 ->count(),
         );
     }
 
-    public function test_store_marks_attempt_as_failed(): void
+    public function test_store_persists_failure_code_reason_and_provider_metadata(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -239,31 +230,81 @@ final class NotificationAttemptStoreTest extends TestCase
         $this->store->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: null,
-            recipient: '089987654321',
             channel: 'WHATSAPP',
-            title: null,
-            body: 'Failed attempt.',
         );
 
         $this->store->markFailed(
             tenantId: $tenantId,
             notificationId: $notificationId,
+            failureCode: 'provider_rejected',
             failureReason: 'Provider rejected.',
-            metadata: [
+            providerMetadata: [
                 'provider_status' => 'rejected',
             ],
         );
 
-        $this->assertDatabaseHas(
-            'notification_logs',
-            [
-                'id' => $notificationId,
-                'tenant_id' => $tenantId,
-                'status' => 'FAILED',
-                'failure_reason' => 'Provider rejected.',
-            ],
+        $row = DB::table('notification_attempts')
+            ->where('id', $notificationId)
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame('FAILED', $row->status);
+        $this->assertSame(
+            'provider_rejected',
+            $row->failure_code,
         );
+        $this->assertSame(
+            'Provider rejected.',
+            $row->failure_reason,
+        );
+        $this->assertSame(
+            'rejected',
+            $this->decodeProviderMetadata(
+                $row->provider_metadata,
+            )['provider_status'] ?? null,
+        );
+    }
+
+    public function test_store_rejects_non_uuid_v7_identifiers(): void
+    {
+        $tenantId = $this->createTenant();
+
+        $this->expectException(
+            InvalidArgumentException::class,
+        );
+        $this->expectExceptionMessage(
+            'Notification identifier is invalid.',
+        );
+
+        $this->store->prepareAttempt(
+            tenantId: $tenantId,
+            notificationId: (string) Str::uuid(),
+            channel: 'WHATSAPP',
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeProviderMetadata(
+        mixed $providerMetadata,
+    ): array {
+        if (is_array($providerMetadata)) {
+            return $providerMetadata;
+        }
+
+        if (! is_string($providerMetadata)) {
+            return [];
+        }
+
+        $decoded = json_decode(
+            $providerMetadata,
+            true,
+        );
+
+        return is_array($decoded)
+            ? $decoded
+            : [];
     }
 
     private function createTenant(): string

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tenancy\Console;
 
 use Illuminate\Console\Command;
-use Modules\Core\Tenancy\Services\TenantManager;
+use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use Throwable;
 
 final class TenantProvisionCommand extends Command
@@ -13,13 +13,14 @@ final class TenantProvisionCommand extends Command
     protected $signature = 'core:tenant-provision
                             {--name= : Nama institusi/sekolah baru}
                             {--subdomain= : Subdomain unik untuk sekolah tersebut}
-                            {--domain= : Custom domain opsional (misal: sekolah.sch.id)}';
+                            {--domain= : Custom domain opsional (misal: sekolah.sch.id)}
+                            {--admin-user-id= : UUIDv7 User yang menjadi initial tenant admin}';
 
     protected $description =
-    'Otomatisasi pembuatan dan provisioning sekolah (tenant) baru pada EduCore Kernel';
+    'Otomatisasi pembuatan tenant beserta initial tenant administrator';
 
     public function handle(
-        TenantManager $tenantManager,
+        TenantProvisioningService $tenantProvisioningService,
     ): int {
         $name = $this->normalizeOption(
             $this->option('name'),
@@ -31,6 +32,10 @@ final class TenantProvisionCommand extends Command
 
         $domain = $this->normalizeOption(
             $this->option('domain'),
+        );
+
+        $adminUserId = $this->normalizeOption(
+            $this->option('admin-user-id'),
         );
 
         if ($name === null) {
@@ -49,9 +54,21 @@ final class TenantProvisionCommand extends Command
             );
         }
 
-        if ($name === null || $subdomain === null) {
+        if ($adminUserId === null) {
+            $adminUserId = $this->normalizeOption(
+                $this->ask(
+                    'Masukkan UUIDv7 User untuk initial tenant admin',
+                ),
+            );
+        }
+
+        if (
+            $name === null
+            || $subdomain === null
+            || $adminUserId === null
+        ) {
             $this->error(
-                'Gagal: Nama dan subdomain tidak boleh kosong.',
+                'Gagal: Nama, subdomain, dan admin user id tidak boleh kosong.',
             );
 
             return Command::FAILURE;
@@ -66,16 +83,19 @@ final class TenantProvisionCommand extends Command
         );
 
         try {
-            $tenant = $tenantManager->createTenant([
-                'name' => $name,
-                'subdomain' => $subdomain,
-                'domain' => $domain,
-                'is_active' => true,
-                'settings' => [
-                    'provisioned_via' => 'Artisan CLI',
-                    'created_at' => now()->toIso8601String(),
+            $result = $tenantProvisioningService->provision(
+                [
+                    'name' => $name,
+                    'subdomain' => $subdomain,
+                    'domain' => $domain,
+                    'is_active' => true,
+                    'settings' => [
+                        'provisioned_via' => 'Artisan CLI',
+                        'created_at' => now()->toIso8601String(),
+                    ],
                 ],
-            ]);
+                $adminUserId,
+            );
         } catch (Throwable $exception) {
             /*
              * Detail exception diteruskan ke Laravel reporting pipeline,
@@ -89,6 +109,9 @@ final class TenantProvisionCommand extends Command
 
             return Command::FAILURE;
         }
+
+        $tenant = $result['tenant'];
+        $initialAdmin = $result['initial_admin'];
 
         $this->newLine();
 
@@ -116,11 +139,19 @@ final class TenantProvisionCommand extends Command
                         ? 'ACTIVE'
                         : 'INACTIVE',
                 ],
+                [
+                    'Initial Admin User ID',
+                    $initialAdmin['user_id'],
+                ],
+                [
+                    'Initial Admin Membership ID',
+                    $initialAdmin['membership_id'],
+                ],
             ],
         );
 
         $this->info(
-            'Sukses: Tenant baru berhasil ditambahkan ke cluster.',
+            'Sukses: Tenant dan initial administrator berhasil diprovisioning.',
         );
 
         return Command::SUCCESS;

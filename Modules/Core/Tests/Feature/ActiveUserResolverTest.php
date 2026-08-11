@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Modules\Core\Identity\Contracts\ActiveUserResolverInterface;
 use Modules\Core\Identity\Models\User;
+use Modules\Core\Person\Models\PersonModel;
 use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
 
@@ -26,102 +26,97 @@ final class ActiveUserResolverTest extends TestCase
         );
     }
 
-    public function test_resolver_returns_active_canonical_user(): void
+    public function test_resolver_returns_active_canonical_user_with_person_identity(): void
     {
-        $userId = $this->createUser(
+        $user = $this->createUser(
             status: 'ACTIVE',
+            personName: 'Active Canonical Person',
         );
 
-        $user = $this->resolver->findActiveById(
-            $userId,
+        $resolved = $this->resolver->findActiveById(
+            (string) $user->getKey(),
         );
 
         $this->assertInstanceOf(
             User::class,
-            $user,
+            $resolved,
         );
 
         $this->assertSame(
-            $userId,
-            $user?->getKey(),
+            (string) $user->getKey(),
+            (string) $resolved?->getKey(),
         );
 
         $this->assertSame(
             'ACTIVE',
-            $user?->getAttribute('status'),
+            $resolved?->getAttribute('status'),
+        );
+
+        $this->assertTrue(
+            $resolved?->relationLoaded('person') ?? false,
+        );
+
+        $this->assertSame(
+            'Active Canonical Person',
+            (string) $resolved?->person?->getAttribute('name'),
         );
     }
 
     public function test_resolver_rejects_inactive_user(): void
     {
-        $userId = $this->createUser(
+        $user = $this->createUser(
             status: 'SUSPENDED',
+            personName: 'Suspended Canonical Person',
         );
 
-        $user = $this->resolver->findActiveById(
-            $userId,
+        $resolved = $this->resolver->findActiveById(
+            (string) $user->getKey(),
         );
 
-        $this->assertNull(
-            $user,
-        );
+        $this->assertNull($resolved);
     }
 
     public function test_resolver_returns_null_for_missing_user(): void
     {
-        $user = $this->resolver->findActiveById(
-            UuidV7::generate(),
-        );
-
         $this->assertNull(
-            $user,
+            $this->resolver->findActiveById(
+                UuidV7::generate(),
+            ),
         );
     }
 
-    public function test_resolver_rejects_malformed_identifier(): void
+    public function test_resolver_rejects_non_uuid_v7_identifier(): void
     {
-        $user = $this->resolver->findActiveById(
-            'not-a-uuid',
-        );
-
         $this->assertNull(
-            $user,
+            $this->resolver->findActiveById(
+                '550e8400-e29b-41d4-a716-446655440000',
+            ),
         );
     }
 
     public function test_resolver_rejects_empty_identifier(): void
     {
-        $user = $this->resolver->findActiveById(
-            '   ',
-        );
-
         $this->assertNull(
-            $user,
+            $this->resolver->findActiveById('   '),
         );
     }
 
     private function createUser(
         string $status,
-    ): string {
-        $userId = UuidV7::generate();
-
-        DB::table('users')->insert([
-            'id' => $userId,
-            'name' => sprintf(
-                'Identity Resolver User %s',
-                substr($userId, 0, 8),
-            ),
-            'email' => sprintf(
-                'identity-%s@educore.test',
-                str_replace('-', '', $userId),
-            ),
-            'password' => bcrypt('secret123'),
-            'status' => $status,
-            'is_superadmin' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+        string $personName,
+    ): User {
+        $person = PersonModel::factory()->create([
+            'name' => $personName,
         ]);
 
-        return $userId;
+        $user = User::factory()
+            ->for($person, 'person')
+            ->create();
+
+        $user->forceFill([
+            'status' => $status,
+        ])->save();
+
+        return $user->fresh('person') ?? $user;
     }
 }

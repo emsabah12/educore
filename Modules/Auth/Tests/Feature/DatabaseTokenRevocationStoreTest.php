@@ -62,24 +62,47 @@ final class DatabaseTokenRevocationStoreTest extends TestCase
 
         $expiresAt = now()->timestamp + 3600;
 
-        $store->revoke(
-            $token,
-            $expiresAt,
-        );
+        $tokenHash = hash('sha256', $token);
 
         $store->revoke(
             $token,
             $expiresAt,
         );
+
+        $firstRevocation = DB::table('auth_token_revocations')
+            ->where('token_hash', $tokenHash)
+            ->first();
+
+        $this->assertNotNull($firstRevocation);
+
+        $this->travel(1)->seconds();
+
+        $store->revoke(
+            $token,
+            $expiresAt + 600,
+        );
+
+        $secondRevocation = DB::table('auth_token_revocations')
+            ->where('token_hash', $tokenHash)
+            ->first();
+
+        $this->assertNotNull($secondRevocation);
 
         $this->assertSame(
             1,
             DB::table('auth_token_revocations')
-                ->where(
-                    'token_hash',
-                    hash('sha256', $token),
-                )
+                ->where('token_hash', $tokenHash)
                 ->count(),
+        );
+
+        $this->assertSame(
+            (int) $firstRevocation->expires_at,
+            (int) $secondRevocation->expires_at,
+        );
+
+        $this->assertSame(
+            (string) $firstRevocation->revoked_at,
+            (string) $secondRevocation->revoked_at,
         );
     }
 

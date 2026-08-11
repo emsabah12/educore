@@ -4,28 +4,77 @@ declare(strict_types=1);
 
 namespace Modules\Core\Person\Entities;
 
+use DateTimeImmutable;
+use InvalidArgumentException;
+use Modules\Core\Person\Enums\PersonLegalSex;
 use Modules\Core\Person\Enums\PersonStatus;
 use Modules\Core\Person\Exceptions\InvalidPersonLifecycleTransitionException;
 use Modules\Core\Person\ValueObjects\PersonName;
-use RuntimeException;
+use Modules\Core\Support\Uuid\UuidV7;
 
 final class Person
 {
     private PersonStatus $status;
 
+    private ?string $givenName;
+
+    private ?string $middleName;
+
+    private ?string $familyName;
+
+    private ?string $birthPlaceName;
+
+    private ?string $birthCountryCode;
+
+    private ?string $civilStatus;
+
     public function __construct(
         private readonly string $id,
         private PersonName $name,
         PersonStatus $status = PersonStatus::ACTIVE,
+        ?string $givenName = null,
+        ?string $middleName = null,
+        ?string $familyName = null,
+        private readonly ?DateTimeImmutable $birthDate = null,
+        ?string $birthPlaceName = null,
+        ?string $birthCountryCode = null,
+        private readonly ?PersonLegalSex $legalSex = null,
+        ?string $civilStatus = null,
     ) {
-        $id = trim($id);
-
-        if ($id === '') {
-            throw new RuntimeException(
-                'Person identifier cannot be empty.',
+        if (! UuidV7::validate($id)) {
+            throw new InvalidArgumentException(
+                'Person identifier must be a valid UUIDv7.',
             );
         }
 
+        $this->givenName = self::normalizeOptionalString(
+            $givenName,
+            255,
+            'Person given name',
+        );
+        $this->middleName = self::normalizeOptionalString(
+            $middleName,
+            255,
+            'Person middle name',
+        );
+        $this->familyName = self::normalizeOptionalString(
+            $familyName,
+            255,
+            'Person family name',
+        );
+        $this->birthPlaceName = self::normalizeOptionalString(
+            $birthPlaceName,
+            255,
+            'Person birth place name',
+        );
+        $this->birthCountryCode = self::normalizeCountryCode(
+            $birthCountryCode,
+        );
+        $this->civilStatus = self::normalizeOptionalString(
+            $civilStatus,
+            32,
+            'Person civil status',
+        );
         $this->status = $status;
     }
 
@@ -42,6 +91,46 @@ final class Person
     public function rename(PersonName $name): void
     {
         $this->name = $name;
+    }
+
+    public function givenName(): ?string
+    {
+        return $this->givenName;
+    }
+
+    public function middleName(): ?string
+    {
+        return $this->middleName;
+    }
+
+    public function familyName(): ?string
+    {
+        return $this->familyName;
+    }
+
+    public function birthDate(): ?DateTimeImmutable
+    {
+        return $this->birthDate;
+    }
+
+    public function birthPlaceName(): ?string
+    {
+        return $this->birthPlaceName;
+    }
+
+    public function birthCountryCode(): ?string
+    {
+        return $this->birthCountryCode;
+    }
+
+    public function legalSex(): ?PersonLegalSex
+    {
+        return $this->legalSex;
+    }
+
+    public function civilStatus(): ?string
+    {
+        return $this->civilStatus;
     }
 
     public function status(): PersonStatus
@@ -95,7 +184,7 @@ final class Person
             return;
         }
 
-        if (!$this->canTransitionTo($target)) {
+        if (! $this->canTransitionTo($target)) {
             throw InvalidPersonLifecycleTransitionException::from(
                 current: $this->status,
                 target: $target,
@@ -131,5 +220,48 @@ final class Person
             PersonStatus::ARCHIVED,
             PersonStatus::DECEASED => false,
         };
+    }
+
+    private static function normalizeOptionalString(
+        ?string $value,
+        int $maxLength,
+        string $label,
+    ): ?string {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            throw new InvalidArgumentException(
+                sprintf('%s cannot be an empty string.', $label),
+            );
+        }
+
+        if (mb_strlen($value) > $maxLength) {
+            throw new InvalidArgumentException(
+                sprintf('%s cannot exceed %d characters.', $label, $maxLength),
+            );
+        }
+
+        return $value;
+    }
+
+    private static function normalizeCountryCode(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = strtoupper(trim($value));
+
+        if (preg_match('/^[A-Z]{2}$/', $value) !== 1) {
+            throw new InvalidArgumentException(
+                'Person birth country code must use a two-letter ISO 3166-1 alpha-2 format.',
+            );
+        }
+
+        return $value;
     }
 }

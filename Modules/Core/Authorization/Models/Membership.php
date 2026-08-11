@@ -4,41 +4,44 @@ declare(strict_types=1);
 
 namespace Modules\Core\Authorization\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Modules\Core\Identity\Models\User;
-
+use Modules\Core\Person\Models\PersonModel;
+use Modules\Core\Support\Uuid\HasUuidV7;
 
 final class Membership extends Model
 {
-    use HasUuids;
-
+    use HasUuidV7;
 
     protected $table = 'memberships';
 
     protected $fillable = [
-        'user_id',
+        'person_id',
         'tenant_id',
-        'role',
         'status',
     ];
 
     protected $casts = [
+        'person_id' => 'string',
+        'tenant_id' => 'string',
         'status' => 'string',
     ];
 
     /**
-     * User yang memiliki membership ini.
+     * Canonical human participant that owns this tenant membership.
+     *
+     * Membership belongs to Person, never directly to User. A Person may
+     * participate in a tenant without having a digital login account.
+     *
+     * @return BelongsTo<PersonModel, $this>
      */
-    public function user(): BelongsTo
+    public function person(): BelongsTo
     {
         return $this->belongsTo(
-            User::class,
-            'user_id',
-            'id'
+            PersonModel::class,
+            'person_id',
         );
     }
 

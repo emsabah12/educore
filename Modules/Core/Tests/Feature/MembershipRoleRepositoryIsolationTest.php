@@ -47,10 +47,12 @@ final class MembershipRoleRepositoryIsolationTest extends TestCase
             'role-tenant-b',
         );
 
-        $userId = $this->createUser();
+        $personId = $this->createPerson(
+            'Membership Role Person',
+        );
 
         $membershipId = $this->createMembership(
-            userId: $userId,
+            personId: $personId,
             tenantId: $tenantAId,
         );
 
@@ -121,10 +123,12 @@ final class MembershipRoleRepositoryIsolationTest extends TestCase
             'assignment-tenant-b',
         );
 
-        $userId = $this->createUser();
+        $personId = $this->createPerson(
+            'Membership Role Person',
+        );
 
         $membershipId = $this->createMembership(
-            userId: $userId,
+            personId: $personId,
             tenantId: $tenantAId,
         );
 
@@ -200,41 +204,32 @@ final class MembershipRoleRepositoryIsolationTest extends TestCase
         return $tenantId;
     }
 
-    private function createUser(): string
-    {
-        $userId = UuidV7::generate();
+    private function createPerson(
+        string $name,
+    ): string {
+        $personId = UuidV7::generate();
 
-        DB::table('users')->insert([
-            'id' => $userId,
-            'name' => 'Membership Role User',
-            'email' => sprintf(
-                'membership-role-%s@example.test',
-                substr(
-                    str_replace('-', '', $userId),
-                    0,
-                    12,
-                ),
-            ),
-            'password' => 'not-used-by-this-test',
+        DB::table('persons')->insert([
+            'id' => $personId,
+            'name' => $name,
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        return $userId;
+        return $personId;
     }
 
     private function createMembership(
-        string $userId,
+        string $personId,
         string $tenantId,
     ): string {
         $membershipId = UuidV7::generate();
 
         DB::table('memberships')->insert([
             'id' => $membershipId,
-            'user_id' => $userId,
+            'person_id' => $personId,
             'tenant_id' => $tenantId,
-            'role' => 'legacy-member',
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),

@@ -8,13 +8,14 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
-
+use Modules\Core\Person\Models\PersonModel;
+use Modules\Core\Support\Uuid\HasUuidV7;
 
 #[Fillable([
-    'name',
+    'person_id',
     'email',
     'password',
 ])]
@@ -22,96 +23,59 @@ use Illuminate\Support\Str;
     'password',
     'remember_token',
 ])]
-class User extends Authenticatable
+final class User extends Authenticatable
 {
     use HasFactory;
+    use HasUuidV7;
     use Notifiable;
 
-
-    /**
-     * Nama tabel database.
-     */
     protected $table = 'users';
 
-    /**
-     * User menggunakan UUID sebagai primary key.
-     */
-    protected $keyType = 'string';
-
-    /**
-     * UUID bukan auto increment.
-     */
-    public $incrementing = false;
-
-    /**
-     * Field yang boleh diisi melalui mass assignment.
-     *
-     * User adalah global identity.
-     *
-     * Tidak boleh memiliki:
-     * - tenant_id
-     * - organization_id
-     * - membership_id
-     */
     protected $fillable = [
-        'name',
+        'person_id',
         'email',
         'password',
     ];
 
-    /**
-     * Field sensitif yang tidak boleh diserialisasi.
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     /**
-     * Attribute casting.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'person_id' => 'string',
+            'email_verified_at' => 'immutable_datetime',
             'password' => 'hashed',
+            'status' => 'string',
             'is_superadmin' => 'boolean',
+            'created_at' => 'immutable_datetime',
+            'updated_at' => 'immutable_datetime',
         ];
     }
 
     /**
-     * Resolve the factory used to create User instances.
+     * Canonical human identity represented by this account.
      *
-     * Explicitly points the canonical Core Identity model
-     * to the application's UserFactory.
+     * User is an optional account for exactly one Person. Human biodata
+     * must be read from Person instead of being duplicated on users.
+     *
+     * @return BelongsTo<PersonModel, $this>
      */
-    protected static function newFactory()
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(
+            PersonModel::class,
+            'person_id',
+        );
+    }
+
+    protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
-    }
-
-    /**
-     * Model boot lifecycle.
-     */
-    protected static function booted(): void
-    {
-        static::creating(function (self $user): void {
-            $user->ensureUuid();
-        });
-    }
-
-    /**
-     * Ensure the user has a UUID v7 primary key before persistence.
-     */
-    private function ensureUuid(): void
-    {
-        if ($this->getKey() === null) {
-            $this->setAttribute(
-                $this->getKeyName(),
-                (string) Str::uuid7()
-            );
-        }
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
 
 final class AssignMembershipRoleTest extends TestCase
@@ -17,9 +18,16 @@ final class AssignMembershipRoleTest extends TestCase
     private string $tenantAId;
     private string $tenantBId;
 
+    private string $adminPersonId;
+    private string $regularPersonId;
+    private string $targetPersonId;
+    private string $inactiveTargetPersonId;
+    private string $otherTenantPersonId;
+
     private string $adminUserId;
     private string $regularUserId;
     private string $targetUserId;
+    private string $inactiveTargetUserId;
     private string $otherTenantUserId;
 
     private string $adminMembershipId;
@@ -35,24 +43,32 @@ final class AssignMembershipRoleTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenantAId = Str::uuid()->toString();
-        $this->tenantBId = Str::uuid()->toString();
+        $this->tenantAId = UuidV7::generate();
+        $this->tenantBId = UuidV7::generate();
 
-        $this->adminUserId = Str::uuid()->toString();
-        $this->regularUserId = Str::uuid()->toString();
-        $this->targetUserId = Str::uuid()->toString();
-        $this->otherTenantUserId = Str::uuid()->toString();
+        $this->adminPersonId = UuidV7::generate();
+        $this->regularPersonId = UuidV7::generate();
+        $this->targetPersonId = UuidV7::generate();
+        $this->inactiveTargetPersonId = UuidV7::generate();
+        $this->otherTenantPersonId = UuidV7::generate();
 
-        $this->adminMembershipId = Str::uuid()->toString();
-        $this->regularMembershipId = Str::uuid()->toString();
-        $this->targetMembershipId = Str::uuid()->toString();
-        $this->inactiveMembershipId = Str::uuid()->toString();
-        $this->otherTenantMembershipId = Str::uuid()->toString();
+        $this->adminUserId = UuidV7::generate();
+        $this->regularUserId = UuidV7::generate();
+        $this->targetUserId = UuidV7::generate();
+        $this->inactiveTargetUserId = UuidV7::generate();
+        $this->otherTenantUserId = UuidV7::generate();
 
-        $this->adminRoleId = Str::uuid()->toString();
-        $this->employeeRoleId = Str::uuid()->toString();
+        $this->adminMembershipId = UuidV7::generate();
+        $this->regularMembershipId = UuidV7::generate();
+        $this->targetMembershipId = UuidV7::generate();
+        $this->inactiveMembershipId = UuidV7::generate();
+        $this->otherTenantMembershipId = UuidV7::generate();
+
+        $this->adminRoleId = UuidV7::generate();
+        $this->employeeRoleId = UuidV7::generate();
 
         $this->createTenants();
+        $this->createPersons();
         $this->createUsers();
         $this->createMemberships();
         $this->createRoles();
@@ -74,9 +90,7 @@ final class AssignMembershipRoleTest extends TestCase
                     '/api/v1/user/memberships/%s/assign-role',
                     $this->targetMembershipId,
                 ),
-                [
-                    'role_id' => $this->employeeRoleId,
-                ],
+                ['role_id' => $this->employeeRoleId],
             );
 
         $response
@@ -86,10 +100,7 @@ final class AssignMembershipRoleTest extends TestCase
                 'data.target_membership_id',
                 $this->targetMembershipId,
             )
-            ->assertJsonPath(
-                'data.role_id',
-                $this->employeeRoleId,
-            );
+            ->assertJsonPath('data.role_id', $this->employeeRoleId);
 
         $this->assertDatabaseHas('membership_roles', [
             'membership_id' => $this->targetMembershipId,
@@ -112,9 +123,7 @@ final class AssignMembershipRoleTest extends TestCase
                     '/api/v1/user/memberships/%s/assign-role',
                     $this->targetMembershipId,
                 ),
-                [
-                    'role_id' => $this->employeeRoleId,
-                ],
+                ['role_id' => $this->employeeRoleId],
             );
 
         $response->assertForbidden();
@@ -140,9 +149,7 @@ final class AssignMembershipRoleTest extends TestCase
                     '/api/v1/user/memberships/%s/assign-role',
                     $this->otherTenantMembershipId,
                 ),
-                [
-                    'role_id' => $this->employeeRoleId,
-                ],
+                ['role_id' => $this->employeeRoleId],
             );
 
         $response
@@ -170,9 +177,7 @@ final class AssignMembershipRoleTest extends TestCase
                     '/api/v1/user/memberships/%s/assign-role',
                     $this->inactiveMembershipId,
                 ),
-                [
-                    'role_id' => $this->employeeRoleId,
-                ],
+                ['role_id' => $this->employeeRoleId],
             );
 
         $response
@@ -187,13 +192,6 @@ final class AssignMembershipRoleTest extends TestCase
 
     public function test_assigning_same_role_twice_is_idempotent(): void
     {
-        /*
-     * Kondisi awal:
-     *
-     * target membership sudah memiliki role employee.
-     * Request berikutnya harus tetap berhasil tanpa membuat
-     * duplicate assignment.
-     */
         DB::table('membership_roles')->insert([
             'membership_id' => $this->targetMembershipId,
             'role_id' => $this->employeeRoleId,
@@ -212,43 +210,67 @@ final class AssignMembershipRoleTest extends TestCase
                     '/api/v1/user/memberships/%s/assign-role',
                     $this->targetMembershipId,
                 ),
-                [
-                    'role_id' => $this->employeeRoleId,
-                ],
+                ['role_id' => $this->employeeRoleId],
             );
 
         $response
             ->assertOk()
-            ->assertJsonPath(
-                'status',
-                'success',
-            )
+            ->assertJsonPath('status', 'success')
             ->assertJsonPath(
                 'data.target_membership_id',
                 $this->targetMembershipId,
             )
-            ->assertJsonPath(
-                'data.role_id',
-                $this->employeeRoleId,
-            );
-
-        $assignmentCount = DB::table(
-            'membership_roles',
-        )
-            ->where(
-                'membership_id',
-                $this->targetMembershipId,
-            )
-            ->where(
-                'role_id',
-                $this->employeeRoleId,
-            )
-            ->count();
+            ->assertJsonPath('data.role_id', $this->employeeRoleId);
 
         $this->assertSame(
             1,
-            $assignmentCount,
+            DB::table('membership_roles')
+                ->where('membership_id', $this->targetMembershipId)
+                ->where('role_id', $this->employeeRoleId)
+                ->count(),
         );
+    }
+
+    public function test_assignment_rejects_uuid_v4_role_id(): void
+    {
+        $token = $this->issueToken(
+            userId: $this->adminUserId,
+            tenantId: $this->tenantAId,
+            membershipId: $this->adminMembershipId,
+        );
+
+        $this
+            ->withToken($token)
+            ->postJson(
+                sprintf(
+                    '/api/v1/user/memberships/%s/assign-role',
+                    $this->targetMembershipId,
+                ),
+                ['role_id' => (string) Str::uuid()],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role_id']);
+    }
+
+    public function test_assignment_rejects_unknown_uuid_v7_role_id(): void
+    {
+        $token = $this->issueToken(
+            userId: $this->adminUserId,
+            tenantId: $this->tenantAId,
+            membershipId: $this->adminMembershipId,
+        );
+
+        $this
+            ->withToken($token)
+            ->postJson(
+                sprintf(
+                    '/api/v1/user/memberships/%s/assign-role',
+                    $this->targetMembershipId,
+                ),
+                ['role_id' => UuidV7::generate()],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role_id']);
     }
 
     private function createTenants(): void
@@ -279,28 +301,58 @@ final class AssignMembershipRoleTest extends TestCase
         ]);
     }
 
+    private function createPersons(): void
+    {
+        DB::table('persons')->insert([
+            $this->personData($this->adminPersonId, 'Assignment Admin'),
+            $this->personData($this->regularPersonId, 'Assignment Regular'),
+            $this->personData($this->targetPersonId, 'Assignment Target'),
+            $this->personData($this->inactiveTargetPersonId, 'Inactive Target'),
+            $this->personData($this->otherTenantPersonId, 'Other Tenant Target'),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function personData(string $id, string $name): array
+    {
+        return [
+            'id' => $id,
+            'name' => $name,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
     private function createUsers(): void
     {
         DB::table('users')->insert([
             $this->userData(
-                id: $this->adminUserId,
-                name: 'Assignment Admin',
-                emailPrefix: 'assignment-admin',
+                $this->adminUserId,
+                $this->adminPersonId,
+                'assignment-admin',
             ),
             $this->userData(
-                id: $this->regularUserId,
-                name: 'Assignment Regular User',
-                emailPrefix: 'assignment-regular',
+                $this->regularUserId,
+                $this->regularPersonId,
+                'assignment-regular',
             ),
             $this->userData(
-                id: $this->targetUserId,
-                name: 'Assignment Target User',
-                emailPrefix: 'assignment-target',
+                $this->targetUserId,
+                $this->targetPersonId,
+                'assignment-target',
             ),
             $this->userData(
-                id: $this->otherTenantUserId,
-                name: 'Other Tenant Target User',
-                emailPrefix: 'assignment-other-tenant',
+                $this->inactiveTargetUserId,
+                $this->inactiveTargetPersonId,
+                'assignment-inactive-target',
+            ),
+            $this->userData(
+                $this->otherTenantUserId,
+                $this->otherTenantPersonId,
+                'assignment-other-tenant',
             ),
         ]);
     }
@@ -310,12 +362,12 @@ final class AssignMembershipRoleTest extends TestCase
      */
     private function userData(
         string $id,
-        string $name,
+        string $personId,
         string $emailPrefix,
     ): array {
         return [
             'id' => $id,
-            'name' => $name,
+            'person_id' => $personId,
             'email' => sprintf(
                 '%s-%s@educore.test',
                 $emailPrefix,
@@ -333,39 +385,34 @@ final class AssignMembershipRoleTest extends TestCase
     {
         DB::table('memberships')->insert([
             $this->membershipData(
-                id: $this->adminMembershipId,
-                userId: $this->adminUserId,
-                tenantId: $this->tenantAId,
-                legacyRole: 'admin',
-                status: 'ACTIVE',
+                $this->adminMembershipId,
+                $this->adminPersonId,
+                $this->tenantAId,
+                'ACTIVE',
             ),
             $this->membershipData(
-                id: $this->regularMembershipId,
-                userId: $this->regularUserId,
-                tenantId: $this->tenantAId,
-                legacyRole: 'employee',
-                status: 'ACTIVE',
+                $this->regularMembershipId,
+                $this->regularPersonId,
+                $this->tenantAId,
+                'ACTIVE',
             ),
             $this->membershipData(
-                id: $this->targetMembershipId,
-                userId: $this->targetUserId,
-                tenantId: $this->tenantAId,
-                legacyRole: 'employee',
-                status: 'ACTIVE',
+                $this->targetMembershipId,
+                $this->targetPersonId,
+                $this->tenantAId,
+                'ACTIVE',
             ),
             $this->membershipData(
-                id: $this->inactiveMembershipId,
-                userId: $this->targetUserId,
-                tenantId: $this->tenantAId,
-                legacyRole: 'inactive',
-                status: 'SUSPENDED',
+                $this->inactiveMembershipId,
+                $this->inactiveTargetPersonId,
+                $this->tenantAId,
+                'SUSPENDED',
             ),
             $this->membershipData(
-                id: $this->otherTenantMembershipId,
-                userId: $this->otherTenantUserId,
-                tenantId: $this->tenantBId,
-                legacyRole: 'employee',
-                status: 'ACTIVE',
+                $this->otherTenantMembershipId,
+                $this->otherTenantPersonId,
+                $this->tenantBId,
+                'ACTIVE',
             ),
         ]);
     }
@@ -375,22 +422,14 @@ final class AssignMembershipRoleTest extends TestCase
      */
     private function membershipData(
         string $id,
-        string $userId,
+        string $personId,
         string $tenantId,
-        string $legacyRole,
         string $status,
     ): array {
         return [
             'id' => $id,
-            'user_id' => $userId,
+            'person_id' => $personId,
             'tenant_id' => $tenantId,
-
-            /*
-             * Hanya untuk kompatibilitas skema lama.
-             * Authorization tidak membaca memberships.role.
-             */
-            'role' => $legacyRole,
-
             'status' => $status,
             'created_at' => now(),
             'updated_at' => now(),
@@ -436,9 +475,7 @@ final class AssignMembershipRoleTest extends TestCase
             ->issueToken(
                 $userId,
                 $tenantId,
-                [
-                    'membership_id' => $membershipId,
-                ],
+                ['membership_id' => $membershipId],
             );
     }
 }

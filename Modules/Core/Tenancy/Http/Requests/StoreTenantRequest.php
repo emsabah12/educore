@@ -46,6 +46,15 @@ final class StoreTenantRequest extends FormRequest
             );
         }
 
+        if (
+            array_key_exists('initial_admin_user_id', $input)
+            && is_string($input['initial_admin_user_id'])
+        ) {
+            $normalized['initial_admin_user_id'] = trim(
+                $input['initial_admin_user_id'],
+            );
+        }
+
         if ($normalized !== []) {
             $this->merge($normalized);
         }
@@ -93,6 +102,11 @@ final class StoreTenantRequest extends FormRequest
                 'sometimes',
                 'boolean',
             ],
+            'initial_admin_user_id' => [
+                'required',
+                'string',
+                'uuid:7',
+            ],
         ];
     }
 
@@ -124,6 +138,13 @@ final class StoreTenantRequest extends FormRequest
 
             'is_active.boolean' =>
             'The tenant active status must be boolean.',
+
+            'initial_admin_user_id.required' =>
+            'The initial admin user id is required.',
+            'initial_admin_user_id.string' =>
+            'The initial admin user id must be a string.',
+            'initial_admin_user_id.uuid' =>
+            'The initial admin user id must be a valid UUIDv7.',
         ];
     }
 }

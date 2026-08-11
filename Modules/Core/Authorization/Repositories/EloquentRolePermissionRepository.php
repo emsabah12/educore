@@ -6,6 +6,7 @@ namespace Modules\Core\Authorization\Repositories;
 
 use Modules\Core\Authorization\Models\Permission;
 use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
+use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentRolePermissionRepository implements RolePermissionRepositoryInterface
 {
@@ -16,7 +17,10 @@ final class EloquentRolePermissionRepository implements RolePermissionRepository
         $roleId = trim($roleId);
         $permissionName = trim($permissionName);
 
-        if ($roleId === '' || $permissionName === '') {
+        if (
+            ! UuidV7::validate($roleId)
+            || $permissionName === ''
+        ) {
             return false;
         }
 

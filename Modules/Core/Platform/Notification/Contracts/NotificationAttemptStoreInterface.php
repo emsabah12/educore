@@ -19,33 +19,30 @@ interface NotificationAttemptStoreInterface
     public function prepareAttempt(
         string $tenantId,
         string $notificationId,
-        ?string $userId,
-        string $recipient,
         string $channel,
-        ?string $title,
-        string $body,
     ): PreparedNotificationAttempt;
 
     /**
      * Menandai durable attempt sebagai berhasil terkirim.
      *
-     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $providerMetadata
      */
     public function markSent(
         string $tenantId,
         string $notificationId,
-        array $metadata = [],
+        array $providerMetadata = [],
     ): void;
 
     /**
      * Menandai durable attempt sebagai gagal.
      *
-     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $providerMetadata
      */
     public function markFailed(
         string $tenantId,
         string $notificationId,
+        string $failureCode,
         string $failureReason,
-        array $metadata = [],
+        array $providerMetadata = [],
     ): void;
 }

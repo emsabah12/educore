@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Modules\Auth\Application\Services\AuthenticatedIdentityResolver;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,23 +22,23 @@ final class InjectTenantContext
         private readonly AuthFactory $auth,
         private readonly TenantContextInterface $tenantContext,
         private readonly TenantRuntimeResolverInterface $tenantRuntimeResolver,
+        private readonly MembershipRepositoryInterface $membershipRepository,
     ) {}
 
     /**
-     * Membangun canonical authentication dan tenant context
-     * untuk lifecycle request saat ini.
-     *
-     * Alur:
+     * Build the canonical request authentication + tenant context.
      *
      * Bearer token
      *   ↓
-     * Active canonical user
+     * Active User account
      *   ↓
-     * Active runtime tenant
+     * User.person_id
      *   ↓
-     * Laravel Auth Guard
+     * Active Membership(person_id, tenant_id)
      *   ↓
-     * TenantContext
+     * Active Tenant
+     *   ↓
+     * request-local Auth Guard + TenantContext
      */
     public function handle(
         Request $request,
@@ -79,11 +80,27 @@ final class InjectTenantContext
             return $this->contextErrorResponse();
         }
 
-        /*
-         * Runtime tenant resolver menjadi satu-satunya persistence
-         * boundary untuk memastikan tenant tersedia dan aktif sebelum
-         * TenantContext dibentuk.
-         */
+        $personId = trim(
+            (string) $identity->user->person_id,
+        );
+
+        if ($personId === '') {
+            return $this->contextErrorResponse();
+        }
+
+        $membership = $this->membershipRepository
+            ->findActiveMembershipByIdAndTenant(
+                $membershipId,
+                $tenantId,
+            );
+
+        if (
+            $membership === null
+            || trim((string) $membership->person_id) !== $personId
+        ) {
+            return $this->contextErrorResponse();
+        }
+
         $tenant = $this->tenantRuntimeResolver
             ->findActiveById(
                 $tenantId,
@@ -121,11 +138,6 @@ final class InjectTenantContext
         try {
             return $next($request);
         } finally {
-            /*
-             * Hindari mutable authentication/tenant state bocor pada
-             * Octane, long-running worker, parallel testing, ataupun
-             * request berikutnya.
-             */
             $this->tenantContext->clear();
             $guard->forgetUser();
 

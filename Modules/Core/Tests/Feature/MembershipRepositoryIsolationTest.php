@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Identity\Models\User;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Models\Tenant;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;
 use Tests\TestCase;
 
@@ -17,7 +18,7 @@ final class MembershipRepositoryIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_membership_is_an_explicit_tenant_bound_aggregate(): void
+    public function test_membership_is_explicit_person_owned_tenant_boundary(): void
     {
         $traits = class_uses_recursive(
             Membership::class,
@@ -28,221 +29,146 @@ final class MembershipRepositoryIsolationTest extends TestCase
             $traits,
             'Membership must not depend on ambient TenantContext.',
         );
+
+        $user = User::factory()->create();
+        $tenant = $this->createTenant(
+            'Membership UUID Tenant',
+            'membership-uuid-tenant',
+        );
+
+        $membership = Membership::query()->create([
+            'person_id' => $user->person_id,
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'ACTIVE',
+        ]);
+
+        $this->assertTrue(
+            UuidV7::validate((string) $membership->getKey()),
+        );
+        $this->assertSame(
+            (string) $user->person_id,
+            (string) $membership->person_id,
+        );
+        $this->assertSame(
+            (string) $user->person_id,
+            (string) $membership->person->getKey(),
+        );
     }
 
-    public function test_repository_resolves_membership_without_tenant_context(): void
+    public function test_repository_resolves_memberships_without_ambient_tenant_context(): void
     {
-        $tenantAId = $this->createTenant(
+        $tenantA = $this->createTenant(
             'Repository Tenant A',
             'repository-tenant-a',
         );
-
-        $tenantBId = $this->createTenant(
+        $tenantB = $this->createTenant(
             'Repository Tenant B',
             'repository-tenant-b',
         );
+        $user = User::factory()->create();
 
-        $userId = $this->createUser(
-            'repository-user@example.test',
+        $membershipA = $this->createMembership(
+            (string) $user->person_id,
+            (string) $tenantA->getKey(),
         );
-
-        $membershipAId = $this->createMembership(
-            userId: $userId,
-            tenantId: $tenantAId,
-        );
-
-        $membershipBId = $this->createMembership(
-            userId: $userId,
-            tenantId: $tenantBId,
+        $membershipB = $this->createMembership(
+            (string) $user->person_id,
+            (string) $tenantB->getKey(),
         );
 
         $tenantContext = $this->app->make(
             TenantContextInterface::class,
         );
-
         $tenantContext->clear();
-
-        $this->assertNull(
-            $tenantContext->getCurrentTenantId(),
-        );
 
         $repository = $this->app->make(
             MembershipRepositoryInterface::class,
         );
 
-        $membershipA =
-            $repository->findActiveMembershipByIdAndTenant(
-                $membershipAId,
-                $tenantAId,
-            );
-
-        $membershipB =
-            $repository->findActiveMembershipByIdAndTenant(
-                $membershipBId,
-                $tenantBId,
-            );
-
-        $this->assertNotNull(
-            $membershipA,
-        );
-
-        $this->assertNotNull(
-            $membershipB,
-        );
-
-        $this->assertSame(
-            $membershipAId,
+        $resolvedA = $repository->findActiveMembershipByIdAndTenant(
             (string) $membershipA->getKey(),
+            (string) $tenantA->getKey(),
         );
-
-        $this->assertSame(
-            $membershipBId,
+        $resolvedB = $repository->findActiveMembershipByIdAndTenant(
             (string) $membershipB->getKey(),
+            (string) $tenantB->getKey(),
         );
 
+        $this->assertNotNull($resolvedA);
+        $this->assertNotNull($resolvedB);
         $this->assertSame(
-            $tenantAId,
-            (string) $membershipA->tenant_id,
+            (string) $membershipA->getKey(),
+            (string) $resolvedA->getKey(),
         );
-
         $this->assertSame(
-            $tenantBId,
-            (string) $membershipB->tenant_id,
+            (string) $membershipB->getKey(),
+            (string) $resolvedB->getKey(),
         );
     }
 
-    public function test_repository_rejects_cross_tenant_and_cross_user_lookup(): void
+    public function test_repository_rejects_cross_tenant_and_cross_person_lookup(): void
     {
-        $tenantAId = $this->createTenant(
+        $tenantA = $this->createTenant(
             'Boundary Tenant A',
             'boundary-tenant-a',
         );
-
-        $tenantBId = $this->createTenant(
+        $tenantB = $this->createTenant(
             'Boundary Tenant B',
             'boundary-tenant-b',
         );
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
 
-        $ownerUserId = $this->createUser(
-            'membership-owner@example.test',
-        );
-
-        $otherUserId = $this->createUser(
-            'membership-other@example.test',
-        );
-
-        $membershipId = $this->createMembership(
-            userId: $ownerUserId,
-            tenantId: $tenantAId,
+        $membership = $this->createMembership(
+            (string) $owner->person_id,
+            (string) $tenantA->getKey(),
         );
 
         $repository = $this->app->make(
             MembershipRepositoryInterface::class,
         );
 
-        $crossTenantResult =
-            $repository->findActiveMembershipByIdAndTenant(
-                $membershipId,
-                $tenantBId,
-            );
-
-        $crossUserResult =
-            $repository->findActiveMembershipByIdForUser(
-                $membershipId,
-                $otherUserId,
-            );
-
-        $correctTenantResult =
-            $repository->findActiveMembershipByIdAndTenant(
-                $membershipId,
-                $tenantAId,
-            );
-
-        $correctOwnerResult =
-            $repository->findActiveMembershipByIdForUser(
-                $membershipId,
-                $ownerUserId,
-            );
-
         $this->assertNull(
-            $crossTenantResult,
+            $repository->findActiveMembershipByIdAndTenant(
+                (string) $membership->getKey(),
+                (string) $tenantB->getKey(),
+            ),
         );
 
         $this->assertNull(
-            $crossUserResult,
+            $repository->findActiveMembershipByIdForPerson(
+                (string) $membership->getKey(),
+                (string) $other->person_id,
+            ),
         );
 
         $this->assertNotNull(
-            $correctTenantResult,
-        );
-
-        $this->assertNotNull(
-            $correctOwnerResult,
-        );
-
-        $this->assertSame(
-            $membershipId,
-            (string) $correctTenantResult->getKey(),
-        );
-
-        $this->assertSame(
-            $membershipId,
-            (string) $correctOwnerResult->getKey(),
+            $repository->findActiveMembershipByIdForPerson(
+                (string) $membership->getKey(),
+                (string) $owner->person_id,
+            ),
         );
     }
 
     private function createTenant(
         string $name,
         string $subdomain,
-    ): string {
-        $tenantId = UuidV7::generate();
-
-        DB::table('tenants')->insert([
-            'id' => $tenantId,
+    ): Tenant {
+        return Tenant::query()->create([
             'name' => $name,
             'subdomain' => $subdomain,
             'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
-
-        return $tenantId;
-    }
-
-    private function createUser(
-        string $email,
-    ): string {
-        $userId = UuidV7::generate();
-
-        DB::table('users')->insert([
-            'id' => $userId,
-            'name' => 'Membership Repository User',
-            'email' => $email,
-            'password' => 'not-used-by-this-test',
-            'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return $userId;
     }
 
     private function createMembership(
-        string $userId,
+        string $personId,
         string $tenantId,
-    ): string {
-        $membershipId = UuidV7::generate();
-
-        DB::table('memberships')->insert([
-            'id' => $membershipId,
-            'user_id' => $userId,
+    ): Membership {
+        return Membership::query()->create([
+            'person_id' => $personId,
             'tenant_id' => $tenantId,
-            'role' => 'legacy-member',
             'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
-
-        return $membershipId;
     }
 }

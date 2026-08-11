@@ -11,6 +11,7 @@ use Modules\Core\Authorization\DTO\MembershipContext;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Identity\Models\User;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 
 final readonly class MembershipContextResolver implements MembershipContextResolverInterface
@@ -24,7 +25,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
 
     public function resolve(): MembershipContext
     {
-        $userId = $this->resolveAuthenticatedUserId();
+        $user = $this->resolveAuthenticatedUser();
+        $userId = $this->resolveAuthenticatedUserId($user);
+        $personId = $this->resolveAuthenticatedPersonId($user);
         $tenantId = $this->resolveTenantId();
         $membershipId = $this->resolveAuthenticatedMembershipId();
 
@@ -42,7 +45,7 @@ final readonly class MembershipContextResolver implements MembershipContextResol
 
         $this->assertMembershipIsValid(
             membership: $membership,
-            userId: $userId,
+            personId: $personId,
             tenantId: $tenantId,
         );
 
@@ -63,16 +66,21 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         );
     }
 
-    private function resolveAuthenticatedUserId(): string
+    private function resolveAuthenticatedUser(): User
     {
         $user = $this->auth->guard()->user();
 
-        if ($user === null) {
+        if (! $user instanceof User) {
             throw new MembershipContextResolutionException(
-                'Cannot resolve membership context: authenticated user is required.',
+                'Cannot resolve membership context: canonical authenticated user is required.',
             );
         }
 
+        return $user;
+    }
+
+    private function resolveAuthenticatedUserId(User $user): string
+    {
         $userId = trim(
             (string) $user->getAuthIdentifier(),
         );
@@ -84,6 +92,21 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         }
 
         return $userId;
+    }
+
+    private function resolveAuthenticatedPersonId(User $user): string
+    {
+        $personId = trim(
+            (string) $user->getAttribute('person_id'),
+        );
+
+        if ($personId === '') {
+            throw new MembershipContextResolutionException(
+                'Cannot resolve membership context: authenticated user person identifier is empty.',
+            );
+        }
+
+        return $personId;
     }
 
     private function resolveTenantId(): string
@@ -103,11 +126,9 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     }
 
     /**
-     * Resolve trusted membership context yang telah dibentuk
-     * oleh authentication middleware.
-     *
-     * Tenant-aware authorization tidak boleh menebak membership
-     * dari user + tenant apabila explicit membership context hilang.
+     * Resolve trusted membership context that has already been formed by the
+     * authentication middleware. Authorization must not guess membership from
+     * user + tenant when the explicit token membership is missing.
      */
     private function resolveAuthenticatedMembershipId(): string
     {
@@ -142,12 +163,12 @@ final readonly class MembershipContextResolver implements MembershipContextResol
 
     private function assertMembershipIsValid(
         Membership $membership,
-        string $userId,
+        string $personId,
         string $tenantId,
     ): void {
-        $membershipUserId = trim(
+        $membershipPersonId = trim(
             (string) $membership->getAttribute(
-                'user_id',
+                'person_id',
             ),
         );
 
@@ -164,12 +185,12 @@ final readonly class MembershipContextResolver implements MembershipContextResol
         ));
 
         if (
-            $membershipUserId !== $userId
+            $membershipPersonId !== $personId
             || $membershipTenantId !== $tenantId
             || $membershipStatus !== 'ACTIVE'
         ) {
             throw new MembershipContextResolutionException(
-                'Cannot resolve membership context: requested membership is not active or does not belong to the authenticated user and tenant.',
+                'Cannot resolve membership context: requested membership is not active or does not belong to the authenticated person and tenant.',
             );
         }
     }

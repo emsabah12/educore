@@ -7,20 +7,15 @@ namespace Modules\Core\Governance\Audit\Contracts;
 interface AuditTrailServiceInterface
 {
     /**
-     * Rekam jejak aktivitas operasional aplikasi ke dalam media penyimpanan immutable.
+     * Rekam jejak aktivitas operasional aplikasi ke media penyimpanan immutable.
      *
-     * @param string $eventType Jenis event (contoh: 'auth.login_success', 'auth.failed')
-     * @param string $description Penjelasan naratif mengenai tindakan tersebut
-     * @param string|null $tenantId UUID lembaga/tenant yang bersangkutan
-     * @param string|null $userId UUID pengguna yang melakukan aksi
-     * @param array|null $payload Metadata tambahan (data request mentah, parameter sebelum/sesudah)
-     * @return void
+     * @param array<string, mixed>|null $metadata
      */
     public function log(
         string $eventType,
         string $description,
         ?string $tenantId = null,
-        ?string $userId = null,
-        ?array $payload = null
+        ?string $actorUserId = null,
+        ?array $metadata = null,
     ): void;
 }

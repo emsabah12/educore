@@ -55,8 +55,7 @@ final class EloquentPersonLifecycleEventRepository implements PersonLifecycleEve
             ->orderBy('id')
             ->get()
             ->map(
-                fn(PersonLifecycleEventModel $record): PersonLifecycleEvent
-                => $this->toDomain($record),
+                fn (PersonLifecycleEventModel $record): PersonLifecycleEvent => $this->toDomain($record),
             )
             ->all();
     }
@@ -64,11 +63,12 @@ final class EloquentPersonLifecycleEventRepository implements PersonLifecycleEve
     public function save(
         PersonLifecycleEvent $event,
     ): PersonLifecycleEvent {
-        $record = $this->model
+        $exists = $this->model
             ->newQuery()
-            ->find($event->id());
+            ->whereKey($event->id())
+            ->exists();
 
-        if ($record !== null) {
+        if ($exists) {
             throw new RuntimeException(
                 sprintf(
                     'Person lifecycle event [%s] already exists and cannot be modified.',
@@ -83,11 +83,11 @@ final class EloquentPersonLifecycleEventRepository implements PersonLifecycleEve
         $record->person_id = $event->personId();
         $record->type = $event->type()->value;
         $record->occurred_at = $event->occurredAt();
-
-        $record->actor_id = $event->actorId();
+        $record->actor_user_id = $event->actorUserId();
         $record->reason = $event->reason();
 
         $record->save();
+        $record->refresh();
 
         return $this->toDomain($record);
     }
@@ -138,16 +138,12 @@ final class EloquentPersonLifecycleEventRepository implements PersonLifecycleEve
             );
         }
 
-        $occurredAt = new DateTimeImmutable(
-            $occurredAt->format('Y-m-d H:i:s.uP'),
-        );
-
-        $actorId = $record->actor_id !== null
-            ? trim((string) $record->actor_id)
+        $actorUserId = $record->actor_user_id !== null
+            ? trim((string) $record->actor_user_id)
             : null;
 
-        if ($actorId === '') {
-            $actorId = null;
+        if ($actorUserId === '') {
+            $actorUserId = null;
         }
 
         $reason = $record->reason !== null
@@ -162,8 +158,8 @@ final class EloquentPersonLifecycleEventRepository implements PersonLifecycleEve
             id: $id,
             personId: $personId,
             type: $type,
-            occurredAt: $occurredAt,
-            actorId: $actorId,
+            occurredAt: DateTimeImmutable::createFromInterface($occurredAt),
+            actorUserId: $actorUserId,
             reason: $reason,
         );
     }

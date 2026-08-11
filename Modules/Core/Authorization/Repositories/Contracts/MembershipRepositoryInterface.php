@@ -9,11 +9,7 @@ use Modules\Core\Authorization\Models\Membership;
 interface MembershipRepositoryInterface
 {
     /**
-     * Mencari membership aktif berdasarkan membership ID
-     * dalam tenant tertentu.
-     *
-     * Digunakan untuk validasi explicit authenticated
-     * membership context dan operasi tenant-scoped.
+     * Find an active membership by explicit membership and tenant boundary.
      */
     public function findActiveMembershipByIdAndTenant(
         string $membershipId,
@@ -21,14 +17,13 @@ interface MembershipRepositoryInterface
     ): ?Membership;
 
     /**
-     * Mencari membership aktif berdasarkan membership ID
-     * dan authenticated owner.
+     * Find an active membership by explicit membership and canonical Person.
      *
-     * Digunakan untuk switch membership sebelum tenant tujuan
-     * dijadikan current TenantContext.
+     * Used when selecting/switching memberships before the target tenant has
+     * become the current runtime TenantContext.
      */
-    public function findActiveMembershipByIdForUser(
+    public function findActiveMembershipByIdForPerson(
         string $membershipId,
-        string $userId,
+        string $personId,
     ): ?Membership;
 }

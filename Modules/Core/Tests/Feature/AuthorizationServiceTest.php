@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Http\Request;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
 use Modules\Core\Identity\Models\User;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
@@ -21,13 +22,12 @@ final class AuthorizationServiceTest extends TestCase
 
     private string $tenantAId;
     private string $tenantBId;
-
+    private string $personAId;
+    private string $personBId;
     private string $userAId;
     private string $userBId;
-
     private string $membershipAId;
     private string $membershipBId;
-
     private string $adminRoleId;
     private string $notificationPermissionId;
 
@@ -35,19 +35,19 @@ final class AuthorizationServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenantAId = Str::uuid()->toString();
-        $this->tenantBId = Str::uuid()->toString();
-
-        $this->userAId = Str::uuid()->toString();
-        $this->userBId = Str::uuid()->toString();
-
-        $this->membershipAId = Str::uuid()->toString();
-        $this->membershipBId = Str::uuid()->toString();
-
-        $this->adminRoleId = Str::uuid()->toString();
-        $this->notificationPermissionId = Str::uuid()->toString();
+        $this->tenantAId = UuidV7::generate();
+        $this->tenantBId = UuidV7::generate();
+        $this->personAId = UuidV7::generate();
+        $this->personBId = UuidV7::generate();
+        $this->userAId = UuidV7::generate();
+        $this->userBId = UuidV7::generate();
+        $this->membershipAId = UuidV7::generate();
+        $this->membershipBId = UuidV7::generate();
+        $this->adminRoleId = UuidV7::generate();
+        $this->notificationPermissionId = UuidV7::generate();
 
         $this->createTenants();
+        $this->createPersons();
         $this->createUsers();
         $this->createMemberships();
         $this->createRoleAndPermission();
@@ -58,12 +58,9 @@ final class AuthorizationServiceTest extends TestCase
     {
         $this->app->make(Request::class)
             ->attributes
-            ->remove(
-                'authenticated_membership_id',
-            );
+            ->remove('authenticated_membership_id');
 
         app(TenantContextInterface::class)->clear();
-
         auth()->guard()->forgetUser();
 
         parent::tearDown();
@@ -71,73 +68,37 @@ final class AuthorizationServiceTest extends TestCase
 
     public function test_user_can_authorize_role_on_owned_active_membership(): void
     {
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantAId);
+        $this->setAuthenticatedMembership($this->membershipAId);
 
-        $this->setTenantContext(
-            $this->tenantAId,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
-        $this->setAuthenticatedMembership(
-            $this->membershipAId,
-        );
-
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
-
-        $this->assertTrue(
-            $service->hasRole('admin'),
-        );
+        $this->assertTrue($service->hasRole('admin'));
     }
 
-    public function test_user_cannot_authorize_role_on_another_users_membership(): void
+    public function test_user_cannot_authorize_role_on_another_persons_membership(): void
     {
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantBId);
+        $this->setAuthenticatedMembership($this->membershipBId);
 
-        $this->setTenantContext(
-            $this->tenantBId,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
-        $this->setAuthenticatedMembership(
-            $this->membershipBId,
-        );
-
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
-
-        $this->expectException(
-            MembershipContextResolutionException::class,
-        );
+        $this->expectException(MembershipContextResolutionException::class);
 
         $service->hasRole('admin');
     }
 
     public function test_user_cannot_authorize_role_from_wrong_tenant_context(): void
     {
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantBId);
+        $this->setAuthenticatedMembership($this->membershipAId);
 
-        $this->setTenantContext(
-            $this->tenantBId,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
-        $this->setAuthenticatedMembership(
-            $this->membershipAId,
-        );
-
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
-
-        $this->expectException(
-            MembershipContextResolutionException::class,
-        );
+        $this->expectException(MembershipContextResolutionException::class);
 
         $service->hasRole('admin');
     }
@@ -145,100 +106,54 @@ final class AuthorizationServiceTest extends TestCase
     public function test_inactive_membership_cannot_authorize_role(): void
     {
         DB::table('memberships')
-            ->where(
-                'id',
-                $this->membershipAId,
-            )
+            ->where('id', $this->membershipAId)
             ->update([
                 'status' => 'SUSPENDED',
                 'updated_at' => now(),
             ]);
 
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantAId);
+        $this->setAuthenticatedMembership($this->membershipAId);
 
-        $this->setTenantContext(
-            $this->tenantAId,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
-        $this->setAuthenticatedMembership(
-            $this->membershipAId,
-        );
-
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
-
-        $this->expectException(
-            MembershipContextResolutionException::class,
-        );
+        $this->expectException(MembershipContextResolutionException::class);
 
         $service->hasRole('admin');
     }
 
     public function test_user_can_authorize_permission_through_membership_role(): void
     {
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantAId);
+        $this->setAuthenticatedMembership($this->membershipAId);
 
-        $this->setTenantContext(
-            $this->tenantAId,
-        );
-
-        $this->setAuthenticatedMembership(
-            $this->membershipAId,
-        );
-
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
         $this->assertTrue(
-            $service->hasPermission(
-                'notification.dispatch',
-            ),
+            $service->hasPermission('notification.dispatch'),
         );
     }
 
-    public function test_user_cannot_authorize_permission_on_another_users_membership(): void
+    public function test_user_cannot_authorize_permission_on_another_persons_membership(): void
     {
-        $this->authenticateAsUser(
-            $this->userAId,
-        );
+        $this->authenticateAsUser($this->userAId);
+        $this->setTenantContext($this->tenantBId);
+        $this->setAuthenticatedMembership($this->membershipBId);
 
-        $this->setTenantContext(
-            $this->tenantBId,
-        );
+        $service = app(AuthorizationServiceInterface::class);
 
-        $this->setAuthenticatedMembership(
-            $this->membershipBId,
-        );
+        $this->expectException(MembershipContextResolutionException::class);
 
-        $service = app(
-            AuthorizationServiceInterface::class,
-        );
-
-        $this->expectException(
-            MembershipContextResolutionException::class,
-        );
-
-        $service->hasPermission(
-            'notification.dispatch',
-        );
+        $service->hasPermission('notification.dispatch');
     }
 
-
-    private function setAuthenticatedMembership(
-        string $membershipId,
-    ): void {
+    private function setAuthenticatedMembership(string $membershipId): void
+    {
         $this->app->make(Request::class)
             ->attributes
-            ->set(
-                'authenticated_membership_id',
-                $membershipId,
-            );
+            ->set('authenticated_membership_id', $membershipId);
     }
 
     private function createTenants(): void
@@ -269,12 +184,32 @@ final class AuthorizationServiceTest extends TestCase
         ]);
     }
 
+    private function createPersons(): void
+    {
+        DB::table('persons')->insert([
+            [
+                'id' => $this->personAId,
+                'name' => 'Authorization Person A',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $this->personBId,
+                'name' => 'Authorization Person B',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+
     private function createUsers(): void
     {
         DB::table('users')->insert([
             [
                 'id' => $this->userAId,
-                'name' => 'Authorization User A',
+                'person_id' => $this->personAId,
                 'email' => sprintf(
                     'authorization-user-a-%s@educore.test',
                     Str::lower(Str::random(8)),
@@ -287,7 +222,7 @@ final class AuthorizationServiceTest extends TestCase
             ],
             [
                 'id' => $this->userBId,
-                'name' => 'Authorization User B',
+                'person_id' => $this->personBId,
                 'email' => sprintf(
                     'authorization-user-b-%s@educore.test',
                     Str::lower(Str::random(8)),
@@ -306,24 +241,16 @@ final class AuthorizationServiceTest extends TestCase
         DB::table('memberships')->insert([
             [
                 'id' => $this->membershipAId,
-                'user_id' => $this->userAId,
+                'person_id' => $this->personAId,
                 'tenant_id' => $this->tenantAId,
-
-                /*
-                 * Field role dipertahankan hanya untuk kompatibilitas
-                 * skema lama. Authorization tidak membaca field ini.
-                 */
-                'role' => 'employee',
-
                 'status' => 'ACTIVE',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id' => $this->membershipBId,
-                'user_id' => $this->userBId,
+                'person_id' => $this->personBId,
                 'tenant_id' => $this->tenantBId,
-                'role' => 'employee',
                 'status' => 'ACTIVE',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -346,8 +273,8 @@ final class AuthorizationServiceTest extends TestCase
             'id' => $this->notificationPermissionId,
             'name' => 'notification.dispatch',
             'display_name' => 'Dispatch Notification',
-            // 'description' => 'Dispatch tenant notification.',
-            // 'module' => 'Core',
+            'description' => 'Dispatch tenant notification.',
+            'module' => 'Core',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -366,24 +293,18 @@ final class AuthorizationServiceTest extends TestCase
         ]);
     }
 
-    private function authenticateAsUser(
-        string $userId,
-    ): void {
-        $user = User::query()->findOrFail(
-            $userId,
+    private function authenticateAsUser(string $userId): void
+    {
+        $this->actingAs(
+            User::query()->findOrFail($userId),
         );
-
-        $this->actingAs($user);
     }
 
-    private function setTenantContext(
-        string $tenantId,
-    ): void {
-        $tenant = Tenant::query()->findOrFail(
-            $tenantId,
-        );
-
+    private function setTenantContext(string $tenantId): void
+    {
         app(TenantContextInterface::class)
-            ->setCurrentTenant($tenant);
+            ->setCurrentTenant(
+                Tenant::query()->findOrFail($tenantId),
+            );
     }
 }

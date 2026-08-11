@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
 
 final class EloquentMembershipRoleRepository implements MembershipRoleRepositoryInterface
@@ -22,7 +23,10 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
         $membershipId = trim($membershipId);
         $tenantId = trim($tenantId);
 
-        if ($membershipId === '' || $tenantId === '') {
+        if (
+            ! UuidV7::validate($membershipId)
+            || ! UuidV7::validate($tenantId)
+        ) {
             return collect();
         }
 
@@ -66,8 +70,8 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
         $roleName = trim($roleName);
 
         if (
-            $membershipId === ''
-            || $tenantId === ''
+            ! UuidV7::validate($membershipId)
+            || ! UuidV7::validate($tenantId)
             || $roleName === ''
         ) {
             return false;
@@ -114,21 +118,21 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
         $tenantId = trim($tenantId);
         $roleId = trim($roleId);
 
-        if ($membershipId === '') {
+        if (! UuidV7::validate($membershipId)) {
             throw new RuntimeException(
-                'Membership identifier is required.',
+                'Membership identifier must be a valid UUIDv7.',
             );
         }
 
-        if ($tenantId === '') {
+        if (! UuidV7::validate($tenantId)) {
             throw new RuntimeException(
-                'Tenant identifier is required.',
+                'Tenant identifier must be a valid UUIDv7.',
             );
         }
 
-        if ($roleId === '') {
+        if (! UuidV7::validate($roleId)) {
             throw new RuntimeException(
-                'Role identifier is required.',
+                'Role identifier must be a valid UUIDv7.',
             );
         }
 

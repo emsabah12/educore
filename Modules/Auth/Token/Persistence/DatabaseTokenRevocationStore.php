@@ -35,21 +35,13 @@ final class DatabaseTokenRevocationStore implements TokenRevocationStoreInterfac
             return;
         }
 
-        $now = now();
-
-        DB::table(self::TABLE)->updateOrInsert(
-            [
-                'token_hash' => $this->fingerprint(
-                    $token,
-                ),
-            ],
-            [
-                'expires_at' => $expiresAt,
-                'revoked_at' => $now,
-                'updated_at' => $now,
-                'created_at' => $now,
-            ],
-        );
+        DB::table(self::TABLE)->insertOrIgnore([
+            'token_hash' => $this->fingerprint(
+                $token,
+            ),
+            'expires_at' => $expiresAt,
+            'revoked_at' => now(),
+        ]);
     }
 
     public function isRevoked(

@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Modules\Core\Tests\TestCase;
+use Tests\TestCase;
 
 final class GuardianStudentManagementTest extends TestCase
 {

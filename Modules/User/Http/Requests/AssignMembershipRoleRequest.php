@@ -30,7 +30,8 @@ final class AssignMembershipRoleRequest extends FormRequest
         return [
             'role_id' => [
                 'required',
-                'uuid',
+                'string',
+                'uuid:7',
                 'exists:roles,id',
             ],
         ];
@@ -43,7 +44,8 @@ final class AssignMembershipRoleRequest extends FormRequest
     {
         return [
             'role_id.required' => 'Atribut role_id wajib disertakan.',
-            'role_id.uuid' => 'Format role_id wajib berupa UUID yang valid.',
+            'role_id.string' => 'Atribut role_id wajib berupa string.',
+            'role_id.uuid' => 'Format role_id wajib berupa UUIDv7 yang valid.',
             'role_id.exists' => 'Role yang dipilih tidak ditemukan.',
         ];
     }

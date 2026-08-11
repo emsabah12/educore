@@ -10,7 +10,8 @@ use Modules\User\Application\DTO\MembershipSummary;
 interface UserMembershipQueryInterface
 {
     /**
-     * Mengambil seluruh membership aktif milik user.
+     * Return active tenant memberships owned by the canonical Person linked
+     * to the authenticated User account.
      *
      * @return Collection<int, MembershipSummary>
      */

@@ -7,6 +7,7 @@ namespace Modules\Auth\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
@@ -17,6 +18,7 @@ final class AuthTokenFlowTest extends TestCase
     use RefreshDatabase;
 
     private string $userId;
+    private string $personId;
     private string $tenantId;
     private string $membershipId;
 
@@ -38,9 +40,10 @@ final class AuthTokenFlowTest extends TestCase
             ),
         );
 
-        $this->userId = Str::uuid()->toString();
-        $this->tenantId = Str::uuid()->toString();
-        $this->membershipId = Str::uuid()->toString();
+        $this->userId = UuidV7::generate();
+        $this->personId = UuidV7::generate();
+        $this->tenantId = UuidV7::generate();
+        $this->membershipId = UuidV7::generate();
 
         $this->email = sprintf(
             'auth-token-flow-%s@educore.test',
@@ -68,6 +71,10 @@ final class AuthTokenFlowTest extends TestCase
             ->assertJsonPath(
                 'data.context.user_id',
                 $this->userId,
+            )
+            ->assertJsonPath(
+                'data.context.name',
+                'Authentication Flow User',
             )
             ->assertJsonPath(
                 'data.context.tenant_id',
@@ -171,9 +178,17 @@ final class AuthTokenFlowTest extends TestCase
 
     private function createAuthenticationFixture(): void
     {
+        DB::table('persons')->insert([
+            'id' => $this->personId,
+            'name' => 'Authentication Flow User',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('users')->insert([
             'id' => $this->userId,
-            'name' => 'Authentication Flow User',
+            'person_id' => $this->personId,
             'email' => $this->email,
             'password' => bcrypt('secret123'),
             'status' => 'ACTIVE',
@@ -196,15 +211,8 @@ final class AuthTokenFlowTest extends TestCase
 
         DB::table('memberships')->insert([
             'id' => $this->membershipId,
-            'user_id' => $this->userId,
+            'person_id' => $this->personId,
             'tenant_id' => $this->tenantId,
-
-            /*
-             * Legacy schema compatibility only.
-             * Authorization tidak membaca field ini.
-             */
-            'role' => 'auth-flow-user',
-
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),

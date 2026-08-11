@@ -40,15 +40,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
         $attempt = $this->attemptStore->prepareAttempt(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            userId: $this->optionalString(
-                $options['user_id'] ?? null,
-            ),
-            recipient: $recipient,
             channel: self::CHANNEL,
-            title: $this->optionalString(
-                $options['title'] ?? null,
-            ),
-            body: $body,
         );
 
         /*
@@ -59,7 +51,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
             return [
                 'success' => true,
                 'log_id' => $notificationId,
-                'metadata' => $attempt->metadata,
+                'metadata' => $attempt->providerMetadata,
                 'error' => null,
             ];
         }
@@ -91,7 +83,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
         $this->attemptStore->markSent(
             tenantId: $tenantId,
             notificationId: $notificationId,
-            metadata: $gatewayResult->metadata,
+            providerMetadata: $gatewayResult->metadata,
         );
 
         return [
@@ -122,8 +114,10 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
         $this->attemptStore->markFailed(
             tenantId: $tenantId,
             notificationId: $notificationId,
+            failureCode: $result->failureCode
+                ?? 'unknown_failure',
             failureReason: $failureReason,
-            metadata: $result->metadata,
+            providerMetadata: $result->metadata,
         );
 
         Log::warning(
@@ -180,6 +174,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
             $this->attemptStore->markFailed(
                 tenantId: $tenantId,
                 notificationId: $notificationId,
+                failureCode: 'gateway_communication_failed',
                 failureReason: $failureReason,
             );
         } catch (Throwable $persistenceException) {
@@ -212,17 +207,4 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
         };
     }
 
-    private function optionalString(
-        mixed $value,
-    ): ?string {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $value = trim($value);
-
-        return $value !== ''
-            ? $value
-            : null;
-    }
 }

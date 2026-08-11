@@ -4,117 +4,125 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Feature;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Modules\Academic\Models\MockStudent;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException;
 use Modules\Core\Tenancy\Models\Tenant;
+use Modules\Core\Tenancy\Traits\BelongsToTenant;
 use Tests\TestCase;
 
 final class MultiTenancyIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Ensure tenant-aware writes are blocked when no tenant
-     * has been resolved into the canonical tenant context.
-     */
-    public function test_it_blocks_creation_without_tenant_context(): void
+    protected function setUp(): void
     {
-        $tenantContext = app(TenantContextInterface::class);
+        parent::setUp();
 
-        $tenantContext->clear();
-
-        $this->expectException(
-            \Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException::class,
-        );
-
-        $student = new MockStudent();
-        $student->id = Str::uuid()->toString();
-        $student->name = 'Santri Tanpa Lembaga';
-        $student->nisn = '1234567890';
-        $student->status = 'ACTIVE';
-
-        $student->save();
+        Schema::create('core_test_tenant_records', function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->uuid('tenant_id')->index();
+            $table->string('name');
+        });
     }
 
-    /**
-     * Ensure tenant-aware writes automatically receive the active
-     * tenant id and queries remain isolated between tenants.
-     */
+    protected function tearDown(): void
+    {
+        app(TenantContextInterface::class)->clear();
+        Schema::dropIfExists('core_test_tenant_records');
+
+        parent::tearDown();
+    }
+
+    public function test_it_blocks_creation_without_tenant_context(): void
+    {
+        app(TenantContextInterface::class)->clear();
+
+        $this->expectException(
+            TenantContextNotResolvedException::class,
+        );
+
+        CoreTenantScopedTestRecord::query()->create([
+            'id' => UuidV7::generate(),
+            'name' => 'Record Without Tenant',
+        ]);
+    }
+
     public function test_it_automatically_injects_tenant_id_and_scopes_queries(): void
     {
         $tenantContext = app(TenantContextInterface::class);
 
         $tenantA = Tenant::query()->create([
-            'id' => Str::uuid()->toString(),
-            'name' => 'Lembaga A',
-            'subdomain' => 'a',
+            'name' => 'Tenant Isolation A',
+            'subdomain' => 'tenant-isolation-a',
             'is_active' => true,
         ]);
 
         $tenantB = Tenant::query()->create([
-            'id' => Str::uuid()->toString(),
-            'name' => 'Lembaga B',
-            'subdomain' => 'b',
+            'name' => 'Tenant Isolation B',
+            'subdomain' => 'tenant-isolation-b',
             'is_active' => true,
         ]);
 
         $tenantContext->setCurrentTenant($tenantA);
 
-        $studentA = new MockStudent();
-        $studentA->id = Str::uuid()->toString();
-        $studentA->name = 'Siswa Lembaga A';
-        $studentA->nisn = '0000000001';
-        $studentA->status = 'ACTIVE';
-        $studentA->save();
+        $recordA = CoreTenantScopedTestRecord::query()->create([
+            'id' => UuidV7::generate(),
+            'name' => 'Tenant A Record',
+        ]);
 
-        $this->assertEquals(
-            $tenantA->id,
-            $studentA->tenant_id,
+        $this->assertSame(
+            (string) $tenantA->getKey(),
+            (string) $recordA->tenant_id,
         );
 
         $tenantContext->setCurrentTenant($tenantB);
 
-        $studentB = new MockStudent();
-        $studentB->id = Str::uuid()->toString();
-        $studentB->name = 'Siswa Lembaga B';
-        $studentB->nisn = '0000000002';
-        $studentB->status = 'ACTIVE';
-        $studentB->save();
+        $recordB = CoreTenantScopedTestRecord::query()->create([
+            'id' => UuidV7::generate(),
+            'name' => 'Tenant B Record',
+        ]);
 
-        $this->assertEquals(
-            $tenantB->id,
-            $studentB->tenant_id,
+        $this->assertSame(
+            (string) $tenantB->getKey(),
+            (string) $recordB->tenant_id,
         );
 
-        $studentsInTenantB = MockStudent::query()->get();
+        $recordsInTenantB = CoreTenantScopedTestRecord::query()->get();
 
-        $this->assertCount(
-            1,
-            $studentsInTenantB,
-        );
-
-        $this->assertEquals(
-            'Siswa Lembaga B',
-            $studentsInTenantB->first()->name,
+        $this->assertCount(1, $recordsInTenantB);
+        $this->assertSame(
+            'Tenant B Record',
+            $recordsInTenantB->first()?->name,
         );
 
         $tenantContext->setCurrentTenant($tenantA);
 
-        $studentsInTenantA = MockStudent::query()->get();
+        $recordsInTenantA = CoreTenantScopedTestRecord::query()->get();
 
-        $this->assertCount(
-            1,
-            $studentsInTenantA,
+        $this->assertCount(1, $recordsInTenantA);
+        $this->assertSame(
+            'Tenant A Record',
+            $recordsInTenantA->first()?->name,
         );
-
-        $this->assertEquals(
-            'Siswa Lembaga A',
-            $studentsInTenantA->first()->name,
-        );
-
-        $tenantContext->clear();
     }
+}
+
+final class CoreTenantScopedTestRecord extends Model
+{
+    use BelongsToTenant;
+
+    protected $table = 'core_test_tenant_records';
+
+    public $incrementing = false;
+
+    public $timestamps = false;
+
+    protected $keyType = 'string';
+
+    protected $guarded = [];
 }

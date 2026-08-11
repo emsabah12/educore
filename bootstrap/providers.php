@@ -6,5 +6,4 @@ return [
     AppServiceProvider::class,
     Modules\Core\Providers\CoreServiceProvider::class,
     Modules\Academic\Providers\AcademicServiceProvider::class,
-    Modules\Core\Authorization\Providers\AuthorizationGateServiceProvider::class,
 ];

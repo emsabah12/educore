@@ -4,24 +4,31 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-
 use Illuminate\Database\Seeder;
+use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Identity\Models\User;
+use Modules\Core\Person\Models\PersonModel;
 
 final class DatabaseSeeder extends Seeder
 {
-
-
     /**
-     * Seed the application's database.
+     * Seed the application's canonical authorization baseline and
+     * development identity fixture.
      */
     public function run(): void
     {
+        $this->call(AuthorizationCatalogSeeder::class);
 
-
-        User::factory()->create([
+        $person = PersonModel::factory()->create([
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'given_name' => 'Test',
+            'family_name' => 'User',
         ]);
+
+        User::factory()
+            ->for($person, 'person')
+            ->create([
+                'email' => 'test@example.com',
+            ]);
     }
 }

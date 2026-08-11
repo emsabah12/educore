@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\HR\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Modules\Core\Repositories\EloquentEmployeeRepository;
+use Modules\HR\Repositories\EloquentEmployeeRepository;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 
 final class HRServiceProvider extends ServiceProvider

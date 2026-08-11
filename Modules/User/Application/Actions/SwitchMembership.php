@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\User\Application\Actions;
 
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Identity\Contracts\ActiveUserResolverInterface;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Modules\User\Application\DTO\MembershipSwitchResult;
 use RuntimeException;
@@ -14,6 +15,7 @@ final readonly class SwitchMembership
     public function __construct(
         private MembershipRepositoryInterface $membershipRepository,
         private TenantRuntimeResolverInterface $tenantRuntimeResolver,
+        private ActiveUserResolverInterface $activeUserResolver,
     ) {}
 
     public function execute(
@@ -35,10 +37,24 @@ final readonly class SwitchMembership
             );
         }
 
+        $user = $this->activeUserResolver->findActiveById(
+            $authenticatedUserId,
+        );
+
+        $personId = $user !== null
+            ? trim((string) $user->person_id)
+            : '';
+
+        if ($personId === '') {
+            throw new RuntimeException(
+                'Akses ditolak: identity account tidak valid atau tidak aktif.',
+            );
+        }
+
         $membership = $this->membershipRepository
-            ->findActiveMembershipByIdForUser(
+            ->findActiveMembershipByIdForPerson(
                 $targetMembershipId,
-                $authenticatedUserId,
+                $personId,
             );
 
         if ($membership === null) {

@@ -29,7 +29,7 @@ final class MembershipRepositoryContractTest extends TestCase
 
         $expectedMethods = [
             'findActiveMembershipByIdAndTenant',
-            'findActiveMembershipByIdForUser',
+            'findActiveMembershipByIdForPerson',
         ];
 
         sort($expectedMethods);
@@ -37,7 +37,7 @@ final class MembershipRepositoryContractTest extends TestCase
         $this->assertSame(
             $expectedMethods,
             $methodNames,
-            'Membership repository must expose only explicit membership-bound lookup operations.',
+            'Membership repository must expose only explicit tenant/person ownership boundaries.',
         );
     }
 }

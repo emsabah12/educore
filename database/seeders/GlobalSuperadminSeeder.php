@@ -7,53 +7,76 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Modules\Core\Identity\Models\User;
+use Modules\Core\Person\Models\PersonModel;
 
 final class GlobalSuperadminSeeder extends Seeder
 {
-    /**
-     * Mengeksekusi penyemaian data Superadmin global secara idempotent selaras dengan skema User Global.
-     */
     public function run(): void
     {
         $superadminEmail = 'bsaeful12@gmail.com';
+        $personName = 'EduCore Platform Owner';
 
-        // Menggunakan Database Transaction demi menjamin keamanan atomisitas data
-        DB::transaction(function () use ($superadminEmail) {
-
-            // 1. Cek eksistensi data menggunakan Query Builder mentah berdasarkan email unik
-            $existingUser = DB::table('users')
+        DB::transaction(function () use (
+            $superadminEmail,
+            $personName,
+        ): void {
+            $user = User::query()
                 ->where('email', $superadminEmail)
                 ->first();
 
-            // Payload bersih tanpa kolom tenant_id karena relasi diatur oleh tabel membership
-            $payload = [
-                'name' => 'EduCore Platform Owner',
+            if ($user === null) {
+                $person = PersonModel::query()->create([
+                    'name' => $personName,
+                    'given_name' => 'EduCore',
+                    'middle_name' => 'Platform',
+                    'family_name' => 'Owner',
+                    'status' => 'ACTIVE',
+                ]);
+
+                $user = new User();
+                $user->forceFill([
+                    'person_id' => (string) $person->getKey(),
+                    'email' => $superadminEmail,
+                    'password' => Hash::make('PlatformSecure2026!'),
+                    'status' => 'ACTIVE',
+                    'is_superadmin' => true,
+                    'email_verified_at' => now(),
+                ]);
+                $user->save();
+
+                $this->command?->info(
+                    'New Global Superadmin record generated successfully.',
+                );
+
+                return;
+            }
+
+            $person = $user->person()->firstOrFail();
+            $person->forceFill([
+                'name' => $personName,
+                'given_name' => 'EduCore',
+                'middle_name' => 'Platform',
+                'family_name' => 'Owner',
+                'status' => 'ACTIVE',
+            ]);
+            $person->save();
+
+            $user->forceFill([
                 'password' => Hash::make('PlatformSecure2026!'),
+                'status' => 'ACTIVE',
                 'is_superadmin' => true,
                 'email_verified_at' => now(),
-                'updated_at' => now(),
-            ];
+            ]);
+            $user->save();
 
-            if ($existingUser) {
-                // Jika user sudah ada, lakukan update data hak akses
-                DB::table('users')
-                    ->where('email', $superadminEmail)
-                    ->update($payload);
-
-                $this->command->comment('Existing Global Superadmin credentials updated successfully.');
-            } else {
-                // Jika belum ada, buat rekor data baru dari nol dengan UUID baru
-                $payload['id'] = (string) Str::uuid();
-                $payload['email'] = $superadminEmail;
-                $payload['created_at'] = now();
-
-                DB::table('users')->insert($payload);
-
-                $this->command->info('New Global Superadmin record generated successfully.');
-            }
+            $this->command?->comment(
+                'Existing Global Superadmin credentials updated successfully.',
+            );
         });
 
-        $this->command->info('Idempotent Global Superadmin seeding operations completed.');
+        $this->command?->info(
+            'Idempotent Global Superadmin seeding operations completed.',
+        );
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Tests\TestCase;
@@ -25,9 +26,9 @@ final class InjectAuthenticatedUserTest extends TestCase
     {
         parent::setUp();
 
-        $this->activeUserId = Str::uuid()->toString();
-        $this->suspendedUserId = Str::uuid()->toString();
-        $this->tenantId = Str::uuid()->toString();
+        $this->activeUserId = UuidV7::generate();
+        $this->suspendedUserId = UuidV7::generate();
+        $this->tenantId = UuidV7::generate();
 
         $this->createUsers();
         $this->registerTestRoute();
@@ -178,10 +179,30 @@ final class InjectAuthenticatedUserTest extends TestCase
 
     private function createUsers(): void
     {
+        $activePersonId = UuidV7::generate();
+        $suspendedPersonId = UuidV7::generate();
+
+        DB::table('persons')->insert([
+            [
+                'id' => $activePersonId,
+                'name' => 'Active Identity Person',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $suspendedPersonId,
+                'name' => 'Suspended Identity Person',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
         DB::table('users')->insert([
             [
                 'id' => $this->activeUserId,
-                'name' => 'Active Identity User',
+                'person_id' => $activePersonId,
                 'email' => sprintf(
                     'active-identity-%s@educore.test',
                     Str::lower(Str::random(8)),
@@ -194,7 +215,7 @@ final class InjectAuthenticatedUserTest extends TestCase
             ],
             [
                 'id' => $this->suspendedUserId,
-                'name' => 'Suspended Identity User',
+                'person_id' => $suspendedPersonId,
                 'email' => sprintf(
                     'suspended-identity-%s@educore.test',
                     Str::lower(Str::random(8)),

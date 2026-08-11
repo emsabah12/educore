@@ -7,18 +7,25 @@ namespace Modules\Core\Authorization\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Support\Uuid\HasUuidV7;
 
 final class Permission extends Model
 {
+    use HasUuidV7;
+
     protected $table = 'permissions';
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
 
     protected $fillable = [
         'name',
         'display_name',
+        'description',
+        'module',
+    ];
+
+    protected $casts = [
+        'id' => 'string',
+        'created_at' => 'immutable_datetime',
+        'updated_at' => 'immutable_datetime',
     ];
 
     public function rolePermissions(): HasMany

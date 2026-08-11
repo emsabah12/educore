@@ -13,6 +13,7 @@ use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
 use Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface;
 use Modules\Core\Platform\Notification\DTO\WhatsAppGatewayResult;
 use Modules\Core\Support\Uuid\UuidV7;
+use RuntimeException;
 use Tests\TestCase;
 
 final class RecordingWhatsAppGateway implements WhatsAppGatewayInterface
@@ -46,9 +47,7 @@ final class RecordingWhatsAppGateway implements WhatsAppGatewayInterface
             );
         }
 
-        $this->results = array_values(
-            $results,
-        );
+        $this->results = array_values($results);
     }
 
     /**
@@ -78,14 +77,27 @@ final class RecordingWhatsAppGateway implements WhatsAppGatewayInterface
     }
 }
 
+final class ThrowingWhatsAppGateway implements WhatsAppGatewayInterface
+{
+    public function send(
+        string $tenantId,
+        string $notificationId,
+        string $recipient,
+        string $body,
+        array $options = [],
+    ): WhatsAppGatewayResult {
+        throw new RuntimeException(
+            'Provider secret must not be persisted.',
+        );
+    }
+}
+
 final class WhatsAppNotificationChannelTest extends TestCase
 {
     use RefreshDatabase;
 
-
     public function test_successful_gateway_result_marks_notification_as_sent(): void
     {
-
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
 
@@ -96,9 +108,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = $this->channel(
-            $gateway,
-        );
+        $channel = $this->channel($gateway);
 
         $result = $channel->send(
             tenantId: $tenantId,
@@ -110,43 +120,50 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ],
         );
 
-        $this->assertTrue(
-            $result['success'],
-        );
-
+        $this->assertTrue($result['success']);
         $this->assertSame(
             $notificationId,
             $result['log_id'],
         );
+        $this->assertNull($result['error']);
 
-        $this->assertNull(
-            $result['error'],
-        );
-
+        /*
+         * Delivery data tetap tersedia secara transient bagi gateway.
+         */
         $this->assertSame(
-            $tenantId,
-            $gateway->tenantId,
+            '089987654321',
+            $gateway->recipient,
         );
-
         $this->assertSame(
-            $notificationId,
-            $gateway->notificationId,
+            'Successful WhatsApp notification.',
+            $gateway->body,
+        );
+        $this->assertSame(
+            'Success Test',
+            $gateway->options['title'] ?? null,
         );
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
-                'recipient' => '089987654321',
                 'channel' => 'WHATSAPP',
                 'status' => 'SENT',
+                'failure_code' => null,
                 'failure_reason' => null,
             ],
         );
+
+        $this->assertSame(
+            'provider-message-123',
+            $this->storedProviderMetadata(
+                $notificationId,
+            )['provider_message_id'] ?? null,
+        );
     }
 
-    public function test_gateway_rejection_marks_notification_as_failed_with_sanitized_reason(): void
+    public function test_gateway_rejection_persists_canonical_failure_telemetry(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -160,39 +177,40 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ),
         );
 
-        $channel = $this->channel(
-            $gateway,
-        );
-
-        $result = $channel->send(
+        $result = $this->channel($gateway)->send(
             tenantId: $tenantId,
             notificationId: $notificationId,
             recipient: '089987654321',
             body: 'Rejected WhatsApp notification.',
         );
 
-        $this->assertFalse(
-            $result['success'],
-        );
-
+        $this->assertFalse($result['success']);
         $this->assertSame(
             'WhatsApp provider rejected the delivery request.',
             $result['error'],
         );
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
                 'status' => 'FAILED',
+                'failure_code' => 'provider_rejected',
                 'failure_reason' =>
                 'WhatsApp provider rejected the delivery request.',
             ],
         );
+
+        $this->assertSame(
+            'rejected',
+            $this->storedProviderMetadata(
+                $notificationId,
+            )['provider_status'] ?? null,
+        );
     }
 
-    public function test_default_gateway_fails_closed_instead_of_reporting_false_success(): void
+    public function test_default_gateway_fails_closed_with_canonical_failure_code(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -208,28 +226,67 @@ final class WhatsAppNotificationChannelTest extends TestCase
             body: 'Unconfigured gateway notification.',
         );
 
-        $this->assertFalse(
-            $result['success'],
-        );
-
+        $this->assertFalse($result['success']);
         $this->assertSame(
             'WhatsApp gateway is not configured.',
             $result['error'],
         );
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
                 'status' => 'FAILED',
+                'failure_code' => 'gateway_not_configured',
                 'failure_reason' =>
                 'WhatsApp gateway is not configured.',
             ],
         );
     }
 
-    public function test_retry_reuses_same_notification_log(): void
+    public function test_unexpected_gateway_exception_persists_sanitized_failure(): void
+    {
+        $tenantId = $this->createTenant();
+        $notificationId = UuidV7::generate();
+
+        $result = $this->channel(
+            new ThrowingWhatsAppGateway(),
+        )->send(
+            tenantId: $tenantId,
+            notificationId: $notificationId,
+            recipient: '089987654321',
+            body: 'Unexpected gateway failure.',
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame(
+            'WhatsApp gateway communication failed.',
+            $result['error'],
+        );
+
+        $row = DB::table('notification_attempts')
+            ->where('id', $notificationId)
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame('FAILED', $row->status);
+        $this->assertSame(
+            'gateway_communication_failed',
+            $row->failure_code,
+        );
+        $this->assertSame(
+            'WhatsApp gateway communication failed.',
+            $row->failure_reason,
+        );
+        $this->assertNull($row->provider_metadata);
+        $this->assertStringNotContainsString(
+            'Provider secret',
+            (string) $row->failure_reason,
+        );
+    }
+
+    public function test_retry_reuses_same_notification_attempt(): void
     {
         $tenantId = $this->createTenant();
         $notificationId = UuidV7::generate();
@@ -244,9 +301,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = $this->channel(
-            $gateway,
-        );
+        $channel = $this->channel($gateway);
 
         $firstResult = $channel->send(
             tenantId: $tenantId,
@@ -255,9 +310,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             body: 'Retry notification.',
         );
 
-        $this->assertFalse(
-            $firstResult['success'],
-        );
+        $this->assertFalse($firstResult['success']);
 
         $secondResult = $channel->send(
             tenantId: $tenantId,
@@ -266,28 +319,23 @@ final class WhatsAppNotificationChannelTest extends TestCase
             body: 'Retry notification.',
         );
 
-        $this->assertTrue(
-            $secondResult['success'],
-        );
-
-        $this->assertSame(
-            2,
-            $gateway->attempts,
-        );
-
+        $this->assertTrue($secondResult['success']);
+        $this->assertSame(2, $gateway->attempts);
         $this->assertSame(
             1,
-            DB::table('notification_logs')
+            DB::table('notification_attempts')
                 ->where('id', $notificationId)
                 ->count(),
         );
 
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantId,
                 'status' => 'SENT',
+                'failure_code' => null,
+                'failure_reason' => null,
             ],
         );
     }
@@ -304,9 +352,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = $this->channel(
-            $gateway,
-        );
+        $channel = $this->channel($gateway);
 
         $firstResult = $channel->send(
             tenantId: $tenantId,
@@ -322,22 +368,17 @@ final class WhatsAppNotificationChannelTest extends TestCase
             body: 'Idempotent notification.',
         );
 
-        $this->assertTrue(
-            $firstResult['success'],
+        $this->assertTrue($firstResult['success']);
+        $this->assertTrue($secondResult['success']);
+        $this->assertSame(1, $gateway->attempts);
+        $this->assertSame(
+            'provider-idempotent-success',
+            $secondResult['metadata']['provider_message_id']
+                ?? null,
         );
-
-        $this->assertTrue(
-            $secondResult['success'],
-        );
-
         $this->assertSame(
             1,
-            $gateway->attempts,
-        );
-
-        $this->assertSame(
-            1,
-            DB::table('notification_logs')
+            DB::table('notification_attempts')
                 ->where('id', $notificationId)
                 ->count(),
         );
@@ -349,17 +390,14 @@ final class WhatsAppNotificationChannelTest extends TestCase
         $tenantBId = $this->createTenant();
         $notificationId = UuidV7::generate();
 
-        DB::table('notification_logs')->insert([
+        DB::table('notification_attempts')->insert([
             'id' => $notificationId,
             'tenant_id' => $tenantAId,
-            'user_id' => null,
-            'recipient' => '081111111111',
             'channel' => 'WHATSAPP',
-            'title' => 'Tenant A Notification',
-            'body' => 'Existing notification owned by tenant A.',
             'status' => 'PENDING',
+            'failure_code' => null,
             'failure_reason' => null,
-            'metadata' => null,
+            'provider_metadata' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -370,12 +408,8 @@ final class WhatsAppNotificationChannelTest extends TestCase
             ]),
         );
 
-        $channel = $this->channel(
-            $gateway,
-        );
-
         try {
-            $channel->send(
+            $this->channel($gateway)->send(
                 tenantId: $tenantBId,
                 notificationId: $notificationId,
                 recipient: '082222222222',
@@ -385,38 +419,27 @@ final class WhatsAppNotificationChannelTest extends TestCase
             $this->fail(
                 'Cross-tenant notification identity collision must be rejected.',
             );
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->assertSame(
                 'Notification identity collision was detected.',
                 $exception->getMessage(),
             );
         }
 
-        /*
-     * Gateway tidak boleh pernah menerima request tenant B karena
-     * collision harus dideteksi pada persistence boundary terlebih dahulu.
-     */
-        $this->assertSame(
-            0,
-            $gateway->attempts,
-        );
+        $this->assertSame(0, $gateway->attempts);
 
-        /*
-     * Existing durable attempt milik tenant A tidak boleh berubah.
-     */
         $this->assertDatabaseHas(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantAId,
-                'recipient' => '081111111111',
                 'channel' => 'WHATSAPP',
                 'status' => 'PENDING',
             ],
         );
 
         $this->assertDatabaseMissing(
-            'notification_logs',
+            'notification_attempts',
             [
                 'id' => $notificationId,
                 'tenant_id' => $tenantBId,
@@ -425,7 +448,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
 
         $this->assertSame(
             1,
-            DB::table('notification_logs')
+            DB::table('notification_attempts')
                 ->where('id', $notificationId)
                 ->count(),
         );
@@ -440,6 +463,34 @@ final class WhatsAppNotificationChannelTest extends TestCase
                 NotificationAttemptStoreInterface::class,
             ),
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function storedProviderMetadata(
+        string $notificationId,
+    ): array {
+        $providerMetadata = DB::table('notification_attempts')
+            ->where('id', $notificationId)
+            ->value('provider_metadata');
+
+        if (is_array($providerMetadata)) {
+            return $providerMetadata;
+        }
+
+        if (! is_string($providerMetadata)) {
+            return [];
+        }
+
+        $decoded = json_decode(
+            $providerMetadata,
+            true,
+        );
+
+        return is_array($decoded)
+            ? $decoded
+            : [];
     }
 
     private function createTenant(): string

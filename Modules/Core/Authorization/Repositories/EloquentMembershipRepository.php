@@ -37,16 +37,16 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
             ->first();
     }
 
-    public function findActiveMembershipByIdForUser(
+    public function findActiveMembershipByIdForPerson(
         string $membershipId,
-        string $userId,
+        string $personId,
     ): ?Membership {
         $membershipId = trim($membershipId);
-        $userId = trim($userId);
+        $personId = trim($personId);
 
         if (
             $membershipId === ''
-            || $userId === ''
+            || $personId === ''
         ) {
             return null;
         }
@@ -64,8 +64,8 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
                 $membershipId,
             )
             ->where(
-                'memberships.user_id',
-                $userId,
+                'memberships.person_id',
+                $personId,
             )
             ->where(
                 'memberships.status',
@@ -79,14 +79,11 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
     }
 
     /**
-     * Membership merupakan explicit tenant-bound aggregate.
+     * Membership is an explicit tenant-bound aggregate.
      *
-     * Repository tidak menggunakan ambient TenantContext karena
-     * beberapa operasi membership terjadi sebelum current tenant
-     * context tersedia, terutama switch membership.
-     *
-     * Setiap public query wajib membawa boundary eksplisit
-     * melalui membership ID + tenant atau membership ID + owner.
+     * This repository intentionally does not depend on ambient TenantContext,
+     * because membership selection can happen before a target tenant becomes
+     * the current runtime context.
      *
      * @return Builder<Membership>
      */

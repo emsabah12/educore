@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,9 @@ final class TenantManagementTest extends TestCase
     private const TENANTS_ENDPOINT = '/api/v1/core/tenants';
 
     private string $superadminId;
+    private string $superadminPersonId;
     private string $pegawaiId;
+    private string $pegawaiPersonId;
     private string $tenantId;
 
     private string $superadminMembershipId;
@@ -55,13 +58,19 @@ final class TenantManagementTest extends TestCase
         );
 
         $this->superadminId = UuidV7::generate();
+        $this->superadminPersonId = UuidV7::generate();
         $this->pegawaiId = UuidV7::generate();
+        $this->pegawaiPersonId = UuidV7::generate();
         $this->tenantId = UuidV7::generate();
 
         $this->superadminMembershipId = UuidV7::generate();
         $this->pegawaiMembershipId = UuidV7::generate();
 
         $this->createFixtures();
+
+        $this->seed(
+            AuthorizationCatalogSeeder::class,
+        );
     }
 
     public function test_repository_failure_returns_generic_error_and_is_logged(): void
@@ -98,6 +107,7 @@ final class TenantManagementTest extends TestCase
                 [
                     'name' => 'Tenant Repository Gagal',
                     'subdomain' => 'repository-gagal',
+                    'initial_admin_user_id' => $this->pegawaiId,
                 ],
             );
 
@@ -158,6 +168,7 @@ final class TenantManagementTest extends TestCase
         $payload = [
             'name' => 'Tenant Audit Gagal',
             'subdomain' => 'audit-gagal',
+            'initial_admin_user_id' => $this->pegawaiId,
         ];
 
         $response = $this
@@ -210,6 +221,7 @@ final class TenantManagementTest extends TestCase
         $payload = [
             'name' => 'SMP IT Inovasi Bangsa',
             'subdomain' => 'smp-inovasi',
+            'initial_admin_user_id' => $this->pegawaiId,
         ];
 
         $response = $this
@@ -245,6 +257,125 @@ final class TenantManagementTest extends TestCase
             'subdomain' => $payload['subdomain'],
             'is_active' => true,
         ]);
+
+        $tenantId = (string) DB::table('tenants')
+            ->where('subdomain', $payload['subdomain'])
+            ->value('id');
+
+        $membershipId = (string) DB::table('memberships')
+            ->where('person_id', $this->pegawaiPersonId)
+            ->where('tenant_id', $tenantId)
+            ->value('id');
+
+        $adminRoleId = (string) DB::table('roles')
+            ->where('name', 'admin')
+            ->value('id');
+
+        $response
+            ->assertJsonPath(
+                'data.initial_admin.user_id',
+                $this->pegawaiId,
+            )
+            ->assertJsonPath(
+                'data.initial_admin.membership_id',
+                $membershipId,
+            );
+
+        $this->assertDatabaseHas('membership_roles', [
+            'membership_id' => $membershipId,
+            'role_id' => $adminRoleId,
+        ]);
+    }
+
+    public function test_store_requires_initial_admin_user_id(): void
+    {
+        $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => 'Tenant Tanpa Admin',
+                    'subdomain' => 'tanpa-admin',
+                ],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'initial_admin_user_id',
+            ]);
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'tanpa-admin',
+        ]);
+    }
+
+    public function test_store_rejects_non_uuid_v7_initial_admin_user_id(): void
+    {
+        $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => 'Tenant Invalid Admin UUID',
+                    'subdomain' => 'invalid-admin-uuid',
+                    'initial_admin_user_id' => (string) Str::uuid(),
+                ],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'initial_admin_user_id',
+            ])
+            ->assertJsonPath(
+                'errors.initial_admin_user_id.0',
+                'The initial admin user id must be a valid UUIDv7.',
+            );
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'invalid-admin-uuid',
+        ]);
+    }
+
+    public function test_store_rejects_user_with_inactive_person(): void
+    {
+        DB::table('persons')
+            ->where('id', $this->pegawaiPersonId)
+            ->update([
+                'status' => 'INACTIVE',
+                'updated_at' => now(),
+            ]);
+
+        $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT,
+                [
+                    'name' => 'Tenant Inactive Person',
+                    'subdomain' => 'inactive-person-http',
+                    'initial_admin_user_id' => $this->pegawaiId,
+                ],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'initial_admin_user_id',
+            ]);
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'inactive-person-http',
+        ]);
     }
 
     public function test_non_superadmin_is_forbidden_to_create_tenant(): void
@@ -252,6 +383,7 @@ final class TenantManagementTest extends TestCase
         $payload = [
             'name' => 'Lembaga Penerobos',
             'subdomain' => 'terobos',
+            'initial_admin_user_id' => $this->pegawaiId,
         ];
 
         $response = $this
@@ -286,6 +418,7 @@ final class TenantManagementTest extends TestCase
                 [
                     'name' => 'Tenant Tanpa Authentication',
                     'subdomain' => 'tanpa-auth',
+                    'initial_admin_user_id' => $this->pegawaiId,
                 ],
             )
             ->assertUnauthorized()
@@ -442,58 +575,68 @@ final class TenantManagementTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('users')->insert([
-            'id' => $this->superadminId,
-            'name' => 'Superadmin Global',
-            'email' => 'super@educore.test',
-            'password' => Hash::make('secret123'),
-            'status' => 'ACTIVE',
-            'is_superadmin' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        /*
-         * Legacy role sengaja bukan SUPERADMIN.
-         *
-         * Test ini membuktikan global authorization berasal dari
-         * users.is_superadmin, bukan memberships.role.
-         */
-        DB::table('memberships')->insert([
-            'id' => $this->superadminMembershipId,
-            'user_id' => $this->superadminId,
-            'tenant_id' => $this->tenantId,
-            'role' => 'PEGAWAI',
-            'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
+        DB::table('persons')->insert([
+            [
+                'id' => $this->superadminPersonId,
+                'name' => 'Superadmin Global',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $this->pegawaiPersonId,
+                'name' => 'Pegawai Administrasi',
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         DB::table('users')->insert([
-            'id' => $this->pegawaiId,
-            'name' => 'Pegawai Administrasi',
-            'email' => 'staff@educore.test',
-            'password' => Hash::make('secret123'),
-            'status' => 'ACTIVE',
-            'is_superadmin' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+            [
+                'id' => $this->superadminId,
+                'person_id' => $this->superadminPersonId,
+                'email' => 'super@educore.test',
+                'password' => Hash::make('secret123'),
+                'status' => 'ACTIVE',
+                'is_superadmin' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $this->pegawaiId,
+                'person_id' => $this->pegawaiPersonId,
+                'email' => 'staff@educore.test',
+                'password' => Hash::make('secret123'),
+                'status' => 'ACTIVE',
+                'is_superadmin' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         /*
-         * Legacy role sengaja SUPERADMIN.
-         *
-         * Walaupun field lama memiliki nilai SUPERADMIN, user tetap
-         * harus ditolak karena users.is_superadmin bernilai false.
+         * Membership context tetap canonical Person-owned. Global tenant
+         * management authorization berasal dari users.is_superadmin dan
+         * tidak bergantung pada tenant role.
          */
         DB::table('memberships')->insert([
-            'id' => $this->pegawaiMembershipId,
-            'user_id' => $this->pegawaiId,
-            'tenant_id' => $this->tenantId,
-            'role' => 'SUPERADMIN',
-            'status' => 'ACTIVE',
-            'created_at' => now(),
-            'updated_at' => now(),
+            [
+                'id' => $this->superadminMembershipId,
+                'person_id' => $this->superadminPersonId,
+                'tenant_id' => $this->tenantId,
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $this->pegawaiMembershipId,
+                'person_id' => $this->pegawaiPersonId,
+                'tenant_id' => $this->tenantId,
+                'status' => 'ACTIVE',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
     }
 
@@ -517,6 +660,7 @@ final class TenantManagementTest extends TestCase
         $payload = [
             'name' => 'Tenant Global Tanpa Context',
             'subdomain' => 'global-tanpa-context',
+            'initial_admin_user_id' => $this->pegawaiId,
         ];
 
         /*
@@ -633,6 +777,7 @@ final class TenantManagementTest extends TestCase
                 [
                     'name' => '  Sekolah Normalisasi  ',
                     'subdomain' => '  SEKOLAH-NORMALISASI  ',
+                    'initial_admin_user_id' => '  ' . $this->pegawaiId . '  ',
                 ],
             );
 
@@ -667,6 +812,7 @@ final class TenantManagementTest extends TestCase
                 [
                     'name' => 'Tenant Duplikat',
                     'subdomain' => '  PUSAT  ',
+                    'initial_admin_user_id' => $this->pegawaiId,
                 ],
             );
 

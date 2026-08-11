@@ -5,7 +5,7 @@ namespace Modules\Academic\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\Core\Tests\TestCase;
+use Tests\TestCase;
 
 class StudentManagementTest extends TestCase
 {

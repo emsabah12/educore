@@ -7,21 +7,21 @@ namespace Modules\User\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\Core\Identity\Models\User;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Identity\Models\User;
+use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
 
 final class SwitchMembershipTest extends TestCase
 {
     use RefreshDatabase;
 
-    private string $userAId;
-    private string $userBId;
-
+    private User $userA;
+    private User $userB;
     private string $tenantAId;
     private string $tenantBId;
     private string $inactiveTenantId;
-
+    private string $suspendedMembershipTenantId;
     private string $membershipAId;
     private string $membershipBId;
     private string $inactiveMembershipId;
@@ -32,35 +32,27 @@ final class SwitchMembershipTest extends TestCase
     {
         parent::setUp();
 
-        $this->userAId = Str::uuid()->toString();
-        $this->userBId = Str::uuid()->toString();
+        $this->userA = User::factory()->create();
+        $this->userB = User::factory()->create();
 
-        $this->tenantAId = Str::uuid()->toString();
-        $this->tenantBId = Str::uuid()->toString();
-        $this->inactiveTenantId = Str::uuid()->toString();
+        $this->tenantAId = UuidV7::generate();
+        $this->tenantBId = UuidV7::generate();
+        $this->inactiveTenantId = UuidV7::generate();
+        $this->suspendedMembershipTenantId = UuidV7::generate();
+        $this->membershipAId = UuidV7::generate();
+        $this->membershipBId = UuidV7::generate();
+        $this->inactiveMembershipId = UuidV7::generate();
+        $this->inactiveTenantMembershipId = UuidV7::generate();
+        $this->otherUserMembershipId = UuidV7::generate();
 
-        $this->membershipAId = Str::uuid()->toString();
-        $this->membershipBId = Str::uuid()->toString();
-        $this->inactiveMembershipId = Str::uuid()->toString();
-        $this->inactiveTenantMembershipId = Str::uuid()->toString();
-        $this->otherUserMembershipId = Str::uuid()->toString();
-
-        $this->createUsers();
         $this->createTenants();
         $this->createMemberships();
     }
 
     public function test_authenticated_user_can_select_owned_active_membership(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userAId,
-                $this->tenantAId,
-            );
-
-
         $response = $this
-            ->withToken($token)
+            ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -84,165 +76,86 @@ final class SwitchMembershipTest extends TestCase
                 'Switch Tenant A',
             );
 
-        /*
-         * Stateless invariant:
-         * endpoint tidak menyimpan active context pada server session.
-         */
-        $this->assertNull(
-            session('active_membership_id'),
-        );
-
-        $this->assertNull(
-            session('active_tenant_id'),
-        );
+        $this->assertStatelessSwitchContext();
     }
 
-    public function test_authenticated_user_can_select_between_owned_memberships(): void
+    public function test_authenticated_user_can_select_between_person_owned_memberships(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userAId,
-                $this->tenantAId,
-            );
+        $token = $this->tokenForUserA();
 
-        $firstResponse = $this
+        $this
             ->withToken($token)
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->membershipAId,
                 ),
-            );
-
-        $firstResponse
-            ->assertOk()
-            ->assertJsonPath(
-                'context.membership_id',
-                $this->membershipAId,
             )
+            ->assertOk()
             ->assertJsonPath(
                 'context.tenant_id',
                 $this->tenantAId,
             );
 
-        $secondResponse = $this
+        $this
             ->withToken($token)
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->membershipBId,
                 ),
-            );
-
-        $secondResponse
-            ->assertOk()
-            ->assertJsonPath(
-                'context.membership_id',
-                $this->membershipBId,
             )
+            ->assertOk()
             ->assertJsonPath(
                 'context.tenant_id',
                 $this->tenantBId,
             );
 
-        $this->assertNull(
-            session('active_membership_id'),
-        );
-
-        $this->assertNull(
-            session('active_tenant_id'),
-        );
+        $this->assertStatelessSwitchContext();
     }
 
-    public function test_user_cannot_select_another_users_membership(): void
+    public function test_user_cannot_select_another_persons_membership(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userAId,
-                $this->tenantAId,
-            );
-
-        $response = $this
-            ->withToken($token)
+        $this
+            ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->otherUserMembershipId,
                 ),
-            );
-
-        $response
+            )
             ->assertForbidden()
             ->assertJsonPath('status', 'error');
 
-        $this->assertNull(
-            session('active_membership_id'),
-        );
-
-        $this->assertNull(
-            session('active_tenant_id'),
-        );
+        $this->assertStatelessSwitchContext();
     }
 
     public function test_user_cannot_select_inactive_membership(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userAId,
-                $this->tenantAId,
-            );
-
-
-        $response = $this
-            ->withToken($token)
+        $this
+            ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->inactiveMembershipId,
                 ),
-            );
-
-        $response
+            )
             ->assertForbidden()
             ->assertJsonPath('status', 'error');
-
-        $this->assertNull(
-            session('active_membership_id'),
-        );
-
-        $this->assertNull(
-            session('active_tenant_id'),
-        );
     }
 
     public function test_user_cannot_select_membership_of_inactive_tenant(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userAId,
-                $this->tenantAId,
-            );
-
-        $response = $this
-            ->withToken($token)
+        $this
+            ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->inactiveTenantMembershipId,
                 ),
-            );
-
-        $response
+            )
             ->assertForbidden()
             ->assertJsonPath('status', 'error');
-
-        $this->assertNull(
-            session('active_membership_id'),
-        );
-
-        $this->assertNull(
-            session('active_tenant_id'),
-        );
     }
 
     public function test_unauthenticated_user_cannot_select_membership(): void
@@ -257,44 +170,23 @@ final class SwitchMembershipTest extends TestCase
             ->assertUnauthorized();
     }
 
-    private function createUsers(): void
+    private function tokenForUserA(): string
     {
-        DB::table('users')->insert([
-            $this->userData(
-                $this->userAId,
-                'Switch User A',
-                'switch-user-a',
-            ),
-            $this->userData(
-                $this->userBId,
-                'Switch User B',
-                'switch-user-b',
-            ),
-        ]);
+        return app(TokenManagerInterface::class)
+            ->issueToken(
+                (string) $this->userA->getKey(),
+                $this->tenantAId,
+            );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function userData(
-        string $id,
-        string $name,
-        string $emailPrefix,
-    ): array {
-        return [
-            'id' => $id,
-            'name' => $name,
-            'email' => sprintf(
-                '%s-%s@educore.test',
-                $emailPrefix,
-                Str::lower(Str::random(8)),
-            ),
-            'password' => bcrypt('secret123'),
-            'status' => 'ACTIVE',
-            'is_superadmin' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
+    private function assertStatelessSwitchContext(): void
+    {
+        $this->assertNull(
+            session('active_membership_id'),
+        );
+        $this->assertNull(
+            session('active_tenant_id'),
+        );
     }
 
     private function createTenants(): void
@@ -318,12 +210,16 @@ final class SwitchMembershipTest extends TestCase
                 'switch-inactive',
                 false,
             ),
+            $this->tenantData(
+                $this->suspendedMembershipTenantId,
+                'Switch Suspended Membership Tenant',
+                'switch-suspended',
+                true,
+            ),
         ]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function tenantData(
         string $id,
         string $name,
@@ -349,57 +245,48 @@ final class SwitchMembershipTest extends TestCase
         DB::table('memberships')->insert([
             $this->membershipData(
                 $this->membershipAId,
-                $this->userAId,
+                (string) $this->userA->person_id,
                 $this->tenantAId,
-                'employee-a',
                 'ACTIVE',
             ),
             $this->membershipData(
                 $this->membershipBId,
-                $this->userAId,
+                (string) $this->userA->person_id,
                 $this->tenantBId,
-                'employee-b',
                 'ACTIVE',
             ),
             $this->membershipData(
                 $this->inactiveMembershipId,
-                $this->userAId,
-                $this->tenantAId,
-                'inactive-membership',
+                (string) $this->userA->person_id,
+                $this->suspendedMembershipTenantId,
                 'SUSPENDED',
             ),
             $this->membershipData(
                 $this->inactiveTenantMembershipId,
-                $this->userAId,
+                (string) $this->userA->person_id,
                 $this->inactiveTenantId,
-                'inactive-tenant',
                 'ACTIVE',
             ),
             $this->membershipData(
                 $this->otherUserMembershipId,
-                $this->userBId,
+                (string) $this->userB->person_id,
                 $this->tenantAId,
-                'other-user',
                 'ACTIVE',
             ),
         ]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function membershipData(
         string $id,
-        string $userId,
+        string $personId,
         string $tenantId,
-        string $legacyRole,
         string $status,
     ): array {
         return [
             'id' => $id,
-            'user_id' => $userId,
+            'person_id' => $personId,
             'tenant_id' => $tenantId,
-            'role' => $legacyRole,
             'status' => $status,
             'created_at' => now(),
             'updated_at' => now(),

@@ -23,7 +23,13 @@ final class EloquentUserMembershipQuery implements UserMembershipQueryInterface
             return collect();
         }
 
-        return DB::table('memberships')
+        return DB::table('users')
+            ->join(
+                'memberships',
+                'users.person_id',
+                '=',
+                'memberships.person_id',
+            )
             ->join(
                 'tenants',
                 'memberships.tenant_id',
@@ -31,8 +37,12 @@ final class EloquentUserMembershipQuery implements UserMembershipQueryInterface
                 'tenants.id',
             )
             ->where(
-                'memberships.user_id',
+                'users.id',
                 $userId,
+            )
+            ->where(
+                'users.status',
+                'ACTIVE',
             )
             ->where(
                 'memberships.status',

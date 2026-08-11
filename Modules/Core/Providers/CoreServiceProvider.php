@@ -21,8 +21,6 @@ use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryIn
 use Modules\Core\Authorization\Repositories\EloquentMembershipRoleRepository;
 use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
 use Modules\Core\Authorization\Repositories\EloquentRolePermissionRepository;
-use Modules\Core\Authorization\Contracts\AccessCheckerInterface;
-use Modules\Core\Authorization\Services\AccessChecker;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
 use Modules\Core\Authorization\Services\MembershipContextResolver;
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
@@ -184,11 +182,6 @@ final class CoreServiceProvider extends ServiceProvider
             EloquentRolePermissionRepository::class,
         );
 
-        $this->app->scoped(
-            AccessCheckerInterface::class,
-            AccessChecker::class,
-        );
-
         $this->app->singleton(
             PersonRepositoryInterface::class,
             EloquentPersonRepository::class,
@@ -248,7 +241,7 @@ final class CoreServiceProvider extends ServiceProvider
 
         $this->app->singleton(
             \Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface::class,
-            \Modules\Core\Services\Auth\DatabaseAuditTrailService::class
+            \Modules\Core\Governance\Audit\Persistence\DatabaseAuditTrailService::class
         );
 
         $this->app->singleton(
@@ -332,13 +325,12 @@ final class CoreServiceProvider extends ServiceProvider
     private function registerMigrations(): void
     {
         $migrationPaths = [
-            base_path('Modules/Core/Database/Migrations'),
+            base_path('Modules/Core/Person/Database/Migrations'),
+            base_path('Modules/Core/Identity/Database/Migrations'),
             base_path('Modules/Core/Tenancy/Database/Migrations'),
             base_path('Modules/Core/Authorization/Database/Migrations'),
-            base_path('Modules/Core/Person/Database/Migrations'),
-            base_path('Modules/Core/Platform/Database/Migrations'),
-            base_path('Modules/HR/Database/Migrations'),
-            base_path('Modules/Academic/Database/Migrations'),
+            base_path('Modules/Core/Governance/Audit/Database/Migrations'),
+            base_path('Modules/Core/Notification/Database/Migrations'),
         ];
 
         foreach ($migrationPaths as $migrationPath) {

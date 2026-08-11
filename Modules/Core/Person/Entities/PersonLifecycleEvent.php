@@ -5,36 +5,54 @@ declare(strict_types=1);
 namespace Modules\Core\Person\Entities;
 
 use DateTimeImmutable;
+use InvalidArgumentException;
 use Modules\Core\Person\Enums\PersonLifecycleEventType;
-use RuntimeException;
+use Modules\Core\Support\Uuid\UuidV7;
 
 final readonly class PersonLifecycleEvent
 {
+    private ?string $reason;
+
     public function __construct(
         private string $id,
         private string $personId,
         private PersonLifecycleEventType $type,
         private DateTimeImmutable $occurredAt,
-        private ?string $actorId = null,
-        private ?string $reason = null,
+        private ?string $actorUserId = null,
+        ?string $reason = null,
     ) {
-        if (trim($id) === '') {
-            throw new RuntimeException(
-                'Person lifecycle event identifier cannot be empty.',
+        if (! UuidV7::validate($id)) {
+            throw new InvalidArgumentException(
+                'Person lifecycle event identifier must be a valid UUIDv7.',
             );
         }
 
-        if (trim($personId) === '') {
-            throw new RuntimeException(
-                'Person identifier cannot be empty.',
+        if (! UuidV7::validate($personId)) {
+            throw new InvalidArgumentException(
+                'Person lifecycle event person identifier must be a valid UUIDv7.',
             );
         }
 
-        if ($reason !== null && trim($reason) === '') {
-            throw new RuntimeException(
-                'Lifecycle event reason cannot be an empty string.',
+        if (
+            $actorUserId !== null
+            && ! UuidV7::validate($actorUserId)
+        ) {
+            throw new InvalidArgumentException(
+                'Person lifecycle event actor user identifier must be a valid UUIDv7.',
             );
         }
+
+        if ($reason !== null) {
+            $reason = trim($reason);
+
+            if ($reason === '') {
+                throw new InvalidArgumentException(
+                    'Lifecycle event reason cannot be an empty string.',
+                );
+            }
+        }
+
+        $this->reason = $reason;
     }
 
     public function id(): string
@@ -57,9 +75,9 @@ final readonly class PersonLifecycleEvent
         return $this->occurredAt;
     }
 
-    public function actorId(): ?string
+    public function actorUserId(): ?string
     {
-        return $this->actorId;
+        return $this->actorUserId;
     }
 
     public function reason(): ?string

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Feature;
 
-use Modules\Core\Authorization\Contracts\AccessCheckerInterface;
 use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
@@ -90,7 +89,6 @@ final class TenantContextLifecycleTest extends TestCase
             MembershipContextResolverInterface::class,
             AuthorizationContextResolverInterface::class,
             AuthorizationServiceInterface::class,
-            AccessCheckerInterface::class,
         ];
 
         /** @var array<class-string, object> $firstScopeInstances */

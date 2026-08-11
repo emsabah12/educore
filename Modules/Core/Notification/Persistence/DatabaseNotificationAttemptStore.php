@@ -5,106 +5,64 @@ declare(strict_types=1);
 namespace Modules\Core\Notification\Persistence;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface;
 use Modules\Core\Platform\Notification\DTO\PreparedNotificationAttempt;
+use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
 use Throwable;
 
 final class DatabaseNotificationAttemptStore implements NotificationAttemptStoreInterface
 {
-    private const TABLE = 'notification_logs';
+    private const TABLE = 'notification_attempts';
+
+    private const STATUS_PENDING = 'PENDING';
+
+    private const STATUS_SENT = 'SENT';
+
+    private const STATUS_FAILED = 'FAILED';
 
     public function prepareAttempt(
         string $tenantId,
         string $notificationId,
-        ?string $userId,
-        string $recipient,
         string $channel,
-        ?string $title,
-        string $body,
     ): PreparedNotificationAttempt {
-        $tenantId = $this->requireUuid(
+        $tenantId = $this->requireUuidV7(
             $tenantId,
             'Tenant identifier',
         );
 
-        $notificationId = $this->requireUuid(
+        $notificationId = $this->requireUuidV7(
             $notificationId,
             'Notification identifier',
         );
 
-        $recipient = trim($recipient);
-        $channel = strtoupper(trim($channel));
-        $body = trim($body);
-
-        if ($recipient === '') {
-            throw new InvalidArgumentException(
-                'Notification recipient is required.',
-            );
-        }
-
-        if ($channel === '') {
-            throw new InvalidArgumentException(
-                'Notification channel is required.',
-            );
-        }
-
-        if ($body === '') {
-            throw new InvalidArgumentException(
-                'Notification body is required.',
-            );
-        }
-
-        if ($userId !== null) {
-            $userId = trim($userId);
-
-            if (
-                $userId === ''
-                || ! Str::isUuid($userId)
-            ) {
-                throw new InvalidArgumentException(
-                    'Notification user identifier is invalid.',
-                );
-            }
-        }
-
-        if ($title !== null) {
-            $title = trim($title);
-
-            if ($title === '') {
-                $title = null;
-            }
-        }
-
+        $channel = $this->requireChannel($channel);
         $now = now();
 
         /*
          * Notification ID adalah primary key global sehingga insertOrIgnore
          * membuat proses redelivery/retry tidak menghasilkan row kedua.
+         *
+         * Durable telemetry sengaja tidak menyimpan recipient, title, body,
+         * atau user identifier. Data delivery tersebut tetap transient di
+         * queue/channel/gateway boundary.
          */
         DB::table(self::TABLE)->insertOrIgnore([
             'id' => $notificationId,
             'tenant_id' => $tenantId,
-            'user_id' => $userId,
-            'recipient' => $recipient,
             'channel' => $channel,
-            'title' => $title,
-            'body' => $body,
-            'status' => 'PENDING',
+            'status' => self::STATUS_PENDING,
+            'failure_code' => null,
             'failure_reason' => null,
-            'metadata' => null,
+            'provider_metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
         /*
-         * Lookup sengaja berdasarkan global notification ID tanpa
-         * tenant filter.
-         *
-         * Setelah row ditemukan, ownership tenant + channel diverifikasi.
-         * Ini mempertahankan collision detection lintas tenant/channel.
+         * Lookup sengaja berdasarkan global notification ID tanpa tenant
+         * filter agar collision lintas tenant/channel tetap terdeteksi.
          */
         $attempt = DB::table(self::TABLE)
             ->where('id', $notificationId)
@@ -129,26 +87,28 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
             trim((string) $attempt->status),
         );
 
-        if ($status === 'SENT') {
+        if ($status === self::STATUS_SENT) {
             return new PreparedNotificationAttempt(
                 alreadySent: true,
-                metadata: $this->decodeMetadata(
-                    $attempt->metadata ?? null,
+                providerMetadata: $this->decodeProviderMetadata(
+                    $attempt->provider_metadata ?? null,
                 ),
             );
         }
 
         /*
-         * FAILED/PENDING redelivery menggunakan durable row yang sama.
+         * FAILED/PENDING redelivery menggunakan durable row yang sama dan
+         * membersihkan telemetry hasil attempt sebelumnya.
          */
         $updated = DB::table(self::TABLE)
             ->where('id', $notificationId)
             ->where('tenant_id', $tenantId)
             ->where('channel', $channel)
             ->update([
-                'status' => 'PENDING',
+                'status' => self::STATUS_PENDING,
+                'failure_code' => null,
                 'failure_reason' => null,
-                'metadata' => null,
+                'provider_metadata' => null,
                 'updated_at' => $now,
             ]);
 
@@ -166,14 +126,14 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
     public function markSent(
         string $tenantId,
         string $notificationId,
-        array $metadata = [],
+        array $providerMetadata = [],
     ): void {
-        $tenantId = $this->requireUuid(
+        $tenantId = $this->requireUuidV7(
             $tenantId,
             'Tenant identifier',
         );
 
-        $notificationId = $this->requireUuid(
+        $notificationId = $this->requireUuidV7(
             $notificationId,
             'Notification identifier',
         );
@@ -182,10 +142,11 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
             ->where('id', $notificationId)
             ->where('tenant_id', $tenantId)
             ->update([
-                'status' => 'SENT',
+                'status' => self::STATUS_SENT,
+                'failure_code' => null,
                 'failure_reason' => null,
-                'metadata' => $this->encodeMetadata(
-                    $metadata,
+                'provider_metadata' => $this->encodeProviderMetadata(
+                    $providerMetadata,
                 ),
                 'updated_at' => now(),
             ]);
@@ -200,17 +161,22 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
     public function markFailed(
         string $tenantId,
         string $notificationId,
+        string $failureCode,
         string $failureReason,
-        array $metadata = [],
+        array $providerMetadata = [],
     ): void {
-        $tenantId = $this->requireUuid(
+        $tenantId = $this->requireUuidV7(
             $tenantId,
             'Tenant identifier',
         );
 
-        $notificationId = $this->requireUuid(
+        $notificationId = $this->requireUuidV7(
             $notificationId,
             'Notification identifier',
+        );
+
+        $failureCode = $this->requireFailureCode(
+            $failureCode,
         );
 
         $failureReason = trim($failureReason);
@@ -225,10 +191,11 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
             ->where('id', $notificationId)
             ->where('tenant_id', $tenantId)
             ->update([
-                'status' => 'FAILED',
+                'status' => self::STATUS_FAILED,
+                'failure_code' => $failureCode,
                 'failure_reason' => $failureReason,
-                'metadata' => $this->encodeMetadata(
-                    $metadata,
+                'provider_metadata' => $this->encodeProviderMetadata(
+                    $providerMetadata,
                 ),
                 'updated_at' => now(),
             ]);
@@ -240,16 +207,13 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
         }
     }
 
-    private function requireUuid(
+    private function requireUuidV7(
         string $value,
         string $label,
     ): string {
         $value = trim($value);
 
-        if (
-            $value === ''
-            || ! Str::isUuid($value)
-        ) {
+        if (! UuidV7::validate($value)) {
             throw new InvalidArgumentException(
                 sprintf(
                     '%s is invalid.',
@@ -258,21 +222,57 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
             );
         }
 
-        return $value;
+        return strtolower($value);
+    }
+
+    private function requireChannel(string $channel): string
+    {
+        $channel = strtoupper(trim($channel));
+
+        if (
+            $channel === ''
+            || strlen($channel) > 30
+        ) {
+            throw new InvalidArgumentException(
+                'Notification channel is invalid.',
+            );
+        }
+
+        return $channel;
+    }
+
+    private function requireFailureCode(
+        string $failureCode,
+    ): string {
+        $failureCode = strtolower(trim($failureCode));
+
+        if (
+            $failureCode === ''
+            || preg_match(
+                '/\A[a-z0-9._-]{1,64}\z/',
+                $failureCode,
+            ) !== 1
+        ) {
+            throw new InvalidArgumentException(
+                'Notification failure code is invalid.',
+            );
+        }
+
+        return $failureCode;
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $providerMetadata
      */
-    private function encodeMetadata(
-        array $metadata,
+    private function encodeProviderMetadata(
+        array $providerMetadata,
     ): ?string {
-        if ($metadata === []) {
+        if ($providerMetadata === []) {
             return null;
         }
 
         return json_encode(
-            $metadata,
+            $providerMetadata,
             JSON_THROW_ON_ERROR,
         );
     }
@@ -280,23 +280,23 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
     /**
      * @return array<string, mixed>
      */
-    private function decodeMetadata(
-        mixed $metadata,
+    private function decodeProviderMetadata(
+        mixed $providerMetadata,
     ): array {
-        if (is_array($metadata)) {
-            return $metadata;
+        if (is_array($providerMetadata)) {
+            return $providerMetadata;
         }
 
         if (
-            ! is_string($metadata)
-            || trim($metadata) === ''
+            ! is_string($providerMetadata)
+            || trim($providerMetadata) === ''
         ) {
             return [];
         }
 
         try {
             $decoded = json_decode(
-                $metadata,
+                $providerMetadata,
                 true,
                 512,
                 JSON_THROW_ON_ERROR,

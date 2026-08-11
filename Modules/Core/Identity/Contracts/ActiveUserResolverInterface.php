@@ -9,9 +9,9 @@ use Modules\Core\Identity\Models\User;
 interface ActiveUserResolverInterface
 {
     /**
-     * Resolve canonical active global user berdasarkan UUID.
+     * Resolve canonical active global User account berdasarkan UUIDv7.
      *
-     * Identifier invalid, user tidak ditemukan, atau user non-ACTIVE
+     * Identifier bukan UUIDv7, user tidak ditemukan, atau user non-ACTIVE
      * selalu menghasilkan null.
      */
     public function findActiveById(

@@ -4,72 +4,23 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Authorization\Models\Membership;
+use Modules\Core\Identity\Models\User;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
-use RefreshDatabase;
 
 final class InjectTenantContextTest extends TestCase
 {
+    use RefreshDatabase;
 
-    /**
-     * @return array{
-     *     user_id: string,
-     *     tenant_id: string,
-     *     membership_id: string
-     * }
-     */
-    private function createCanonicalAuthenticationFixture(): array
-    {
-        $userId = Str::uuid()->toString();
-        $tenantId = Str::uuid()->toString();
-        $membershipId = Str::uuid()->toString();
-
-        DB::table('users')->insert([
-            'id' => $userId,
-            'name' => 'Inject Tenant Context User',
-            'email' => sprintf(
-                'inject-context-%s@educore.test',
-                Str::lower(Str::random(10)),
-            ),
-            'password' => bcrypt('secret123'),
-            'status' => 'ACTIVE',
-            'is_superadmin' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('tenants')->insert([
-            'id' => $tenantId,
-            'name' => 'Inject Tenant Context Tenant',
-            'subdomain' => sprintf(
-                'inject-context-%s',
-                Str::lower(Str::random(10)),
-            ),
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return [
-            'user_id' => $userId,
-            'tenant_id' => $tenantId,
-            'membership_id' => $membershipId,
-        ];
-    }
-
-    /**
-     * TokenManager mock yang digunakan untuk mengisolasi
-     * middleware dari implementasi token sebenarnya.
-     *
-     * @var TokenManagerInterface&MockObject
-     */
+    /** @var TokenManagerInterface&MockObject */
     private TokenManagerInterface $tokenManager;
 
     protected function setUp(): void
@@ -77,7 +28,7 @@ final class InjectTenantContextTest extends TestCase
         parent::setUp();
 
         $this->tokenManager = $this->createMock(
-            TokenManagerInterface::class
+            TokenManagerInterface::class,
         );
 
         $this->app->instance(
@@ -86,71 +37,48 @@ final class InjectTenantContextTest extends TestCase
         );
     }
 
-    private function middleware(): InjectTenantContext
+    protected function tearDown(): void
     {
-        return $this->app->make(
-            InjectTenantContext::class,
-        );
+        app(TenantContextInterface::class)->clear();
+        auth()->forgetGuards();
+
+        parent::tearDown();
     }
 
-
-    /**
-     * Token valid dengan user_id dan tenant_id wajib
-     * menghasilkan authentication context.
-     */
-    public function test_valid_token_injects_authenticated_user_and_tenant_context(): void
+    public function test_valid_token_injects_canonical_user_membership_and_tenant_context(): void
     {
         $fixture = $this->createCanonicalAuthenticationFixture();
 
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('valid-token')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-                'tenant_id' => $fixture['tenant_id'],
-                'membership_id' => $fixture['membership_id'],
-            ]);
-
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' => 'Bearer valid-token',
-            ],
+        $this->expectTokenClaims(
+            'valid-token',
+            $fixture,
         );
 
-        $middleware = $this->middleware();
+        $request = $this->bearerRequest('valid-token');
 
-        $response = $middleware->handle(
+        $response = $this->middleware()->handle(
             $request,
             function (Request $request) use ($fixture): Response {
                 $this->assertSame(
                     $fixture['user_id'],
                     auth()->id(),
                 );
-
                 $this->assertSame(
                     $fixture['user_id'],
                     $request->attributes->get('authenticated_user_id'),
                 );
-
                 $this->assertSame(
                     $fixture['tenant_id'],
                     $request->attributes->get('authenticated_tenant_id'),
                 );
-
+                $this->assertSame(
+                    $fixture['membership_id'],
+                    $request->attributes->get('authenticated_membership_id'),
+                );
                 $this->assertSame(
                     $fixture['tenant_id'],
                     app(TenantContextInterface::class)
                         ->getCurrentTenantId(),
-                );
-
-                $this->assertSame(
-                    $fixture['membership_id'],
-                    $request->attributes->get(
-                        'authenticated_membership_id',
-                    ),
                 );
 
                 return response()->json([
@@ -164,140 +92,39 @@ final class InjectTenantContextTest extends TestCase
             $response->getStatusCode(),
         );
 
-        /*
-     * Middleware melakukan cleanup setelah request selesai.
-     */
+        $this->assertNull(auth()->user());
         $this->assertNull(
             app(TenantContextInterface::class)
                 ->getCurrentTenantId(),
         );
-
         $this->assertNull(
-            $request->attributes->get(
-                'authenticated_membership_id',
-            ),
-        );
-
-        $this->assertNull(auth()->user());
-    }
-
-    /**
-     * Token invalid wajib ditolak.
-     */
-    public function test_invalid_token_is_rejected(): void
-    {
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('invalid-token')
-            ->willReturn(null);
-
-        $request = Request::create(
-            '/v1/test',
-            'GET'
-        );
-
-        $request->headers->set(
-            'Authorization',
-            'Bearer invalid-token'
-        );
-
-        $middleware = $this->middleware();
-
-        $response = $middleware->handle(
-            $request,
-            function (): Response {
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            }
-        );
-
-        $this->assertSame(
-            403,
-            $response->getStatusCode()
-        );
-
-        $responseData = json_decode(
-            $response->getContent(),
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
-
-        $this->assertSame(
-            'error',
-            $responseData['status']
+            $request->attributes->get('authenticated_membership_id'),
         );
     }
 
-    /**
-     * Token tanpa user_id wajib ditolak.
-     */
-    public function test_token_without_user_id_is_rejected(): void
-    {
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('missing-user-token')
-            ->willReturn([
-                'tenant_id' => 'tenant-uuid-456',
-            ]);
-
-        $request = Request::create(
-            '/v1/test',
-            'GET'
-        );
-
-        $request->headers->set(
-            'Authorization',
-            'Bearer missing-user-token'
-        );
-
-        $middleware = $this->middleware();
-
-        $response = $middleware->handle(
-            $request,
-            function (): Response {
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            }
-        );
-
-        $this->assertSame(
-            403,
-            $response->getStatusCode()
-        );
-    }
-
-    /**
-     * Token tanpa tenant_id wajib ditolak.
-     */
-    public function test_token_without_tenant_id_is_rejected(): void
+    public function test_membership_owned_by_another_person_is_rejected(): void
     {
         $fixture = $this->createCanonicalAuthenticationFixture();
+        $otherUser = User::factory()->create();
 
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('token-without-tenant')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-            ]);
+        $forgedMembership = Membership::query()->create([
+            'person_id' => $otherUser->person_id,
+            'tenant_id' => $fixture['tenant_id'],
+            'status' => 'ACTIVE',
+        ]);
 
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' => 'Bearer token-without-tenant',
-            ],
+        $claims = $fixture;
+        $claims['membership_id'] = (string) $forgedMembership->getKey();
+
+        $this->expectTokenClaims(
+            'forged-membership-token',
+            $claims,
         );
 
         $nextWasCalled = false;
 
         $response = $this->middleware()->handle(
-            $request,
+            $this->bearerRequest('forged-membership-token'),
             static function () use (&$nextWasCalled): Response {
                 $nextWasCalled = true;
 
@@ -311,63 +138,201 @@ final class InjectTenantContextTest extends TestCase
             Response::HTTP_FORBIDDEN,
             $response->getStatusCode(),
         );
-
-        $this->assertFalse(
-            $nextWasCalled,
-            'Request tanpa tenant_id tidak boleh diteruskan.',
-        );
-
-        $this->assertSame(
-            'error',
-            $response->getData(true)['status'] ?? null,
-        );
-
+        $this->assertFalse($nextWasCalled);
         $this->assertNull(auth()->user());
-
         $this->assertNull(
             app(TenantContextInterface::class)
                 ->getCurrentTenantId(),
         );
     }
 
-    /**
-     * Role yang mungkin terdapat di dalam token tidak boleh
-     * diinjeksi sebagai authenticated_role.
-     *
-     * Authentication context hanya berisi identity.
-     */
-    public function test_role_claim_is_not_injected_into_request_context(): void
+    public function test_membership_from_another_tenant_is_rejected(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+        $otherTenant = Tenant::query()->create([
+            'name' => 'Other Tenant',
+            'subdomain' => 'other-' . strtolower(fake()->lexify('????????')),
+            'is_active' => true,
+        ]);
+
+        $otherMembership = Membership::query()->create([
+            'person_id' => $fixture['person_id'],
+            'tenant_id' => $otherTenant->getKey(),
+            'status' => 'ACTIVE',
+        ]);
+
+        $claims = $fixture;
+        $claims['membership_id'] = (string) $otherMembership->getKey();
+
+        $this->expectTokenClaims(
+            'cross-tenant-membership-token',
+            $claims,
+        );
+
+        $response = $this->middleware()->handle(
+            $this->bearerRequest('cross-tenant-membership-token'),
+            static fn(): Response => response()->json([
+                'status' => 'success',
+            ]),
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+    }
+
+    public function test_suspended_user_is_rejected(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture(
+            userStatus: 'SUSPENDED',
+        );
+
+        $this->expectTokenClaims(
+            'suspended-user-token',
+            $fixture,
+        );
+
+        $response = $this->middleware()->handle(
+            $this->bearerRequest('suspended-user-token'),
+            static fn(): Response => response()->json([
+                'status' => 'success',
+            ]),
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+    }
+
+    public function test_inactive_tenant_is_rejected(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture(
+            tenantActive: false,
+        );
+
+        $this->expectTokenClaims(
+            'inactive-tenant-token',
+            $fixture,
+        );
+
+        $response = $this->middleware()->handle(
+            $this->bearerRequest('inactive-tenant-token'),
+            static fn(): Response => response()->json([
+                'status' => 'success',
+            ]),
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+    }
+
+    public function test_missing_or_invalid_token_is_rejected(): void
+    {
+        $this->tokenManager
+            ->expects($this->once())
+            ->method('validateAndExtract')
+            ->with('invalid-token')
+            ->willReturn(null);
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $this->middleware()->handle(
+                $this->bearerRequest('invalid-token'),
+                static fn(): Response => response()->json([]),
+            )->getStatusCode(),
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $this->middleware()->handle(
+                Request::create('/api/protected', 'GET'),
+                static fn(): Response => response()->json([]),
+            )->getStatusCode(),
+        );
+    }
+
+    public function test_missing_membership_claim_is_rejected(): void
     {
         $fixture = $this->createCanonicalAuthenticationFixture();
 
         $this->tokenManager
             ->expects($this->once())
             ->method('validateAndExtract')
-            ->with('valid-token-with-role')
+            ->with('missing-membership-token')
             ->willReturn([
                 'user_id' => $fixture['user_id'],
                 'tenant_id' => $fixture['tenant_id'],
-                'membership_id' => $fixture['membership_id'],
-                'role' => 'admin',
             ]);
 
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' => 'Bearer valid-token-with-role',
-            ],
+        $response = $this->middleware()->handle(
+            $this->bearerRequest('missing-membership-token'),
+            static fn(): Response => response()->json([]),
         );
 
-        $middleware = $this->middleware();
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $response->getStatusCode(),
+        );
+    }
 
-        $response = $middleware->handle(
-            $request,
+    public function test_malformed_tenant_or_membership_claim_is_rejected(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+
+        $this->tokenManager
+            ->expects($this->exactly(2))
+            ->method('validateAndExtract')
+            ->willReturnOnConsecutiveCalls(
+                [
+                    'user_id' => $fixture['user_id'],
+                    'tenant_id' => 'not-a-uuid',
+                    'membership_id' => $fixture['membership_id'],
+                ],
+                [
+                    'user_id' => $fixture['user_id'],
+                    'tenant_id' => $fixture['tenant_id'],
+                    'membership_id' => 'not-a-uuid',
+                ],
+            );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $this->middleware()->handle(
+                $this->bearerRequest('bad-tenant-token'),
+                static fn(): Response => response()->json([]),
+            )->getStatusCode(),
+        );
+
+        $this->assertSame(
+            Response::HTTP_FORBIDDEN,
+            $this->middleware()->handle(
+                $this->bearerRequest('bad-membership-token'),
+                static fn(): Response => response()->json([]),
+            )->getStatusCode(),
+        );
+    }
+
+    public function test_role_claim_is_not_injected_into_request_context(): void
+    {
+        $fixture = $this->createCanonicalAuthenticationFixture();
+        $claims = $fixture;
+        $claims['role'] = 'admin';
+
+        $this->expectTokenClaims(
+            'role-claim-token',
+            $claims,
+        );
+
+        $response = $this->middleware()->handle(
+            $this->bearerRequest('role-claim-token'),
             function (Request $request): Response {
                 $this->assertFalse(
                     $request->attributes->has('role'),
                 );
-
                 $this->assertFalse(
                     $request->attributes->has('authenticated_role'),
                 );
@@ -385,343 +350,70 @@ final class InjectTenantContextTest extends TestCase
     }
 
     /**
-     * Request tanpa Bearer token wajib ditolak.
+     * @return array{
+     *     user_id: string,
+     *     person_id: string,
+     *     tenant_id: string,
+     *     membership_id: string
+     * }
      */
-    public function test_request_without_bearer_token_is_rejected(): void
-    {
-        $this->tokenManager
-            ->expects($this->never())
-            ->method('validateAndExtract');
-
-        $request = Request::create(
-            '/v1/test',
-            'GET'
-        );
-
-        $middleware = $this->middleware();
-
-        $response = $middleware->handle(
-            $request,
-            function (): Response {
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            }
-        );
-
-        $this->assertSame(
-            403,
-            $response->getStatusCode()
-        );
-    }
-
-    public function test_suspended_user_is_rejected(): void
-    {
-        $userId = Str::uuid()->toString();
-        $tenantId = Str::uuid()->toString();
-
-        DB::table('users')->insert([
-            'id' => $userId,
-            'name' => 'Suspended Tenant User',
-            'email' => sprintf(
-                'suspended-tenant-%s@educore.test',
-                Str::lower(Str::random(10)),
-            ),
-            'password' => bcrypt('secret123'),
-            'status' => 'SUSPENDED',
-            'is_superadmin' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+    private function createCanonicalAuthenticationFixture(
+        string $userStatus = 'ACTIVE',
+        bool $tenantActive = true,
+    ): array {
+        $user = User::factory()->create([
+            'status' => $userStatus,
         ]);
 
-        DB::table('tenants')->insert([
-            'id' => $tenantId,
-            'name' => 'Suspended User Tenant',
-            'subdomain' => sprintf(
-                'suspended-user-%s',
-                Str::lower(Str::random(10)),
-            ),
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
+        $tenant = Tenant::query()->create([
+            'name' => 'Inject Tenant Context Tenant',
+            'subdomain' => 'inject-' . strtolower(fake()->lexify('????????')),
+            'is_active' => $tenantActive,
         ]);
 
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('suspended-user-token')
-            ->willReturn([
-                'user_id' => $userId,
-                'tenant_id' => $tenantId,
-            ]);
+        $membership = Membership::query()->create([
+            'person_id' => $user->person_id,
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'ACTIVE',
+        ]);
 
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' => 'Bearer suspended-user-token',
-            ],
-        );
-
-        $middleware = $this->middleware();
-
-        $nextWasCalled = false;
-
-        $response = $middleware->handle(
-            $request,
-            static function () use (&$nextWasCalled): Response {
-                $nextWasCalled = true;
-
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            },
-        );
-
-        $this->assertSame(
-            Response::HTTP_FORBIDDEN,
-            $response->getStatusCode(),
-        );
-
-        $this->assertFalse(
-            $nextWasCalled,
-            'Request dengan user suspended tidak boleh diteruskan.',
-        );
-
-        $this->assertSame(
-            'error',
-            $response->getData(true)['status'] ?? null,
-        );
-
-        $this->assertNull(
-            auth()->user(),
-        );
-
-        $this->assertNull(
-            app(TenantContextInterface::class)
-                ->getCurrentTenantId(),
-        );
+        return [
+            'user_id' => (string) $user->getKey(),
+            'person_id' => (string) $user->person_id,
+            'tenant_id' => (string) $tenant->getKey(),
+            'membership_id' => (string) $membership->getKey(),
+        ];
     }
 
-    public function test_malformed_tenant_id_claim_is_rejected(): void
-    {
-        $fixture = $this->createCanonicalAuthenticationFixture();
-
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('malformed-tenant-id-token')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-                'tenant_id' => 'tenant-uuid-123',
-            ]);
-
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' => 'Bearer malformed-tenant-id-token',
-            ],
-        );
-
-        $nextWasCalled = false;
-
-        $response = $this->middleware()->handle(
-            $request,
-            static function () use (&$nextWasCalled): Response {
-                $nextWasCalled = true;
-
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            },
-        );
-
-        $this->assertSame(
-            Response::HTTP_FORBIDDEN,
-            $response->getStatusCode(),
-        );
-
-        $this->assertFalse(
-            $nextWasCalled,
-            'Request dengan tenant_id malformed tidak boleh diteruskan.',
-        );
-
-        $this->assertSame(
-            'error',
-            $response->getData(true)['status'] ?? null,
-        );
-
-        $this->assertNull(auth()->user());
-
-        $this->assertNull(
-            app(TenantContextInterface::class)
-                ->getCurrentTenantId(),
-        );
-    }
-
-    public function test_valid_token_injects_authenticated_membership_context(): void
-    {
-        $fixture = $this->createCanonicalAuthenticationFixture();
-
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('valid-membership-token')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-                'tenant_id' => $fixture['tenant_id'],
-                'membership_id' => $fixture['membership_id'],
-            ]);
-
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' =>
-                'Bearer valid-membership-token',
-            ],
-        );
-
-        $observedMembershipId = null;
-
-        $response = $this->middleware()->handle(
-            $request,
-            function (
-                Request $request,
-            ) use (&$observedMembershipId): Response {
-                $observedMembershipId =
-                    $request->attributes->get(
-                        'authenticated_membership_id',
-                    );
-
-                return response()->json([
-                    'status' => 'success',
-                ]);
-            },
-        );
-
-        $this->assertSame(
-            Response::HTTP_OK,
-            $response->getStatusCode(),
-        );
-
-        $this->assertSame(
-            $fixture['membership_id'],
-            $observedMembershipId,
-        );
-
-        /*
-     * Mutable request context wajib dibersihkan setelah
-     * downstream lifecycle selesai.
+    /**
+     * @param array<string, mixed> $claims
      */
-        $this->assertNull(
-            $request->attributes->get(
-                'authenticated_membership_id',
-            ),
-        );
-    }
-
-    public function test_token_without_membership_id_is_rejected(): void
-    {
-        $fixture = $this->createCanonicalAuthenticationFixture();
-
+    private function expectTokenClaims(
+        string $token,
+        array $claims,
+    ): void {
         $this->tokenManager
             ->expects($this->once())
             ->method('validateAndExtract')
-            ->with('missing-membership-token')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-                'tenant_id' => $fixture['tenant_id'],
-            ]);
+            ->with($token)
+            ->willReturn($claims);
+    }
 
-        $request = Request::create(
+    private function bearerRequest(string $token): Request
+    {
+        return Request::create(
             '/api/protected',
             'GET',
             server: [
-                'HTTP_AUTHORIZATION' =>
-                'Bearer missing-membership-token',
+                'HTTP_AUTHORIZATION' => 'Bearer ' . $token,
             ],
-        );
-
-        $downstreamExecuted = false;
-
-        $response = $this->middleware()->handle(
-            $request,
-            function () use (&$downstreamExecuted): Response {
-                $downstreamExecuted = true;
-
-                return response()->json([
-                    'status' => 'should-not-run',
-                ]);
-            },
-        );
-
-        $this->assertSame(
-            Response::HTTP_FORBIDDEN,
-            $response->getStatusCode(),
-        );
-
-        $this->assertFalse(
-            $downstreamExecuted,
-        );
-
-        $this->assertFalse(
-            $request->attributes->has(
-                'authenticated_membership_id',
-            ),
         );
     }
 
-    public function test_malformed_membership_id_claim_is_rejected(): void
+    private function middleware(): InjectTenantContext
     {
-        $fixture = $this->createCanonicalAuthenticationFixture();
-
-        $this->tokenManager
-            ->expects($this->once())
-            ->method('validateAndExtract')
-            ->with('malformed-membership-token')
-            ->willReturn([
-                'user_id' => $fixture['user_id'],
-                'tenant_id' => $fixture['tenant_id'],
-                'membership_id' => 'not-a-uuid',
-            ]);
-
-        $request = Request::create(
-            '/api/protected',
-            'GET',
-            server: [
-                'HTTP_AUTHORIZATION' =>
-                'Bearer malformed-membership-token',
-            ],
-        );
-
-        $downstreamExecuted = false;
-
-        $response = $this->middleware()->handle(
-            $request,
-            function () use (&$downstreamExecuted): Response {
-                $downstreamExecuted = true;
-
-                return response()->json([
-                    'status' => 'should-not-run',
-                ]);
-            },
-        );
-
-        $this->assertSame(
-            Response::HTTP_FORBIDDEN,
-            $response->getStatusCode(),
-        );
-
-        $this->assertFalse(
-            $downstreamExecuted,
-        );
-
-        $this->assertFalse(
-            $request->attributes->has(
-                'authenticated_membership_id',
-            ),
+        return $this->app->make(
+            InjectTenantContext::class,
         );
     }
 }

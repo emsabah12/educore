@@ -7,6 +7,7 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\RequireGlobalSuperadmin;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Core\Http\Controllers\Api\v1\HealthCheckController;
+use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
 
@@ -64,6 +65,27 @@ Route::middleware([
         '/v1/core/notifications/dispatch',
         [NotificationController::class, 'send']
     )->name('api.v1.core.notifications.dispatch');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Tenant-Scoped Authorization Administration
+|--------------------------------------------------------------------------
+|
+| Role definitions are global, but discovery is exposed only inside a valid
+| tenant administration context. This keeps discovery aligned with the role
+| assignment boundary without making Role tenant-owned.
+|
+*/
+
+Route::middleware([
+    InjectTenantContext::class,
+    'tenant.role:admin',
+])->group(function (): void {
+    Route::get(
+        '/v1/core/authorization/roles',
+        '\\'.RoleCatalogController::class,
+    )->name('api.v1.core.authorization.roles.index');
 });
 
 /*

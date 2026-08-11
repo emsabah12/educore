@@ -83,6 +83,8 @@ final class NotificationPlatformTest extends TestCase
 
     private string $tenantId;
 
+    private string $personId;
+
     private string $userId;
 
     private string $membershipId;
@@ -96,6 +98,9 @@ final class NotificationPlatformTest extends TestCase
         $this->tenantId =
             '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
 
+        $this->personId =
+            '019f62f3-f5b5-7216-9578-0af9cb3b5b53';
+
         $this->userId =
             '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
 
@@ -106,9 +111,17 @@ final class NotificationPlatformTest extends TestCase
             TokenManagerInterface::class,
         );
 
+        DB::table('persons')->insert([
+            'id' => $this->personId,
+            'name' => 'Notification Platform User',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('users')->insert([
             'id' => $this->userId,
-            'name' => 'Notification Platform User',
+            'person_id' => $this->personId,
             'email' => sprintf(
                 'notification-platform-%s@educore.test',
                 Str::lower(
@@ -133,15 +146,8 @@ final class NotificationPlatformTest extends TestCase
 
         DB::table('memberships')->insert([
             'id' => $this->membershipId,
-            'user_id' => $this->userId,
+            'person_id' => $this->personId,
             'tenant_id' => $this->tenantId,
-
-            /*
-     * Legacy schema compatibility only.
-     * Authorization tidak membaca field role ini.
-     */
-            'role' => 'notification-user',
-
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
@@ -315,14 +321,14 @@ final class NotificationPlatformTest extends TestCase
             new class implements AuditTrailServiceInterface
             {
                 /**
-                 * @param array<string, mixed>|null $payload
+                 * @param array<string, mixed>|null $metadata
                  */
                 public function log(
                     string $eventType,
                     string $description,
                     ?string $tenantId = null,
-                    ?string $userId = null,
-                    ?array $payload = null,
+                    ?string $actorUserId = null,
+                    ?array $metadata = null,
                 ): void {
                     throw new RuntimeException(
                         'Simulated notification audit failure.',

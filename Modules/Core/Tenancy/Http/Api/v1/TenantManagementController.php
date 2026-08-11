@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
+use Modules\Core\Tenancy\Exceptions\InvalidInitialTenantAdminException;
+use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
 use Modules\Core\Tenancy\Http\Requests\ListTenantsRequest;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantRequest;
@@ -21,6 +23,7 @@ final class TenantManagementController extends Controller
 {
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository,
+        private readonly TenantProvisioningService $tenantProvisioningService,
         private readonly AuditTrailServiceInterface $auditTrail,
     ) {}
 
@@ -73,20 +76,38 @@ final class TenantManagementController extends Controller
     public function store(
         StoreTenantRequest $request,
     ): JsonResponse {
-        $payload = $request->safe()->only([
+        $validated = $request->safe()->only([
             'name',
             'subdomain',
             'is_active',
+            'initial_admin_user_id',
         ]);
+
+        $initialAdminUserId = (string) (
+            $validated['initial_admin_user_id'] ?? ''
+        );
+
+        unset($validated['initial_admin_user_id']);
 
         $operatorId = $this->resolveOperatorId(
             $request,
         );
 
         try {
-            $tenant = $this->tenantRepository->create(
-                $payload,
+            $result = $this->tenantProvisioningService->provision(
+                $validated,
+                $initialAdminUserId,
             );
+        } catch (InvalidInitialTenantAdminException $exception) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'The selected initial admin user is not eligible.',
+                'errors' => [
+                    'initial_admin_user_id' => [
+                        $exception->getMessage(),
+                    ],
+                ],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Throwable $exception) {
             $this->logOperationFailure(
                 exception: $exception,
@@ -99,7 +120,15 @@ final class TenantManagementController extends Controller
             );
         }
 
+        $tenant = $result['tenant'];
+        $initialAdmin = $result['initial_admin'];
         $tenantId = (string) $tenant['id'];
+
+        $auditPayload = $validated;
+        $auditPayload['initial_admin_user_id'] =
+            $initialAdmin['user_id'];
+        $auditPayload['initial_admin_membership_id'] =
+            $initialAdmin['membership_id'];
 
         $this->recordAuditSafely(
             eventType: 'tenant.created',
@@ -110,13 +139,18 @@ final class TenantManagementController extends Controller
             ),
             tenantId: $tenantId,
             operatorId: $operatorId,
-            payload: $payload,
+            payload: $auditPayload,
         );
 
         return response()->json([
             'status' => 'success',
             'message' => 'Tenant registered successfully.',
-            'data' => $tenant,
+            'data' => array_merge(
+                $tenant,
+                [
+                    'initial_admin' => $initialAdmin,
+                ],
+            ),
         ], Response::HTTP_CREATED);
     }
 
@@ -207,7 +241,7 @@ final class TenantManagementController extends Controller
         } catch (Throwable $exception) {
             /*
              * Defense-in-depth apabila implementation audit lain
-             * tidak menerapkan fail-safe seperti DatabaseAuditTrailService.
+             * tidak menerapkan fail-safe seperti canonical audit persistence.
              */
             Log::critical(
                 'Tenant audit trail failed.',
