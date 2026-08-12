@@ -39,4 +39,32 @@ final class ManifestDrivenModuleProviderActivationTest extends TestCase
             }
         }
     }
+
+    public function test_module_repository_is_dependency_ordered(): void
+    {
+        /** @var ModuleRepository $repository */
+        $repository = $this->app->make(ModuleRepository::class);
+        $definitions = $repository->all();
+        $positions = array_flip(array_keys($definitions));
+
+        foreach ($definitions as $moduleName => $definition) {
+            foreach ($definition->dependencies as $dependency) {
+                $this->assertArrayHasKey(
+                    $dependency,
+                    $positions,
+                    sprintf('Dependency [%s] for module [%s] is missing.', $dependency, $moduleName),
+                );
+
+                $this->assertLessThan(
+                    $positions[$moduleName],
+                    $positions[$dependency],
+                    sprintf(
+                        'Dependency [%s] must be registered before module [%s].',
+                        $dependency,
+                        $moduleName,
+                    ),
+                );
+            }
+        }
+    }
 }

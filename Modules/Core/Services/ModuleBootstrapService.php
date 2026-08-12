@@ -57,6 +57,6 @@ final readonly class ModuleBootstrapService
             );
         }
 
-        return $this->moduleloader->load($definitions);
+        return $this->moduleloader->load($orderedDefinitions);
     }
 }

@@ -10,6 +10,8 @@ use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
 use Modules\Core\Manifest\ModuleManifestValidator;
 use Modules\Core\Platform\Registry\ModuleRegistry;
+use Modules\Core\Exceptions\CircularDependencyException;
+use Modules\Core\Exceptions\MissingModuleDependencyException;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Dependency\DependencyResolver;
@@ -99,6 +101,85 @@ final class ModuleBootstrapServiceTest extends TestCase
         $this->assertTrue($this->registryStorage->has('Academic'));
         $this->assertTrue($this->registryStorage->has('PPDB'));
         $this->assertSame(2, $this->registryStorage->count());
+    }
+
+    public function test_bootstrap_registers_modules_in_dependency_order(): void
+    {
+        $academic = ModuleFixtureBuilder::make()
+            ->manifest(
+                ManifestBuilder::make()
+                    ->name('Academic')
+                    ->dependencies(['HR'])
+            )
+            ->build();
+
+        $core = ModuleFixtureBuilder::make()
+            ->manifest(ManifestBuilder::make()->name('core'))
+            ->build();
+
+        $hr = ModuleFixtureBuilder::make()
+            ->manifest(
+                ManifestBuilder::make()
+                    ->name('HR')
+                    ->dependencies(['core'])
+            )
+            ->build();
+
+        // Create deliberately out of dependency order. Discovery order must not
+        // become bootstrap/provider order.
+        $this->filesystem->create($academic);
+        $this->filesystem->create($core);
+        $this->filesystem->create($hr);
+
+        $registry = $this->bootstrapService->bootstrap($this->filesystem->path());
+
+        $this->assertSame(
+            ['core', 'HR', 'Academic'],
+            array_keys($registry->all()),
+        );
+    }
+
+    public function test_bootstrap_fails_fast_when_dependency_is_missing(): void
+    {
+        $academic = ModuleFixtureBuilder::make()
+            ->manifest(
+                ManifestBuilder::make()
+                    ->name('Academic')
+                    ->dependencies(['HR'])
+            )
+            ->build();
+
+        $this->filesystem->create($academic);
+
+        $this->expectException(MissingModuleDependencyException::class);
+
+        $this->bootstrapService->bootstrap($this->filesystem->path());
+    }
+
+    public function test_bootstrap_fails_fast_when_dependency_cycle_is_detected(): void
+    {
+        $moduleA = ModuleFixtureBuilder::make()
+            ->manifest(
+                ManifestBuilder::make()
+                    ->name('ModuleA')
+                    ->dependencies(['ModuleB'])
+            )
+            ->build();
+
+        $moduleB = ModuleFixtureBuilder::make()
+            ->manifest(
+                ManifestBuilder::make()
+                    ->name('ModuleB')
+                    ->dependencies(['ModuleA'])
+            )
+            ->build();
+
+        $this->filesystem->create($moduleA);
+        $this->filesystem->create($moduleB);
+
+        $this->expectException(CircularDependencyException::class);
+
+        $this->bootstrapService->bootstrap($this->filesystem->path());
     }
 
     /**
