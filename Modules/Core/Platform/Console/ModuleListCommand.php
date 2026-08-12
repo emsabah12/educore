@@ -6,57 +6,66 @@ namespace Modules\Core\Platform\Console;
 
 use Illuminate\Console\Command;
 use Modules\Core\Services\ModuleRepository;
-use Modules\Core\Services\ModuleStateRepository;
 use Throwable;
 
 class ModuleListCommand extends Command
 {
     protected $signature = 'module:list';
-    protected $description = 'Display a list of all discovered modules and their runtime states';
 
-    public function handle(
-        ModuleRepository $moduleRepository,
-        ModuleStateRepository $stateRepository
-    ): int {
-        $this->components->info('EduCore Platform Kernel — Module Discovery System');
+    protected $description = 'Display all discovered modules and their manifest metadata';
+
+    public function handle(ModuleRepository $moduleRepository): int
+    {
+        $this->components->info('EduCore Platform Kernel — Discovered Modules');
 
         try {
             $modules = $moduleRepository->all();
 
-            if (empty($modules)) {
+            if ($modules === []) {
                 $this->components->warn('No modules discovered in the system.');
+
                 return self::SUCCESS;
             }
 
-            $headers = ['Module Name', 'Version', 'Description', 'Runtime State'];
             $rows = [];
 
             foreach ($modules as $module) {
-                // Defensif check terhadap gaya penamaan method di Entity
-                $name = method_exists($module, 'getName') ? $module->getName() : $module->name;
-                $version = method_exists($module, 'getVersion') ? $module->getVersion() : $module->version;
-                $description = method_exists($module, 'getDescription') ? $module->getDescription() : $module->description;
-
-                $isEnabled = $stateRepository->isEnabled($name);
-
                 $rows[] = [
-                    $name,
-                    $version ?? '0.0.0',
-                    $description ?? '-',
-                    $isEnabled
-                        ? '<fg=green;options=bold>Active</>'
-                        : '<fg=red;options=bold>Inactive</>'
+                    $module->name,
+                    $module->displayName,
+                    $module->version,
+                    $module->description,
+                    $module->dependencies === []
+                        ? '-'
+                        : implode(', ', $module->dependencies),
                 ];
             }
 
-            $this->table($headers, $rows);
+            $this->table(
+                [
+                    'Technical Identifier',
+                    'Display Name',
+                    'Version',
+                    'Description',
+                    'Dependencies',
+                ],
+                $rows,
+            );
+
             $this->newLine();
-            $this->components->twoColumnDetail('Total Discovered Modules', (string) count($modules));
+            $this->components->twoColumnDetail(
+                'Total Discovered Modules',
+                (string) count($modules),
+            );
 
             return self::SUCCESS;
-        } catch (Throwable $e) {
-            $this->components->error('An error occurred while loading modules.');
-            $this->line(sprintf('<fg=red>Exception: %s</>', $e->getMessage()));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $this->components->error(
+                'Unable to list discovered modules. Check the application logs for details.',
+            );
+
             return self::FAILURE;
         }
     }

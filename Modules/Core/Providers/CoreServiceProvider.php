@@ -31,10 +31,8 @@ use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
-use Modules\Core\Platform\Module\Services\ModuleManager;
 use Modules\Core\Platform\Module\Services\ModuleProviderRegistrar;
 use Modules\Core\Services\ModuleRepository;
-use Modules\Core\Services\ModuleStateRepository;
 use Modules\Core\Services\DependencyResolver;
 use Modules\Core\Services\EventDiscoveryService;
 use Modules\Core\Person\Repositories\EloquentPersonRepository;
@@ -43,8 +41,6 @@ use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
 use Modules\Core\Person\Repositories\EloquentPersonLifecycleEventRepository;
 use Modules\Core\Platform\Console\ModuleListCommand;
 use Modules\Core\Platform\Console\ModuleStatusCommand;
-use Modules\Core\Platform\Console\ModuleEnableCommand;
-use Modules\Core\Platform\Console\ModuleDisableCommand;
 use Modules\Core\Tests\Console\TestModuleLoaderCommand;
 use Modules\Core\Platform\Console\KernelHealthCheckCommand;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
@@ -74,13 +70,6 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleLoader::class);
         $this->app->singleton(ModuleBootstrapService::class);
         $this->app->singleton(ModuleProviderRegistrar::class);
-
-        // 2. Runtime State Repository dengan target file terisolasi
-        $this->app->singleton(ModuleStateRepository::class, function (): ModuleStateRepository {
-            return new ModuleStateRepository(
-                storage_path('framework/modules.json')
-            );
-        });
 
         // 3. Source of Truth Metadata - Di-resolve murni sebagai objek kosong terlebih dahulu
         $this->app->singleton(ModuleRegistry::class, function (): ModuleRegistry {
@@ -113,14 +102,6 @@ final class CoreServiceProvider extends ServiceProvider
             }
 
             return new ModuleRepository($registry);
-        });
-
-        // 5. Abstraksi Lapisan Perubahan (Command Service Model)
-        $this->app->singleton(ModuleManager::class, function ($app): ModuleManager {
-            return new ModuleManager(
-                $app->make(ModuleRepository::class),
-                $app->make(ModuleStateRepository::class)
-            );
         });
 
         if (method_exists($this, 'registerBlueprintMacros')) {
@@ -271,8 +252,6 @@ final class CoreServiceProvider extends ServiceProvider
                 KernelHealthCheckCommand::class,
                 ModuleListCommand::class,
                 ModuleStatusCommand::class,
-                ModuleEnableCommand::class,
-                ModuleDisableCommand::class,
                 TestModuleLoaderCommand::class,
             ]);
         }
