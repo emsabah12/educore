@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Academic\Database\Seeders\AcademicAuthorizationCatalogSeeder;
 use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Person\Models\PersonModel;
@@ -18,6 +19,7 @@ final class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(AuthorizationCatalogSeeder::class);
+        $this->call(AcademicAuthorizationCatalogSeeder::class);
 
         $person = PersonModel::factory()->create([
             'name' => 'Test User',

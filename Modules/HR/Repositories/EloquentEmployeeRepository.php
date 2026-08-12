@@ -4,115 +4,122 @@ declare(strict_types=1);
 
 namespace Modules\HR\Repositories;
 
-use Modules\HR\Contracts\EmployeeRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
+use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Support\Uuid\UuidV7;
-use Illuminate\Support\Facades\Hash;
+use Modules\HR\Contracts\EmployeeRepositoryInterface;
+use Modules\HR\Models\Employee;
 
 final class EloquentEmployeeRepository implements EmployeeRepositoryInterface
 {
-    /**
-     * Mengambil daftar employee terisolasi berdasarkan scope tenant_id dengan teknik JOIN Relasional.
-     */
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
-    {
-        return DB::table('employees')
-            ->join('memberships', 'employees.membership_id', '=', 'memberships.id')
-            ->join('users', 'memberships.user_id', '=', 'users.id')
-            ->select([
-                'employees.id as employee_id',
-                'employees.tenant_id',
-                'employees.nip',
-                'employees.jabatan',
-                'users.name as nama',
-                'users.email',
-                'memberships.status as status_aktif',
-                'employees.created_at'
-            ])
-            ->where('employees.tenant_id', '=', $tenantId)
-            ->orderBy('employees.created_at', 'desc')
+    public function getByTenantPaginated(
+        string $tenantId,
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        return $this->baseTenantQuery($tenantId)
+            ->orderBy('persons.name')
+            ->orderBy('employees.id')
             ->paginate($perPage);
     }
 
-    /**
-     * Mendapatkan spesifik detail employee dengan kawalan ketat cross-tenant block check via JOIN.
-     */
-    public function findByIdForTenant(string $id, string $tenantId): array
-    {
-        $employee = DB::table('employees')
-            ->join('memberships', 'employees.membership_id', '=', 'memberships.id')
-            ->join('users', 'memberships.user_id', '=', 'users.id')
-            ->select([
-                'employees.id as employee_id',
-                'employees.tenant_id',
-                'employees.membership_id',
-                'employees.nip',
-                'employees.jabatan',
-                'users.id as user_id',
-                'users.name as nama',
-                'users.email',
-                'memberships.status as status_aktif',
-                'employees.created_at'
-            ])
-            ->where('employees.id', '=', $id)
-            ->where('employees.tenant_id', '=', $tenantId)
+    public function findByIdForTenant(
+        string $id,
+        string $tenantId,
+    ): array {
+        $employee = $this->baseTenantQuery($tenantId)
+            ->where('employees.id', $id)
             ->first();
 
-        if (! $employee) {
-            throw new ModelNotFoundException(
-                sprintf('Data staf employee dengan ID %s tidak ditemukan pada lembaga ini.', $id)
+        if ($employee === null) {
+            throw (new ModelNotFoundException())->setModel(
+                Employee::class,
+                [$id],
             );
         }
 
         return (array) $employee;
     }
 
-    /**
-     * Menyimpan data employee secara atomik lintas 3 tabel (users -> memberships -> employees).
-     */
-    public function createForTenant(string $tenantId, array $data): array
+    public function findByMembershipForTenant(
+        string $membershipId,
+        string $tenantId,
+    ): ?array {
+        $employee = $this->baseTenantQuery($tenantId)
+            ->where('employees.membership_id', $membershipId)
+            ->first();
+
+        return $employee === null
+            ? null
+            : (array) $employee;
+    }
+
+    public function createProfileForTenant(
+        string $tenantId,
+        string $membershipId,
+        array $data,
+    ): array {
+        $membershipExists = DB::table('memberships')
+            ->where('id', $membershipId)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->exists();
+
+        if (! $membershipExists) {
+            throw (new ModelNotFoundException())->setModel(
+                Membership::class,
+                [$membershipId],
+            );
+        }
+
+        $employeeId = UuidV7::generate();
+
+        DB::table('employees')->insert([
+            'id' => $employeeId,
+            'tenant_id' => $tenantId,
+            'membership_id' => $membershipId,
+            'nip' => $data['nip'],
+            'jabatan' => $data['jabatan'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $this->findByIdForTenant(
+            $employeeId,
+            $tenantId,
+        );
+    }
+
+    private function baseTenantQuery(string $tenantId): Builder
     {
-        return DB::transaction(function () use ($tenantId, $data) {
-            $userId = UuidV7::generate();
-            $membershipId = UuidV7::generate();
-            $employeeId = UuidV7::generate();
-
-            // 1. Amankan data di tabel 'users' terlebih dahulu
-            // Menggunakan password default aman terenkripsi yang wajib diubah saat login pertama
-            DB::table('users')->insert([
-                'id' => $userId,
-                'name' => $data['nama'],
-                'email' => $data['email'] ?? strtolower(str_replace(' ', '', $data['nama'])) . '@educore.id',
-                'password' => Hash::make('P@sswordemployee2026'),
-                'status' => 'ACTIVE',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // 2. Jembatani keanggotaan di tabel 'memberships'
-            DB::table('memberships')->insert([
-                'id' => $membershipId,
-                'user_id' => $userId,
-                'tenant_id' => $tenantId,
-                'role' => 'employee',
-                'status' => 'ACTIVE',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // 3. Masukkan data spesifik profesi ke tabel utama 'employees'
-            DB::table('employees')->insert([
-                'id' => $employeeId,
-                'tenant_id' => $tenantId,
-                'membership_id' => $membershipId,
-                'nip' => $data['nip'],
-                'jabatan' => $data['jabatan'] ?? 'STAFF',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            return $this->findByIdForTenant($employeeId, $tenantId);
-        });
+        return DB::table('employees')
+            ->join(
+                'memberships',
+                'employees.membership_id',
+                '=',
+                'memberships.id',
+            )
+            ->join(
+                'persons',
+                'memberships.person_id',
+                '=',
+                'persons.id',
+            )
+            ->select([
+                'employees.id as employee_id',
+                'employees.membership_id',
+                'memberships.person_id as person_id',
+                'employees.tenant_id',
+                'employees.nip',
+                'employees.jabatan',
+                'persons.name as nama',
+                'memberships.status as membership_status',
+                'employees.created_at',
+            ])
+            ->where('employees.tenant_id', $tenantId)
+            ->where('memberships.tenant_id', $tenantId)
+            ->whereNull('employees.deleted_at');
     }
 }

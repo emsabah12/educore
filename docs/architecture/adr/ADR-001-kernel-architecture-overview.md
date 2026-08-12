@@ -6,6 +6,10 @@ Date : 2026-07-01
 Updated : 2026-07-02
 Sprint : CORE-001 Sprint-1
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP. Platform Module Kernel remains valid, but this ADR describes only the module-kernel subsystem, not the whole modern `Modules/Core`. Current implementation now includes JIT metadata bootstrap through `ModuleRepository`, `ModuleBootstrapService`, dependency validation/resolution, event discovery, health checks, and extensive tests. Dependency resolution exists, but dependency-ordered provider registration is **not yet a frozen guarantee**. The `Current Implementation` / `Future Evolution` sections below are historical Sprint CORE-001 snapshots where they conflict with this notice or `../kernel.md`.
+
 ## Related ADR
 
 - ADR-002 — Modular Monolith Architecture

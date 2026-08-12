@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\Core\Authorization\Services;
 
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Http\Request;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
 use Modules\Core\Authorization\DTO\MembershipContext;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
@@ -18,7 +17,6 @@ final readonly class MembershipContextResolver implements MembershipContextResol
 {
     public function __construct(
         private AuthFactory $auth,
-        private Request $request,
         private TenantContextInterface $tenantContext,
         private MembershipRepositoryInterface $membershipRepository,
     ) {}
@@ -133,7 +131,7 @@ final readonly class MembershipContextResolver implements MembershipContextResol
     private function resolveAuthenticatedMembershipId(): string
     {
         $membershipId = $this->normalizeIdentifier(
-            $this->request->attributes->get(
+            request()->attributes->get(
                 'authenticated_membership_id',
             ),
         );

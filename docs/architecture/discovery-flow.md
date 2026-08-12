@@ -1,305 +1,296 @@
-# Module Discovery Flow
+# Module Discovery & Bootstrap Flow
+
+- **Version**: 2.0
+- **Status**: Current / Revalidated
+- **Updated**: 2026-08-12
 
 ## Overview
 
-Module Discovery merupakan proses otomatis yang dilakukan oleh Platform Kernel untuk menemukan, memvalidasi, dan mendaftarkan seluruh modul yang tersedia ke dalam `ModuleRegistry`.
+Module discovery menemukan `module.yaml` yang tersedia dan mengubahnya menjadi `ModuleDefinition` yang tervalidasi.
 
-Proses ini dijalankan setiap kali aplikasi melakukan bootstrap melalui `CoreServiceProvider`.
+Current implementation tidak menggunakan `DiscoveredModule` Value Object. `ModuleDiscovery` mengembalikan **sorted manifest path strings** langsung ke bootstrap pipeline.
 
-Discovery menggunakan pendekatan **Convention over Configuration**, sehingga modul tidak memerlukan registrasi manual.
-
----
-
-# Discovery Objectives
-
-Proses discovery memiliki tujuan sebagai berikut:
-
-- Menemukan seluruh modul yang tersedia.
-- Membaca manifest setiap modul.
-- Memvalidasi spesifikasi manifest.
-- Membangun metadata modul.
-- Mendaftarkan metadata ke `ModuleRegistry`.
-- Menyiapkan metadata agar dapat digunakan oleh Platform Kernel.
-
-Discovery **tidak** bertanggung jawab terhadap status aktif/nonaktif modul. Status runtime dikelola oleh `ModuleStateRepository`.
+Automatic discovery tetap menjadi current architecture decision; hanya kontrak intermediate lama `DiscoveredModule` yang sudah tidak berlaku.
 
 ---
 
-# Discovery Pipeline
+# 1. Trigger
 
-Seluruh proses discovery mengikuti pipeline berikut.
+Metadata bootstrap terjadi saat `ModuleRepository` di-resolve dan singleton `ModuleRegistry` masih kosong.
+
+```text
+resolve ModuleRepository
+        │
+        ▼
+ModuleRegistry.count() === 0 ?
+        │ yes
+        ▼
+ModuleBootstrapService.bootstrap(base_path('Modules'))
+```
+
+Pada normal application bootstrap, `CoreServiceProvider` membutuhkan module metadata untuk activation checks sehingga flow ini biasanya dijalankan pada startup.
+
+---
+
+# 2. Discovery Pipeline
 
 ```text
 Modules/
-      │
-      ▼
+   │
+   ▼
 ModuleDiscovery
-      │
-      ▼
+   │
+   ▼
+sorted module.yaml paths
+   │
+   ▼
 ModuleManifestLoader
-      │
-      ▼
+   │
+   ▼
+raw YAML string
+   │
+   ▼
 ModuleManifestParser
-      │
-      ▼
-ModuleManifestValidator
-      │
-      ▼
+   │
+   ▼
+parsed array
+   │
+   ▼
 ModuleDefinitionFactory
-      │
-      ▼
+   │
+   └──── ModuleManifestValidator
+   │
+   ▼
+ModuleDefinition[]
+```
+
+Setiap stage memiliki satu tanggung jawab.
+
+---
+
+# 3. ModuleDiscovery
+
+`ModuleDiscovery`:
+
+1. menerima root module path;
+2. membaca direct child directories;
+3. mengabaikan files pada module root;
+4. mengabaikan directory tanpa `module.yaml`;
+5. menghasilkan manifest paths;
+6. mengurutkan manifest paths secara deterministic.
+
+Current output:
+
+```php
+list<string> // module.yaml paths
+```
+
+Bukan:
+
+```text
+DiscoveredModule object
+```
+
+Historical ADR-004 pernah menetapkan `DiscoveredModule`, tetapi contract tersebut tidak terdapat pada current source dan tidak lagi menjadi implementation requirement.
+
+---
+
+# 4. Manifest Loading
+
+`ModuleManifestLoader` menerima satu manifest path dan hanya bertanggung jawab membaca raw contents.
+
+```text
+manifest path
+     ↓
+ModuleManifestLoader
+     ↓
+raw YAML string
+```
+
+Missing/unreadable file menghasilkan failure.
+
+Loader tidak melakukan parsing atau validation.
+
+---
+
+# 5. Manifest Parsing
+
+`ModuleManifestParser` menggunakan Symfony YAML.
+
+```text
+raw YAML
+   ↓
+ModuleManifestParser
+   ↓
+PHP array
+```
+
+Invalid YAML atau YAML yang bukan object/array menghasilkan exception.
+
+---
+
+# 6. Manifest Validation & Definition Factory
+
+Current responsibility:
+
+```text
+parsed array
+   ↓
+ModuleDefinitionFactory
+   ↓
+ModuleManifestValidator
+   ↓
+ModuleDefinition::fromArray()
+```
+
+Validator memeriksa required fields dan current field types.
+
+Current required fields:
+
+```text
+schema
+name
+display_name
+version
+description
+providers
+dependencies
+metadata
+extra
+```
+
+Declared provider class strings juga divalidasi agar dapat di-autoload.
+
+---
+
+# 7. Dependency Validation
+
+Setelah seluruh definitions dibuat:
+
+```text
+ModuleDefinition[]
+      ↓
+DependencyResolver
+      ↓
+topological order
+```
+
+Resolver fail-fast untuk:
+
+```text
+missing dependency
+circular dependency
+```
+
+Dependency identity menggunakan exact `ModuleDefinition.name`.
+
+## Current boundary
+
+Resolved order saat ini digunakan oleh event discovery, tetapi belum menjadi guaranteed order untuk seluruh provider-registration path.
+
+Jadi current contract adalah:
+
+```text
+dependency correctness validation ✅
+provider boot-order guarantee       ⚠ not frozen
+```
+
+---
+
+# 8. Event Discovery
+
+Untuk definitions hasil dependency resolution:
+
+```text
+ModuleBootstrapService
+      ↓
+Modules/<Name>/Listeners
+      ↓
+EventDiscoveryService
+      ↓
+ModuleEventRegistry
+```
+
+`CoreServiceProvider::boot()` kemudian memasang listener ke Laravel Event dispatcher.
+
+Current event-discovery flow belum secara eksplisit difilter oleh `ModuleStateRepository`, sehingga disabled-state semantics untuk listener tidak boleh diasumsikan lebih kuat daripada current source.
+
+---
+
+# 9. Registry Loading
+
+`ModuleLoader` menerima definitions dan mendaftarkannya ke singleton `ModuleRegistry`.
+
+```text
+ModuleDefinition[]
+      ↓
+ModuleLoader
+      ↓
 ModuleRegistry
 ```
 
-Setiap tahapan memiliki tanggung jawab yang berbeda dan tidak saling tumpang tindih.
+Duplicate module name gagal melalui `ModuleAlreadyRegisteredException`.
+
+Setelah registry terisi, application-facing reads menggunakan `ModuleRepository`.
 
 ---
 
-# Pipeline Characteristics
+# 10. Discovery vs Runtime State
 
-Discovery Pipeline dirancang mengikuti prinsip Explicit Processing Pipeline.
-
-Setiap tahap memiliki karakteristik berikut:
-
-- Memiliki satu tanggung jawab (SRP).
-- Input dan output didefinisikan dengan jelas.
-- Tidak mengetahui implementasi tahap berikutnya.
-- Dapat diuji secara terisolasi.
-- Menggunakan pendekatan Fail Fast.
-- Mudah diperluas tanpa mengubah tahap lain.
-
-Alur data:
+Discovery metadata dan runtime activation state adalah concern terpisah.
 
 ```text
-Filesystem
-    │
-    ▼
-Raw YAML
-    │
-    ▼
-Parsed Array
-    │
-    ▼
-Validated Data
-    │
-    ▼
-ModuleDefinition
-    │
-    ▼
-ModuleRegistry
+DISCOVERY
+module exists?
+manifest valid?
+dependencies valid?
+metadata registered?
+
+ACTIVATION STATE
+enabled?
+disabled?
 ```
 
-# Discovery Sequence
+Module dapat ditemukan dan terdaftar metadata-nya walaupun activation state disabled.
 
-## Step 1 — Scan Module Directories
+---
 
-`ModuleDiscovery` memindai seluruh subdirektori pada folder:
+# 11. Error Handling
+
+Discovery/bootstrap mengikuti fail-fast untuk configuration errors.
+
+Examples:
 
 ```text
-Modules/
+malformed YAML
+missing manifest field
+wrong manifest field type
+unknown provider class in declared providers
+missing dependency
+circular dependency
+duplicate module registration
 ```
 
-Setiap direktori dianggap sebagai kandidat modul.
-
-Contoh:
-
-```text
-Modules/
-├── Core/
-├── Academic/
-├── PPDB/
-└── Finance/
-```
-
-Jika suatu direktori tidak mengandung `module.yaml`, direktori tersebut diabaikan.
+Jangan melakukan silent fallback yang menghasilkan partial/unknown metadata state.
 
 ---
 
-## Step 2 — Read Manifest
+# 12. Extension Rules
 
-Untuk setiap modul yang ditemukan, `ModuleManifestParser` membaca file:
+Future discovery extension boleh menambahkan capability seperti caching atau external source hanya jika demonstrated requirement tersedia.
 
-```text
-module.yaml
-```
+Jangan menambah generic plugin marketplace, recursive tree, atau remote registry secara spekulatif.
 
-Parser menggunakan Symfony YAML untuk mengubah isi manifest menjadi struktur data yang dapat diproses oleh kernel.
-
-Parser hanya bertugas membaca data, bukan memvalidasi isinya.
-
----
-
-## Step 3 — Validate Manifest
-
-Data hasil parsing diteruskan ke `ManifestValidator`.
-
-Validator memastikan bahwa manifest memenuhi spesifikasi yang telah ditetapkan, misalnya:
-
-- field wajib tersedia,
-- format versi valid,
-- provider terdefinisi,
-- dependency memiliki format yang benar.
-
-Apabila validasi gagal, proses discovery untuk modul tersebut dihentikan dan exception yang sesuai akan dihasilkan.
-
----
-
-## Step 4 — Build Module Definition
-
-Manifest yang telah lolos validasi diteruskan ke `ModuleDefinitionFactory`.
-
-Factory membangun objek `ModuleDefinition` yang menjadi representasi metadata modul di dalam Platform Kernel.
-
-Contoh atribut metadata:
-
-- name
-- version
-- provider
-- description
-- dependencies
-
-Objek ini menjadi bentuk standar metadata yang digunakan oleh seluruh komponen kernel.
-
----
-
-## Step 5 — Register Metadata
-
-`ModuleDefinition` didaftarkan ke `ModuleRegistry`.
-
-Registry menjadi **Single Source of Truth** untuk seluruh metadata modul selama aplikasi berjalan.
-
-Setelah tahap ini selesai, metadata modul siap digunakan oleh komponen lain.
-
----
-
-# Sequence Diagram
-
-```text
-CoreServiceProvider
-        │
-        ▼
- ModuleLoader
-        │
-        ▼
- ModuleDiscovery
-        │
-        ▼
- ModuleManifestParser
-        │
-        ▼
- ManifestValidator
-        │
-        ▼
- ModuleDefinitionFactory
-        │
-        ▼
- ModuleRegistry
-```
-
----
-
-# Error Handling
-
-Discovery menggunakan pendekatan **fail fast**.
-
-Kesalahan pada sebuah modul harus segera terdeteksi dan dilaporkan sedekat mungkin dengan sumber masalahnya.
-
-Contoh kondisi yang dapat menyebabkan kegagalan:
-
-- `module.yaml` tidak ditemukan.
-- Format YAML tidak valid.
-- Field wajib tidak tersedia.
-- Nama modul kosong.
-- Provider tidak valid.
-- Dependency memiliki format yang tidak sesuai.
-
-Exception yang spesifik mempermudah proses debugging dan meningkatkan kualitas pesan kesalahan.
-
----
-
-# Separation of Responsibilities
-
-Setiap komponen hanya memiliki satu tanggung jawab utama.
-
-| Component               | Responsibility            |
-| ----------------------- | ------------------------- |
-| ModuleDiscovery         | Menemukan direktori modul |
-| ModuleManifestParser    | Membaca `module.yaml`     |
-| ManifestValidator       | Memvalidasi isi manifest  |
-| ModuleDefinitionFactory | Membangun objek metadata  |
-| ModuleRegistry          | Menyimpan metadata modul  |
-
-Tidak ada komponen yang menangani lebih dari satu tanggung jawab utama.
-
----
-
-# Discovery vs Runtime
-
-Discovery dan runtime merupakan dua konsep yang berbeda.
-
-## Discovery
-
-Menghasilkan metadata modul.
-
-Sumber data:
-
-```text
-module.yaml
-```
-
-Output:
-
-```text
-ModuleRegistry
-```
-
----
-
-## Runtime
-
-Mengelola status aktif atau nonaktif modul.
-
-Sumber data:
-
-```text
-storage/framework/modules.json
-```
-
-Output:
-
-```text
-ModuleStateRepository
-```
-
-Pemisahan ini memastikan metadata modul tidak berubah akibat perubahan status runtime.
-
----
-
-# Design Principles
-
-Proses discovery dibangun berdasarkan prinsip berikut:
-
-- Convention over Configuration
-- Single Responsibility Principle
-- Fail Fast
-- Separation of Concerns
-- Immutable Metadata
-- Single Source of Truth
+Current simple direct-directory discovery adalah canonical KISS baseline.
 
 ---
 
 # Related Documents
 
-- `kernel.md`
-- `folder-structure.md`
-- `module-manager.md`
-- `module-lifecycle.md`
-
----
-
-# Related ADR
-
+- [`kernel.md`](kernel.md)
+- [`module-lifecycle.md`](module-lifecycle.md)
+- [`module-manager.md`](module-manager.md)
 - ADR-003 — Module Manifest Specification
 - ADR-004 — Automatic Module Discovery
-- ADR-005 — Module Registry as Metadata Source of Truth
-- ADR-006 — Runtime Module State Repository
+- ADR-005 — Module Registry
+- ADR-010 — Module Identity

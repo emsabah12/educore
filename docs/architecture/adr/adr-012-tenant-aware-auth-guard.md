@@ -1,8 +1,16 @@
 # ADR-012: Tenant-Aware Authentication Guard
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Context Date**: 2026-07-08
 - **Author**: Senior Fullstack Engineer & Technical Mentor
+
+> **Superseded Notice**
+>
+> ADR ini mengasumsikan `users.tenant_id` dan tenant-aware user lookup sebagai security boundary. Model tersebut telah digantikan oleh canonical global User identity dan Person-owned Membership.
+>
+> Current authentication/tenant flow menggunakan verified `user_id`, `tenant_id`, dan `membership_id` token context lalu memvalidasi `User → Person → Membership → Tenant`. Role/permission tidak dipercaya dari token.
+>
+> Current baseline: [`../current-architecture.md`](../current-architecture.md). Canonical replacement: **ADR-015 — Authentication Token & Request Context**.
 
 ## 1. Konteks & Masalah
 

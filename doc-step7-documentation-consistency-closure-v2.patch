@@ -1,0 +1,104 @@
+diff --git a/docs/README.md b/docs/README.md
+index 7fee8df..3365c8d 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -50,3 +50,19 @@ ## 4. Future Architecture
+ ```
+ 
+ Organization, branch/unit, organizational assignment, organizational context, scoped authorization, dan dormitory topology harus melalui audit dan architectural lock terlebih dahulu.
++
++## 5. Documentation Alignment Status
++
++```text
++DOC STEP 1 — Current architecture index              COMPLETE
++DOC STEP 2 — Canonical architecture ADRs             COMPLETE
++DOC STEP 3 — Current repository structure            COMPLETE
++DOC STEP 4 — Architecture principles refresh         COMPLETE
++DOC STEP 5 — Module Kernel revalidation              COMPLETE
++DOC STEP 6 — Historical PRD/Sprint classification    COMPLETE
++DOC STEP 7 — Documentation consistency closure       COMPLETE
++```
++
++**EduCore Documentation Alignment: LOCKED / COMPLETE.**
++
++Future documentation must extend this baseline through the same lifecycle (`CURRENT`, `ACCEPTED ADR`, `SUPERSEDED`, `HISTORICAL`, or `FUTURE / NOT LOCKED`) rather than silently rewriting historical decisions.
+diff --git a/docs/architecture/README.md b/docs/architecture/README.md
+index 1f7bfd5..6a4ca77 100644
+--- a/docs/architecture/README.md
++++ b/docs/architecture/README.md
+@@ -211,7 +211,22 @@ ## 8. Documentation Alignment Status
+ COMPLETE
+ 
+ DOC STEP 7 — Documentation consistency regression
+-PENDING
++COMPLETE
+ ```
+ 
+ Documentation for Organization/Branch will only be created after its architecture is audited and locked.
++
++---
++
++## 9. Documentation Consistency Closure
++
++Documentation Alignment dinyatakan complete setelah repository-wide documentation audit memverifikasi bahwa:
++
++- current documents tidak menggunakan legacy identity/tenancy contracts sebagai implementation guidance;
++- legacy terms seperti `users.tenant_id`, `memberships.user_id`, `memberships.role`, `MockStudent`, atau `DiscoveredModule` hanya boleh muncul sebagai forbidden, superseded, amended, atau historical context;
++- Accepted ADR memiliki lifecycle/status yang dapat dibaca secara eksplisit;
++- relative Markdown links pada `docs/` resolve ke target yang ada;
++- future Organization/Branch/Dormitory direction tetap diberi label **FUTURE / NOT LOCKED**;
++- documentation tidak menjanjikan hot module enable/disable, dependency-ordered provider activation, atau disabled-module isolation yang belum menjadi current runtime guarantee.
++
++Dengan closure ini, `docs/README.md` dan dokumen pada bagian **Current Source of Truth** di atas menjadi baseline dokumentasi resmi sampai ada ADR atau workstream baru yang secara eksplisit mengubahnya.
+diff --git a/docs/architecture/adr/ADR-001-kernel-architecture-overview.md.md b/docs/architecture/adr/ADR-001-kernel-architecture-overview.md
+similarity index 100%
+rename from docs/architecture/adr/ADR-001-kernel-architecture-overview.md.md
+rename to docs/architecture/adr/ADR-001-kernel-architecture-overview.md
+diff --git a/docs/architecture/adr/ADR-004-Automatic-Module-Discovery-Pipeline.md b/docs/architecture/adr/ADR-004-Automatic-Module-Discovery-Pipeline.md
+index b45067a..d963101 100644
+--- a/docs/architecture/adr/ADR-004-Automatic-Module-Discovery-Pipeline.md
++++ b/docs/architecture/adr/ADR-004-Automatic-Module-Discovery-Pipeline.md
+@@ -1,11 +1,10 @@
+ # ADR-004 — Automatic Module Discovery
+ 
+-Version : 1.0
+-Status : Updated
++Version : 1.1
++Status : Accepted (Amended)
+ Date : 2026-07-01
+-Updated : 2026-07-03
++Updated : 2026-08-12
+ Sprint : CORE-001 Sprint-1
+-Architecture : LOCK
+ 
+ 
+ > ## Revalidation Amendment — 2026-08-12
+diff --git a/docs/architecture/adr/ADR-006-runtime-module-state-repository.md b/docs/architecture/adr/ADR-006-runtime-module-state-repository.md
+index 378d5ac..de0e19c 100644
+--- a/docs/architecture/adr/ADR-006-runtime-module-state-repository.md
++++ b/docs/architecture/adr/ADR-006-runtime-module-state-repository.md
+@@ -1,3 +1,11 @@
++# ADR-006 — Runtime Module State Repository
++
++**Version** : 1.1
++**Status** : Accepted
++**Date** : 2026-07-01
++**Updated** : 2026-08-12
++
++---
+ 
+ > ## Revalidation — 2026-08-12
+ > **Decision:** KEEP with clarified semantics. `ModuleStateRepository` still persists `enabled` state in `storage/framework/modules.json`, separate from immutable manifest metadata. `enabled/disabled` is a **bootstrap activation preference**, not hot load/unload. `module:enable`/`module:disable` persist desired state; provider/listener code already loaded in the current process is not dynamically unloaded.
+diff --git a/docs/architecture/adr/ADR-010-module-identity-strategy.md b/docs/architecture/adr/ADR-010-module-identity-strategy.md
+index 841dbe2..89be1d6 100644
+--- a/docs/architecture/adr/ADR-010-module-identity-strategy.md
++++ b/docs/architecture/adr/ADR-010-module-identity-strategy.md
+@@ -15,7 +15,7 @@ # ADR-010 — Module Identity Strategy
+ 
+ 
+ > ## Revalidation — 2026-08-12
+-> **Decision:** KEEP. Module technical identity remains the exact manifest `name`; no UUID is added to `ModuleDefinition`. Registry lookup, dependency references, and runtime-state keys depend on this name. Current implementation performs exact string matching, so casing must be treated as part of the technical identifier unless a future ADR explicitly normalizes it.
++> **Decision:** KEEP with clarified current semantics. Module technical identity remains the exact manifest `name`; no UUID is added to `ModuleDefinition`. Registry lookup, dependency references, and runtime-state keys depend on this name. Current implementation performs exact string matching, so casing is part of the technical identifier unless a future ADR explicitly normalizes it. The historical body below that recommends lowercase-only names is therefore not a current requirement. Likewise, its old UUID example list (`Teacher`, `School`, and other early domain examples) is historical context, not the canonical entity model: Teacher is now a role/capability, and Organization/Branch topology is not yet locked. Use `../architecture-principles.md` and `../current-architecture.md` for current identity examples.
+ 
+ # Related ADR
+ 

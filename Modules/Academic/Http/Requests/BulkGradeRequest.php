@@ -8,56 +8,42 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class BulkGradeRequest extends FormRequest
 {
-    /**
-     * Menentukan apakah request diizinkan diproses.
-     *
-     * Otorisasi bisnis tenant, active context, dan role/position
-     * dilakukan pada application/service layer.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Aturan validasi input bulk grading.
-     *
-     * Catatan:
-     * - teacher_id TIDAK diterima dari client.
-     * - Identitas guru/penginput harus diturunkan dari authenticated user
-     *   dan active context pada application layer.
-     * - student_id mengacu pada tabel canonical `students`.
-     * - Validasi tenant isolation tetap wajib dilakukan pada
-     *   application/service layer.
+     * @return array<string, array<int, string>>
      */
     public function rules(): array
     {
         return [
             'assessment_setting_id' => [
                 'required',
-                'uuid',
-                'exists:assessment_settings,id',
+                'string',
+                'uuid:7',
             ],
-
+            'teacher_id' => [
+                'prohibited',
+            ],
             'grades' => [
                 'required',
                 'array',
                 'min:1',
             ],
-
             'grades.*.student_id' => [
                 'required',
-                'uuid',
-                'exists:students,id',
+                'string',
+                'uuid:7',
+                'distinct',
             ],
-
             'grades.*.score' => [
                 'required',
                 'numeric',
                 'min:0',
                 'max:100',
             ],
-
             'grades.*.notes' => [
                 'nullable',
                 'string',
@@ -67,55 +53,41 @@ final class BulkGradeRequest extends FormRequest
     }
 
     /**
-     * Pesan validasi custom agar error API lebih mudah dipahami.
+     * @return array<string, string>
      */
     public function messages(): array
     {
         return [
             'assessment_setting_id.required' =>
-            'ID pengaturan penilaian wajib diisi.',
-
+                'ID pengaturan penilaian wajib diisi.',
             'assessment_setting_id.uuid' =>
-            'ID pengaturan penilaian harus berupa UUID yang valid.',
-
-            'assessment_setting_id.exists' =>
-            'Pengaturan penilaian tidak ditemukan.',
-
+                'ID pengaturan penilaian harus berupa UUIDv7 yang valid.',
+            'teacher_id.prohibited' =>
+                'Teacher identity ditentukan oleh authenticated employee context.',
             'grades.required' =>
-            'Data nilai wajib diisi.',
-
+                'Data nilai wajib diisi.',
             'grades.array' =>
-            'Data nilai harus berupa array.',
-
+                'Data nilai harus berupa array.',
             'grades.min' =>
-            'Minimal satu data nilai harus dikirim.',
-
+                'Minimal satu data nilai harus dikirim.',
             'grades.*.student_id.required' =>
-            'ID student wajib diisi pada setiap baris nilai.',
-
+                'ID student wajib diisi pada setiap baris nilai.',
             'grades.*.student_id.uuid' =>
-            'ID student harus berupa UUID yang valid.',
-
-            'grades.*.student_id.exists' =>
-            'Student tidak ditemukan.',
-
+                'ID student harus berupa UUIDv7 yang valid.',
+            'grades.*.student_id.distinct' =>
+                'Student yang sama tidak boleh dikirim lebih dari sekali.',
             'grades.*.score.required' =>
-            'Nilai wajib diisi.',
-
+                'Nilai wajib diisi.',
             'grades.*.score.numeric' =>
-            'Nilai harus berupa angka.',
-
+                'Nilai harus berupa angka.',
             'grades.*.score.min' =>
-            'Nilai tidak boleh kurang dari 0.',
-
+                'Nilai tidak boleh kurang dari 0.',
             'grades.*.score.max' =>
-            'Nilai tidak boleh lebih dari 100.',
-
+                'Nilai tidak boleh lebih dari 100.',
             'grades.*.notes.string' =>
-            'Catatan nilai harus berupa teks.',
-
+                'Catatan nilai harus berupa teks.',
             'grades.*.notes.max' =>
-            'Catatan nilai maksimal 1000 karakter.',
+                'Catatan nilai maksimal 1000 karakter.',
         ];
     }
 }

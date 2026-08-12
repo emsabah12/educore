@@ -10,29 +10,38 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('employees', function (Blueprint $table) {
+        Schema::create('employees', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-
-            // Jembatan Konteks Multi-Tenant & Identitas
-            $table->uuid('tenant_id')->index(); // Kompatibel dengan master tenants (string 36)
-            $table->uuid('membership_id')->unique()->index(); // Dikunci unik 1-to-1 ke peran keanggotaan
-
-            // Atribut Bisnis Spesifik Pegawai
-            $table->string('nip', 50)->nullable()->comment('Nomor Induk Pegawai');
-            $table->string('jabatan', 100)->default('STAFF'); // GURU, KEPALA_SEKOLAH, STAFF
-
+            $table->uuid('tenant_id');
+            $table->uuid('membership_id')->unique();
+            $table->string('nip', 50)->nullable();
+            $table->string('jabatan', 100);
             $table->timestamps();
+            $table->softDeletes();
 
-            // Foreign Key Constraints
+            $table->unique([
+                'tenant_id',
+                'nip',
+            ]);
+            $table->index([
+                'tenant_id',
+                'created_at',
+            ]);
+
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->restrictOnDelete();
+
             $table->foreign('membership_id')
                 ->references('id')
                 ->on('memberships')
-                ->onDelete('cascade');
+                ->restrictOnDelete();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('Employees');
+        Schema::dropIfExists('employees');
     }
 };

@@ -6,6 +6,10 @@ Date : 2026-07-01
 Updated : 2026-07-02
 Sprint : CORE-001 Sprint-1
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP. Modular Monolith remains the current deployment and module-boundary strategy. Modules now demonstrably own routes, migrations, tests, providers, and domain/application code where relevant. Core 2G and Phase 3A strengthened the module boundaries rather than replacing this ADR. Historical statements such as “module migrations/routes/tests are future” are no longer current; use `../folder-structure.md` for the implemented repository map.
+
 ## Related ADR
 
 - ADR-001 — Kernel Architecture Overview

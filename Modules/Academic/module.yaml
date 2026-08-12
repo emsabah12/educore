@@ -12,6 +12,7 @@ providers: []
 
 dependencies:
   - core
+  - HR
 
 metadata: {}
 

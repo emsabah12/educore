@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // PERBAIKAN: Menghapus spasi liar dan tanda miring pembagian (/), diganti backslash (\) murni
         $middleware->alias([
             'tenant.role' => \Modules\Core\Authorization\Http\Middleware\CheckTenantRole::class,
+            'tenant.permission' => \Modules\Core\Authorization\Http\Middleware\CheckTenantPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,3 +1,15 @@
+# ADR-006 — Runtime Module State Repository
+
+**Version** : 1.1
+**Status** : Accepted
+**Date** : 2026-07-01
+**Updated** : 2026-08-12
+
+---
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP with clarified semantics. `ModuleStateRepository` still persists `enabled` state in `storage/framework/modules.json`, separate from immutable manifest metadata. `enabled/disabled` is a **bootstrap activation preference**, not hot load/unload. `module:enable`/`module:disable` persist desired state; provider/listener code already loaded in the current process is not dynamically unloaded.
+
 # Context
 
 Setelah Discovery Pipeline selesai memproses seluruh modul, metadata setiap modul diregistrasikan ke dalam `ModuleRegistry` sebagai **Source of Truth** untuk informasi statis modul.

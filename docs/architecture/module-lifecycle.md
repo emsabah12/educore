@@ -1,451 +1,347 @@
 # Module Lifecycle
 
-Version : 1.0
-Status : Locked
-Updated : 2026-07-02
-Sprint : CORE-001 Sprint-1
+- **Version**: 2.0
+- **Status**: Current / Revalidated
+- **Updated**: 2026-08-12
 
-## Related ADR
+## Overview
 
-- ADR-004 — Automatic Module Discovery
-- ADR-005 — Module Registry as Source of Truth
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — Module Manager as Kernel Facade
-- ADR-010 — Module Identity Strategy
-
----
-
-# Overview
-
-Module Lifecycle menjelaskan perjalanan hidup sebuah modul di dalam EduCore Platform Kernel, mulai dari keberadaannya di filesystem hingga digunakan pada runtime aplikasi.
-
-Lifecycle dibagi menjadi dua domain utama yang memiliki tanggung jawab berbeda:
-
-- **Discovery Lifecycle** — membangun metadata modul.
-- **Runtime Lifecycle** — mengelola status runtime modul.
-
-Kedua lifecycle tersebut dipisahkan secara desain untuk menjaga pemisahan antara **Metadata** dan **Runtime State**, namun saling terhubung melalui Platform Kernel.
-
----
-
-# High-Level Lifecycle
+Current lifecycle dibagi menjadi tiga concern:
 
 ```text
-Filesystem (Modules/)
-        │
-        ▼
-Discovery Pipeline
-        │
-        ▼
-Immutable ModuleDefinition
-        │
-        ▼
-ModuleRegistry
-        │
-        ▼
-ModuleStateRepository
-        │
-        ▼
-ModuleManager
-        │
-        ▼
-Application Runtime
+1. Metadata Bootstrap
+2. Activation-State Persistence
+3. Application Bootstrap Activation
+```
+
+Ini **bukan hot plugin lifecycle**.
+
+---
+
+# 1. High-Level Flow
+
+```text
+Filesystem: Modules/
+      │
+      ▼
+Metadata Bootstrap
+      │
+      ├── discover manifests
+      ├── parse + validate
+      ├── build ModuleDefinition
+      ├── validate dependency graph
+      ├── discover events/listeners
+      └── populate ModuleRegistry
+      │
+      ▼
+Activation State
+modules.json
+      │
+      ▼
+CoreServiceProvider startup
+      │
+      ▼
+register enabled module providers
+      │
+      ▼
+Laravel Application Runtime
 ```
 
 ---
 
-# Phase 1 — Filesystem Layer
+# 2. Phase A — Module Exists on Filesystem
 
-Pada tahap ini, modul hanya berupa direktori di dalam:
+A direct child directory under:
 
 ```text
 Modules/
 ```
 
-Contoh:
-
-```text
-Modules/
-├── Core/
-├── Academic/
-├── PPDB/
-└── Finance/
-```
-
-Sebuah direktori belum dianggap sebagai modul sampai memiliki berkas:
+menjadi discovery candidate hanya jika memiliki:
 
 ```text
 module.yaml
 ```
 
----
-
-# Phase 2 — Discovery Lifecycle
-
-Discovery Lifecycle dijalankan setiap kali aplikasi melakukan bootstrap melalui `CoreServiceProvider`.
-
-Pipeline discovery mengikuti tahapan berikut.
+Directory tanpa manifest diabaikan oleh current `ModuleDiscovery`.
 
 ---
 
-## Step 1 — Module Discovery
+# 3. Phase B — Metadata Bootstrap
 
-`ModuleDiscovery` memindai seluruh direktori modul pada folder `Modules/`.
-
-Komponen ini hanya bertanggung jawab menemukan lokasi modul dan tidak membaca isi manifest.
-
-Output:
+Metadata bootstrap biasanya dipicu melalui lazy `ModuleRepository` resolution ketika singleton registry masih kosong.
 
 ```text
-Module Directory
+ModuleRepository
+      ↓
+registry empty
+      ↓
+ModuleBootstrapService
 ```
 
----
-
-## Step 2 — Manifest Loading
-
-Untuk setiap modul yang ditemukan, `ModuleManifestLoader` membaca isi berkas:
+Pipeline:
 
 ```text
-module.yaml
-```
-
-Loader hanya bertanggung jawab membaca isi berkas tanpa melakukan parsing maupun validasi.
-
-Output:
-
-```text
-Raw YAML
-```
-
----
-
-## Step 3 — Manifest Parsing
-
-`ModuleManifestParser` mengubah isi YAML menjadi struktur data yang dapat diproses oleh Kernel.
-
-Parser tidak melakukan validasi maupun membangun objek domain.
-
-Output:
-
-```text
-Parsed Manifest Data
-```
-
----
-
-## Step 4 — Manifest Validation
-
-`ModuleManifestValidator` memvalidasi data hasil parsing.
-
-Validator memastikan bahwa manifest memenuhi spesifikasi yang telah ditentukan, seperti:
-
-- field wajib tersedia,
-- nama modul valid,
-- versi valid,
-- provider terdefinisi,
-- dependency memiliki format yang benar.
-
-Discovery menggunakan pendekatan **Fail Fast**, sehingga proses dihentikan segera ketika ditemukan manifest yang tidak valid.
-
-Output:
-
-```text
-Validated Manifest Data
-```
-
----
-
-## Step 5 — Module Definition Creation
-
-`ModuleDefinitionFactory` membangun immutable `ModuleDefinition` dari data yang telah tervalidasi.
-
-Factory merupakan satu-satunya komponen yang diperbolehkan membuat objek `ModuleDefinition`.
-
-Setelah dibuat, metadata tidak dapat diubah selama runtime aplikasi.
-
-Output:
-
-```text
+ModuleDiscovery
+      ↓
+ModuleManifestLoader
+      ↓
+ModuleManifestParser
+      ↓
+ModuleDefinitionFactory
+      ↓
+ModuleManifestValidator
+      ↓
 ModuleDefinition
 ```
 
----
-
-## Step 6 — Module Registration
-
-`ModuleDefinition` didaftarkan ke dalam `ModuleRegistry`.
-
-`ModuleRegistry` menjadi **Source of Truth** untuk seluruh metadata modul selama aplikasi berjalan.
-
-Pada tahap ini modul telah terdaftar secara metadata, tetapi belum tentu aktif.
+Semua valid definitions kemudian diperiksa oleh `DependencyResolver`.
 
 ---
 
-# Phase 3 — Runtime Lifecycle
-
-Setelah discovery selesai, Platform Kernel memasuki Runtime Lifecycle.
-
-Pada fase ini tidak ada lagi proses discovery maupun perubahan metadata.
-
-Kernel hanya mengelola status runtime setiap modul.
-
----
-
-# Runtime State Source
-
-Status runtime disimpan melalui:
+# 4. Phase C — Dependency Validation
 
 ```text
-ModuleStateRepository
+ModuleDefinition[]
+       ↓
+DependencyResolver
+       ↓
+resolved topological order
 ```
 
-Dengan media penyimpanan:
+Fail-fast:
+
+```text
+missing dependency
+circular dependency
+```
+
+Current resolver memberikan dependency order, tetapi runtime provider registration belum dikunci sebagai selalu mengikuti order tersebut.
+
+Jadi bedakan:
+
+```text
+dependency graph validity ✅
+provider boot ordering     ⚠ current hardening item
+```
+
+---
+
+# 5. Phase D — Event Discovery
+
+Current bootstrap menjalankan listener discovery terhadap definitions hasil resolution.
+
+```text
+Modules/<Name>/Listeners
+      ↓
+EventDiscoveryService
+      ↓
+ModuleEventRegistry
+```
+
+Laravel Event bindings dipasang pada `CoreServiceProvider::boot()`.
+
+Current source belum menjadikan `ModuleStateRepository` sebagai explicit filter pada event discovery phase. Disabled module therefore tidak boleh diasumsikan sebagai total event-code isolation.
+
+---
+
+# 6. Phase E — Metadata Registration
+
+`ModuleLoader` memasukkan `ModuleDefinition` ke:
+
+```text
+ModuleRegistry
+```
+
+Setelah registry tersedia:
+
+```text
+ModuleRepository
+```
+
+menjadi read facade untuk metadata application-facing operations.
+
+Metadata registration dan enabled-state adalah dua concern berbeda.
+
+---
+
+# 7. Phase F — Activation State
+
+Current mutable state:
+
+```text
+enabled = true
+enabled = false
+```
+
+Persistence:
 
 ```text
 storage/framework/modules.json
 ```
 
-Runtime State dipisahkan sepenuhnya dari metadata modul.
-
----
-
-# Runtime State Model
-
-Saat ini setiap modul memiliki dua state utama:
-
-- `enabled`
-- `disabled`
-
-Belum terdapat state transisi lain pada Sprint CORE-001.
-
----
-
-# State Transition
-
-## Initial State
-
-Setelah discovery selesai:
+Default ketika key tidak ada:
 
 ```text
-ModuleRegistry
-      │
-      └── ModuleDefinition tersedia
-
-ModuleStateRepository
-      │
-      └── disabled (default)
+disabled / false
 ```
 
-Artinya modul telah terdaftar, tetapi belum tentu aktif.
+State tidak disimpan dalam `module.yaml`.
 
 ---
 
-## Enable Flow
+# 8. Phase G — Provider Activation at Bootstrap
 
-Ketika `ModuleManager::enable()` dipanggil:
+Pada application bootstrap, `CoreServiceProvider` membaca module metadata dan activation state.
+
+Untuk module yang dianggap enabled, current source memiliki dynamic provider-registration path berdasarkan naming convention.
+
+Critical semantic:
 
 ```text
-disabled
-      │
-      ▼
-enabled
+enabled state
+→ observed during bootstrap
 ```
 
-Proses yang dilakukan:
-
-1. Memastikan modul terdaftar di `ModuleRegistry`.
-2. Membaca status dari `ModuleStateRepository`.
-3. Memastikan modul belum aktif.
-4. Mengubah status menjadi `enabled`.
-5. Menyimpan perubahan ke `ModuleStateRepository`.
-
----
-
-## Disable Flow
-
-Ketika `ModuleManager::disable()` dipanggil:
+bukan:
 
 ```text
-enabled
-      │
-      ▼
-disabled
+enabled state
+→ hot provider registration/unregistration at arbitrary runtime
 ```
 
-Proses yang dilakukan:
-
-1. Memastikan modul terdaftar di `ModuleRegistry`.
-2. Membaca status runtime.
-3. Memastikan modul masih aktif.
-4. Mengubah status menjadi `disabled`.
-5. Menyimpan perubahan ke `ModuleStateRepository`.
-
 ---
 
-## Important Note
-
-Perubahan runtime hanya memengaruhi `ModuleStateRepository`.
-
-`ModuleDefinition` yang berada di dalam `ModuleRegistry` tetap bersifat immutable dan tidak berubah selama aplikasi berjalan.
-
----
-
-# End-to-End Lifecycle
+# 9. Enable Lifecycle
 
 ```text
-Filesystem
-      │
-      ▼
-ModuleDiscovery
-      │
-      ▼
-ModuleManifestLoader
-      │
-      ▼
-ModuleManifestParser
-      │
-      ▼
-ModuleManifestValidator
-      │
-      ▼
-ModuleDefinitionFactory
-      │
-      ▼
-ModuleRegistry
-      │
-      ▼
-ModuleStateRepository
-      │
-      ▼
+module:enable Academic
+       ↓
 ModuleManager
-      │
-      ▼
-Application Runtime
+       ↓
+ModuleStateRepository
+       ↓
+enabled=true persisted
+       ↓
+NEXT application bootstrap observes state
 ```
 
----
-
-# Key Separation Rules
-
-## Metadata vs Runtime
-
-| Aspect          | Source of Truth       |
-| --------------- | --------------------- |
-| Module Metadata | ModuleRegistry        |
-| Runtime State   | ModuleStateRepository |
-
-Metadata dan Runtime State tidak boleh dicampur.
+Command sukses berarti desired activation state tersimpan, bukan jaminan provider baru di-hot-load ke process yang sudah berjalan.
 
 ---
 
-## Static vs Dynamic
+# 10. Disable Lifecycle
 
-| Static             | Dynamic       |
-| ------------------ | ------------- |
-| Discovery Pipeline | Runtime State |
+```text
+module:disable Academic
+       ↓
+ModuleManager
+       ↓
+ModuleStateRepository
+       ↓
+enabled=false persisted
+       ↓
+NEXT application bootstrap observes state
+```
 
-Discovery hanya membangun metadata.
-
-Runtime hanya mengelola status modul.
-
----
-
-## Immutable vs Mutable
-
-| Object           | Characteristic |
-| ---------------- | -------------- |
-| ModuleDefinition | Immutable      |
-| Module State     | Mutable        |
+Current process tidak melakukan provider/listener unload.
 
 ---
 
-# Lifecycle Constraints
+# 11. Transitional Provider-Wiring Caveat
 
-## Discovery Only During Bootstrap
+Current repository masih memiliki lebih dari satu provider wiring mechanism:
 
-Discovery hanya dilakukan pada proses bootstrap aplikasi.
+```text
+bootstrap/providers.php
++
+CoreServiceProvider dynamic active-module registration
+```
 
-Kernel tidak melakukan discovery ulang selama runtime.
+Selain itu, dynamic path menggunakan provider naming convention sedangkan manifest `providers` tetap divalidasi sebagai metadata.
 
----
+Karena itu current activation lifecycle belum layak dianggap final public contract untuk module enable/disable isolation.
 
-## Runtime Does Not Modify Metadata
+Required future hardening questions:
 
-Enable maupun disable modul tidak mengubah metadata yang berada di `ModuleRegistry`.
+```text
+What is the single provider activation source?
+Should module.yaml.providers drive activation?
+Should static downstream provider registration be removed?
+Must event discovery respect enabled state?
+Must provider registration follow dependency topological order?
+```
 
----
-
-## Registry Does Not Persist Runtime State
-
-`ModuleRegistry` hanya menyimpan metadata.
-
-Status runtime disimpan secara terpisah melalui `ModuleStateRepository`.
-
----
-
-# Failure Scenarios
-
-## Scenario 1 — Module Not Found
-
-Jika `ModuleManager` menerima nama modul yang tidak terdaftar:
-
-- `ModuleNotFoundException` dilempar.
-- Runtime State tidak berubah.
+Pertanyaan ini **belum dijawab oleh DOC STEP 5**; hanya dicatat agar docs jujur terhadap source.
 
 ---
 
-## Scenario 2 — Corrupted Runtime State
+# 12. State Transition Model
 
-Apabila `storage/framework/modules.json` rusak:
+Current persisted state model tetap sederhana:
 
-- Repository menggunakan state bawaan.
-- Error dicatat pada log.
-- Bootstrap aplikasi tetap dilanjutkan.
+```text
+       enable
+false ───────► true
+  ▲             │
+  │             │
+  └─────────────┘
+      disable
+```
 
----
+Tidak ada current states seperti:
 
-## Scenario 3 — Invalid Manifest
+```text
+installing
+starting
+stopping
+failed
+uninstalled
+```
 
-Apabila manifest tidak memenuhi spesifikasi:
-
-- Discovery dihentikan untuk modul tersebut.
-- `ModuleDefinition` tidak dibuat.
-- Modul tidak dimasukkan ke `ModuleRegistry`.
-
----
-
-## Scenario 4 — Invalid Module Definition
-
-Apabila `ModuleDefinitionFactory` gagal membangun objek karena data tidak memenuhi invariants:
-
-- Registrasi dibatalkan.
-- Metadata tidak disimpan.
-- Bootstrap dihentikan sesuai prinsip **Fail Fast**.
+Jangan menambahkan transition model baru tanpa concrete requirement.
 
 ---
 
-# Design Philosophy
+# 13. Metadata Immutability
 
-Module Lifecycle dibangun berdasarkan prinsip berikut:
+Selama application process:
 
-- Separation of Metadata and Runtime
-- Explicit Processing Pipeline
-- Single Responsibility Principle
-- Immutable Metadata
-- Mutable Runtime State
-- Fail Fast Validation
-- Source of Truth
-- Deterministic Module Behavior
-- Idempotent Runtime Operations
+```text
+ModuleDefinition
+→ immutable metadata object
+```
+
+Mutable activation state berada terpisah di `ModuleStateRepository`.
+
+Ini tetap merupakan architecture principle yang valid.
+
+---
+
+# 14. Relationship to Business Module Lifecycle
+
+Module lifecycle tidak menentukan lifecycle business records.
+
+Contoh:
+
+```text
+Academic module enabled/disabled
+≠ Student status
+
+HR module enabled/disabled
+≠ Employee status
+```
+
+Business lifecycle tetap dimiliki domain masing-masing.
 
 ---
 
 # Related Documents
 
-- `README.md`
-- `kernel.md`
-- `folder-structure.md`
-- `discovery-flow.md`
-- `module-manager.md`
-- `architecture-principles.md`
+- [`kernel.md`](kernel.md)
+- [`discovery-flow.md`](discovery-flow.md)
+- [`module-manager.md`](module-manager.md)
+- ADR-004 — Automatic Module Discovery
+- ADR-005 — Module Registry
+- ADR-006 — Runtime Module State Repository
+- ADR-007 — ModuleManager

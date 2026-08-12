@@ -6,6 +6,10 @@ Date : 2026-07-01
 Updated : 2026-07-02
 Sprint : CORE-001 Sprint-1
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP. `ModuleRegistry` remains the in-memory metadata source of truth for the current application process. Application-facing reads now normally go through concrete `ModuleRepository`, which also triggers guarded JIT bootstrap when the singleton registry is empty. Direct registry access should remain internal to Module Kernel composition/bootstrap concerns.
+
 ## Related ADR
 
 - ADR-003 — Module Manifest Specification

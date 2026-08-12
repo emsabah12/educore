@@ -1,8 +1,14 @@
 # ADR-011: Multi-Tenancy Architecture Strategy
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Context Date**: 2026-07-08
 - **Author**: Senior Software Architect & DevOps Engineer
+
+> **Superseded Notice**
+>
+> Keputusan **Single Database + Shared Schema** tetap dipertahankan, tetapi strategi request/tenant-context pada ADR ini tidak lagi menjadi current implementation contract. Canonical tenant context sekarang diverifikasi melalui authenticated `User → Person → Membership → Tenant`, dengan `BelongsToTenant` dan/atau explicit tenant-scoped predicates sebagai defense-in-depth.
+>
+> Current baseline: [`../current-architecture.md`](../current-architecture.md). Canonical replacement: **ADR-014 — Membership & Tenant Boundary**.
 
 ## 1. Konteks & Masalah
 

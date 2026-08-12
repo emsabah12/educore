@@ -13,6 +13,10 @@
 
 ---
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP with clarified current semantics. Module technical identity remains the exact manifest `name`; no UUID is added to `ModuleDefinition`. Registry lookup, dependency references, and runtime-state keys depend on this name. Current implementation performs exact string matching, so casing is part of the technical identifier unless a future ADR explicitly normalizes it. The historical body below that recommends lowercase-only names is therefore not a current requirement. Likewise, its old UUID example list (`Teacher`, `School`, and other early domain examples) is historical context, not the canonical entity model: Teacher is now a role/capability, and Organization/Branch topology is not yet locked. Use `../architecture-principles.md` and `../current-architecture.md` for current identity examples.
+
 # Related ADR
 
 - ADR-003 — Module Manifest Specification

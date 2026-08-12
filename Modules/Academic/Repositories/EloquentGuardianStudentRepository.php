@@ -5,43 +5,41 @@ declare(strict_types=1);
 namespace Modules\Academic\Repositories;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use Override;
-use Throwable;
 
 final class EloquentGuardianStudentRepository implements GuardianStudentRepositoryInterface
 {
-    /**
-     * Menautkan student dengan guardian secara aman
-     * dalam tenant yang sama.
-     *
-     * Operasi bersifat idempotent.
-     *
-     * @throws ModelNotFoundException
-     * @throws InvalidArgumentException
-     * @throws Throwable
-     */
     #[Override]
     public function attachStudentToGuardian(
         string $tenantId,
         string $guardianId,
         string $studentId,
-        string $relationshipType = 'AYAH'
+        string $relationshipType,
     ): bool {
-        $this->validateIdentifiers(
+        $this->validateUuidV7Identifiers(
             $tenantId,
             $guardianId,
-            $studentId
+            $studentId,
         );
 
-        $relationshipType = strtoupper(trim($relationshipType));
+        $normalizedRelationshipType = strtoupper(
+            trim($relationshipType),
+        );
 
-        if ($relationshipType === '') {
+        if ($normalizedRelationshipType === '') {
             throw new InvalidArgumentException(
-                'Relationship type cannot be empty.'
+                'Relationship type cannot be empty.',
+            );
+        }
+
+        if (mb_strlen($normalizedRelationshipType) > 50) {
+            throw new InvalidArgumentException(
+                'Relationship type cannot exceed 50 characters.',
             );
         }
 
@@ -49,74 +47,42 @@ final class EloquentGuardianStudentRepository implements GuardianStudentReposito
             $tenantId,
             $guardianId,
             $studentId,
-            $relationshipType
+            $normalizedRelationshipType,
         ): bool {
-            $guardianExists = DB::table('guardians')
-                ->where('id', $guardianId)
-                ->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')
-                ->exists();
+            $this->assertGuardianInTenant(
+                $tenantId,
+                $guardianId,
+            );
+            $this->assertStudentInTenant(
+                $tenantId,
+                $studentId,
+            );
 
-            if (! $guardianExists) {
-                throw (new ModelNotFoundException())
-                    ->setModel(
-                        'Modules\\Auth\\Entities\\Guardian',
-                        [$guardianId]
-                    );
-            }
+            $insertedRows = DB::table('guardian_student')
+                ->insertOrIgnore([
+                    'id' => UuidV7::generate(),
+                    'tenant_id' => $tenantId,
+                    'guardian_id' => $guardianId,
+                    'student_id' => $studentId,
+                    'relationship_type' => $normalizedRelationshipType,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-            $studentExists = DB::table('students')
-                ->where('id', $studentId)
-                ->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')
-                ->exists();
-
-            if (! $studentExists) {
-                throw (new ModelNotFoundException())
-                    ->setModel(
-                        'Modules\\Auth\\Entities\\Student',
-                        [$studentId]
-                    );
-            }
-
-            $alreadyAttached = DB::table('guardian_student')
-                ->where('tenant_id', $tenantId)
-                ->where('guardian_id', $guardianId)
-                ->where('student_id', $studentId)
-                ->exists();
-
-            if ($alreadyAttached) {
-                return true;
-            }
-
-            return DB::table('guardian_student')->insert([
-                'id' => UuidV7::generate(),
-                'tenant_id' => $tenantId,
-                'guardian_id' => $guardianId,
-                'student_id' => $studentId,
-                'relationship_type' => $relationshipType,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            return $insertedRows > 0;
         });
     }
 
-    /**
-     * Memutuskan hubungan guardian dengan student
-     * secara tenant-aware.
-     *
-     * @throws InvalidArgumentException
-     */
     #[Override]
     public function detachStudentFromGuardian(
         string $tenantId,
         string $guardianId,
-        string $studentId
+        string $studentId,
     ): bool {
-        $this->validateIdentifiers(
+        $this->validateUuidV7Identifiers(
             $tenantId,
             $guardianId,
-            $studentId
+            $studentId,
         );
 
         $affectedRows = DB::table('guardian_student')
@@ -128,22 +94,19 @@ final class EloquentGuardianStudentRepository implements GuardianStudentReposito
         return $affectedRows > 0;
     }
 
-    /**
-     * Mengambil daftar student berdasarkan guardian
-     * dalam tenant yang sama.
-     *
-     * @return array<int, array<string, mixed>>
-     *
-     * @throws InvalidArgumentException
-     */
     #[Override]
     public function getStudentsByGuardian(
         string $tenantId,
-        string $guardianId
+        string $guardianId,
     ): array {
-        $this->validateIdentifiers(
+        $this->validateUuidV7Identifiers(
             $tenantId,
-            $guardianId
+            $guardianId,
+        );
+
+        $this->assertGuardianInTenant(
+            $tenantId,
+            $guardianId,
         );
 
         return DB::table('guardian_student')
@@ -151,78 +114,160 @@ final class EloquentGuardianStudentRepository implements GuardianStudentReposito
                 'students',
                 'guardian_student.student_id',
                 '=',
-                'students.id'
+                'students.id',
             )
             ->join(
                 'memberships',
                 'students.membership_id',
                 '=',
-                'memberships.id'
+                'memberships.id',
             )
             ->join(
-                'users',
-                'memberships.user_id',
+                'persons',
+                'memberships.person_id',
                 '=',
-                'users.id'
+                'persons.id',
             )
-            ->join(
+            ->leftJoin(
                 'academic_classes',
-                'students.class_id',
-                '=',
-                'academic_classes.id'
+                static function (JoinClause $join) use ($tenantId): void {
+                    $join->on(
+                        'students.class_id',
+                        '=',
+                        'academic_classes.id',
+                    )
+                        ->where(
+                            'academic_classes.tenant_id',
+                            '=',
+                            $tenantId,
+                        )
+                        ->whereNull('academic_classes.deleted_at');
+                },
             )
             ->select([
                 'students.id as student_id',
+                'students.membership_id',
+                'memberships.person_id',
+                'students.class_id',
                 'students.nis',
-                'users.name as student_name',
-                'academic_classes.name as class_name',
+                'students.nisn',
+                'persons.name as nama',
+                'academic_classes.name as nama_kelas',
+                'academic_classes.tingkat',
+                'students.status as student_status',
+                'memberships.status as membership_status',
                 'guardian_student.relationship_type',
-                'guardian_student.created_at',
+                'guardian_student.created_at as relationship_created_at',
             ])
             ->where(
                 'guardian_student.tenant_id',
-                $tenantId
+                $tenantId,
             )
             ->where(
                 'guardian_student.guardian_id',
-                $guardianId
+                $guardianId,
             )
             ->where(
                 'students.tenant_id',
-                $tenantId
+                $tenantId,
             )
             ->where(
                 'memberships.tenant_id',
-                $tenantId
+                $tenantId,
             )
             ->whereNull('students.deleted_at')
-            ->orderBy('users.name')
+            ->orderBy('persons.name')
+            ->orderBy('students.id')
             ->get()
             ->map(
-                static fn(object $student): array => [
-                    'student_id' => $student->student_id,
-                    'nis' => $student->nis,
-                    'student_name' => $student->student_name,
-                    'class_name' => $student->class_name,
-                    'relationship_type' => $student->relationship_type,
-                    'created_at' => $student->created_at,
-                ]
+                static fn (object $student): array => [
+                    'student_id' => (string) $student->student_id,
+                    'membership_id' => (string) $student->membership_id,
+                    'person_id' => (string) $student->person_id,
+                    'class_id' => is_string($student->class_id)
+                        ? $student->class_id
+                        : null,
+                    'nis' => is_string($student->nis)
+                        ? $student->nis
+                        : null,
+                    'nisn' => is_string($student->nisn)
+                        ? $student->nisn
+                        : null,
+                    'nama' => (string) $student->nama,
+                    'nama_kelas' => is_string($student->nama_kelas)
+                        ? $student->nama_kelas
+                        : null,
+                    'tingkat' => is_string($student->tingkat)
+                        ? $student->tingkat
+                        : null,
+                    'student_status' => (string) $student->student_status,
+                    'membership_status' => (string) $student->membership_status,
+                    'relationship_type' => (string) $student->relationship_type,
+                    'relationship_created_at' => $student->relationship_created_at,
+                ],
             )
             ->all();
     }
 
-    /**
-     * Validasi identifier dasar sebelum query database.
-     *
-     * @param string ...$identifiers
-     */
-    private function validateIdentifiers(
-        string ...$identifiers
+    private function assertGuardianInTenant(
+        string $tenantId,
+        string $guardianId,
+    ): void {
+        $exists = DB::table('guardians')
+            ->join(
+                'memberships',
+                'guardians.membership_id',
+                '=',
+                'memberships.id',
+            )
+            ->where('guardians.id', $guardianId)
+            ->where('guardians.tenant_id', $tenantId)
+            ->where('memberships.tenant_id', $tenantId)
+            ->whereNull('guardians.deleted_at')
+            ->exists();
+
+        if (! $exists) {
+            throw (new ModelNotFoundException())
+                ->setModel(
+                    'Modules\\Academic\\Models\\Guardian',
+                    [$guardianId],
+                );
+        }
+    }
+
+    private function assertStudentInTenant(
+        string $tenantId,
+        string $studentId,
+    ): void {
+        $exists = DB::table('students')
+            ->join(
+                'memberships',
+                'students.membership_id',
+                '=',
+                'memberships.id',
+            )
+            ->where('students.id', $studentId)
+            ->where('students.tenant_id', $tenantId)
+            ->where('memberships.tenant_id', $tenantId)
+            ->whereNull('students.deleted_at')
+            ->exists();
+
+        if (! $exists) {
+            throw (new ModelNotFoundException())
+                ->setModel(
+                    'Modules\\Academic\\Models\\Student',
+                    [$studentId],
+                );
+        }
+    }
+
+    private function validateUuidV7Identifiers(
+        string ...$identifiers,
     ): void {
         foreach ($identifiers as $identifier) {
-            if (trim($identifier) === '') {
+            if (! UuidV7::validate(trim($identifier))) {
                 throw new InvalidArgumentException(
-                    'Tenant and entity identifiers cannot be empty.'
+                    'Tenant and entity identifiers must be valid UUIDv7 values.',
                 );
             }
         }

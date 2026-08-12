@@ -1,11 +1,14 @@
 # ADR-004 — Automatic Module Discovery
 
-Version : 1.0
-Status : Updated
+Version : 1.1
+Status : Accepted (Amended)
 Date : 2026-07-01
-Updated : 2026-07-03
+Updated : 2026-08-12
 Sprint : CORE-001 Sprint-1
-Architecture : LOCK
+
+
+> ## Revalidation Amendment — 2026-08-12
+> **Decision:** KEEP automatic discovery; **AMEND the intermediate contract**. `ModuleDiscovery` currently returns deterministic sorted `module.yaml` path strings. The historical `DiscoveredModule` Value Object described later in this ADR is no longer present in production source and is **not a current architecture requirement**. Current flow is `ModuleDiscovery → manifest path → ModuleManifestLoader → ModuleManifestParser → ModuleDefinitionFactory/Validator`. This amendment supersedes only the `DiscoveredModule` implementation detail; automatic convention-based discovery remains Accepted.
 
 ## Related ADR
 

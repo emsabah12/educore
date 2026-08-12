@@ -30,7 +30,7 @@ final class AcademicCoreTest extends TestCase
         ]);
     }
 
-    public function test_can_interact_with_academic_classes_and_subjects_via_repository_fallback(): void
+    public function test_can_interact_with_academic_classes_and_subjects_via_repository_integration(): void
     {
         $classPayload = [
             'name' => 'Kelas XI-B',
@@ -44,7 +44,7 @@ final class AcademicCoreTest extends TestCase
             'category' => 'NASIONAL'
         ];
 
-        // Jalankan pengujian via integrasi repository biner langsung (Robust Fallback Pattern)
+        // Jalankan pengujian via integrasi repository biner langsung
         $classRepo = app(\Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface::class);
         $subjectRepo = app(\Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface::class);
 

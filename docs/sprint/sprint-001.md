@@ -1,3 +1,17 @@
+# Historical Document Notice
+
+- **Classification**: HISTORICAL
+- **Original Scope**: Sprint 001 Platform Kernel Planning
+- **Current Contract**: [`docs/architecture/README.md`](../architecture/README.md)
+- **Current Baseline**: Core Canonical Foundation 2G + Downstream Human/Profile Canonicalization 3A
+- **Updated Classification**: 2026-08-12
+
+> Dokumen di bawah dipertahankan sebagai rekaman planning/decision context pada fase awal EduCore. Isinya **bukan current implementation contract**. Jangan mengambil schema, namespace, lifecycle, identity, tenancy, authentication, RBAC, atau module-runtime semantics dari dokumen ini tanpa cross-check ke current architecture dan ADR yang berstatus Accepted.
+
+> Isi historis setelah notice ini sengaja dipertahankan tanpa rewrite agar evolusi keputusan proyek tetap dapat diaudit.
+
+---
+
 Saya setuju dengan arah arsitektur yang Anda tuju. Dari sudut pandang Technical Program Manager, Sprint 1 sebaiknya benar-benar diperlakukan sebagai pembangunan **Platform Kernel**, bukan pembangunan aplikasi pendidikan. Ini akan menentukan kualitas seluruh proyek di masa depan.
 
 Namun, ada beberapa hal yang menurut saya perlu diperjelas agar Core benar-benar menjadi pondasi Modular Monolith jangka panjang.

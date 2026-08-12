@@ -4,33 +4,40 @@ declare(strict_types=1);
 
 namespace Modules\HR\Contracts;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 interface EmployeeRepositoryInterface
 {
-    /**
-     * Mengambil seluruh data staf pegawai yang terisolasi per lembaga/tenant tertentu.
-     *
-     * @param string $tenantId UUIDv7 lembaga sekolah
-     * @param int $perPage Paginasi per halaman
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
-     */
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    public function getByTenantPaginated(
+        string $tenantId,
+        int $perPage = 15,
+    ): LengthAwarePaginator;
 
     /**
-     * Mencari data detil pegawai spesifik di dalam lingkup tenant yang sah.
-     *
-     * @param string $id UUIDv7 record pegawai
-     * @param string $tenantId UUIDv7 lembaga sekolah
-     * @return array
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @return array<string, mixed>
      */
-    public function findByIdForTenant(string $id, string $tenantId): array;
+    public function findByIdForTenant(
+        string $id,
+        string $tenantId,
+    ): array;
 
     /**
-     * Mendaftarkan profil pegawai baru terikat pada suatu tenant.
+     * Resolve the canonical Employee profile for a tenant Membership.
      *
-     * @param string $tenantId UUIDv7 lembaga sekolah
-     * @param array $data Atribut profil pegawai
-     * @return array Data yang berhasil tersimpan
+     * @return array<string, mixed>|null
      */
-    public function createForTenant(string $tenantId, array $data): array;
+    public function findByMembershipForTenant(
+        string $membershipId,
+        string $tenantId,
+    ): ?array;
+
+    /**
+     * @param array{nip:string|null,jabatan:string} $data
+     * @return array<string, mixed>
+     */
+    public function createProfileForTenant(
+        string $tenantId,
+        string $membershipId,
+        array $data,
+    ): array;
 }

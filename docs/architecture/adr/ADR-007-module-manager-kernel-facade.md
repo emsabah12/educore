@@ -8,6 +8,10 @@ Sprint : CORE-001 Sprint-1
 
 ---
 
+
+> ## Revalidation Amendment — 2026-08-12
+> **Decision:** KEEP `ModuleManager` for lifecycle-state commands, but narrow the facade claim. Current Module Kernel uses lightweight CQS: `module:enable`/`module:disable` delegate to `ModuleManager`, while `module:list`/`module:status` query `ModuleRepository` + `ModuleStateRepository` directly. `ModuleManager` is therefore the mutation/lifecycle-state orchestration boundary, not a mandatory facade for every read query.
+
 # Related ADR
 
 - ADR-001 — Kernel Architecture Overview

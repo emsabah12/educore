@@ -10,26 +10,23 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('guardians', function (Blueprint $table) {
+        Schema::create('guardians', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-
-            // Jembatan Konteks Multi-Tenant & Identitas
             $table->uuid('tenant_id')->index();
-            $table->uuid('membership_id')->unique()->index();
-
-            // Atribut Bisnis Spesifik Wali Santri
-            $table->string('no_hp', 25)->nullable();
-            $table->text('alamat_domisili')->nullable();
+            $table->uuid('membership_id')->unique();
 
             $table->timestamps();
+            $table->softDeletes();
 
-            // Foreign Key Constraints
+            $table->foreign('tenant_id')
+                ->references('id')
+                ->on('tenants')
+                ->restrictOnDelete();
+
             $table->foreign('membership_id')
                 ->references('id')
                 ->on('memberships')
-                ->onDelete('cascade');
-
-            $table->softDeletes()->index();
+                ->restrictOnDelete();
         });
     }
 

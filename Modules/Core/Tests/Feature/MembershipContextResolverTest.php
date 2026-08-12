@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
 use Modules\Core\Authorization\Models\Membership;
@@ -78,6 +79,48 @@ final class MembershipContextResolverTest extends TestCase
             (string) $this->membershipA->getKey(),
             $context->membershipId,
         );
+    }
+
+    public function test_it_reads_authenticated_membership_from_the_current_request_instance(): void
+    {
+        $this->actingAs($this->user);
+        $this->setTenantContext($this->tenantA);
+
+        $resolver = $this->resolver();
+        $originalRequest = app('request');
+
+        try {
+            $firstRequest = Request::create('/first-request');
+            $firstRequest->attributes->set(
+                'authenticated_membership_id',
+                (string) $this->membershipA->getKey(),
+            );
+
+            app()->instance('request', $firstRequest);
+
+            $firstContext = $resolver->resolve();
+
+            $secondRequest = Request::create('/second-request');
+            $secondRequest->attributes->set(
+                'authenticated_membership_id',
+                (string) $this->membershipA->getKey(),
+            );
+
+            app()->instance('request', $secondRequest);
+
+            $secondContext = $resolver->resolve();
+
+            $this->assertSame(
+                (string) $this->membershipA->getKey(),
+                $firstContext->membershipId,
+            );
+            $this->assertSame(
+                (string) $this->membershipA->getKey(),
+                $secondContext->membershipId,
+            );
+        } finally {
+            app()->instance('request', $originalRequest);
+        }
     }
 
     public function test_it_rejects_missing_authenticated_membership_context(): void

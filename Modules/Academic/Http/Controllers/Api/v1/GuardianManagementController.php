@@ -5,102 +5,123 @@ declare(strict_types=1);
 namespace Modules\Academic\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Modules\Academic\Contracts\GuardianRepositoryInterface;
+use Modules\Academic\Http\Requests\StoreGuardianRequest;
+use Modules\Academic\Services\GuardianProvisioningService;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Throwable;
 
 final class GuardianManagementController extends Controller
 {
-    private GuardianRepositoryInterface $guardianRepository;
-    private AuditTrailServiceInterface $auditTrail;
-
-    /**
-     * Dependency Injection via Constructor (SOLID Compliance).
-     */
     public function __construct(
-        GuardianRepositoryInterface $guardianRepository,
-        AuditTrailServiceInterface $auditTrail
-    ) {
-        $this->guardianRepository = $guardianRepository;
-        $this->auditTrail = $auditTrail;
-    }
+        private readonly GuardianRepositoryInterface $guardianRepository,
+        private readonly GuardianProvisioningService $guardianProvisioningService,
+        private readonly AuditTrailServiceInterface $auditTrail,
+    ) {}
 
-    /**
-     * Menampilkan daftar wali santri yang terisolasi per lembaga/tenant aktif saat ini.
-     */
     public function index(Request $request): JsonResponse
     {
-        $tenantId = $request->attributes->get('authenticated_tenant_id');
-        $perPage = (int) $request->query('per_page', '15');
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
 
-        if (! $tenantId) {
+        if (! is_string($tenantId) || $tenantId === '') {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Unauthorized. Tenant context identification missing.',
+                'status' => 'error',
+                'message' => 'Unauthorized. Tenant context missing.',
             ], 401);
         }
 
-        $walisantris = $this->guardianRepository->getByTenantPaginated($tenantId, $perPage);
+        $perPage = max(
+            1,
+            min(
+                (int) $request->query('per_page', '15'),
+                100,
+            ),
+        );
+
+        $guardians = $this->guardianRepository
+            ->getByTenantPaginated(
+                $tenantId,
+                $perPage,
+            );
 
         return response()->json([
             'status' => 'success',
-            'data'   => $walisantris->items(),
-            'meta'   => [
-                'current_page' => $walisantris->currentPage(),
-                'last_page'    => $walisantris->lastPage(),
-                'per_page'     => $walisantris->perPage(),
-                'total'        => $walisantris->total(),
-            ]
-        ], 200);
+            'data' => $guardians->items(),
+            'meta' => [
+                'current_page' => $guardians->currentPage(),
+                'last_page' => $guardians->lastPage(),
+                'per_page' => $guardians->perPage(),
+                'total' => $guardians->total(),
+            ],
+        ]);
     }
 
-    /**
-     * Mendaftarkan profil wali santri baru secara transaksional terisolasi.
-     */
-    public function store(Request $request): JsonResponse
+    public function store(StoreGuardianRequest $request): JsonResponse
     {
-        $tenantId = $request->attributes->get('authenticated_tenant_id');
-        $operatorId = $request->attributes->get('authenticated_user_id');
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+        $operatorId = $request->attributes->get(
+            'authenticated_user_id',
+        );
 
-        if (! $tenantId) {
+        if (! is_string($tenantId) || $tenantId === '') {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Unauthorized. Tenant context identification missing.',
+                'status' => 'error',
+                'message' => 'Unauthorized. Tenant context missing.',
             ], 401);
         }
 
-        // Lapisan Validasi Fail-Fast
-        $payload = $request->validate([
-            'nama'  => ['required', 'string', 'max:255', 'min:3'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'no_hp' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s]+$/'],
-        ]);
+        /** @var array{nama:string,no_hp?:string|null} $payload */
+        $payload = $request->validated();
 
         try {
-            // Eksekusi penulisan atomik lintas tabel via repositori
-            $guardian = $this->guardianRepository->createForTenant($tenantId, $payload);
-
-            // Catat ke dalam sistem log audit audit trail
-            $this->auditTrail->log(
-                'walisantri.created',
-                sprintf('Berhasil mendaftarkan wali santri baru: %s', $guardian['nama']),
-                $tenantId,
-                $operatorId,
-                $payload
+            $guardian = $this->guardianProvisioningService
+                ->provision(
+                    tenantId: $tenantId,
+                    data: $payload,
+                );
+        } catch (Throwable $exception) {
+            Log::error(
+                'Guardian provisioning failed.',
+                [
+                    'tenant_id' => $tenantId,
+                    'operator_user_id' => is_string($operatorId)
+                        ? $operatorId
+                        : null,
+                    'exception_class' => $exception::class,
+                ],
             );
 
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Wali santri registered successfully within tenant domain.',
-                'data'    => $guardian
-            ], 201);
-        } catch (Throwable $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Failed to persist guardian record. System transactional error.'
+                'status' => 'error',
+                'message' => 'Failed to persist guardian record.',
             ], 500);
         }
+
+        $this->auditTrail->log(
+            eventType: 'guardian.created',
+            description: 'Created guardian profile.',
+            tenantId: $tenantId,
+            actorUserId: is_string($operatorId)
+                ? $operatorId
+                : null,
+            metadata: [
+                'guardian_id' => $guardian['guardian_id'],
+                'membership_id' => $guardian['membership_id'],
+                'person_id' => $guardian['person_id'],
+            ],
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Guardian registered successfully within tenant domain.',
+            'data' => $guardian,
+        ], 201);
     }
 }

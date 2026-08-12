@@ -13,6 +13,10 @@
 
 ---
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP as a logical dependency/ownership rule, not a demand for perfectly symmetric physical folders. The current source evolved across `Platform/`, `Manifest/`, and `Services/`. We do not perform namespace/folder refactors solely for aesthetic purity. Presentation adapters must still avoid owning filesystem/manifest/state persistence concerns, and dependency direction must remain explicit.
+
 # Related ADR
 
 - ADR-001 — Kernel Architecture Overview

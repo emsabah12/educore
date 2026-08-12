@@ -14,6 +14,10 @@
 
 ---
 
+
+> ## Revalidation Amendment — 2026-08-12
+> **Decision:** KEEP. “Thin Command” means console adapters do not scan filesystem, parse/validate manifests, construct module definitions, or mutate runtime-state files directly. Current lightweight CQS allows read commands to depend on `ModuleRepository` + `ModuleStateRepository`; mutation commands depend on `ModuleManager`. Historical text below that says every command must call `ModuleManager` is superseded by this amendment.
+
 # Related ADR
 
 - ADR-007 — ModuleManager as Kernel Facade

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Core\Support\Uuid\HasUuidV7;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 final class StudentGrade extends Model
 {
-    use HasUuids;
+    use HasUuidV7;
     use BelongsToTenant;
 
     protected $table = 'student_grades';

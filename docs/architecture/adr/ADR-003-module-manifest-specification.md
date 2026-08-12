@@ -6,6 +6,10 @@ Date : 2026-07-01
 Updated : 2026-07-07
 Sprint : CORE-001 Sprint-1
 
+
+> ## Revalidation — 2026-08-12
+> **Decision:** KEEP. `module.yaml` remains the declarative metadata contract and runtime state remains separate. Current bootstrap uses JIT/lazy `ModuleRepository` resolution as already recorded by the 2026-07-07 amendment. Current discovery passes sorted manifest paths directly to `ModuleManifestLoader`; a `DiscoveredModule` Value Object is **not** part of the current contract. Declared provider classes are validated, but provider activation wiring is not yet frozen as a sole manifest-driven mechanism.
+
 ## Related ADR
 
 - ADR-004 — Automatic Module Discovery

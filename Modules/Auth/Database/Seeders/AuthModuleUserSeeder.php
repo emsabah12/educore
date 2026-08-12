@@ -14,10 +14,6 @@ final class AuthModuleUserSeeder extends Seeder
     /**
      * Seed a development authentication fixture while preserving canonical
      * Person → User and Person → Membership ownership.
-     *
-     * The downstream employee-profile insert is intentionally left as an
-     * existing HR fixture concern; authorization is not sourced from a
-     * memberships.role column.
      */
     public function run(): void
     {
@@ -116,26 +112,5 @@ final class AuthModuleUserSeeder extends Seeder
         $this->command->info(
             "-> Membership ID : {$membershipId}",
         );
-
-        /*
-         * Existing development-only HR fixture behavior. This does not make
-         * Membership an authorization-role source; HR remains a downstream
-         * bounded context and is not otherwise refactored in Phase 2G.4.
-         */
-        if (DB::getSchemaBuilder()->hasTable('pegawais')) {
-            DB::table('pegawais')->insert([
-                'id' => UuidV7::generate(),
-                'tenant_id' => $tenantId,
-                'membership_id' => $membershipId,
-                'nip' => '19982026121001',
-                'jabatan' => 'SUPER_ADMINISTRATOR',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $this->command->info(
-                '✓ Profil bisnis pegawai development fixture berhasil disemai.',
-            );
-        }
     }
 }

@@ -4,20 +4,31 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Contracts;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 interface GuardianRepositoryInterface
 {
-    /**
-     * Mengambil daftar wali santri terisolasi per tenant beserta paginasi.
-     */
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    public function getByTenantPaginated(
+        string $tenantId,
+        int $perPage = 15,
+    ): LengthAwarePaginator;
 
     /**
-     * Mendapatkan detail profil wali santri spesifik di dalam scope tenant yang sah.
+     * @return array<string, mixed>
      */
-    public function findByIdForTenant(string $id, string $tenantId): array;
+    public function findByIdForTenant(
+        string $id,
+        string $tenantId,
+    ): array;
 
     /**
-     * Mendaftarkan wali santri baru lintas 3 tabel (users, memberships, walisantris).
+     * Create only the Guardian profile for an existing canonical Membership.
+     * Human identity and Membership provisioning are application-service concerns.
+     *
+     * @return array<string, mixed>
      */
-    public function createForTenant(string $tenantId, array $data): array;
+    public function createProfileForTenant(
+        string $tenantId,
+        string $membershipId,
+    ): array;
 }

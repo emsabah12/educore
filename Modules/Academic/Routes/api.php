@@ -146,5 +146,7 @@ Route::middleware([
     Route::post(
         '/v1/academic/grades/bulk',
         [BulkGradingController::class, 'storeBulk']
-    )->name('api.v1.academic.grades.bulk');
+    )
+        ->middleware('tenant.permission:academic.grades.write')
+        ->name('api.v1.academic.grades.bulk');
 });

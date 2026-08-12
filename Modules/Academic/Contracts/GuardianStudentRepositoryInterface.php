@@ -7,38 +7,36 @@ namespace Modules\Academic\Contracts;
 interface GuardianStudentRepositoryInterface
 {
     /**
-     * Menghubungkan seorang student dengan guardian
-     * dalam tenant tertentu.
+     * Attach a canonical Student profile to a canonical Guardian profile
+     * inside the same tenant.
      *
-     * Operasi bersifat idempotent:
-     * jika relasi sudah ada, method mengembalikan true
-     * tanpa membuat duplicate record.
+     * The operation is idempotent. Re-attaching the same pair succeeds
+     * without creating a duplicate row or changing the existing relation.
+     * Returns true only when a new association row is created.
      */
     public function attachStudentToGuardian(
         string $tenantId,
         string $guardianId,
         string $studentId,
-        string $relationshipType = 'AYAH'
+        string $relationshipType,
     ): bool;
 
     /**
-     * Memutuskan hubungan guardian dengan student
-     * hanya dalam tenant yang diberikan.
+     * Detach one Guardian-Student association inside the tenant boundary.
      */
     public function detachStudentFromGuardian(
         string $tenantId,
         string $guardianId,
-        string $studentId
+        string $studentId,
     ): bool;
 
     /**
-     * Mengambil seluruh student yang terhubung
-     * dengan guardian tertentu dalam tenant tertentu.
+     * Return the canonical Student projection for one Guardian.
      *
      * @return array<int, array<string, mixed>>
      */
     public function getStudentsByGuardian(
         string $tenantId,
-        string $guardianId
+        string $guardianId,
     ): array;
 }

@@ -1,301 +1,225 @@
-# Module Manager
+# ModuleManager & Module Query Boundary
 
-Version : 1.0
-Status : Locked
-Updated : 2026-07-02
-Sprint : CORE-001 Sprint-1
+- **Version**: 2.0
+- **Status**: Current / Revalidated
+- **Updated**: 2026-08-12
 
-## Related ADR
+## Overview
 
-- ADR-005 — Module Registry as Source of Truth
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — Module Manager as Kernel Facade
-- ADR-008 — Thin Command Pattern
+Current Module Kernel menggunakan lightweight **Command Query Separation (CQS)**.
 
----
-
-# Overview
-
-`ModuleManager` merupakan façade utama Platform Kernel yang menyediakan satu titik masuk (single entry point) untuk seluruh operasi runtime yang berkaitan dengan modul.
-
-Seluruh business rule yang berhubungan dengan pengelolaan status modul dipusatkan pada komponen ini. Komponen lain, seperti Console Command atau service aplikasi, tidak berinteraksi langsung dengan `ModuleRegistry` maupun `ModuleStateRepository`.
-
-`ModuleManager` hanya mengelola **Runtime Lifecycle**. Proses discovery, parsing, validasi manifest, dan registrasi metadata merupakan tanggung jawab Discovery Pipeline.
-
----
-
-# Responsibilities
-
-`ModuleManager` memiliki tanggung jawab sebagai berikut:
-
-- Mengaktifkan modul (`enable`).
-- Menonaktifkan modul (`disable`).
-- Mengecek status runtime modul.
-- Menggabungkan metadata modul dengan runtime state.
-- Mengorkestrasi `ModuleRegistry` dan `ModuleStateRepository`.
-- Memvalidasi business rule sebelum perubahan runtime dilakukan.
-- Menyediakan API tunggal untuk seluruh operasi runtime modul.
-
----
-
-# Non-Responsibilities
-
-`ModuleManager` **tidak bertanggung jawab** untuk:
-
-- Melakukan discovery modul.
-- Membaca berkas `module.yaml`.
-- Memuat atau mem-parsing manifest.
-- Memvalidasi struktur manifest.
-- Membuat `ModuleDefinition`.
-- Mengubah metadata pada `ModuleRegistry`.
-- Berinteraksi langsung dengan filesystem.
-- Menangani detail persistence di luar `ModuleStateRepository`.
-
-Seluruh tanggung jawab tersebut telah dipisahkan ke komponen lain sesuai prinsip **Single Responsibility Principle (SRP)**.
-
----
-
-# Position in Architecture
+`ModuleManager` bukan lagi universal facade untuk seluruh read dan write operation.
 
 ```text
-                Application Layer
-                       │
-                       ▼
-              Console / Services
-                       │
-                       ▼
-                 ModuleManager
-                  │          │
-                  ▼          ▼
-          ModuleRegistry   ModuleStateRepository
-          (Metadata)         (Runtime State)
-```
+QUERY
+ModuleRepository + ModuleStateRepository
 
-`ModuleManager` menjadi batas antara Application Layer dan komponen internal Platform Kernel.
-
----
-
-# Core Operations
-
-## enable(moduleName)
-
-Mengaktifkan sebuah modul pada runtime.
-
-### Flow
-
-1. Memastikan modul terdaftar di `ModuleRegistry`.
-2. Membaca status runtime dari `ModuleStateRepository`.
-3. Memastikan modul belum aktif.
-4. Mengubah status menjadi `enabled`.
-5. Menyimpan perubahan melalui `ModuleStateRepository`.
-
-### Rules
-
-- Modul harus terdaftar pada `ModuleRegistry`.
-- Modul yang sudah aktif tidak diproses ulang.
-- Metadata modul tidak berubah.
-
----
-
-## disable(moduleName)
-
-Menonaktifkan sebuah modul pada runtime.
-
-### Flow
-
-1. Memastikan modul terdaftar di `ModuleRegistry`.
-2. Membaca status runtime.
-3. Memastikan modul masih aktif.
-4. Mengubah status menjadi `disabled`.
-5. Menyimpan perubahan melalui `ModuleStateRepository`.
-
-### Rules
-
-- Modul harus terdaftar.
-- Modul yang sudah nonaktif tidak diproses ulang.
-- Metadata tetap tidak berubah.
-
----
-
-## isEnabled(moduleName)
-
-Mengembalikan status runtime modul.
-
-Sumber data:
-
-```text
-ModuleStateRepository
-```
-
----
-
-## getAllStatus()
-
-Mengembalikan informasi seluruh modul dengan menggabungkan:
-
-- Metadata dari `ModuleRegistry`.
-- Runtime State dari `ModuleStateRepository`.
-
-Dengan pendekatan ini, metadata tetap menjadi **Source of Truth** sedangkan runtime state menjadi informasi yang bersifat dinamis.
-
----
-
-# Business Rules
-
-## Rule 1 — Registry First
-
-Seluruh operasi runtime harus diawali dengan validasi bahwa modul telah terdaftar di `ModuleRegistry`.
-
----
-
-## Rule 2 — Metadata is Immutable
-
-`ModuleManager` tidak boleh mengubah `ModuleDefinition`.
-
-Perubahan runtime hanya memengaruhi `ModuleStateRepository`.
-
----
-
-## Rule 3 — Runtime State is Mutable
-
-Status modul dapat berubah selama aplikasi berjalan tanpa mengubah metadata.
-
----
-
-## Rule 4 — Idempotent Operations
-
-Operasi runtime harus bersifat idempotent.
-
-Contoh:
-
-- enable modul yang sudah aktif → tidak mengubah state.
-- disable modul yang sudah nonaktif → tidak mengubah state.
-
----
-
-## Rule 5 — Separation of Concerns
-
-`ModuleManager` tidak boleh:
-
-- membaca filesystem,
-- memuat manifest,
-- mem-parsing YAML,
-- memvalidasi manifest,
-- melakukan discovery.
-
-Seluruh tanggung jawab tersebut telah dipisahkan ke Discovery Pipeline.
-
----
-
-# Dependency Flow
-
-```text
-                  ModuleManager
-                   │         │
-                   ▼         ▼
-          ModuleRegistry   ModuleStateRepository
-          Source of Truth   Runtime State
-```
-
-`ModuleManager` mengorkestrasi kedua komponen tersebut tanpa mengetahui detail implementasi internal masing-masing.
-
----
-
-# Error Handling
-
-`ModuleManager` menggunakan exception yang spesifik agar penyebab kegagalan dapat diketahui dengan jelas.
-
-Contoh:
-
-- `ModuleNotFoundException`
-- `ModuleAlreadyEnabledException`
-- `ModuleAlreadyDisabledException`
-
-Pendekatan ini mendukung prinsip **Fail Fast** dan mempermudah proses debugging.
-
----
-
-# Command Integration
-
-Seluruh Artisan Command mengikuti prinsip **Thin Command Pattern**.
-
-Command hanya:
-
-1. menerima input,
-2. memanggil `ModuleManager`,
-3. menampilkan hasil.
-
-Diagram:
-
-```text
-User Input
-      │
-      ▼
-Console Command
-      │
-      ▼
+COMMAND / MUTATION
 ModuleManager
-      │
-      ▼
-ModuleRegistry
-      │
-      ▼
-ModuleStateRepository
+    ↓
+ModuleRepository + ModuleStateRepository
 ```
 
-Contoh:
+---
+
+# 1. ModuleManager Responsibility
+
+Current operations:
+
+```text
+isEnabled(name)
+enable(name)
+disable(name)
+getEnabledModules()
+```
+
+Manager memastikan target module dikenal sebelum lifecycle-state mutation/check dilakukan.
+
+Unknown module:
+
+```text
+ModuleNotFoundException
+```
+
+---
+
+# 2. Dependencies
+
+```text
+ModuleManager
+   │
+   ├── ModuleRepository
+   │      └── ModuleRegistry
+   │
+   └── ModuleStateRepository
+          └── modules.json
+```
+
+`ModuleManager` tidak melakukan:
+
+```text
+filesystem discovery
+YAML loading
+YAML parsing
+manifest validation
+ModuleDefinition creation
+dependency graph construction
+event discovery
+provider registration
+```
+
+---
+
+# 3. Query Boundary
+
+Read commands saat ini menggunakan query dependencies secara langsung.
 
 ```text
 module:list
-module:enable
-module:disable
-module:status
+   ↓
+ModuleRepository
++
+ModuleStateRepository
 ```
 
-Business rule tetap berada di dalam `ModuleManager`.
+```text
+module:status
+   ↓
+ModuleRepository
++
+ModuleStateRepository
+```
+
+Ini intentional lightweight CQS dan bukan pelanggaran thin-command principle selama command tidak mengambil alih discovery/manifest/business mutation logic.
 
 ---
 
-# Design Principles
+# 4. Mutation Boundary
 
-`ModuleManager` dibangun berdasarkan prinsip berikut:
+```text
+module:enable Foo
+      ↓
+ModuleEnableCommand
+      ↓
+ModuleManager.enable(Foo)
+      ↓
+ensure module exists
+      ↓
+ModuleStateRepository.enable(Foo)
+```
 
-- Single Responsibility Principle (SRP)
-- Facade Pattern
-- Thin Command Pattern
-- Centralized Business Rules
-- Explicit Runtime State Management
-- Separation of Metadata and Runtime
-- Source of Truth
-- Idempotent Operations
-- Fail Fast
+```text
+module:disable Foo
+      ↓
+ModuleDisableCommand
+      ↓
+ModuleManager.disable(Foo)
+      ↓
+ensure module exists
+      ↓
+ModuleStateRepository.disable(Foo)
+```
+
+Current mutation is idempotent at persistence level because state is overwritten to the requested boolean.
+
+Tidak ada current `ModuleAlreadyEnabledException` atau `ModuleAlreadyDisabledException` contract.
+
+---
+
+# 5. Activation Semantics
+
+Critical rule:
+
+> `enable()` / `disable()` mengubah **persisted desired activation state**, bukan melakukan hot load/unload terhadap process yang sedang berjalan.
+
+```text
+command writes state
+      ↓
+next application bootstrap
+      ↓
+CoreServiceProvider evaluates state
+      ↓
+provider activation path
+```
+
+Karena itu jangan menulis UI/API yang menjanjikan immediate unload tanpa Module Kernel hardening tambahan.
+
+---
+
+# 6. Enabled Module Query
+
+`getEnabledModules()`:
+
+1. membaca seluruh ModuleDefinition melalui `ModuleRepository`;
+2. mengecek state setiap module;
+3. mengembalikan definitions dengan state enabled.
+
+Return value tetap `ModuleDefinition`, bukan raw manifest array.
+
+---
+
+# 7. Thin Command Rules
+
+Thin command berarti:
+
+```text
+input normalization
+call application/kernel dependency
+present output
+return exit code
+```
+
+Command tidak boleh:
+
+```text
+scan Modules/
+parse YAML
+mutate modules.json manually
+construct ModuleDefinition
+resolve dependency graph
+register provider
+```
+
+Read-only formatting dan basic existence handling tetap boleh berada di adapter CLI.
+
+---
+
+# 8. Current Commands
+
+| Command | Type | Current dependency |
+| --- | --- | --- |
+| `module:list` | Query | `ModuleRepository` + `ModuleStateRepository` |
+| `module:status` | Query | `ModuleRepository` + `ModuleStateRepository` |
+| `module:enable` | Mutation | `ModuleManager` |
+| `module:disable` | Mutation | `ModuleManager` |
+| `kernel:test-loader` | Diagnostic query | `ModuleRepository` |
+
+Ini menggantikan dokumentasi lama yang menyatakan semua command wajib melalui `ModuleManager`.
+
+---
+
+# 9. Current Non-Responsibilities
+
+`ModuleManager` tidak menjadi tempat untuk:
+
+```text
+module install/publish
+schema migration orchestration
+organization/domain authorization
+feature flags
+hot process reconfiguration
+remote plugin marketplace
+```
+
+Capability baru harus mempunyai concrete requirement sebelum ditambahkan.
 
 ---
 
 # Related Documents
 
-- `README.md`
-- `kernel.md`
-- `folder-structure.md`
-- `discovery-flow.md`
-- `module-lifecycle.md`
-- `architecture-principles.md`
-
----
-
-# Summary
-
-`ModuleManager` merupakan façade utama Platform Kernel untuk seluruh operasi runtime modul.
-
-Komponen ini mengoordinasikan `ModuleRegistry` sebagai **Source of Truth** metadata dan `ModuleStateRepository` sebagai penyimpan runtime state, tanpa mengambil alih tanggung jawab Discovery Pipeline.
-
-Dengan pemisahan tanggung jawab tersebut, Platform Kernel tetap memenuhi prinsip:
-
-- Clean Architecture
-- Single Responsibility Principle
-- Separation of Concerns
-- Explicit Runtime State Management
-- Thin Command Pattern
-- Fail Fast
-- Immutable Metadata
-- Source of Truth
+- [`kernel.md`](kernel.md)
+- [`discovery-flow.md`](discovery-flow.md)
+- [`module-lifecycle.md`](module-lifecycle.md)
+- ADR-006 — Runtime Module State Repository
+- ADR-007 — ModuleManager
+- ADR-008 — Thin Command Pattern
