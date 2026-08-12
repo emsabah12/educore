@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Core\Manifest;
 
+use Illuminate\Support\ServiceProvider;
 use Modules\Core\Exceptions\InvalidModuleManifestException;
 
 final readonly class ModuleManifestValidator
@@ -130,6 +131,17 @@ final readonly class ModuleManifestValidator
                         "Gagal memuat modul [%s]. Kelas Service Provider [%s] tidak ditemukan di sistem. Periksa kembali kemungkinan typo ejaan pada berkas module.yaml.",
                         $manifest['name'],
                         $providerClass
+                    )
+                );
+            }
+
+            if (!is_subclass_of($providerClass, ServiceProvider::class)) {
+                throw new InvalidModuleManifestException(
+                    sprintf(
+                        'Module [%s] manifest error: Provider [%s] must extend %s.',
+                        $manifest['name'],
+                        $providerClass,
+                        ServiceProvider::class,
                     )
                 );
             }

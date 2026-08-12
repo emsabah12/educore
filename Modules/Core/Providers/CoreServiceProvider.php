@@ -32,6 +32,7 @@ use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Module\Services\ModuleManager;
+use Modules\Core\Platform\Module\Services\ModuleProviderRegistrar;
 use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\ModuleStateRepository;
 use Modules\Core\Services\DependencyResolver;
@@ -72,6 +73,7 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleDefinitionFactory::class);
         $this->app->singleton(ModuleLoader::class);
         $this->app->singleton(ModuleBootstrapService::class);
+        $this->app->singleton(ModuleProviderRegistrar::class);
 
         // 2. Runtime State Repository dengan target file terisolasi
         $this->app->singleton(ModuleStateRepository::class, function (): ModuleStateRepository {
@@ -124,8 +126,9 @@ final class CoreServiceProvider extends ServiceProvider
         if (method_exists($this, 'registerBlueprintMacros')) {
             $this->registerBlueprintMacros();
         };
-        // JIT TRIGGER: Daftarkan Service Provider dari Modul-Modul yang Aktif 
-        $this->registerActiveModules();
+        // Register installed non-Core module providers from their manifests.
+        $this->registerManifestModuleProviders();
+        $this->registerCorePlatformBindings();
         $this->registerMigrations();
         // Daftarkan TenantServiceProvider secara internal
         // $this->app->register(\Modules\Core\Providers\TenantServiceProvider::class);
@@ -204,41 +207,24 @@ final class CoreServiceProvider extends ServiceProvider
     }
 
     /**
-     * Pindai modules.json dan daftarkan Service Provider milik modul yang berstatus ACTIVE.
+     * Register non-Core module providers declared explicitly in module.yaml.
      */
-    private function registerActiveModules(): void
+    private function registerManifestModuleProviders(): void
     {
         /** @var ModuleRepository $repository */
         $repository = $this->app->make(ModuleRepository::class);
-        /** @var ModuleStateRepository $stateRepository */
-        $stateRepository = $this->app->make(ModuleStateRepository::class);
 
-        try {
-            foreach ($repository->all() as $module) {
-                $name = method_exists($module, 'getName')
-                    ? $module->getName()
-                    : $module->name;
+        /** @var ModuleProviderRegistrar $registrar */
+        $registrar = $this->app->make(ModuleProviderRegistrar::class);
 
-                // Abaikan modul Core agar tidak mendaftarkan dirinya sendiri secara rekursif
-                if (strtolower($name) === 'core') {
-                    continue;
-                }
+        $registrar->register($repository->all());
+    }
 
-                // Jika status runtime di modules.json adalah ENABLED/ACTIVE
-                if ($stateRepository->isEnabled($name)) {
-                    // Konvensi Namespace PSR-4
-                    $studlyName = ucfirst($name);
-                    $providerClass = sprintf('Modules\\%s\\Providers\\%sServiceProvider', $studlyName, $studlyName);
-
-                    if (class_exists($providerClass)) {
-                        $this->app->register($providerClass);
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Dynamic Module Registration Failed: ' . $e->getMessage());
-        }
-
+    /**
+     * Register Core-owned platform bindings independently from module activation.
+     */
+    private function registerCorePlatformBindings(): void
+    {
         $this->app->singleton(
             \Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface::class,
             \Modules\Core\Governance\Audit\Persistence\DatabaseAuditTrailService::class

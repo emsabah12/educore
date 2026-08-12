@@ -87,4 +87,17 @@ final class ModuleManifestValidatorTest extends TestCase
         // 3. Eksekusi menggunakan variabel lokal yang sudah pasti ter-instansiasi
         $localValidator->validate($manifestData);
     }
+
+    public function test_rejects_existing_class_that_is_not_a_service_provider(): void
+    {
+        $validator = new ModuleManifestValidator();
+
+        $manifest = ManifestBuilder::make()->build();
+        $manifest['providers'] = [\stdClass::class];
+
+        $this->expectException(InvalidModuleManifestException::class);
+        $this->expectExceptionMessage('must extend Illuminate\\Support\\ServiceProvider');
+
+        $validator->validate($manifest);
+    }
 }
