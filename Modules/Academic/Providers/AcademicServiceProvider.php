@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Providers;
 
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
 use Modules\Academic\Contracts\GuardianRepositoryInterface;
@@ -93,21 +92,5 @@ final class AcademicServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(
             __DIR__ . '/../Database/Migrations'
         );
-
-        /*
-         * Register cross-module event listeners.
-         *
-         * The listener is registered only when both the event
-         * and listener classes are available.
-         */
-        if (
-            class_exists(\Modules\Academic\Events\CoursePublished::class)
-            && class_exists(\Modules\Core\Listeners\LogCoursePublication::class)
-        ) {
-            Event::listen(
-                \Modules\Academic\Events\CoursePublished::class,
-                \Modules\Core\Listeners\LogCoursePublication::class
-            );
-        }
     }
 }
