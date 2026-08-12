@@ -15,8 +15,6 @@ use Modules\Core\Exceptions\MissingModuleDependencyException;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Dependency\DependencyResolver;
-use Modules\Core\Services\EventDiscoveryService;
-use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
@@ -49,23 +47,15 @@ final class ModuleBootstrapServiceTest extends TestCase
 
         $manifestLoader = new ModuleManifestLoader($parser, $validator, $factory);
         $moduleLoader = new ModuleLoader($this->registryStorage);
-        $dependencyResolver = new \Modules\Core\Platform\Dependency\DependencyResolver();
-        $eventRegistry = new ModuleEventRegistry();
-        $eventDiscoveryService = new EventDiscoveryService($eventRegistry);
+        $dependencyResolver = new DependencyResolver();
 
-        // TAMBAHKAN INI:
-        $eventRegistry = new \Modules\Core\Platform\Module\Events\ModuleEventRegistry();
-        $eventDiscoveryService = new \Modules\Core\Services\EventDiscoveryService($eventRegistry);
-
-        // 4. DIKOREKSI: Urutan parameter disesuaikan dengan baris ke-15 ModuleBootstrapService.php
         $this->bootstrapService = new ModuleBootstrapService(
-            $discovery,       // Argumen #1
-            $manifestLoader,  // Argumen #2
-            $parser,          // Argumen #3 (Wajib ModuleManifestParser)
-            $factory,         // Argumen #4 (Wajib ModuleDefinitionFactory)
-            $moduleLoader,    // Argumen #5 (Wajib ModuleLoader)
-            $dependencyResolver,  // Argumen #6 (Wajib DependencyResolver)
-            $eventDiscoveryService  // Argumen #7 (Wajib EventDiscoveryService)
+            $discovery,
+            $manifestLoader,
+            $parser,
+            $factory,
+            $moduleLoader,
+            $dependencyResolver,
         );
     }
 

@@ -27,14 +27,12 @@ use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use Modules\Core\Platform\Module\Events\ModuleEventRegistry;
 use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Module\Services\ModuleProviderRegistrar;
 use Modules\Core\Services\ModuleRepository;
 use Modules\Core\Services\DependencyResolver;
-use Modules\Core\Services\EventDiscoveryService;
 use Modules\Core\Person\Repositories\EloquentPersonRepository;
 use Modules\Core\Person\Contracts\PersonRepositoryInterface;
 use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
@@ -56,11 +54,6 @@ final class CoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-
-        // Ikat ModuleEventRegistry sebagai objek singleton di container Laravel
-        $this->app->singleton(ModuleEventRegistry::class, function () {
-            return new ModuleEventRegistry();
-        });
 
         // 1. Komponen Infrastruktur Dasar Sasis (Auto-wired Singletons)
         $this->app->singleton(ModuleDiscovery::class);
@@ -260,18 +253,6 @@ final class CoreServiceProvider extends ServiceProvider
             $this->commands([
                 \Modules\Core\Tenancy\Console\TenantProvisionCommand::class,
             ]);
-        }
-
-        // BINDING EVENT LARAVEL SECARA NATIVE
-        // Ambil objek registry event yang telah dikumpulkan selama fase bootstrap modul
-        /** @var ModuleEventRegistry $eventRegistry */
-        $eventRegistry = $this->app->make(ModuleEventRegistry::class);
-
-        // Iterasikan map hasil temuan auto-discovery ke Event Engine Laravel
-        foreach ($eventRegistry->getAll() as $eventClass => $listeners) {
-            foreach ($listeners as $listenerClass) {
-                Event::listen($eventClass, $listenerClass);
-            }
         }
     }
 
