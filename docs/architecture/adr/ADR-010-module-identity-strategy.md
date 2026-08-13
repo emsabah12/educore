@@ -1,8 +1,9 @@
 # ADR-010 — Module Identity Strategy
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-07-02
+**Updated** : 2026-08-13
 **Sprint** : CORE-001 Sprint-1
 
 ---
@@ -14,14 +15,15 @@
 ---
 
 
-> ## Revalidation — 2026-08-12
-> **Decision:** KEEP with clarified current semantics. Module technical identity remains the exact manifest `name`; no UUID is added to `ModuleDefinition`. Registry lookup, dependency references, and runtime-state keys depend on this name. Current implementation performs exact string matching, so casing is part of the technical identifier unless a future ADR explicitly normalizes it. The historical body below that recommends lowercase-only names is therefore not a current requirement. Likewise, its old UUID example list (`Teacher`, `School`, and other early domain examples) is historical context, not the canonical entity model: Teacher is now a role/capability, and Organization/Branch topology is not yet locked. Use `../architecture-principles.md` and `../current-architecture.md` for current identity examples.
+> ## Revalidation — 2026-08-13
+> **Decision:** KEEP with explicit migration-state semantics. Module technical identity remains the exact manifest `name`; no UUID is added to `ModuleDefinition`, and current registry/dependency lookup uses exact string matching. The canonical target for technical keys is a lowercase slug matching `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`, with no silent normalization and no permanent compatibility aliases. The physical manifests have **not** completed that cutover yet: current keys remain `core`, `Auth`, `User`, `HR`, `Academic`, and `PPDB`, so dependencies must use those exact names until an explicit migration step changes them. Historical lowercase guidance below describes the canonical target, not an already-completed runtime migration.
 
 # Related ADR
 
 - ADR-003 — Module Manifest Specification
 - ADR-005 — Module Registry as Source of Truth
 - ADR-009 — Separation of Infrastructure and Kernel Domain
+- ADR-017 — Module Runtime & Bootstrap Contract
 
 ---
 

@@ -1,16 +1,20 @@
 # ADR-007 — ModuleManager as Kernel Facade
 
-Version : 2.0  
-Status : Accepted  
+Version : 2.1
+Status : Superseded
 Date : 2026-07-01  
-Updated : 2026-07-03  
+Updated : 2026-08-13
 Sprint : CORE-001 Sprint-1
 
 ---
 
 
-> ## Revalidation Amendment — 2026-08-12
-> **Decision:** KEEP `ModuleManager` for lifecycle-state commands, but narrow the facade claim. Current Module Kernel uses lightweight CQS: `module:enable`/`module:disable` delegate to `ModuleManager`, while `module:list`/`module:status` query `ModuleRepository` + `ModuleStateRepository` directly. `ModuleManager` is therefore the mutation/lifecycle-state orchestration boundary, not a mandatory facade for every read query.
+> ## Superseded — 2026-08-13
+> **Replacement:** ADR-017 — Module Runtime & Bootstrap Contract.
+>
+> `ModuleManager` and the module lifecycle-state mutation commands were removed during Module Kernel Runtime Hardening together with persisted runtime module state. Current module console operations are read-only metadata queries through `ModuleRepository`; module bootstrap is driven by physical discovery, validated manifests, dependency resolution, and provider registration.
+>
+> The body below is retained as historical decision context only and is **not** a current implementation contract.
 
 # Related ADR
 

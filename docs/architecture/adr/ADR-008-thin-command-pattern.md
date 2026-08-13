@@ -1,9 +1,9 @@
 # ADR-008 — Thin Command Pattern
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-07-01
-**Updated** : 2026-07-02
+**Updated** : 2026-08-13
 **Sprint** : CORE-001 Sprint-1
 
 ---
@@ -15,13 +15,14 @@
 ---
 
 
-> ## Revalidation Amendment — 2026-08-12
-> **Decision:** KEEP. “Thin Command” means console adapters do not scan filesystem, parse/validate manifests, construct module definitions, or mutate runtime-state files directly. Current lightweight CQS allows read commands to depend on `ModuleRepository` + `ModuleStateRepository`; mutation commands depend on `ModuleManager`. Historical text below that says every command must call `ModuleManager` is superseded by this amendment.
+> ## Revalidation Amendment — 2026-08-13
+> **Decision:** KEEP. Current module console commands are read-only metadata adapters: `module:list` and `module:status` query `ModuleRepository` and do not own filesystem scanning, manifest parsing/validation, provider activation, or mutable runtime state. `module:enable`, `module:disable`, `ModuleManager`, and `ModuleStateRepository` are no longer part of the current contract. Historical mutation-command examples below are superseded by ADR-017.
 
 # Related ADR
 
-- ADR-007 — ModuleManager as Kernel Facade
+- ADR-007 — ModuleManager as Kernel Facade (**Superseded by ADR-017**)
 - ADR-009 — Separation of Infrastructure and Kernel Domain
+- ADR-017 — Module Runtime & Bootstrap Contract
 
 ---
 

@@ -1,14 +1,18 @@
 # ADR-006 — Runtime Module State Repository
 
-**Version** : 1.1
-**Status** : Accepted
+**Version** : 1.2
+**Status** : Superseded
 **Date** : 2026-07-01
-**Updated** : 2026-08-12
+**Updated** : 2026-08-13
 
 ---
 
-> ## Revalidation — 2026-08-12
-> **Decision:** KEEP with clarified semantics. `ModuleStateRepository` still persists `enabled` state in `storage/framework/modules.json`, separate from immutable manifest metadata. `enabled/disabled` is a **bootstrap activation preference**, not hot load/unload. `module:enable`/`module:disable` persist desired state; provider/listener code already loaded in the current process is not dynamically unloaded.
+> ## Superseded — 2026-08-13
+> **Replacement:** ADR-017 — Module Runtime & Bootstrap Contract.
+>
+> `ModuleStateRepository`, `storage/framework/modules.json`, `module:enable`, and `module:disable` were removed during Module Kernel Runtime Hardening. EduCore no longer persists module bootstrap activation state. A physically present module with a valid manifest and a dependency-closed graph participates in application bootstrap; tenant feature availability is a separate concern and must not be modeled as module runtime enable/disable state.
+>
+> The body below is retained as historical decision context only and is **not** a current implementation contract.
 
 # Context
 

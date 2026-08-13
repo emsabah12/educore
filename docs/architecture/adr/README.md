@@ -1,8 +1,8 @@
 # Architecture Decision Records (ADR)
 
-**Version**: 3.1
+**Version**: 3.2
 **Status**: Current Index
-**Updated**: 2026-08-12
+**Updated**: 2026-08-13
 
 ---
 
@@ -44,22 +44,23 @@ Superseded
 
 | ADR | Title | Status | Notes |
 | --- | --- | --- | --- |
-| ADR-001 | Kernel Architecture Overview | Accepted | KEEP; current implementation revalidated 2026-08-12 |
+| ADR-001 | Kernel Architecture Overview | Accepted | KEEP; runtime/bootstrap details amended by ADR-017 |
 | ADR-002 | Modular Monolith Architecture | Accepted | KEEP; current deployment/module strategy |
-| ADR-003 | Module Manifest Specification | Accepted | KEEP; JIT bootstrap/current manifest contract revalidated |
-| ADR-004 | Automatic Module Discovery | Accepted | AMENDED: automatic discovery kept; `DiscoveredModule` no longer current |
+| ADR-003 | Module Manifest Specification | Accepted | KEEP; manifest/provider/bootstrap semantics amended by ADR-017 |
+| ADR-004 | Automatic Module Discovery | Accepted | KEEP; physical manifest discovery remains current |
 | ADR-005 | Module Registry as Source of Truth | Accepted | KEEP; `ModuleRepository` is current read facade |
-| ADR-006 | Runtime Module State Repository | Accepted | KEEP; state is bootstrap activation preference, not hot lifecycle |
-| ADR-007 | ModuleManager as Kernel Facade | Accepted | AMENDED: mutation/lifecycle-state facade; reads use query boundary |
-| ADR-008 | Thin Command Pattern | Accepted | AMENDED: lightweight CQS for read vs mutation commands |
+| ADR-006 | Runtime Module State Repository | **Superseded** | Replaced by ADR-017; persisted module activation state removed |
+| ADR-007 | ModuleManager as Kernel Facade | **Superseded** | Replaced by ADR-017; lifecycle-state facade removed |
+| ADR-008 | Thin Command Pattern | Accepted | KEEP; current module commands are read-only `module:list` / `module:status` |
 | ADR-009 | Separation of Infrastructure and Kernel Domain | Accepted | KEEP/REFRAME: logical ownership over cosmetic folder purity |
-| ADR-010 | Module Identity Strategy | Accepted | KEEP; exact manifest `name` remains technical identity |
+| ADR-010 | Module Identity Strategy | Accepted | KEEP; exact current key + lowercase canonical cutover target |
 | ADR-011 | Multi-Tenancy Architecture Strategy | **Superseded** | Shared-schema decision retained; tenant-context mechanics evolved |
 | ADR-012 | Tenant-Aware Authentication Guard | **Superseded** | Replaced by ADR-015 |
 | ADR-013 | Canonical Human Identity | **Accepted** | Person is canonical human identity |
 | ADR-014 | Membership & Tenant Boundary | **Accepted** | Person-owned Membership; Tenant is security boundary |
 | ADR-015 | Authentication Token & Request Context | **Accepted** | Encrypted bearer token + verified current request context |
 | ADR-016 | Database-Backed Tenant RBAC | **Accepted** | AuthorizationService + Role/Permission persistence |
+| ADR-017 | Module Runtime & Bootstrap Contract | **Accepted** | Canonical Module Kernel runtime contract after Phase 4A hardening |
 
 ---
 
@@ -73,14 +74,13 @@ ADR-002
 ADR-003
 ADR-004
 ADR-005
-ADR-006
-ADR-007
 ADR-008
 ADR-009
 ADR-010
+ADR-017
 ```
 
-These ADRs remain the decision family for the Modular Monolith / Module Kernel. DOC STEP 5 revalidated them against current source. ADR-004, ADR-007, and ADR-008 retain their primary decision but have explicit 2026-08-12 amendments for implementation details that evolved.
+ADR-017 is the canonical current runtime/bootstrap contract for the Modular Monolith Module Kernel. ADR-001, ADR-003, ADR-008, and ADR-010 remain accepted with amendments that point to ADR-017 where runtime details evolved. ADR-006 and ADR-007 are retained only as superseded historical context.
 
 ### Identity / Tenancy / Authentication / RBAC
 
@@ -106,9 +106,10 @@ For a new developer:
 ```text
 1. ../README.md
 2. ../current-architecture.md
-3. ADR-001 → ADR-010 (module-kernel history/contracts)
-4. ADR-013 → ADR-016 (current identity/tenancy/auth/RBAC contracts)
-5. ADR-011 / ADR-012 only as superseded historical context
+3. ADR-017 (current Module Runtime & Bootstrap contract)
+4. ADR-001 → ADR-005, ADR-008 → ADR-010 (supporting module-kernel decisions/history)
+5. ADR-013 → ADR-016 (current identity/tenancy/auth/RBAC contracts)
+6. ADR-006 / ADR-007 / ADR-011 / ADR-012 only as superseded historical context
 ```
 
 ---

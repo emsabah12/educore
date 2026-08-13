@@ -3,19 +3,20 @@
 Version : 1.0
 Status : Accepted
 Date : 2026-07-01
-Updated : 2026-07-07
+Updated : 2026-08-13
 Sprint : CORE-001 Sprint-1
 
 
-> ## Revalidation — 2026-08-12
-> **Decision:** KEEP. `module.yaml` remains the declarative metadata contract and runtime state remains separate. Current bootstrap uses JIT/lazy `ModuleRepository` resolution as already recorded by the 2026-07-07 amendment. Current discovery passes sorted manifest paths directly to `ModuleManifestLoader`; a `DiscoveredModule` Value Object is **not** part of the current contract. Declared provider classes are validated, but provider activation wiring is not yet frozen as a sole manifest-driven mechanism.
+> ## Revalidation — 2026-08-13
+> **Decision:** KEEP, amended by ADR-017. `module.yaml` remains the declarative static metadata contract. EduCore no longer maintains a separate persisted enabled/disabled module state. Declared non-Core provider classes are validated and are the sole non-Core provider activation source; declared dependencies define bootstrap ordering and invalid dependency graphs fail fast. Current runtime identity remains the exact manifest `name` until the separate lowercase technical-key cutover described by ADR-010 is implemented. Historical references below to `ModuleStateRepository`, `module:enable`, or `module:disable` are retained only as implementation history.
 
 ## Related ADR
 
 - ADR-004 — Automatic Module Discovery
 - ADR-005 — Module Registry as Source of Truth
-- ADR-006 — Runtime Module State Repository
+- ADR-006 — Runtime Module State Repository (**Superseded by ADR-017**)
 - ADR-010 — Module Identity Strategy
+- ADR-017 — Module Runtime & Bootstrap Contract
 
 ---
 

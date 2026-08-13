@@ -3,20 +3,21 @@
 Version : 1.0
 Status : Accepted
 Date : 2026-07-01
-Updated : 2026-07-02
+Updated : 2026-08-13
 Sprint : CORE-001 Sprint-1
 
 
-> ## Revalidation — 2026-08-12
-> **Decision:** KEEP. Platform Module Kernel remains valid, but this ADR describes only the module-kernel subsystem, not the whole modern `Modules/Core`. Current implementation now includes JIT metadata bootstrap through `ModuleRepository`, `ModuleBootstrapService`, dependency validation/resolution, event discovery, health checks, and extensive tests. Dependency resolution exists, but dependency-ordered provider registration is **not yet a frozen guarantee**. The `Current Implementation` / `Future Evolution` sections below are historical Sprint CORE-001 snapshots where they conflict with this notice or `../kernel.md`.
+> ## Revalidation — 2026-08-13
+> **Decision:** KEEP, amended by ADR-017. Platform Module Kernel remains valid, but the current runtime contract is now stricter: Core is the mandatory bootstrap root; non-Core providers are activated only from validated manifests and registered in dependency order; invalid dependency/provider configuration fails fast; persisted runtime module enable/disable state has been removed; and global reflection-based event auto-discovery has been removed. The historical `Current Implementation` / `Future Evolution` sections below remain decision history where they conflict with ADR-017 or current architecture documentation.
 
 ## Related ADR
 
 - ADR-002 — Modular Monolith Architecture
 - ADR-005 — Module Registry as Source of Truth
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — Module Manager as Kernel Facade
+- ADR-006 — Runtime Module State Repository (**Superseded by ADR-017**)
+- ADR-007 — Module Manager as Kernel Facade (**Superseded by ADR-017**)
 - ADR-009 — Separation of Infrastructure and Kernel Domain
+- ADR-017 — Module Runtime & Bootstrap Contract
 
 ---
 
