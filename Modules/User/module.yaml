@@ -13,6 +13,7 @@ providers:
 
 dependencies:
   - core
+  - Auth
 
 metadata:
   author: EduCore
