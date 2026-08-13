@@ -13,6 +13,10 @@ use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 final class OrganizationalAssignment extends Model
 {
+    public const STATUS_ACTIVE = 'ACTIVE';
+
+    public const STATUS_INACTIVE = 'INACTIVE';
+
     use BelongsToTenant;
     use HasUuidV7;
 
