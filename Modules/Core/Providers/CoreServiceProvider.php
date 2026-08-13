@@ -275,6 +275,7 @@ final class CoreServiceProvider extends ServiceProvider
             base_path('Modules/Core/Identity/Database/Migrations'),
             base_path('Modules/Core/Tenancy/Database/Migrations'),
             base_path('Modules/Core/Authorization/Database/Migrations'),
+            base_path('Modules/Core/Organization/Database/Migrations'),
             base_path('Modules/Core/Governance/Audit/Database/Migrations'),
             base_path('Modules/Core/Notification/Database/Migrations'),
         ];
