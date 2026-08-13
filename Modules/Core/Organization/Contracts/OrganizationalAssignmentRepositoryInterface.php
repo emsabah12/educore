@@ -26,6 +26,12 @@ interface OrganizationalAssignmentRepositoryInterface
         string $tenantId,
     ): ?OrganizationalAssignment;
 
+    public function findByIdForMembershipAndTenant(
+        string $assignmentId,
+        string $membershipId,
+        string $tenantId,
+    ): ?OrganizationalAssignment;
+
     public function createOrganizationAssignment(
         string $tenantId,
         string $membershipId,

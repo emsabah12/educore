@@ -159,6 +159,16 @@ final class CoreServiceProvider extends ServiceProvider
             \Modules\Core\Organization\Services\OrganizationalAssignmentService::class,
         );
 
+        $this->app->scoped(
+            \Modules\Core\Organization\Contracts\OrganizationalContextInterface::class,
+            \Modules\Core\Organization\Services\OrganizationalContextState::class,
+        );
+
+        $this->app->scoped(
+            \Modules\Core\Organization\Contracts\OrganizationalContextResolverInterface::class,
+            \Modules\Core\Organization\Services\OrganizationalContextResolver::class,
+        );
+
         $this->app->bind(
             MembershipRoleRepositoryInterface::class,
             EloquentMembershipRoleRepository::class,

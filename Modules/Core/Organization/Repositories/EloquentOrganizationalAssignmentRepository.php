@@ -47,6 +47,18 @@ final class EloquentOrganizationalAssignmentRepository implements
             ->first();
     }
 
+    public function findByIdForMembershipAndTenant(
+        string $assignmentId,
+        string $membershipId,
+        string $tenantId,
+    ): ?OrganizationalAssignment {
+        return OrganizationalAssignment::query()
+            ->whereKey($assignmentId)
+            ->where('membership_id', $membershipId)
+            ->where('tenant_id', $tenantId)
+            ->first();
+    }
+
     public function createOrganizationAssignment(
         string $tenantId,
         string $membershipId,
