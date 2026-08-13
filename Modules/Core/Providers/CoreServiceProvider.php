@@ -180,6 +180,16 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            \Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface::class,
+            \Modules\Core\Organization\Repositories\EloquentOrganizationalScopedRoleRepository::class,
+        );
+
+        $this->app->scoped(
+            \Modules\Core\Organization\Contracts\OrganizationalAuthorizationServiceInterface::class,
+            \Modules\Core\Organization\Services\OrganizationalAuthorizationService::class,
+        );
+
+        $this->app->bind(
             MembershipRoleRepositoryInterface::class,
             EloquentMembershipRoleRepository::class,
         );
