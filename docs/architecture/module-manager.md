@@ -1,172 +1,39 @@
-# ModuleManager & Module Query Boundary
+# Module Query Boundary — ModuleManager Retired
 
-- **Version**: 2.0
-- **Status**: Current / Revalidated
-- **Updated**: 2026-08-12
+- **Version**: 3.0
+- **Status**: Historical Compatibility Note
+- **Updated**: 2026-08-13
+- **Superseded by**: ADR-017 — Module Runtime & Bootstrap Contract
 
-## Overview
+## Current Contract
 
-Current Module Kernel menggunakan lightweight **Command Query Separation (CQS)**.
+`ModuleManager`, `ModuleStateRepository`, `module:enable`, dan `module:disable` telah dihapus dari production Module Kernel.
 
-`ModuleManager` bukan lagi universal facade untuk seluruh read dan write operation.
-
-```text
-QUERY
-ModuleRepository + ModuleStateRepository
-
-COMMAND / MUTATION
-ModuleManager
-    ↓
-ModuleRepository + ModuleStateRepository
-```
-
----
-
-# 1. ModuleManager Responsibility
-
-Current operations:
-
-```text
-isEnabled(name)
-enable(name)
-disable(name)
-getEnabledModules()
-```
-
-Manager memastikan target module dikenal sebelum lifecycle-state mutation/check dilakukan.
-
-Unknown module:
-
-```text
-ModuleNotFoundException
-```
-
----
-
-# 2. Dependencies
-
-```text
-ModuleManager
-   │
-   ├── ModuleRepository
-   │      └── ModuleRegistry
-   │
-   └── ModuleStateRepository
-          └── modules.json
-```
-
-`ModuleManager` tidak melakukan:
-
-```text
-filesystem discovery
-YAML loading
-YAML parsing
-manifest validation
-ModuleDefinition creation
-dependency graph construction
-event discovery
-provider registration
-```
-
----
-
-# 3. Query Boundary
-
-Read commands saat ini menggunakan query dependencies secara langsung.
+Current module console boundary bersifat read-only:
 
 ```text
 module:list
-   ↓
+module:status {name}
+       ↓
 ModuleRepository
-+
-ModuleStateRepository
+       ↓
+ModuleRegistry
 ```
 
-```text
-module:status
-   ↓
-ModuleRepository
-+
-ModuleStateRepository
-```
+`ModuleRepository` adalah metadata query facade.
 
-Ini intentional lightweight CQS dan bukan pelanggaran thin-command principle selama command tidak mengambil alih discovery/manifest/business mutation logic.
+Discovery, manifest validation, dependency resolution, module loading, dan provider registration tetap dimiliki Kernel services.
 
----
-
-# 4. Mutation Boundary
+Current command responsibilities:
 
 ```text
-module:enable Foo
+input / option handling
       ↓
-ModuleEnableCommand
+ModuleRepository query
       ↓
-ModuleManager.enable(Foo)
+format metadata output
       ↓
-ensure module exists
-      ↓
-ModuleStateRepository.enable(Foo)
-```
-
-```text
-module:disable Foo
-      ↓
-ModuleDisableCommand
-      ↓
-ModuleManager.disable(Foo)
-      ↓
-ensure module exists
-      ↓
-ModuleStateRepository.disable(Foo)
-```
-
-Current mutation is idempotent at persistence level because state is overwritten to the requested boolean.
-
-Tidak ada current `ModuleAlreadyEnabledException` atau `ModuleAlreadyDisabledException` contract.
-
----
-
-# 5. Activation Semantics
-
-Critical rule:
-
-> `enable()` / `disable()` mengubah **persisted desired activation state**, bukan melakukan hot load/unload terhadap process yang sedang berjalan.
-
-```text
-command writes state
-      ↓
-next application bootstrap
-      ↓
-CoreServiceProvider evaluates state
-      ↓
-provider activation path
-```
-
-Karena itu jangan menulis UI/API yang menjanjikan immediate unload tanpa Module Kernel hardening tambahan.
-
----
-
-# 6. Enabled Module Query
-
-`getEnabledModules()`:
-
-1. membaca seluruh ModuleDefinition melalui `ModuleRepository`;
-2. mengecek state setiap module;
-3. mengembalikan definitions dengan state enabled.
-
-Return value tetap `ModuleDefinition`, bukan raw manifest array.
-
----
-
-# 7. Thin Command Rules
-
-Thin command berarti:
-
-```text
-input normalization
-call application/kernel dependency
-present output
-return exit code
+exit code
 ```
 
 Command tidak boleh:
@@ -174,44 +41,77 @@ Command tidak boleh:
 ```text
 scan Modules/
 parse YAML
-mutate modules.json manually
 construct ModuleDefinition
 resolve dependency graph
 register provider
+mutate module bootstrap state
 ```
 
-Read-only formatting dan basic existence handling tetap boleh berada di adapter CLI.
+## Why This File Still Exists
+
+Path `docs/architecture/module-manager.md` dipertahankan agar link dokumentasi lama tidak menjadi broken link.
+
+Dokumen ini tidak lagi mendefinisikan current `ModuleManager` API karena object tersebut sudah tidak ada pada production contract.
+
+Historical decisions tetap tersedia melalui:
+
+- ADR-006 — Runtime Module State Repository (**Superseded**)
+- ADR-007 — ModuleManager as Kernel Facade (**Superseded**)
+
+Canonical current runtime contract:
+
+- ADR-017 — Module Runtime & Bootstrap Contract
+- [`kernel.md`](kernel.md)
+- [`module-lifecycle.md`](module-lifecycle.md)
+- [`discovery-flow.md`](discovery-flow.md)
 
 ---
 
-# 8. Current Commands
+# Historical Pre-Phase-4A Design
 
-| Command | Type | Current dependency |
-| --- | --- | --- |
-| `module:list` | Query | `ModuleRepository` + `ModuleStateRepository` |
-| `module:status` | Query | `ModuleRepository` + `ModuleStateRepository` |
-| `module:enable` | Mutation | `ModuleManager` |
-| `module:disable` | Mutation | `ModuleManager` |
-| `kernel:test-loader` | Diagnostic query | `ModuleRepository` |
-
-Ini menggantikan dokumentasi lama yang menyatakan semua command wajib melalui `ModuleManager`.
-
----
-
-# 9. Current Non-Responsibilities
-
-`ModuleManager` tidak menjadi tempat untuk:
+Sebelum Phase 4A hardening, EduCore pernah memiliki:
 
 ```text
-module install/publish
-schema migration orchestration
-organization/domain authorization
-feature flags
-hot process reconfiguration
-remote plugin marketplace
+ModuleManager
+ModuleStateRepository
+storage/framework/modules.json
+module:enable
+module:disable
 ```
 
-Capability baru harus mempunyai concrete requirement sebelum ditambahkan.
+Model tersebut mencoba memisahkan metadata module dari persisted desired activation state.
+
+Phase 4A menghapus model tersebut karena application sebenarnya adalah modular monolith dengan deployment/bootstrap composition, bukan runtime plugin engine.
+
+Historical semantics tersebut **tidak boleh digunakan sebagai current implementation contract**.
+
+---
+
+# Current Architectural Boundary
+
+```text
+READ-ONLY MODULE METADATA
+module:list / module:status
+        ↓
+ModuleRepository
+        ↓
+ModuleRegistry
+
+APPLICATION BOOTSTRAP
+physical modules
+        ↓
+manifest validation
+        ↓
+dependency resolution
+        ↓
+module loading
+        ↓
+manifest-driven provider registration
+```
+
+Tidak ada mutable Module Kernel activation state di antara kedua flow tersebut.
+
+Tenant feature/entitlement availability dan authorization adalah concern terpisah.
 
 ---
 
@@ -220,6 +120,7 @@ Capability baru harus mempunyai concrete requirement sebelum ditambahkan.
 - [`kernel.md`](kernel.md)
 - [`discovery-flow.md`](discovery-flow.md)
 - [`module-lifecycle.md`](module-lifecycle.md)
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — ModuleManager
+- ADR-006 — Runtime Module State Repository (**Superseded**)
+- ADR-007 — ModuleManager (**Superseded**)
 - ADR-008 — Thin Command Pattern
+- ADR-017 — Module Runtime & Bootstrap Contract

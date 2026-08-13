@@ -1,13 +1,13 @@
 # EduCore Platform Module Kernel
 
-- **Version**: 2.0
-- **Status**: Current / Revalidated
-- **Updated**: 2026-08-12
-- **Baseline**: Current repository after Core Canonical Foundation 2G + Phase 3A
+- **Version**: 3.0
+- **Status**: Current / Locked
+- **Updated**: 2026-08-13
+- **Baseline**: Phase 4A Module Kernel Runtime Hardening
 
 ## Purpose
 
-Dokumen ini menjelaskan **Platform Module Kernel**, yaitu subsystem di dalam `Modules/Core` yang menangani discovery, manifest, dependency validation, registry metadata, runtime activation state, dan module bootstrap.
+Dokumen ini menjelaskan **Platform Module Kernel**, yaitu subsystem di dalam `Modules/Core` yang menangani physical module discovery, manifest validation, dependency validation/order, registry metadata, deterministic provider activation, dan module bootstrap.
 
 `Platform Module Kernel` **bukan sinonim untuk seluruh `Modules/Core`**.
 
@@ -45,70 +45,51 @@ Modules/Core/
 │   ├── Discovery/ModuleDiscovery.php
 │   ├── Module/
 │   │   ├── Domain/ModuleDefinition.php
-│   │   ├── Events/ModuleEventRegistry.php
-│   │   └── Services/
-│   │       ├── ModuleLoader.php
-│   │       └── ModuleManager.php
+│   │   └── Services/ModuleLoader.php
 │   └── Registry/ModuleRegistry.php
 │
 └── Services/
-    ├── EventDiscoveryService.php
     ├── ModuleBootstrapService.php
-    ├── ModuleRepository.php
-    └── ModuleStateRepository.php
+    ├── ModuleProviderRegistrar.php
+    └── ModuleRepository.php
 ```
 
 Physical folder placement masih merupakan hasil evolusi bertahap. Ownership dan dependency direction lebih penting daripada memaksa symmetry namespace hanya demi kosmetik folder.
 
 ---
 
-# 2. Current Metadata Bootstrap Flow
+# 2. Current Bootstrap Flow
 
-Normal module metadata flow saat `ModuleRepository` membutuhkan registry yang belum terisi:
+Normal bootstrap flow:
 
 ```text
-ModuleRepository resolve
-        │
-        ▼
-registry empty?
-        │ yes
-        ▼
-ModuleBootstrapService
-        │
-        ▼
+Modules/
+  ↓
 ModuleDiscovery
-        │
-        ▼
+  ↓
 sorted module.yaml paths
-        │
-        ▼
+  ↓
 ModuleManifestLoader
-        │
-        ▼
+  ↓
 ModuleManifestParser
-        │
-        ▼
+  ↓
 ModuleDefinitionFactory
-        │
-        └── ModuleManifestValidator
-        │
-        ▼
+  └── ModuleManifestValidator
+  ↓
 ModuleDefinition[]
-        │
-        ├── DependencyResolver
-        │     ├── missing dependency → fail
-        │     └── circular dependency → fail
-        │
-        ├── EventDiscoveryService
-        │
-        ▼
-ModuleLoader
-        │
-        ▼
-ModuleRegistry
+  ↓
+DependencyResolver
+  ├── missing dependency → fail
+  └── circular dependency → fail
+  ↓
+dependency-ordered ModuleDefinition[]
+  ├── ModuleLoader → ModuleRegistry
+  └── ModuleProviderRegistrar → non-Core providers
 ```
 
-`ModuleRegistry` adalah in-memory metadata store. `ModuleRepository` menjadi read/query facade yang digunakan application-facing code untuk membaca registry tanpa menyentuh filesystem lagi.
+`ModuleRegistry` adalah in-memory metadata store. `ModuleRepository` menjadi read/query facade untuk application-facing metadata operations.
+
+Core adalah mandatory bootstrap root dan tidak diregistrasikan sebagai downstream module oleh generic non-Core provider registrar.
 
 ---
 
@@ -146,9 +127,9 @@ validated manifest
 immutable ModuleDefinition
 ```
 
-Manifest adalah **static module metadata**, bukan runtime state storage.
+Manifest adalah **static module metadata**.
 
-Tidak boleh menyimpan:
+Manifest tidak boleh menyimpan:
 
 ```text
 enabled / disabled
@@ -157,17 +138,23 @@ environment-specific dynamic state
 runtime mutable configuration
 ```
 
+Declared provider classes divalidasi agar:
+
+- dapat di-autoload;
+- exist;
+- merupakan Laravel `ServiceProvider`.
+
 ---
 
 # 4. Module Identity
 
-Module identity menggunakan exact manifest field:
+Current runtime identity menggunakan exact manifest field:
 
 ```text
 name
 ```
 
-Contoh current names:
+Current physical manifest keys:
 
 ```text
 core
@@ -178,38 +165,49 @@ HR
 PPDB
 ```
 
-`ModuleRegistry`, dependency lookup, dan runtime state lookup menggunakan module name sebagai key.
+`ModuleRegistry` dan dependency lookup menggunakan exact module name sebagai key.
 
-Karena current implementation menggunakan exact string lookup, casing pada manifest name harus diperlakukan sebagai bagian dari technical identity.
+Canonical target technical key adalah lowercase slug:
 
-Jangan membuat UUID untuk `ModuleDefinition` hanya demi menyeragamkan dengan entity persistence. ModuleDefinition adalah metadata object, bukan persisted business entity.
+```regex
+^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+```
+
+Physical lowercase cutover belum dilakukan. Sampai migration tersebut dilakukan:
+
+- current exact manifest names tetap digunakan;
+- tidak ada silent normalization;
+- tidak ada permanent alias system.
+
+Jangan membuat UUID untuk `ModuleDefinition`. ModuleDefinition adalah metadata object, bukan persisted business entity.
 
 ---
 
 # 5. Dependency Resolution
 
-`DependencyResolver` saat ini:
+`DependencyResolver`:
 
 - membaca `ModuleDefinition.dependencies`;
-- fail-fast pada dependency yang tidak ditemukan;
+- fail-fast pada missing dependency;
 - fail-fast pada circular dependency;
 - menghasilkan topological order.
 
-Contoh current dependency:
+Current dependency graph:
 
 ```text
-Academic
-├── core
-└── HR
+Core      → []
+Auth      → Core
+User      → Core, Auth
+HR        → Core, Auth
+Academic  → Core, HR, Auth
+PPDB      → Core
 ```
 
-Namun terdapat boundary penting pada current implementation:
+Arrows berarti **depends on**.
 
-> Dependency resolution saat ini **belum boleh dianggap sebagai jaminan final provider boot order**.
+Resolved topological order adalah runtime contract untuk module loading dan non-Core provider registration.
 
-`ModuleBootstrapService` menggunakan resolved order untuk event discovery, tetapi current `ModuleLoader` masih menerima collection definition hasil discovery. Provider activation juga dilakukan melalui flow terpisah di `CoreServiceProvider`.
-
-Karena itu, dependency validation sudah implemented, tetapi provider boot ordering masih merupakan **kernel hardening candidate**, bukan public contract yang frozen.
+Core tidak boleh memiliki reverse dependency ke Auth atau business module.
 
 ---
 
@@ -227,7 +225,7 @@ all()
 count()
 ```
 
-Registry adalah in-memory source of truth untuk metadata yang sudah berhasil di-bootstrap pada application process tersebut.
+Registry adalah in-memory source of truth untuk metadata yang berhasil di-bootstrap pada application process.
 
 ## ModuleRepository
 
@@ -250,209 +248,180 @@ if registry empty
     populate singleton registry
 ```
 
-Tidak ada `ModuleRepositoryInterface` pada current contract karena abstraction tersebut sebelumnya dinilai premature untuk kebutuhan yang tersedia.
+Tidak ada `ModuleRepositoryInterface` pada current contract.
 
 ---
 
-# 7. Runtime Activation State
+# 7. Bootstrap Participation
 
-Runtime activation preference disimpan oleh:
+EduCore tidak memiliki persisted Module Kernel enable/disable state.
+
+Bootstrap participation berasal dari deployment composition:
+
+```text
+physically present
+      ↓
+discovered
+      ↓
+manifest valid
+      ↓
+dependencies valid
+      ↓
+bootstrappable
+```
+
+Komponen berikut **bukan** bagian dari current contract:
 
 ```text
 ModuleStateRepository
-```
-
-Current persistence:
-
-```text
 storage/framework/modules.json
-```
-
-Shape:
-
-```json
-{
-  "Academic": {
-    "enabled": true
-  }
-}
-```
-
-`ModuleStateRepository` menangani:
-
-```text
-all()
-isEnabled(name)
-enable(name)
-disable(name)
-```
-
-Invalid/missing state defaults secara defensif ke disabled/not-enabled untuk key yang tidak tersedia.
-
-## Important semantic
-
-Current `enabled/disabled` adalah **bootstrap activation state**, bukan hot module lifecycle.
-
-```text
-module:enable Foo
-        ↓
-persist enabled=true
-        ↓
-future application bootstrap observes new state
-```
-
-Demikian juga `module:disable` tidak dapat meng-unregister provider/listener yang sudah ter-load pada process yang sedang berjalan.
-
-Dokumentasi tidak boleh menjanjikan hot plug/unplug behavior.
-
----
-
-# 8. ModuleManager Current Role
-
-`ModuleManager` adalah command/mutation service untuk lifecycle state.
-
-Current operations:
-
-```text
-isEnabled(name)
-enable(name)
-disable(name)
-getEnabledModules()
-```
-
-Manager mengorkestrasi:
-
-```text
-ModuleRepository
-+
-ModuleStateRepository
-```
-
-Current architecture menggunakan lightweight CQS:
-
-```text
-READ
-module:list / module:status
-        ↓
-ModuleRepository + ModuleStateRepository
-
-MUTATION
-module:enable / module:disable
-        ↓
 ModuleManager
-        ↓
-ModuleRepository + ModuleStateRepository
+module:enable
+module:disable
 ```
 
-Karena itu, `ModuleManager` bukan lagi facade wajib untuk setiap read query.
+Module yang physically present dan lolos manifest/dependency validation berpartisipasi dalam application bootstrap.
 
 ---
 
-# 9. Current Console Commands
+# 8. Current Console Query Boundary
 
-Current commands:
+Current module commands bersifat read-only:
 
 ```text
 module:list
 module:status {name}
-module:enable {name}
-module:disable {name}
-kernel:test-loader
 ```
 
-Principle:
+Keduanya membaca module metadata melalui `ModuleRepository`.
 
-- commands tetap tipis;
-- filesystem/manifest parsing tidak dilakukan oleh command;
-- read commands boleh menggunakan query facade;
-- mutation commands menggunakan ModuleManager.
+Thin-command rules:
 
----
-
-# 10. Provider Activation
-
-Current `CoreServiceProvider` melakukan activation check berdasarkan `ModuleStateRepository` saat application bootstrap.
-
-Namun provider activation **belum menjadi clean/frozen manifest-driven contract**.
-
-Current source masih mempunyai transitional behavior:
-
-1. dynamic registration menggunakan naming convention `Modules\\<Name>\\Providers\\<Name>ServiceProvider`;
-2. manifest `providers` divalidasi tetapi bukan satu-satunya runtime registration path;
-3. `bootstrap/providers.php` masih memiliki direct provider registration untuk Core dan Academic.
-
-Akibatnya:
-
-> `enabled=false` belum boleh didokumentasikan sebagai jaminan bahwa seluruh code path suatu module tidak akan di-bootstrap.
-
-Ini adalah **known kernel hardening item**, bukan alasan untuk mengubah Identity/Tenancy/RBAC foundation.
-
-Jangan menyalin transitional provider wiring ini ke module baru sebagai public architecture pattern sebelum provider boot strategy diaudit dan di-lock.
+- command tidak scan filesystem;
+- command tidak parse/validate manifest;
+- command tidak resolve dependency graph;
+- command tidak register provider;
+- command tidak memutasi module bootstrap state.
 
 ---
 
-# 11. Event Discovery
+# 9. Provider Activation
 
-`ModuleBootstrapService` memanggil `EventDiscoveryService` terhadap module definitions hasil dependency resolution.
+`bootstrap/providers.php` memuat application/bootstrap providers, termasuk:
 
-`CoreServiceProvider::boot()` kemudian memasang listener yang terkumpul ke Laravel Event dispatcher melalui `ModuleEventRegistry`.
+```text
+AppServiceProvider
+CoreServiceProvider
+```
 
-Current caveat:
+Business-module providers tidak didaftarkan statis di sana.
 
-- event discovery terjadi pada bootstrap metadata flow;
-- filtering berdasarkan runtime enabled state belum menjadi explicit invariant di `ModuleBootstrapService`.
+Non-Core provider activation:
 
-Karena itu, semantics event activation juga perlu ikut diverifikasi pada future Module Kernel Hardening.
+```text
+validated module.yaml providers
+        ↓
+dependency-ordered ModuleDefinition[]
+        ↓
+ModuleProviderRegistrar
+        ↓
+Laravel provider registration
+```
+
+Canonical rules:
+
+- manifest `providers` adalah sole non-Core provider activation source;
+- tidak ada provider guessing berdasarkan module name/folder;
+- provider registration mengikuti dependency order;
+- provider registration failure dipropagasikan.
+
+---
+
+# 10. Event Registration
+
+Global event auto-discovery telah dihapus.
+
+Module Kernel tidak melakukan:
+
+```text
+EventDiscoveryService
+ModuleEventRegistry
+reflection listener discovery
+automatic Listeners/ scanning
+```
+
+Event listener/integration didaftarkan secara eksplisit oleh provider/component yang memiliki integration tersebut.
+
+Folder `Listeners/` boleh digunakan untuk organisasi source code, tetapi folder tersebut tidak memiliki automatic runtime semantics.
+
+---
+
+# 11. Separation of Concerns
+
+Current contract membedakan:
+
+```text
+module bootstrap composition
+≠ tenant feature / entitlement availability
+≠ authorization
+```
+
+Module Kernel menentukan application code/dependency/provider bootstrap.
+
+Tenant feature availability dan authorization harus menggunakan boundary masing-masing dan tidak boleh direpresentasikan sebagai mutable Module Kernel activation state.
 
 ---
 
 # 12. Fail-Fast Rules
 
-Current Module Kernel fail-fast pada kondisi seperti:
+Current Module Kernel fail-fast pada:
 
 ```text
 invalid YAML
 missing required manifest field
 invalid field type
-missing Service Provider class declared in manifest
+missing/invalid Service Provider class
 missing module dependency
 circular dependency
 duplicate module registration
-unknown module mutation target
+provider registration failure
 ```
 
-Fail-fast validation harus terjadi sedekat mungkin dengan bootstrap/configuration error.
+Configuration/bootstrap error tidak boleh ditelan atau diubah menjadi partial unknown state.
 
 ---
 
-# 13. Current Guarantees vs Non-Guarantees
+# 13. Current Guarantees and Explicit Non-Contracts
 
 ## Current guarantees
 
 ```text
-automatic manifest discovery
-sorted discovery result
+automatic physical manifest discovery
+deterministic sorted discovery
 manifest validation
 immutable ModuleDefinition
-in-memory registry
-concrete metadata query facade
-missing/circular dependency detection
-JSON activation-state persistence
-thin command boundary
+in-memory ModuleRegistry
+ModuleRepository read facade
+missing/circular dependency fail-fast
+dependency-ordered module loading
+manifest-driven non-Core provider activation
+dependency-ordered provider registration
+explicit provider-owned event registration
+read-only module console boundary
 ```
 
-## Not yet frozen guarantees
+## Explicit non-contracts
 
 ```text
-hot enable / hot disable
-provider unload
-manifest.providers as sole activation mechanism
-dependency-ordered provider registration
-enabled-state-gated event discovery
-external/plugin module marketplace
+persisted runtime module enable / disable state
+hot provider load / unload
+global reflection event discovery
+tenant-specific provider bootstrap
+provider naming-convention guessing
+external/plugin marketplace
 ```
 
-Future module work must not assume these non-guarantees already exist.
+Future work yang mengubah invariant ini membutuhkan concrete requirement dan explicit ADR.
 
 ---
 
@@ -472,8 +441,6 @@ Organization/Branch topology
 Dormitory business rules
 ```
 
-Those concerns have their own architecture contracts.
-
 ---
 
 # 15. Related Documents
@@ -483,6 +450,7 @@ Those concerns have their own architecture contracts.
 - [`folder-structure.md`](folder-structure.md)
 - [`architecture-principles.md`](architecture-principles.md)
 - [`discovery-flow.md`](discovery-flow.md)
-- [`module-manager.md`](module-manager.md)
+- [`module-manager.md`](module-manager.md) — historical compatibility note
 - [`module-lifecycle.md`](module-lifecycle.md)
 - [`adr/README.md`](adr/README.md)
+- ADR-017 — Module Runtime & Bootstrap Contract

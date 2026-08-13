@@ -1,22 +1,22 @@
 # Module Discovery & Bootstrap Flow
 
-- **Version**: 2.0
-- **Status**: Current / Revalidated
-- **Updated**: 2026-08-12
+- **Version**: 3.0
+- **Status**: Current / Locked
+- **Updated**: 2026-08-13
 
 ## Overview
 
-Module discovery menemukan `module.yaml` yang tersedia dan mengubahnya menjadi `ModuleDefinition` yang tervalidasi.
+Module discovery menemukan physical `module.yaml` dan mengubahnya menjadi dependency-ordered `ModuleDefinition` yang tervalidasi.
 
 Current implementation tidak menggunakan `DiscoveredModule` Value Object. `ModuleDiscovery` mengembalikan **sorted manifest path strings** langsung ke bootstrap pipeline.
 
-Automatic discovery tetap menjadi current architecture decision; hanya kontrak intermediate lama `DiscoveredModule` yang sudah tidak berlaku.
+Discovery, dependency ordering, registry loading, dan provider activation merupakan bagian dari deterministic application bootstrap.
 
 ---
 
 # 1. Trigger
 
-Metadata bootstrap terjadi saat `ModuleRepository` di-resolve dan singleton `ModuleRegistry` masih kosong.
+Metadata/bootstrap flow terjadi saat `ModuleRepository` di-resolve dan singleton `ModuleRegistry` masih kosong.
 
 ```text
 resolve ModuleRepository
@@ -28,7 +28,7 @@ ModuleRegistry.count() === 0 ?
 ModuleBootstrapService.bootstrap(base_path('Modules'))
 ```
 
-Pada normal application bootstrap, `CoreServiceProvider` membutuhkan module metadata untuk activation checks sehingga flow ini biasanya dijalankan pada startup.
+Pada normal application bootstrap, `CoreServiceProvider` membutuhkan dependency-ordered module metadata untuk mendaftarkan non-Core providers.
 
 ---
 
@@ -91,7 +91,7 @@ Bukan:
 DiscoveredModule object
 ```
 
-Historical ADR-004 pernah menetapkan `DiscoveredModule`, tetapi contract tersebut tidak terdapat pada current source dan tidak lagi menjadi implementation requirement.
+Historical ADR-004 pernah menetapkan `DiscoveredModule`, tetapi contract tersebut tidak terdapat pada current source.
 
 ---
 
@@ -159,11 +159,11 @@ metadata
 extra
 ```
 
-Declared provider class strings juga divalidasi agar dapat di-autoload.
+Declared provider class harus dapat di-autoload, exist, dan merupakan Laravel `ServiceProvider`.
 
 ---
 
-# 7. Dependency Validation
+# 7. Dependency Validation & Ordering
 
 Setelah seluruh definitions dibuat:
 
@@ -184,45 +184,42 @@ circular dependency
 
 Dependency identity menggunakan exact `ModuleDefinition.name`.
 
-## Current boundary
-
-Resolved order saat ini digunakan oleh event discovery, tetapi belum menjadi guaranteed order untuk seluruh provider-registration path.
-
-Jadi current contract adalah:
+Resolved order adalah runtime ordering contract:
 
 ```text
 dependency correctness validation ✅
-provider boot-order guarantee       ⚠ not frozen
+module loading order              ✅
+provider registration order       ✅
 ```
+
+`ModuleProviderRegistrar` menerima dependency-ordered definitions dan mendaftarkan declared non-Core providers dalam order tersebut.
 
 ---
 
-# 8. Event Discovery
+# 8. Events Are Not Part of Discovery
 
-Untuk definitions hasil dependency resolution:
+Module discovery tidak melakukan listener scanning atau reflection.
+
+Tidak ada global:
 
 ```text
-ModuleBootstrapService
-      ↓
-Modules/<Name>/Listeners
-      ↓
 EventDiscoveryService
-      ↓
 ModuleEventRegistry
+Listeners/ auto-discovery
 ```
 
-`CoreServiceProvider::boot()` kemudian memasang listener ke Laravel Event dispatcher.
+Event listener/integration didaftarkan secara eksplisit oleh provider/component owner.
 
-Current event-discovery flow belum secara eksplisit difilter oleh `ModuleStateRepository`, sehingga disabled-state semantics untuk listener tidak boleh diasumsikan lebih kuat daripada current source.
+Karena itu event activation tidak bergantung pada derived module path, folder name, atau filesystem listener scanning.
 
 ---
 
 # 9. Registry Loading
 
-`ModuleLoader` menerima definitions dan mendaftarkannya ke singleton `ModuleRegistry`.
+`ModuleLoader` menerima dependency-ordered definitions dan mendaftarkannya ke singleton `ModuleRegistry`.
 
 ```text
-ModuleDefinition[]
+dependency-ordered ModuleDefinition[]
       ↓
 ModuleLoader
       ↓
@@ -235,23 +232,28 @@ Setelah registry terisi, application-facing reads menggunakan `ModuleRepository`
 
 ---
 
-# 10. Discovery vs Runtime State
+# 10. Discovery vs Bootstrap vs Tenant Availability
 
-Discovery metadata dan runtime activation state adalah concern terpisah.
+Current Module Kernel tidak memiliki runtime enabled/disabled state.
 
 ```text
-DISCOVERY
-module exists?
+DISCOVERY / BOOTSTRAP
+module physically present?
 manifest valid?
 dependencies valid?
 metadata registered?
+providers registered?
 
-ACTIVATION STATE
-enabled?
-disabled?
+TENANT AVAILABILITY
+separate feature / entitlement concern
+
+AUTHORIZATION
+separate authorization concern
 ```
 
-Module dapat ditemukan dan terdaftar metadata-nya walaupun activation state disabled.
+Module yang physically present dan valid berpartisipasi dalam application bootstrap.
+
+Tenant availability tidak mengaktifkan atau mematikan provider registration.
 
 ---
 
@@ -265,10 +267,11 @@ Examples:
 malformed YAML
 missing manifest field
 wrong manifest field type
-unknown provider class in declared providers
+missing/invalid provider class
 missing dependency
 circular dependency
 duplicate module registration
+provider registration failure
 ```
 
 Jangan melakukan silent fallback yang menghasilkan partial/unknown metadata state.
@@ -279,7 +282,7 @@ Jangan melakukan silent fallback yang menghasilkan partial/unknown metadata stat
 
 Future discovery extension boleh menambahkan capability seperti caching atau external source hanya jika demonstrated requirement tersedia.
 
-Jangan menambah generic plugin marketplace, recursive tree, atau remote registry secara spekulatif.
+Jangan menambah generic plugin marketplace, recursive tree, remote registry, atau mutable runtime activation system secara spekulatif.
 
 Current simple direct-directory discovery adalah canonical KISS baseline.
 
@@ -289,8 +292,9 @@ Current simple direct-directory discovery adalah canonical KISS baseline.
 
 - [`kernel.md`](kernel.md)
 - [`module-lifecycle.md`](module-lifecycle.md)
-- [`module-manager.md`](module-manager.md)
+- [`module-manager.md`](module-manager.md) — historical compatibility note
 - ADR-003 — Module Manifest Specification
 - ADR-004 — Automatic Module Discovery
 - ADR-005 — Module Registry
 - ADR-010 — Module Identity
+- ADR-017 — Module Runtime & Bootstrap Contract

@@ -1,20 +1,23 @@
 # Module Lifecycle
 
-- **Version**: 2.0
-- **Status**: Current / Revalidated
-- **Updated**: 2026-08-12
+- **Version**: 3.0
+- **Status**: Current / Locked
+- **Updated**: 2026-08-13
 
 ## Overview
 
-Current lifecycle dibagi menjadi tiga concern:
+Current module lifecycle adalah deployment/bootstrap lifecycle untuk modular monolith:
 
 ```text
-1. Metadata Bootstrap
-2. Activation-State Persistence
-3. Application Bootstrap Activation
+1. Physical Discovery
+2. Manifest Validation
+3. Dependency Validation & Ordering
+4. Metadata Registration
+5. Dependency-Ordered Provider Registration
+6. Laravel Provider Boot
 ```
 
-Ini **bukan hot plugin lifecycle**.
+Ini **bukan hot plugin lifecycle** dan tidak memiliki persisted module enable/disable state.
 
 ---
 
@@ -24,24 +27,25 @@ Ini **bukan hot plugin lifecycle**.
 Filesystem: Modules/
       │
       ▼
-Metadata Bootstrap
-      │
-      ├── discover manifests
-      ├── parse + validate
-      ├── build ModuleDefinition
-      ├── validate dependency graph
-      ├── discover events/listeners
-      └── populate ModuleRegistry
+discover module.yaml
       │
       ▼
-Activation State
-modules.json
+parse + validate manifest
       │
       ▼
-CoreServiceProvider startup
+build ModuleDefinition
       │
       ▼
-register enabled module providers
+validate + order dependency graph
+      │
+      ├── populate ModuleRegistry
+      │
+      ▼
+register non-Core providers
+in dependency order
+      │
+      ▼
+Laravel provider boot
       │
       ▼
 Laravel Application Runtime
@@ -63,13 +67,15 @@ menjadi discovery candidate hanya jika memiliki:
 module.yaml
 ```
 
-Directory tanpa manifest diabaikan oleh current `ModuleDiscovery`.
+Directory tanpa manifest diabaikan oleh `ModuleDiscovery`.
+
+Physical presence adalah deployment/application composition concern, bukan tenant feature flag.
 
 ---
 
 # 3. Phase B — Metadata Bootstrap
 
-Metadata bootstrap biasanya dipicu melalui lazy `ModuleRepository` resolution ketika singleton registry masih kosong.
+Metadata bootstrap dipicu ketika `ModuleRepository` membutuhkan registry yang belum terisi.
 
 ```text
 ModuleRepository
@@ -89,8 +95,7 @@ ModuleManifestLoader
 ModuleManifestParser
       ↓
 ModuleDefinitionFactory
-      ↓
-ModuleManifestValidator
+      └── ModuleManifestValidator
       ↓
 ModuleDefinition
 ```
@@ -99,7 +104,7 @@ Semua valid definitions kemudian diperiksa oleh `DependencyResolver`.
 
 ---
 
-# 4. Phase C — Dependency Validation
+# 4. Phase C — Dependency Validation & Ordering
 
 ```text
 ModuleDefinition[]
@@ -116,194 +121,112 @@ missing dependency
 circular dependency
 ```
 
-Current resolver memberikan dependency order, tetapi runtime provider registration belum dikunci sebagai selalu mengikuti order tersebut.
-
-Jadi bedakan:
+Resolved dependency order adalah runtime contract:
 
 ```text
-dependency graph validity ✅
-provider boot ordering     ⚠ current hardening item
+dependency graph validity       ✅
+module loading order            ✅
+non-Core provider registration  ✅
 ```
+
+Core adalah mandatory bootstrap root.
 
 ---
 
-# 5. Phase D — Event Discovery
+# 5. Phase D — Metadata Registration
 
-Current bootstrap menjalankan listener discovery terhadap definitions hasil resolution.
-
-```text
-Modules/<Name>/Listeners
-      ↓
-EventDiscoveryService
-      ↓
-ModuleEventRegistry
-```
-
-Laravel Event bindings dipasang pada `CoreServiceProvider::boot()`.
-
-Current source belum menjadikan `ModuleStateRepository` sebagai explicit filter pada event discovery phase. Disabled module therefore tidak boleh diasumsikan sebagai total event-code isolation.
-
----
-
-# 6. Phase E — Metadata Registration
-
-`ModuleLoader` memasukkan `ModuleDefinition` ke:
+`ModuleLoader` menerima dependency-ordered definitions dan memasukkan `ModuleDefinition` ke:
 
 ```text
 ModuleRegistry
 ```
 
-Setelah registry tersedia:
-
-```text
-ModuleRepository
-```
-
-menjadi read facade untuk metadata application-facing operations.
-
-Metadata registration dan enabled-state adalah dua concern berbeda.
+`ModuleRepository` menjadi read facade untuk application-facing metadata queries.
 
 ---
 
-# 7. Phase F — Activation State
+# 6. Phase E — Provider Registration
 
-Current mutable state:
-
-```text
-enabled = true
-enabled = false
-```
-
-Persistence:
+Non-Core providers berasal hanya dari validated manifest declarations.
 
 ```text
-storage/framework/modules.json
+dependency-ordered ModuleDefinition[]
+      ↓
+ModuleProviderRegistrar
+      ↓
+module.yaml providers
+      ↓
+Laravel provider registration
 ```
 
-Default ketika key tidak ada:
+Provider rules:
 
-```text
-disabled / false
-```
+- provider class harus valid Laravel `ServiceProvider`;
+- tidak ada provider naming-convention guessing;
+- registration mengikuti dependency order;
+- failure dipropagasikan.
 
-State tidak disimpan dalam `module.yaml`.
+Core tidak diperlakukan sebagai downstream module oleh generic registrar.
 
 ---
 
-# 8. Phase G — Provider Activation at Bootstrap
+# 7. Phase F — Explicit Event Registration
 
-Pada application bootstrap, `CoreServiceProvider` membaca module metadata dan activation state.
+Event activation bukan phase global Module Kernel.
 
-Untuk module yang dianggap enabled, current source memiliki dynamic provider-registration path berdasarkan naming convention.
-
-Critical semantic:
+Tidak ada:
 
 ```text
-enabled state
-→ observed during bootstrap
+EventDiscoveryService
+ModuleEventRegistry
+reflection listener discovery
+automatic Listeners/ scanning
 ```
 
-bukan:
-
-```text
-enabled state
-→ hot provider registration/unregistration at arbitrary runtime
-```
+Event listener/integration didaftarkan secara eksplisit oleh provider/component owner.
 
 ---
 
-# 9. Enable Lifecycle
+# 8. Bootstrap Participation Has No Mutable State
+
+Current Module Kernel tidak menyimpan:
 
 ```text
-module:enable Academic
-       ↓
+enabled
+disabled
+modules.json
+```
+
+dan tidak menyediakan:
+
+```text
+module:enable
+module:disable
 ModuleManager
-       ↓
 ModuleStateRepository
-       ↓
-enabled=true persisted
-       ↓
-NEXT application bootstrap observes state
 ```
 
-Command sukses berarti desired activation state tersimpan, bukan jaminan provider baru di-hot-load ke process yang sudah berjalan.
+Module yang physically present dan lolos manifest/dependency validation berpartisipasi dalam application bootstrap.
+
+Mengubah deployed module composition adalah deployment/configuration concern, bukan mutable runtime command.
 
 ---
 
-# 10. Disable Lifecycle
+# 9. Tenant Feature Availability Is Separate
+
+Bootstrap participation tidak menentukan apakah tenant/customer boleh menggunakan capability tertentu.
 
 ```text
-module:disable Academic
-       ↓
-ModuleManager
-       ↓
-ModuleStateRepository
-       ↓
-enabled=false persisted
-       ↓
-NEXT application bootstrap observes state
+module bootstrap composition
+≠ tenant feature / entitlement
+≠ authorization
 ```
 
-Current process tidak melakukan provider/listener unload.
+Feature/entitlement layer future harus dibangun sebagai concern terpisah ketika concrete requirement dikunci.
 
 ---
 
-# 11. Transitional Provider-Wiring Caveat
-
-Current repository masih memiliki lebih dari satu provider wiring mechanism:
-
-```text
-bootstrap/providers.php
-+
-CoreServiceProvider dynamic active-module registration
-```
-
-Selain itu, dynamic path menggunakan provider naming convention sedangkan manifest `providers` tetap divalidasi sebagai metadata.
-
-Karena itu current activation lifecycle belum layak dianggap final public contract untuk module enable/disable isolation.
-
-Required future hardening questions:
-
-```text
-What is the single provider activation source?
-Should module.yaml.providers drive activation?
-Should static downstream provider registration be removed?
-Must event discovery respect enabled state?
-Must provider registration follow dependency topological order?
-```
-
-Pertanyaan ini **belum dijawab oleh DOC STEP 5**; hanya dicatat agar docs jujur terhadap source.
-
----
-
-# 12. State Transition Model
-
-Current persisted state model tetap sederhana:
-
-```text
-       enable
-false ───────► true
-  ▲             │
-  │             │
-  └─────────────┘
-      disable
-```
-
-Tidak ada current states seperti:
-
-```text
-installing
-starting
-stopping
-failed
-uninstalled
-```
-
-Jangan menambahkan transition model baru tanpa concrete requirement.
-
----
-
-# 13. Metadata Immutability
+# 10. Metadata Immutability
 
 Selama application process:
 
@@ -312,23 +235,23 @@ ModuleDefinition
 → immutable metadata object
 ```
 
-Mutable activation state berada terpisah di `ModuleStateRepository`.
+Tidak ada mutable Module Kernel activation state yang dipasangkan ke definition.
 
-Ini tetap merupakan architecture principle yang valid.
+Jangan menambahkan lifecycle state baru tanpa concrete requirement dan explicit ADR.
 
 ---
 
-# 14. Relationship to Business Module Lifecycle
+# 11. Relationship to Business Module Lifecycle
 
 Module lifecycle tidak menentukan lifecycle business records.
 
 Contoh:
 
 ```text
-Academic module enabled/disabled
+Academic module deployment/bootstrap
 ≠ Student status
 
-HR module enabled/disabled
+HR module deployment/bootstrap
 ≠ Employee status
 ```
 
@@ -340,8 +263,9 @@ Business lifecycle tetap dimiliki domain masing-masing.
 
 - [`kernel.md`](kernel.md)
 - [`discovery-flow.md`](discovery-flow.md)
-- [`module-manager.md`](module-manager.md)
+- [`module-manager.md`](module-manager.md) — historical compatibility note
 - ADR-004 — Automatic Module Discovery
 - ADR-005 — Module Registry
-- ADR-006 — Runtime Module State Repository
-- ADR-007 — ModuleManager
+- ADR-006 — Runtime Module State Repository (**Superseded**)
+- ADR-007 — ModuleManager (**Superseded**)
+- ADR-017 — Module Runtime & Bootstrap Contract
