@@ -1,9 +1,9 @@
 # EduCore Current Repository Structure
 
-- **Version**: 2.0
+- **Version**: 3.0
 - **Status**: Current Architecture Baseline
-- **Updated**: 2026-08-12
-- **Baseline**: Core Canonical Foundation 2G + Downstream Human/Profile Canonicalization 3A
+- **Updated**: 2026-08-14
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
 
 ## Purpose
 
@@ -85,50 +85,26 @@ Employee             → Modules/HR
 
 # 2. Module Dependency Direction
 
-Current high-level dependency direction:
+Current dependency graph:
 
 ```text
-                    Core
-                  /  |  \
-                 /   |   \
-              Auth  User  HR
-                          ↑
-                          │
-                       Academic
-
-PPDB ───────────────→ Core
-(current scaffold)
+Core      → []
+Auth      → Core
+User      → Core, Auth
+HR        → Core, Auth
+Academic  → Core, HR, Auth
+PPDB      → Core
 ```
 
-Lebih eksplisit:
+Arrows berarti **depends on**.
+
+Dependency harus tercermin pada `module.yaml`, tetap acyclic, dan bootstrap harus fail-fast pada missing dependency atau cycle.
+
+Core tidak boleh bergantung pada:
 
 ```text
-Core
-→ tidak bergantung pada business module
-
 Auth
-→ Core
-
 User
-→ Core
-
-HR
-→ Core
-
-Academic
-→ Core
-→ HR (untuk Employee grading actor contract)
-
-PPDB
-→ Core
-→ masih scaffold
-```
-
-Dependency harus tetap satu arah menuju foundation.
-
-Core tidak boleh mulai bergantung pada:
-
-```text
 Academic
 HR
 PPDB
@@ -137,7 +113,7 @@ Finance
 Attendance
 ```
 
-untuk mempertahankan compatibility dengan business module.
+untuk mempertahankan compatibility dengan downstream module.
 
 ---
 
@@ -384,7 +360,8 @@ Modules/Core/Authorization/
 │   │   └── RoleCatalogController.php
 │   └── Middleware/
 │       ├── CheckTenantRole.php
-│       └── CheckTenantPermission.php
+│       ├── CheckTenantPermission.php
+│       └── RequireGlobalSuperadmin.php
 │
 ├── Models/
 │   ├── Membership.php
@@ -524,8 +501,6 @@ Module-system architecture tetap berada di Core Platform.
 Modules/Core/Platform/
 ├── Console/
 │   ├── KernelHealthCheckCommand.php
-│   ├── ModuleDisableCommand.php
-│   ├── ModuleEnableCommand.php
 │   ├── ModuleListCommand.php
 │   └── ModuleStatusCommand.php
 │
@@ -547,17 +522,14 @@ Modules/Core/Platform/
 ├── Module/
 │   ├── Domain/
 │   │   └── ModuleDefinition.php
-│   ├── Events/
-│   │   └── ModuleEventRegistry.php
 │   └── Services/
-│       ├── ModuleLoader.php
-│       └── ModuleManager.php
+│       └── ModuleLoader.php
 │
 └── Registry/
     └── ModuleRegistry.php
 ```
 
-Supporting module-kernel classes saat ini juga masih berada pada:
+Supporting module-kernel classes juga berada pada:
 
 ```text
 Modules/Core/Manifest/
@@ -565,7 +537,7 @@ Modules/Core/Services/
 Modules/Core/Exceptions/
 ```
 
-Contoh:
+Current supporting services meliputi:
 
 ```text
 ModuleManifestLoader
@@ -573,12 +545,22 @@ ModuleManifestParser
 ModuleManifestValidator
 ModuleDefinitionFactory
 ModuleBootstrapService
+ModuleProviderRegistrar
 ModuleRepository
-ModuleStateRepository
-EventDiscoveryService
 ```
 
-Directory split tersebut adalah **current repository state**. DOC STEP 3 tidak melakukan namespace refactor hanya demi membuat tree terlihat lebih seragam.
+Tidak ada current:
+
+```text
+ModuleStateRepository
+ModuleManager
+ModuleEnableCommand
+ModuleDisableCommand
+EventDiscoveryService
+ModuleEventRegistry
+```
+
+Provider activation berasal dari declared `module.yaml.providers`, mengikuti dependency order, dan gagal secara fail-fast bila provider/dependency configuration invalid.
 
 ---
 
@@ -649,8 +631,7 @@ Modules/Auth/
 │   │   └── AuthController.php
 │   ├── Middleware/
 │   │   ├── InjectAuthenticatedUser.php
-│   │   ├── InjectTenantContext.php
-│   │   └── RequireGlobalSuperadmin.php
+│   │   └── InjectTenantContext.php
 │   └── Requests/
 │       └── LoginTokenRequest.php
 │
@@ -685,7 +666,10 @@ bearer token issuance/validation
 revocation
 authenticated User injection
 verified tenant/membership context injection
+secured Core route composition
 ```
+
+`RequireGlobalSuperadmin` adalah Core Authorization-owned middleware. Auth hanya mengomposisikan secured Core entry points karena dependency direction adalah Auth → Core, bukan Core → Auth.
 
 Canonical token claims:
 
@@ -751,7 +735,13 @@ switch membership
 assign role to membership
 ```
 
-Ia mengonsumsi Core contracts dan tidak menduplikasi identity persistence.
+Ia mengonsumsi Core/Auth contracts dan tidak menduplikasi identity persistence.
+
+Current manifest dependency:
+
+```text
+User → Core, Auth
+```
 
 ---
 
@@ -863,7 +853,13 @@ Membership
 student_grades.teacher_id
 ```
 
-Karena itu Academic mendeklarasikan dependency ke HR.
+Karena itu Academic mendeklarasikan dependency ke HR dan Auth.
+
+Current manifest dependency:
+
+```text
+Academic → Core, HR, Auth
+```
 
 `MockStudent` tidak lagi menjadi bagian repository canonical dan **tidak boleh dikembalikan**.
 
@@ -934,6 +930,12 @@ EmployeeRepositoryInterface
 → Modules\HR\Repositories\EloquentEmployeeRepository
 ```
 
+Current manifest dependency:
+
+```text
+HR → Core, Auth
+```
+
 ---
 
 # 17. `Modules/PPDB` — Current Scaffold Only
@@ -958,6 +960,12 @@ Keberadaan folder/module manifest tidak berarti PPDB domain contract sudah desig
 Jangan menyalin pola identity legacy ke PPDB ketika domain ini mulai diimplementasikan.
 
 PPDB nantinya harus mengonsumsi canonical Person/Membership foundation sesuai requirement yang disetujui.
+
+Current manifest dependency:
+
+```text
+PPDB → Core
+```
 
 ---
 
@@ -1014,6 +1022,8 @@ Academic → Modules/Academic/Routes/api.php
 HR       → Modules/HR/Routes/api.php
 ```
 
+Core route file tidak boleh mengimpor Auth middleware. Public Core routes tetap Core-owned, sedangkan secured Core entry points dikomposisikan dari Auth route composition agar dependency direction tetap Auth → Core.
+
 Root `routes/` tetap untuk Laravel application-shell routes seperti `web.php`/`console.php` yang tidak dimiliki business module tertentu.
 
 Critical tenant API harus melewati canonical authentication/tenant context middleware sesuai contract masing-masing endpoint.
@@ -1029,7 +1039,10 @@ IoC bindings
 route bootstrap
 migration bootstrap
 module/platform registration
+explicit event/integration registration
 ```
+
+Non-Core provider activation berasal dari validated `module.yaml.providers`, bukan provider guessing atau static business-provider registration pada `bootstrap/providers.php`.
 
 Provider tidak boleh menangani application business orchestration.
 
@@ -1275,6 +1288,9 @@ Student / Guardian / Employee identity contracts
 
 Teacher / Grading identity contract
 🔒 LOCKED
+
+Module Kernel Runtime / Bootstrap Contract
+🔒 LOCKED — Phase 4A
 
 Organization / Branch topology
 ⬜ NOT STARTED

@@ -1,10 +1,10 @@
 # EduCore Architecture Documentation
 
-**Version**: 3.0
+**Version**: 4.0
 **Status**: Current Baseline
-**Updated**: 2026-08-12
+**Updated**: 2026-08-14
 
-Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)** dan **Downstream Human/Profile Canonicalization (3A)**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
+Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, dan **Phase 4A Module Kernel Runtime Hardening**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
 
 Dokumen lama dari Sprint `CORE-001` tetap dipertahankan sebagai histori keputusan, tetapi tidak semuanya lagi menjadi current implementation contract. Gunakan status setiap dokumen/ADR sebelum menjadikannya acuan implementasi.
 
@@ -21,7 +21,7 @@ Urutan baca untuk memahami arsitektur yang berlaku saat ini:
 5. Dokumentasi subsystem module kernel:
    - [`kernel.md`](kernel.md)
    - [`discovery-flow.md`](discovery-flow.md)
-   - [`module-manager.md`](module-manager.md)
+   - [`module-manager.md`](module-manager.md) — historical compatibility note; `ModuleManager` retired
    - [`module-lifecycle.md`](module-lifecycle.md)
 
 
@@ -96,6 +96,13 @@ The following contracts are considered stable and must not be reopened for legac
 - Grading actor identity resolves Membership → Employee; `student_grades.teacher_id` stores Employee identity.
 - Tenant-aware persistence must be protected by `BelongsToTenant` and/or explicit tenant-scoped query predicates.
 - Canonical identifiers introduced/refactored under the foundation use UUIDv7.
+- Core is the mandatory Module Kernel bootstrap root.
+- Non-Core providers come only from validated `module.yaml.providers` and register in dependency order.
+- Missing dependency, dependency cycle, invalid provider, and provider-registration failure fail fast.
+- Module Kernel has no persisted enable/disable state and no hot load/unload contract.
+- `module:list` and `module:status` are read-only metadata commands.
+- Event/integration registration is explicit/provider-owned; no global reflection listener discovery.
+- Module bootstrap composition, tenant feature availability, and authorization are separate concerns.
 
 See [`current-architecture.md`](current-architecture.md) for the detailed baseline.
 
@@ -158,19 +165,25 @@ Do not implement `Organization`, `Branch`, organizational membership, or scoped 
 
 ## 6. ADR Status
 
-ADR-001 through ADR-010 document the original module-kernel architecture and remain broadly valid.
+Module-kernel ADR lifecycle after Phase 4A:
 
-ADR-011 and ADR-012 contain tenancy/authentication assumptions that were replaced by the canonical identity and authentication work:
+- ADR-001 — Accepted; runtime/bootstrap details amended by ADR-017.
+- ADR-003 — Accepted; manifest/provider/bootstrap semantics amended by ADR-017.
+- ADR-006 — **Superseded** by ADR-017.
+- ADR-007 — **Superseded** by ADR-017.
+- ADR-008 — Accepted; current module commands are read-only.
+- ADR-010 — Accepted; exact current manifest key with lowercase canonical cutover target.
+- ADR-017 — **Accepted** canonical Module Runtime & Bootstrap Contract.
 
-- ADR-011: multi-tenancy implementation strategy — **Superseded**.
-- ADR-012: tenant-aware authentication guard based on `users.tenant_id` — **Superseded**.
+ADR-011 and ADR-012 contain tenancy/authentication assumptions replaced by canonical identity/authentication work and remain **Superseded**.
 
-Current canonical foundation decisions are formalized in:
+Current canonical foundation decisions include:
 
 - ADR-013 — Canonical Human Identity.
 - ADR-014 — Membership & Tenant Boundary.
 - ADR-015 — Authentication Token & Request Context.
 - ADR-016 — Database-Backed Tenant RBAC.
+- ADR-017 — Module Runtime & Bootstrap Contract.
 
 See [`adr/README.md`](adr/README.md) for the current index.
 
@@ -189,29 +202,25 @@ Each document now carries an explicit historical notice. They remain useful for 
 
 ## 8. Documentation Alignment Status
 
-Current documentation alignment sequence:
+The original DOC STEP 1–7 alignment remains historical closure for the Core/Phase-3A baseline.
+
+Phase 4A introduced a newer Module Kernel runtime contract, so documentation is being re-aligned through Phase 4A.9:
 
 ```text
-DOC STEP 1 — Current architecture index + superseded ADR markers
+4A.9.1  — Documentation Drift Audit
 COMPLETE
 
-DOC STEP 2 — Formalize canonical identity/tenancy/auth/RBAC ADRs
+4A.9.2A — ADR Runtime Contract Alignment
 COMPLETE
 
-DOC STEP 3 — Rewrite folder structure from current repository
+4A.9.2B — Current Module Kernel Docs
 COMPLETE
 
-DOC STEP 4 — Refresh architecture principles/examples
-COMPLETE
+4A.9.2C — Architecture Overview Alignment
+COMPLETE after this document set is committed
 
-DOC STEP 5 — Revalidate module-kernel documents
-COMPLETE
-
-DOC STEP 6 — Mark/archive historical PRD and sprint documents
-COMPLETE
-
-DOC STEP 7 — Documentation consistency regression
-COMPLETE
+4A.9.3  — Documentation Consistency Regression
+PENDING
 ```
 
 Documentation for Organization/Branch will only be created after its architecture is audited and locked.
@@ -227,6 +236,9 @@ Documentation Alignment dinyatakan complete setelah repository-wide documentatio
 - Accepted ADR memiliki lifecycle/status yang dapat dibaca secara eksplisit;
 - relative Markdown links pada `docs/` resolve ke target yang ada;
 - future Organization/Branch/Dormitory direction tetap diberi label **FUTURE / NOT LOCKED**;
-- documentation tidak menjanjikan hot module enable/disable, dependency-ordered provider activation, atau disabled-module isolation yang belum menjadi current runtime guarantee.
+- documentation tidak menjanjikan hot module enable/disable atau disabled-module isolation;
+- documentation mencatat manifest-driven, dependency-ordered provider activation sebagai current runtime guarantee;
+- documentation tidak menghidupkan kembali `ModuleStateRepository`, `ModuleManager`, provider guessing, atau global event auto-discovery sebagai current contract;
+- current mixed-case manifest keys dibedakan jelas dari lowercase canonical technical-key target.
 
 Dengan closure ini, `docs/README.md` dan dokumen pada bagian **Current Source of Truth** di atas menjadi baseline dokumentasi resmi sampai ada ADR atau workstream baru yang secara eksplisit mengubahnya.

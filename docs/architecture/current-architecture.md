@@ -1,8 +1,8 @@
 # EduCore Current Architecture Baseline
 
 **Status**: Locked Baseline
-**Updated**: 2026-08-12
-**Scope**: Core Canonical Foundation 2G + Downstream Human/Profile Canonicalization 3A
+**Updated**: 2026-08-14
+**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
 
 ---
 
@@ -12,7 +12,7 @@ This document consolidates the architecture that is already implemented, tested,
 
 It is not a proposal for new architecture. It exists so developers can distinguish the current canonical contract from historical documents written before the identity, tenancy, authentication, RBAC, and downstream-profile refactors.
 
-When historical documentation conflicts with this baseline, this baseline and the accepted canonical ADRs (ADR-013 through ADR-016) describe the current implementation contract.
+When historical documentation conflicts with this baseline, this baseline and the current accepted canonical ADRs—especially ADR-013 through ADR-017—describe the current implementation contract.
 
 ---
 
@@ -40,6 +40,81 @@ Application
 ```
 
 Core is a **stable foundation/public contract** for downstream modules. Downstream modules must align to Core rather than introduce compatibility fields into Core.
+
+---
+
+## 2A. Module Runtime & Bootstrap Contract
+
+EduCore is a modular monolith, not a runtime plugin engine.
+
+Canonical bootstrap lifecycle:
+
+```text
+PHYSICALLY PRESENT
+        ↓
+DISCOVERED
+        ↓
+MANIFEST VALID
+        ↓
+DEPENDENCIES VALID
+        ↓
+BOOTSTRAPPABLE
+        ↓
+PROVIDERS REGISTERED
+        ↓
+BOOTED
+```
+
+Core is the mandatory bootstrap root.
+
+Current dependency graph:
+
+```text
+Core      → []
+Auth      → Core
+User      → Core, Auth
+HR        → Core, Auth
+Academic  → Core, HR, Auth
+PPDB      → Core
+```
+
+Non-Core providers:
+
+```text
+module.yaml.providers
+        ↓
+manifest/provider validation
+        ↓
+dependency ordering
+        ↓
+ModuleProviderRegistrar
+        ↓
+Laravel provider registration
+```
+
+Canonical invariants:
+
+- manifest providers are the sole non-Core provider activation source;
+- missing dependency, dependency cycle, invalid provider, dan provider registration failure fail fast;
+- no provider naming-convention guessing;
+- no persisted `ModuleStateRepository` / `modules.json` bootstrap state;
+- no `module:enable` / `module:disable` runtime lifecycle;
+- `module:list` and `module:status` are read-only metadata commands;
+- no global reflection/filesystem event auto-discovery;
+- event/integration registration is explicit and owner-controlled;
+- Core must not depend on Auth or business-module implementations.
+
+Separation:
+
+```text
+module bootstrap composition
+≠ tenant feature / entitlement availability
+≠ authorization
+```
+
+Current module identity lookup still uses exact manifest names (`core`, `Auth`, `User`, `HR`, `Academic`, `PPDB`). The canonical target is lowercase technical slugs, but the physical lowercase cutover is not yet implemented.
+
+See ADR-017.
 
 ---
 
@@ -426,7 +501,23 @@ direct repository fallback
 test still passes
 ```
 
-Canonical regression baseline at Phase 3A closure included passing Academic, HR, Auth, User, Core feature tests and `migrate:fresh --seed`.
+Canonical Phase 4A.8 integration regression baseline:
+
+```text
+Core full      189 passed / 623 assertions
+Core Feature   112 passed / 447 assertions
+Auth            38 passed / 135 assertions
+User            15 passed / 54 assertions
+HR               7 passed / 60 assertions
+Academic         30 passed / 223 assertions
+Entire app     272 passed / 1081 assertions
+DB             MIGRATE_SEED_OK
+Boot/routes    ROUTES_BOOT_OK
+```
+
+PPDB currently has no test files.
+
+This supersedes the earlier Phase 3A-only regression baseline for Module Kernel closure.
 
 ---
 
@@ -443,7 +534,12 @@ The following contracts are frozen unless a new concrete requirement justifies a
 - AuthorizationService boundary;
 - Student/Guardian/Employee profile identity;
 - Teacher-as-capability semantics;
-- Membership → Employee grading actor resolution.
+- Membership → Employee grading actor resolution;
+- Core as mandatory Module Kernel bootstrap root;
+- manifest-driven, dependency-ordered non-Core provider registration;
+- fail-fast dependency/provider bootstrap behavior;
+- no mutable Module Kernel enable/disable state;
+- explicit provider-owned event/integration registration.
 
 ---
 
@@ -498,8 +594,9 @@ ADR-013 — Canonical Human Identity
 ADR-014 — Membership & Tenant Boundary
 ADR-015 — Authentication Token & Request Context
 ADR-016 — Database-Backed Tenant RBAC
+ADR-017 — Module Runtime & Bootstrap Contract
 ```
 
-Historical ADR-011 and ADR-012 remain available only as superseded context.
+Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as superseded context.
 
 Future Organization/Branch topology is intentionally excluded from these ADRs and requires a separate architectural decision after its dedicated audit.

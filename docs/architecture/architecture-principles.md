@@ -1,9 +1,9 @@
 # EduCore Architecture Principles
 
-- **Version**: 2.0
+- **Version**: 3.0
 - **Status**: Current Architecture Principle Baseline
-- **Updated**: 2026-08-12
-- **Baseline**: Core Canonical Foundation 2G + Downstream Human/Profile Canonicalization 3A
+- **Updated**: 2026-08-14
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
 
 Dokumen ini mendefinisikan prinsip arsitektur yang berlaku untuk pengembangan EduCore setelah canonical identity, tenancy, authentication, RBAC, dan downstream human/profile foundation di-lock.
 
@@ -97,11 +97,12 @@ Setiap komponen memiliki satu responsibility utama yang jelas.
 
 Contoh platform kernel:
 
-- `ModuleDiscovery` menemukan modul.
-- `ManifestParser` membaca manifest.
-- `ManifestValidator` memvalidasi manifest.
+- `ModuleDiscovery` menemukan physical module manifests.
+- `ModuleManifestParser` membaca manifest.
+- `ModuleManifestValidator` memvalidasi manifest.
+- `DependencyResolver` memvalidasi dan mengurutkan dependency graph.
 - `ModuleRegistry` menyimpan registered module definitions.
-- `ModuleManager` mengelola kebijakan runtime module.
+- `ModuleProviderRegistrar` mendaftarkan declared non-Core providers dalam dependency order.
 
 Contoh application foundation:
 
@@ -121,7 +122,7 @@ Setiap jenis informasi hanya memiliki satu canonical source of truth.
 | Concern | Canonical Source of Truth |
 | --- | --- |
 | Module metadata | `module.yaml` |
-| Runtime module state | `ModuleStateRepository` |
+| Non-Core provider declarations | `module.yaml.providers` |
 | Registered modules | `ModuleRegistry` |
 | Human identity | `Person` |
 | Digital/login account | `User` |
@@ -361,27 +362,30 @@ Prinsip yang sama berlaku untuk future domain actor lain jika identity actor dap
 
 Module dependency harus eksplisit dan mengalir ke foundation, bukan sebaliknya.
 
-Current direction:
+Current dependency graph:
 
 ```text
-                    Core
-                  /  |  \
-                 /   |   \
-              Auth  User  HR
-                          ↑
-                          │
-                       Academic
+Core      → []
+Auth      → Core
+User      → Core, Auth
+HR        → Core, Auth
+Academic  → Core, HR, Auth
+PPDB      → Core
 ```
+
+Arrows berarti **depends on**.
 
 Rules:
 
-- Core tidak bergantung pada business module.
+- Core tidak bergantung pada Auth atau business module.
 - Auth bergantung pada Core.
-- User application module bergantung pada Core.
-- HR bergantung pada Core.
-- Academic bergantung pada Core dan HR untuk canonical Employee grading actor.
+- User bergantung pada Core dan Auth.
+- HR bergantung pada Core dan Auth.
+- Academic bergantung pada Core, HR, dan Auth.
+- PPDB bergantung pada Core.
+- Setiap direct production dependency harus tercermin pada `module.yaml`.
 
-Circular dependency tidak diperbolehkan.
+Circular dependency tidak diperbolehkan dan invalid dependency graph harus fail-fast.
 
 ---
 
@@ -516,28 +520,51 @@ Metadata module tetap menggunakan stable manifest identity, bukan UUID domain en
 
 ---
 
-# 21. Immutable Metadata, Separate Mutable Runtime State
+# 21. Immutable Module Metadata, No Mutable Kernel Activation State
 
-Untuk module platform subsystem, metadata dan runtime state tetap merupakan concern yang berbeda.
+Module metadata berasal dari `module.yaml` dan diperlakukan immutable setelah parsing/validation.
 
-Metadata berasal dari manifest dan diperlakukan immutable setelah parsing/validation.
+Current Module Kernel tidak memiliki persisted `enabled/disabled` bootstrap state, `ModuleStateRepository`, `ModuleManager`, `module:enable`, atau `module:disable`.
 
-Runtime state seperti enabled/disabled dikelola terpisah melalui runtime repository/service.
+Bootstrap participation ditentukan oleh deployment composition:
 
-Jangan menyimpan mutable runtime state pada immutable module definition.
+```text
+physically present
+→ manifest valid
+→ dependencies valid
+→ bootstrappable
+```
+
+Tenant feature/entitlement availability dan authorization adalah concern terpisah dari Module Kernel bootstrap.
 
 ---
 
 # 22. Stable Module Identity
 
-Identity module berasal dari canonical `name` pada `module.yaml`.
+Identity module berasal dari `name` pada `module.yaml`.
 
-Module identity harus:
+Current runtime menggunakan exact manifest key:
 
-- unik;
-- stabil;
-- konsisten;
-- tidak berubah hanya karena refactor folder/class.
+```text
+core
+Auth
+User
+HR
+Academic
+PPDB
+```
+
+Canonical technical-key target adalah lowercase slug:
+
+```regex
+^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+```
+
+Physical lowercase cutover belum dilakukan. Sampai migration tersebut dilakukan:
+
+- exact current manifest name tetap menjadi lookup key;
+- tidak ada silent normalization;
+- tidak ada permanent compatibility alias.
 
 UUID domain entity tidak digunakan sebagai module metadata identity.
 
@@ -554,6 +581,8 @@ Contoh:
 - module-owned routes/providers/tests;
 - canonical migration ownership;
 - repository interface → implementation binding.
+
+Provider activation adalah explicit manifest contract, bukan naming-convention guessing. `module.yaml.providers` adalah sole non-Core provider activation source.
 
 Tambahkan konfigurasi hanya jika ada kebutuhan nyata.
 
@@ -776,6 +805,8 @@ EduCore dikembangkan dengan prinsip utama:
 - explicit tenant-aware persistence;
 - database-backed RBAC;
 - module ownership dan dependency direction yang jelas;
+- manifest-driven, dependency-ordered, fail-fast Module Kernel bootstrap;
+- deployment composition yang terpisah dari tenant feature availability dan authorization;
 - repository untuk persistence, service/action untuk meaningful orchestration;
 - transaction berdasarkan business atomicity;
 - UUIDv7 untuk canonical domain identities;
