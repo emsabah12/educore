@@ -1,8 +1,8 @@
 # Architecture Decision Records (ADR)
 
-**Version**: 3.2
+**Version**: 4.0
 **Status**: Current Index
-**Updated**: 2026-08-13
+**Updated**: 2026-08-14
 
 ---
 
@@ -61,6 +61,8 @@ Superseded
 | ADR-015 | Authentication Token & Request Context | **Accepted** | Encrypted bearer token + verified current request context |
 | ADR-016 | Database-Backed Tenant RBAC | **Accepted** | AuthorizationService + Role/Permission persistence |
 | ADR-017 | Module Runtime & Bootstrap Contract | **Accepted** | Canonical Module Kernel runtime contract after Phase 4A hardening |
+| ADR-018 | Organizational Topology & Scoped Authorization | **Accepted** | Tenant → Organization → OrganizationUnit + Assignment/Context/scoped-role semantics |
+| ADR-019 | Dormitory Integration Boundary | **Accepted** | Dormitory is downstream business domain consuming Core topology |
 
 ---
 
@@ -93,6 +95,8 @@ ADR-013 — Canonical Human Identity
 ADR-014 — Membership & Tenant Boundary
 ADR-015 — Authentication Token & Request Context
 ADR-016 — Database-Backed Tenant RBAC
+ADR-018 — Organizational Topology & Scoped Authorization
+ADR-019 — Dormitory Integration Boundary
 ```
 
 The consolidated implemented baseline remains available in [`../current-architecture.md`](../current-architecture.md).
@@ -109,7 +113,9 @@ For a new developer:
 3. ADR-017 (current Module Runtime & Bootstrap contract)
 4. ADR-001 → ADR-005, ADR-008 → ADR-010 (supporting module-kernel decisions/history)
 5. ADR-013 → ADR-016 (current identity/tenancy/auth/RBAC contracts)
-6. ADR-006 / ADR-007 / ADR-011 / ADR-012 only as superseded historical context
+6. ADR-018 (current organizational topology/scoped authorization contract)
+7. ADR-019 (Dormitory integration boundary)
+8. ADR-006 / ADR-007 / ADR-011 / ADR-012 only as superseded historical context
 ```
 
 ---

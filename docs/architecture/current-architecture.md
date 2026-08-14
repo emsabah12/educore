@@ -2,7 +2,7 @@
 
 **Status**: Locked Baseline
 **Updated**: 2026-08-14
-**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
+**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
 
 ---
 
@@ -28,6 +28,7 @@ Application
 │   ├── Person / Human Identity
 │   ├── User Identity
 │   ├── Tenancy
+│   ├── Organization / Organizational Context
 │   ├── Authorization
 │   ├── Audit / Governance
 │   └── Shared platform capabilities
@@ -40,6 +41,33 @@ Application
 ```
 
 Core is a **stable foundation/public contract** for downstream modules. Downstream modules must align to Core rather than introduce compatibility fields into Core.
+
+### Organizational topology inside Tenant
+
+The locked topology is:
+
+```text
+Tenant
+  ↓
+Organization
+  ↓
+OrganizationUnit
+```
+
+Canonical responsibility:
+
+```text
+Tenant             = customer/security/data-isolation boundary
+Organization       = lembaga/institution inside a Tenant
+OrganizationUnit   = branch/campus/operational unit inside an Organization
+Membership         = Person × Tenant
+OrganizationalAssignment
+                   = where a Membership participates operationally
+```
+
+`Membership` does not gain canonical `organization_id` or `branch_id`. A Membership may have `0..N` `OrganizationalAssignment` records. `organization_unit_id = NULL` means organization-level participation; a non-null unit means exact-unit participation.
+
+`Organization`, `OrganizationUnit`, and `OrganizationalAssignment` remain explicitly tenant-aware. Cross-tenant or mismatched Organization/Unit references fail closed.
 
 ---
 
@@ -64,6 +92,41 @@ PROVIDERS REGISTERED
         ↓
 BOOTED
 ```
+
+### Organizational scoped authorization
+
+Tenant-wide authorization remains available through the existing `AuthorizationService`.
+
+Organization/unit-aware checks use a dedicated `OrganizationalAuthorizationService` and a verified `OrganizationalContext`.
+
+Effective roles are:
+
+```text
+Organization context:
+TenantRoles
+∪ OrganizationRoles
+
+Unit context:
+TenantRoles
+∪ OrganizationRoles
+∪ ExactUnitRoles
+```
+
+Organization-level grants inherit downward to units in the same Organization. Unit grants apply only to the exact Unit and never inherit upward or across sibling units.
+
+Scoped grants are persisted through:
+
+```text
+OrganizationalAssignment
+  ↓
+OrganizationalAssignmentRole
+  ↓
+Role
+```
+
+Role and Permission catalogs remain global database-backed catalogs. There is no direct scoped-permission assignment.
+
+The in-memory OrganizationalContext is a runtime locator, not stale authority. Scoped authorization revalidates the current assignment/context before evaluation and fails closed when the context is missing or invalid.
 
 Core is the mandatory bootstrap root.
 
@@ -517,6 +580,15 @@ Boot/routes    ROUTES_BOOT_OK
 
 PPDB currently has no test files.
 
+Latest Phase 4B Core Feature regression before documentation closure:
+
+```text
+Core Feature   192 passed / 588 assertions
+DB             MIGRATE_SEED_OK
+```
+
+The final Phase 4B closure gate must rerun the broader regression set after documentation alignment.
+
 This supersedes the earlier Phase 3A-only regression baseline for Module Kernel closure.
 
 ---
@@ -539,49 +611,89 @@ The following contracts are frozen unless a new concrete requirement justifies a
 - manifest-driven, dependency-ordered non-Core provider registration;
 - fail-fast dependency/provider bootstrap behavior;
 - no mutable Module Kernel enable/disable state;
-- explicit provider-owned event/integration registration.
+- explicit provider-owned event/integration registration;
+- Tenant → Organization → OrganizationUnit topology;
+- Membership remaining Person × Tenant;
+- OrganizationalAssignment as a separate Membership participation layer;
+- verified OrganizationalContext subordinate to Tenant/Membership context;
+- tenant-wide `membership_roles` retaining their original meaning;
+- organization/unit scoped role grants through OrganizationalAssignment;
+- dedicated OrganizationalAuthorizationService semantics;
+- Dormitory as a downstream business domain that depends on Core rather than extending Core topology.
 
 ---
 
-## 17. Not Yet Locked: Multi-Lembaga / Multi-Cabang
+## 17. Organizational Topology & Scoped Authorization
 
-EduCore's product direction includes:
-
-- multi-tenant;
-- multi-lembaga;
-- multi-cabang;
-- integrated dormitory management.
-
-The following direction is intentionally **not yet a current contract**:
+Phase 4B locks the following Core topology:
 
 ```text
 Tenant
   ↓
-Organization / Lembaga
+Organization
   ↓
-Organization Unit / Branch
+OrganizationUnit
 ```
 
-Before implementation, the project must audit and lock:
+`Tenant` remains the root security/data-isolation boundary. `Organization` and `OrganizationUnit` are subordinate organizational topology, not replacements for Tenant.
 
-1. Organization topology.
-2. Membership organizational assignment.
-3. Organizational request/context isolation.
-4. Tenant-vs-Organization-vs-Branch authorization scope.
+Membership remains:
 
-Dormitory should consume this foundation as a downstream domain rather than redefine human identity or tenancy.
+```text
+Person × Tenant
+```
+
+Operational participation is represented separately:
+
+```text
+Membership
+  ↓
+OrganizationalAssignment
+  ├── Organization
+  └── OrganizationUnit?
+```
+
+Runtime context is layered:
+
+```text
+TenantContext
+  ↓
+MembershipContext
+  ↓
+OrganizationalContext
+```
+
+OrganizationalContext never grants authority by itself. Scoped authorization combines tenant-wide roles with matching Organization and exact Unit grants after revalidating the current context.
+
+See ADR-018.
 
 ---
 
-## 18. Next Architectural Work
+## 18. Dormitory Integration Boundary
 
-The next architecture work should begin with:
+Dormitory is **not** a Core topology level.
+
+Future implementation belongs to:
 
 ```text
-Organizational Topology Audit
+Modules/Dormitory
 ```
 
-Authorization coverage for additional Academic/HR endpoints should be designed after organizational scope semantics are understood, so permissions are not prematurely locked as tenant-wide when they may need organization/branch scope.
+with dependency direction:
+
+```text
+Dormitory
+  ↓
+Core
+```
+
+The Dormitory root is expected to be tenant-aware, owned by one Organization, and optionally owned by an OrganizationUnit. Building, Room, Bed, and ResidentPlacement remain Dormitory-domain concepts rather than `OrganizationUnit` variants.
+
+Resident identity remains rooted in canonical Membership. Dormitory must reuse Core organizational ownership/context and scoped authorization rather than duplicate tenancy, identity, Role, or Permission catalogs.
+
+Actual Dormitory schema and business implementation are a separate downstream phase.
+
+See ADR-019.
 
 ---
 
@@ -595,8 +707,16 @@ ADR-014 — Membership & Tenant Boundary
 ADR-015 — Authentication Token & Request Context
 ADR-016 — Database-Backed Tenant RBAC
 ADR-017 — Module Runtime & Bootstrap Contract
+ADR-018 — Organizational Topology & Scoped Authorization
+ADR-019 — Dormitory Integration Boundary
 ```
 
 Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as superseded context.
 
-Future Organization/Branch topology is intentionally excluded from these ADRs and requires a separate architectural decision after its dedicated audit.
+---
+
+## 20. Next Architectural Work
+
+Phase 4B architecture implementation is complete. The remaining Phase 4B work is documentation consistency and final regression closure.
+
+After that closure, concrete Dormitory implementation may begin as a separate downstream workstream in `Modules/Dormitory`; it is not part of Core Phase 4B.

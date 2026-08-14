@@ -1,9 +1,9 @@
 # EduCore Architecture Principles
 
-- **Version**: 3.0
+- **Version**: 3.1
 - **Status**: Current Architecture Principle Baseline
 - **Updated**: 2026-08-14
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
 
 Dokumen ini mendefinisikan prinsip arsitektur yang berlaku untuk pengembangan EduCore setelah canonical identity, tenancy, authentication, RBAC, dan downstream human/profile foundation di-lock.
 
@@ -49,6 +49,9 @@ Contoh canonical meaning:
 Person      = manusia global
 User        = akun digital/authentication
 Membership  = partisipasi Person dalam Tenant
+Organization = lembaga/institution di dalam Tenant
+OrganizationUnit = branch/campus/operational unit di dalam Organization
+OrganizationalAssignment = partisipasi operasional Membership pada Organization/Unit
 Employee    = profile HR
 Teacher     = role/capability, bukan entity manusia
 ```
@@ -128,7 +131,10 @@ Setiap jenis informasi hanya memiliki satu canonical source of truth.
 | Digital/login account | `User` |
 | Tenant participation | `Membership` |
 | Tenant boundary | `Tenant` |
+| Organizational topology | `Organization` + `OrganizationUnit` |
+| Organizational participation | `OrganizationalAssignment` |
 | Tenant roles | database `roles` + `membership_roles` |
+| Scoped organizational roles | database `organizational_assignment_roles` |
 | Permissions | database `permissions` + `role_permissions` |
 | Student identity projection | `Student → Membership → Person` |
 | Guardian identity projection | `Guardian → Membership → Person` |
@@ -166,7 +172,17 @@ Membership
 Tenant
 ```
 
-Multi-lembaga dan multi-cabang akan dibangun **di dalam** tenant boundary setelah topology-nya diaudit. Organization/Branch belum menjadi current contract.
+Multi-lembaga dan multi-cabang dibangun **di dalam** tenant boundary melalui locked topology:
+
+```text
+Tenant
+  ↓
+Organization
+  ↓
+OrganizationUnit
+```
+
+Organization/Unit tidak menggantikan Tenant sebagai security/data-isolation boundary.
 
 ---
 
@@ -312,6 +328,10 @@ Authorization tidak boleh bersumber dari:
 
 Laravel Gate/Policy tetap concern terpisah dari tenant RBAC.
 
+Tenant-wide `AuthorizationService` mempertahankan semantics `membership_roles`. Organization/unit-aware checks menggunakan dedicated `OrganizationalAuthorizationService` dengan verified `OrganizationalContext`.
+
+Organization-level scoped role inherit ke unit dalam Organization yang sama. Unit role hanya berlaku pada exact Unit dan tidak inherit ke parent/sibling.
+
 ---
 
 # 12. Domain Profile Is Not Authorization
@@ -397,6 +417,9 @@ Contoh:
 
 ```text
 Person / User / Membership / RBAC
+→ Core
+
+Organization / OrganizationUnit / OrganizationalAssignment / OrganizationalContext
 → Core
 
 Authentication token runtime
@@ -600,6 +623,7 @@ Current Core foundation meliputi:
 Platform Module Kernel
 Human Identity
 Tenancy
+Organizational Topology / Context
 Authorization/RBAC
 Governance/Audit
 Shared Platform Infrastructure
@@ -624,7 +648,7 @@ generic repository hanya demi pattern
 service tanpa orchestration
 base controller tanpa duplication pressure
 CQRS tanpa query/command problem nyata
-generic tree/node engine sebelum Organization topology diketahui
+generic recursive organization tree tanpa concrete hierarchy requirement
 ```
 
 Architecture harus menyelesaikan masalah yang ada, bukan masalah hipotetis.
@@ -763,33 +787,41 @@ Kode dan dokumentasi harus berevolusi bersama setelah architecture lock.
 
 ---
 
-# 32. Future Organization Topology Must Extend, Not Rewrite, the Foundation
+# 32. Organizational Topology Extends, Not Rewrites, the Foundation
 
-Target produk mencakup multi-tenant, multi-lembaga, multi-cabang, dan manajemen asrama terintegrasi.
+Phase 4B locks multi-lembaga/multi-cabang topology inside the existing Tenant boundary:
 
-Current locked foundation tetap:
+```text
+Tenant
+  ↓
+Organization
+  ↓
+OrganizationUnit
+```
+
+The canonical human/tenant foundation remains unchanged:
 
 ```text
 Person
- ↓
+  ↓
 Membership
- ↓
+  ↓
 Tenant
 ```
 
-Future direction:
+`Membership` remains `Person × Tenant`. Operational participation inside Organization/Unit is represented separately by `OrganizationalAssignment`, and runtime selection is represented by verified `OrganizationalContext`.
+
+Scoped authorization extends tenant-wide RBAC rather than replacing it:
 
 ```text
-Tenant
-  ↓
-Organization / Lembaga
-  ↓
-Organization Unit / Branch
+TenantRoles
+∪ OrganizationRoles
+∪ ExactUnitRoles (only when unit context exists)
 ```
 
-Tetapi topology, organizational assignment, organizational context, dan scoped authorization masih **NOT LOCKED**.
+Dormitory does not become another Core topology level. Its concrete implementation belongs to future `Modules/Dormitory`, consuming Core through the dependency direction `Dormitory → Core` as defined by ADR-019.
 
-Ketika workstream tersebut dimulai, desain harus memperluas foundation yang ada, bukan mengembalikan tenant ownership ke User atau mengganti canonical Person/Membership model.
+The locked topology must not reintroduce tenant ownership on `User`, duplicate Person/Membership identity, or create a second Role/Permission catalog.
 
 ---
 
@@ -801,6 +833,9 @@ EduCore dikembangkan dengan prinsip utama:
 - domain meaning before framework convenience;
 - canonical separation antara Person, User, Membership, authorization, dan domain profile;
 - Tenant sebagai security/data-isolation boundary;
+- locked `Tenant → Organization → OrganizationUnit` topology dengan separate `OrganizationalAssignment`/`OrganizationalContext`;
+- tenant-wide + organizational scoped authorization yang tetap memakai global Role/Permission catalog;
+- Dormitory sebagai downstream module boundary (`Dormitory → Core`), bukan Core topology level;
 - fail-closed authentication, tenancy, dan authorization;
 - explicit tenant-aware persistence;
 - database-backed RBAC;

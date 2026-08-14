@@ -1,10 +1,10 @@
 # EduCore Architecture Documentation
 
-**Version**: 4.0
+**Version**: 4.1
 **Status**: Current Baseline
 **Updated**: 2026-08-14
 
-Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, dan **Phase 4A Module Kernel Runtime Hardening**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
+Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, **Phase 4A Module Kernel Runtime Hardening**, dan **Phase 4B Organizational Topology Foundation**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
 
 Dokumen lama dari Sprint `CORE-001` tetap dipertahankan sebagai histori keputusan, tetapi tidak semuanya lagi menjadi current implementation contract. Gunakan status setiap dokumen/ADR sebelum menjadikannya acuan implementasi.
 
@@ -38,6 +38,7 @@ EduCore
 │   ├── Platform Module Kernel
 │   ├── Human Identity
 │   ├── Tenancy
+│   ├── Organizational Topology / Context
 │   ├── Authorization / RBAC
 │   ├── Governance / Audit
 │   └── Shared Platform Services
@@ -73,7 +74,10 @@ Responsibility boundaries:
 | `User` | Authentication/digital account |
 | `Membership` | Participation of a Person in a Tenant |
 | `Tenant` | Customer/security/data-isolation boundary |
-| Role / Permission | Authorization capability |
+| `Organization` | Lembaga/institution inside a Tenant |
+| `OrganizationUnit` | Branch/campus/operational unit inside an Organization |
+| `OrganizationalAssignment` | Operational participation of a Membership in Organization/Unit |
+| Role / Permission | Global database-backed authorization catalog |
 | Student / Guardian / Employee | Downstream domain profiles |
 
 ---
@@ -103,6 +107,12 @@ The following contracts are considered stable and must not be reopened for legac
 - `module:list` and `module:status` are read-only metadata commands.
 - Event/integration registration is explicit/provider-owned; no global reflection listener discovery.
 - Module bootstrap composition, tenant feature availability, and authorization are separate concerns.
+- `Tenant → Organization → OrganizationUnit` is the locked organizational topology.
+- Membership remains `Person × Tenant`; organizational participation is a separate `OrganizationalAssignment`.
+- OrganizationalContext is subordinate to Tenant/Membership context and must be server-verified.
+- Tenant-wide roles remain in `membership_roles`; scoped roles attach to `OrganizationalAssignment`.
+- Organization-level scoped roles inherit downward to exact units; unit roles never inherit upward or to siblings.
+- Dormitory is a downstream business module boundary, not a Core topology level.
 
 See [`current-architecture.md`](current-architecture.md) for the detailed baseline.
 
@@ -142,24 +152,31 @@ Role/permission claims are intentionally not trusted from bearer tokens.
 
 ---
 
-## 5. Multi-Tenancy Direction
+## 5. Multi-Tenancy & Organizational Topology
 
-Current locked boundary:
-
-```text
-Tenant
-= customer / security / data-isolation boundary
-```
-
-The application target includes multi-lembaga, multi-cabang, and integrated dormitory management. The following topology is **directional only and not yet a locked Core contract**:
+The locked hierarchy is:
 
 ```text
 Tenant
-  └── Organization / Lembaga
-        └── Organization Unit / Branch
+  └── Organization
+        └── OrganizationUnit
 ```
 
-Do not implement `Organization`, `Branch`, organizational membership, or scoped authorization until the dedicated **Organizational Topology Audit** is completed and accepted.
+`Tenant` remains the customer/security/data-isolation boundary. `Organization` and `OrganizationUnit` are subordinate organizational topology.
+
+Membership remains `Person × Tenant`. A Membership may have zero or more `OrganizationalAssignment` records that express where the Membership participates operationally.
+
+Scoped authorization is explicit:
+
+```text
+Organization context
+= TenantRoles ∪ OrganizationRoles
+
+Unit context
+= TenantRoles ∪ OrganizationRoles ∪ ExactUnitRoles
+```
+
+Dormitory consumes this foundation later from `Modules/Dormitory`; it does not redefine Tenant, Organization, OrganizationUnit, Membership, Role, or Permission.
 
 ---
 
@@ -174,6 +191,8 @@ Module-kernel ADR lifecycle after Phase 4A:
 - ADR-008 — Accepted; current module commands are read-only.
 - ADR-010 — Accepted; exact current manifest key with lowercase canonical cutover target.
 - ADR-017 — **Accepted** canonical Module Runtime & Bootstrap Contract.
+- ADR-018 — **Accepted** Organizational Topology & Scoped Authorization.
+- ADR-019 — **Accepted** Dormitory Integration Boundary.
 
 ADR-011 and ADR-012 contain tenancy/authentication assumptions replaced by canonical identity/authentication work and remain **Superseded**.
 
@@ -184,6 +203,8 @@ Current canonical foundation decisions include:
 - ADR-015 — Authentication Token & Request Context.
 - ADR-016 — Database-Backed Tenant RBAC.
 - ADR-017 — Module Runtime & Bootstrap Contract.
+- ADR-018 — Organizational Topology & Scoped Authorization.
+- ADR-019 — Dormitory Integration Boundary.
 
 See [`adr/README.md`](adr/README.md) for the current index.
 
@@ -202,28 +223,19 @@ Each document now carries an explicit historical notice. They remain useful for 
 
 ## 8. Documentation Alignment Status
 
-The original DOC STEP 1–7 alignment remains historical closure for the Core/Phase-3A baseline.
+Core/Phase-3A and Phase 4A documentation alignment are historical completed baselines.
 
-Phase 4A introduced a newer Module Kernel runtime contract, so documentation is being re-aligned through Phase 4A.9:
+Phase 4B closure is tracked as:
 
 ```text
-4A.9.1  — Documentation Drift Audit
-COMPLETE
+4B.6.1 — Current Baseline + ADR + Principles/Folder Alignment
+CURRENT STEP
 
-4A.9.2A — ADR Runtime Contract Alignment
-COMPLETE
-
-4A.9.2B — Current Module Kernel Docs
-COMPLETE
-
-4A.9.2C — Architecture Overview Alignment
-COMPLETE after this document set is committed
-
-4A.9.3  — Documentation Consistency Regression
+4B.6.2 — Documentation Consistency + Final Regression Gate
 PENDING
 ```
 
-Documentation for Organization/Branch will only be created after its architecture is audited and locked.
+Phase 4B documentation must describe Organization/Unit topology and scoped authorization as **LOCKED / CURRENT**, while Dormitory must be documented only as a downstream integration boundary. Concrete Dormitory implementation remains a separate future workstream.
 
 ---
 
@@ -235,7 +247,8 @@ Documentation Alignment dinyatakan complete setelah repository-wide documentatio
 - legacy terms seperti `users.tenant_id`, `memberships.user_id`, `memberships.role`, `MockStudent`, atau `DiscoveredModule` hanya boleh muncul sebagai forbidden, superseded, amended, atau historical context;
 - Accepted ADR memiliki lifecycle/status yang dapat dibaca secara eksplisit;
 - relative Markdown links pada `docs/` resolve ke target yang ada;
-- future Organization/Branch/Dormitory direction tetap diberi label **FUTURE / NOT LOCKED**;
+- Organization/OrganizationUnit/scoped-authorization semantics match ADR-018 as **LOCKED / CURRENT**;
+- Dormitory is described only as the ADR-019 downstream integration boundary until `Modules/Dormitory` implementation begins;
 - documentation tidak menjanjikan hot module enable/disable atau disabled-module isolation;
 - documentation mencatat manifest-driven, dependency-ordered provider activation sebagai current runtime guarantee;
 - documentation tidak menghidupkan kembali `ModuleStateRepository`, `ModuleManager`, provider guessing, atau global event auto-discovery sebagai current contract;

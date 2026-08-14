@@ -1,13 +1,13 @@
 # EduCore Current Repository Structure
 
-- **Version**: 3.0
+- **Version**: 3.1
 - **Status**: Current Architecture Baseline
 - **Updated**: 2026-08-14
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
 
 ## Purpose
 
-Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G dan Phase 3A selesai.
+Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G, Phase 3A, Phase 4A, dan Phase 4B Organizational Topology Foundation selesai.
 
 Dokumen ini menggantikan `folder-structure.md` versi lama yang masih menggambarkan Sprint `CORE-001`, `MockStudent`, dan struktur Core sebelum canonical identity/tenancy/RBAC selesai.
 
@@ -16,7 +16,7 @@ Dokumen ini harus dibaca bersama:
 1. `docs/architecture/README.md`
 2. `docs/architecture/current-architecture.md`
 3. `docs/architecture/adr/README.md`
-4. ADR-013 sampai ADR-016
+4. ADR-013 sampai ADR-019
 
 > Struktur di bawah mencatat direktori/file yang memiliki arti runtime atau architectural ownership. Direktori kosong yang mungkin masih ada pada working copy lokal tidak dianggap sebagai contract dan sengaja tidak dimasukkan.
 > Nama migration pada tree disingkat tanpa timestamp prefix ketika hal itu membuat struktur lebih mudah dibaca; ownership dan nama tabel/file capability tetap mengikuti repository.
@@ -73,6 +73,7 @@ Contoh:
 ```text
 Authentication       → Modules/Auth
 Tenant + Membership  → Modules/Core
+Organization topology → Modules/Core/Organization
 Human Identity       → Modules/Core/Person
 User Account          → Modules/Core/Identity
 Student / Guardian   → Modules/Academic
@@ -135,6 +136,7 @@ Modules/Core/
 ├── Listeners/
 ├── Manifest/
 ├── Notification/
+├── Organization/
 ├── Person/
 ├── Platform/
 ├── Providers/
@@ -158,7 +160,7 @@ Application Foundation
 
 Platform Kernel menangani module system dan platform services.
 
-Application Foundation menangani identity, tenancy, membership, RBAC, audit, notification infrastructure, dan cross-module primitives.
+Application Foundation menangani identity, tenancy, membership, organizational topology/context, RBAC, audit, notification infrastructure, dan cross-module primitives.
 
 ---
 
@@ -429,6 +431,64 @@ See ADR-016.
 
 ---
 
+# 7A. `Modules/Core/Organization` — Organizational Topology & Scoped Authorization
+
+```text
+Modules/Core/Organization/
+├── Context/
+│   └── OrganizationalContext.php
+├── Contracts/
+│   ├── OrganizationalAssignmentRepositoryInterface.php
+│   ├── OrganizationalAssignmentServiceInterface.php
+│   ├── OrganizationalAssignmentRoleRepositoryInterface.php
+│   ├── OrganizationalAuthorizationServiceInterface.php
+│   ├── OrganizationalContextInterface.php
+│   ├── OrganizationalContextResolverInterface.php
+│   ├── OrganizationalRoleGrantServiceInterface.php
+│   └── OrganizationalScopedRoleRepositoryInterface.php
+├── Database/Migrations/
+│   ├── create_organizations_table.php
+│   ├── create_organization_units_table.php
+│   ├── create_organizational_assignments_table.php
+│   └── create_organizational_assignment_roles_table.php
+├── Exceptions/
+├── Models/
+│   ├── Organization.php
+│   ├── OrganizationUnit.php
+│   ├── OrganizationalAssignment.php
+│   └── OrganizationalAssignmentRole.php
+├── Repositories/
+│   ├── EloquentOrganizationalAssignmentRepository.php
+│   ├── EloquentOrganizationalAssignmentRoleRepository.php
+│   └── EloquentOrganizationalScopedRoleRepository.php
+└── Services/
+    ├── OrganizationalAssignmentService.php
+    ├── OrganizationalAuthorizationService.php
+    ├── OrganizationalContextResolver.php
+    ├── OrganizationalContextState.php
+    └── OrganizationalRoleGrantService.php
+```
+
+Canonical topology:
+
+```text
+Tenant
+  ↓
+Organization
+  ↓
+OrganizationUnit
+```
+
+Membership remains `Person × Tenant`; organizational participation is a separate `OrganizationalAssignment`.
+
+Scoped authorization preserves tenant-wide `membership_roles` and adds Organization/Unit grants through `organizational_assignment_roles`.
+
+See ADR-018.
+
+Dormitory is not implemented in Core. Future `Modules/Dormitory` depends on this foundation; Core must not depend on Dormitory. See ADR-019.
+
+---
+
 # 8. `Modules/Core/Governance` — Audit Foundation
 
 Current implemented ownership:
@@ -601,6 +661,8 @@ Provider bertanggung jawab pada IoC binding dan module/platform bootstrap.
 `TenantContext` menggunakan **scoped lifecycle**, bukan process-wide mutable singleton.
 
 Authorization resolver/service yang membawa request/tenant context juga menggunakan scoped lifecycle.
+
+Organizational context, scoped authorization, dan organizational role-grant services mengikuti scoped/request-safe lifecycle sesuai responsibility masing-masing.
 
 Provider tidak boleh menjadi tempat business orchestration.
 
@@ -1192,51 +1254,34 @@ multi-cabang
 integrated dormitory management
 ```
 
-Tetapi **DOC STEP 3 tidak menganggap organizational topology sudah implemented**.
-
-Current contract berhenti pada:
-
-```text
-Person
- ↓
-Membership
- ↓
-Tenant
-```
-
-Future architectural direction yang masih harus diaudit:
+Phase 4B telah mengunci dan mengimplementasikan Core organizational foundation:
 
 ```text
 Tenant
- ↓
-Organization / Lembaga
- ↓
-Organization Unit / Branch
+  ↓
+Organization
+  ↓
+OrganizationUnit
 ```
 
-Kemudian kemungkinan:
+Membership tetap `Person × Tenant`. Partisipasi operasional di dalam Organization/Unit direpresentasikan oleh `OrganizationalAssignment`, sedangkan runtime selection menggunakan verified `OrganizationalContext`.
+
+Scoped authorization juga sudah current contract melalui ADR-018:
 
 ```text
-Membership
-→ organizational assignment
-
-RBAC
-→ organizational scope
+TenantRoles
+∪ OrganizationRoles
+∪ ExactUnitRoles (ketika unit context tersedia)
 ```
 
-Dormitory harus menjadi downstream domain consumer dari identity/organization foundation, bukan alasan untuk mengganti canonical Person/User/Membership.
-
-Sampai Organizational Topology Audit selesai:
+Dormitory tetap downstream domain. Phase 4B.5/ADR-019 hanya mengunci integration boundary:
 
 ```text
-Organization model      → NOT LOCKED
-Branch/Unit model       → NOT LOCKED
-Organization membership → NOT LOCKED
-Scoped RBAC schema      → NOT LOCKED
-Dormitory topology      → NOT LOCKED
+Dormitory → Core
+Core ↛ Dormitory
 ```
 
-Direktori kosong bernama `Organization` pada working copy lokal, bila ada, **tidak membuktikan capability tersebut sudah implemented**.
+`Dormitory`, `Building`, `Room`, `Bed`, dan `ResidentPlacement` bukan `OrganizationUnit` variants dan tidak diimplementasikan di Core. Concrete implementation tetap future workstream di `Modules/Dormitory`.
 
 ---
 
@@ -1268,7 +1313,7 @@ Architecture lebih penting daripada cosmetic symmetry.
 
 # 27. Current Baseline
 
-Setelah Core 2G + Phase 3A:
+Setelah Core 2G + Phase 3A + Phase 4A + Phase 4B:
 
 ```text
 Core Identity Foundation
@@ -1292,11 +1337,23 @@ Teacher / Grading identity contract
 Module Kernel Runtime / Bootstrap Contract
 🔒 LOCKED — Phase 4A
 
-Organization / Branch topology
-⬜ NOT STARTED
+Organization / OrganizationUnit topology
+🔒 LOCKED — Phase 4B.1
 
-Dormitory domain
-⬜ NOT STARTED
+Membership Organizational Assignment
+🔒 LOCKED — Phase 4B.2
+
+Organizational Context
+🔒 LOCKED — Phase 4B.3
+
+Scoped Organizational Authorization
+🔒 LOCKED — Phase 4B.4
+
+Dormitory Integration Boundary
+🔒 LOCKED — Phase 4B.5 / ADR-019
+
+Concrete Dormitory implementation (`Modules/Dormitory`)
+⬜ NOT STARTED — downstream future workstream
 ```
 
 New modules harus mengonsumsi canonical foundation tersebut.
