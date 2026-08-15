@@ -21,6 +21,8 @@ final class DormitoryServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Routes, migrations, and bindings are introduced by later TDD slices.
+        $this->loadMigrationsFrom(
+            __DIR__.'/../Database/Migrations',
+        );
     }
 }
