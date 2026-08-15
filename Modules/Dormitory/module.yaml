@@ -1,0 +1,22 @@
+schema: 1
+
+name: Dormitory
+
+display_name: Dormitory
+
+version: 0.1.0
+
+description: Dormitory Management Module
+
+providers:
+  - Modules\Dormitory\Providers\DormitoryServiceProvider
+
+dependencies:
+  - core
+
+metadata:
+  author: EduCore
+  license: Proprietary
+  category: Business
+
+extra: {}
