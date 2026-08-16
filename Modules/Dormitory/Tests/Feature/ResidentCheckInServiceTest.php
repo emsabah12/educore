@@ -192,6 +192,85 @@ final class ResidentCheckInServiceTest extends TestCase
         $this->assertNull($plannedPlacement->checked_in_at);
     }
 
+    public function test_check_in_rejects_locker_already_used_by_another_active_placement(): void
+    {
+        $tenant = $this->createTenant(
+            'Occupied Locker Tenant',
+            'occupied-locker-tenant',
+        );
+        $occupantMembership = $this->createMembership(
+            $tenant,
+            'Current Locker Occupant',
+        );
+        $incomingMembership = $this->createMembership(
+            $tenant,
+            'Incoming Locker Resident',
+        );
+        $this->activateTenant($tenant);
+
+        [$room, $occupiedBed, $occupiedLocker] = $this->createRoomWithResources(
+            'Occupied Locker Room',
+        );
+
+        ResidentPlacement::query()->create([
+            'membership_id' => (string) $occupantMembership->getKey(),
+            'room_id' => (string) $room->getKey(),
+            'bed_id' => (string) $occupiedBed->getKey(),
+            'locker_id' => (string) $occupiedLocker->getKey(),
+            'resident_category' => ResidentCategory::REGULAR_RESIDENT,
+            'status' => PlacementStatus::ACTIVE,
+            'planned_at' => now()->subHours(2),
+            'checked_in_at' => now()->subHour(),
+        ]);
+
+        $availableBed = Bed::query()->create([
+            'room_id' => (string) $room->getKey(),
+            'code' => 'BED-INCOMING',
+            'is_usable' => true,
+            'is_active' => true,
+        ]);
+
+        $plannedPlacement = ResidentPlacement::query()->create([
+            'membership_id' => (string) $incomingMembership->getKey(),
+            'room_id' => (string) $room->getKey(),
+            'resident_category' => ResidentCategory::REGULAR_RESIDENT,
+            'status' => PlacementStatus::PLANNED,
+            'planned_at' => now()->subMinutes(30),
+        ]);
+
+        $service = $this->app->make(
+            ResidentPlacementServiceInterface::class,
+        );
+
+        try {
+            $service->checkIn(
+                new CheckInResident(
+                    membershipId: (string) $incomingMembership->getKey(),
+                    roomId: (string) $room->getKey(),
+                    bedId: (string) $availableBed->getKey(),
+                    lockerId: (string) $occupiedLocker->getKey(),
+                    residentCategory: ResidentCategory::REGULAR_RESIDENT->value,
+                ),
+            );
+
+            $this->fail(
+                'Check-in must reject a locker already used by an ACTIVE placement.',
+            );
+        } catch (ResidentCheckInException) {
+            $this->addToAssertionCount(1);
+        }
+
+        $plannedPlacement->refresh();
+
+        $this->assertSame(
+            PlacementStatus::PLANNED,
+            $plannedPlacement->status,
+        );
+        $this->assertNull($plannedPlacement->bed_id);
+        $this->assertNull($plannedPlacement->locker_id);
+        $this->assertNull($plannedPlacement->checked_in_at);
+    }
+
     /**
      * @return array{0: Room, 1: Bed, 2: Locker}
      */

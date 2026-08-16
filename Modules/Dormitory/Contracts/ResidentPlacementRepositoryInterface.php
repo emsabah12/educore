@@ -25,6 +25,11 @@ interface ResidentPlacementRepositoryInterface
         string $bedId,
     ): ?ResidentPlacement;
 
+    public function findActiveForLockerForUpdate(
+        string $tenantId,
+        string $lockerId,
+    ): ?ResidentPlacement;
+
     public function save(
         ResidentPlacement $placement,
     ): ResidentPlacement;

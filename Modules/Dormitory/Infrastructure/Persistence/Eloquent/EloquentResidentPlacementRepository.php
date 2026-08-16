@@ -50,6 +50,18 @@ final class EloquentResidentPlacementRepository implements ResidentPlacementRepo
             ->first();
     }
 
+    public function findActiveForLockerForUpdate(
+        string $tenantId,
+        string $lockerId,
+    ): ?ResidentPlacement {
+        return ResidentPlacement::query()
+            ->where('tenant_id', $tenantId)
+            ->where('locker_id', $lockerId)
+            ->where('status', PlacementStatus::ACTIVE->value)
+            ->lockForUpdate()
+            ->first();
+    }
+
     public function save(
         ResidentPlacement $placement,
     ): ResidentPlacement {

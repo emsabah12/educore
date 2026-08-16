@@ -155,6 +155,17 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
                 throw ResidentCheckInException::lockerUnavailable();
             }
 
+            if (
+                $lockerId !== null
+                && $this->placementRepository
+                    ->findActiveForLockerForUpdate(
+                        $tenantId,
+                        $lockerId,
+                    ) !== null
+            ) {
+                throw ResidentCheckInException::lockerUnavailable();
+            }
+
             if (! $requirements->isSatisfiedBy(
                 hasBed: $bed !== null,
                 hasLocker: $locker !== null,
