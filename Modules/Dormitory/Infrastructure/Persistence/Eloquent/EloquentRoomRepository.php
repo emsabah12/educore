@@ -6,6 +6,7 @@ namespace Modules\Dormitory\Infrastructure\Persistence\Eloquent;
 
 use Modules\Dormitory\Contracts\RoomRepositoryInterface;
 use Modules\Dormitory\Models\Bed;
+use Modules\Dormitory\Models\Building;
 use Modules\Dormitory\Models\Locker;
 use Modules\Dormitory\Models\Room;
 
@@ -17,6 +18,17 @@ final class EloquentRoomRepository implements RoomRepositoryInterface
     ): ?Room {
         return Room::query()
             ->whereKey($roomId)
+            ->where('tenant_id', $tenantId)
+            ->lockForUpdate()
+            ->first();
+    }
+
+    public function findBuildingForUpdate(
+        string $buildingId,
+        string $tenantId,
+    ): ?Building {
+        return Building::query()
+            ->whereKey($buildingId)
             ->where('tenant_id', $tenantId)
             ->lockForUpdate()
             ->first();
