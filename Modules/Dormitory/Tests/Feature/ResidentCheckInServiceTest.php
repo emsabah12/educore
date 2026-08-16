@@ -936,6 +936,66 @@ final class ResidentCheckInServiceTest extends TestCase
         $this->assertNull($plannedPlacement->checked_in_at);
     }
 
+    public function test_check_in_rejects_missing_required_locker_for_bed_and_locker_room(): void
+    {
+        $tenant = $this->createTenant(
+            'Missing Required Locker Tenant',
+            'missing-required-locker-tenant',
+        );
+        $membership = $this->createMembership(
+            $tenant,
+            'Missing Required Locker Resident',
+        );
+        $this->activateTenant($tenant);
+
+        [$room, $bed] = $this->createRoomWithResources(
+            'Missing Required Locker Room',
+        );
+
+        $plannedPlacement = ResidentPlacement::query()->create([
+            'membership_id' => (string) $membership->getKey(),
+            'room_id' => (string) $room->getKey(),
+            'resident_category' => ResidentCategory::REGULAR_RESIDENT,
+            'status' => PlacementStatus::PLANNED,
+            'planned_at' => now()->subMinutes(30),
+        ]);
+
+        $service = $this->app->make(
+            ResidentPlacementServiceInterface::class,
+        );
+
+        try {
+            $service->checkIn(
+                new CheckInResident(
+                    membershipId: (string) $membership->getKey(),
+                    roomId: (string) $room->getKey(),
+                    bedId: (string) $bed->getKey(),
+                    lockerId: null,
+                    residentCategory: ResidentCategory::REGULAR_RESIDENT->value,
+                ),
+            );
+
+            $this->fail(
+                'Check-in must reject BED_AND_LOCKER room without a locker.',
+            );
+        } catch (ResidentCheckInException $exception) {
+            $this->assertSame(
+                'The selected resources do not satisfy the room capacity basis.',
+                $exception->getMessage(),
+            );
+        }
+
+        $plannedPlacement->refresh();
+
+        $this->assertSame(
+            PlacementStatus::PLANNED,
+            $plannedPlacement->status,
+        );
+        $this->assertNull($plannedPlacement->bed_id);
+        $this->assertNull($plannedPlacement->locker_id);
+        $this->assertNull($plannedPlacement->checked_in_at);
+    }
+
     /**
      * @return array{0: Room, 1: Bed, 2: Locker}
      */
