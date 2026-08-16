@@ -83,6 +83,15 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
                 throw ResidentCheckInException::roomUnavailable();
             }
 
+            $dormitory = $this->roomRepository->findDormitoryForUpdate(
+                (string) $building->dormitory_id,
+                $tenantId,
+            );
+
+            if ($dormitory === null || ! $dormitory->is_active) {
+                throw ResidentCheckInException::roomUnavailable();
+            }
+
             $this->eligibilityChecker->assertEligible(
                 $tenantId,
                 $membershipId,
