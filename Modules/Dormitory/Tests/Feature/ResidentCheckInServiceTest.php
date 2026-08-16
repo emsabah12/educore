@@ -552,6 +552,75 @@ final class ResidentCheckInServiceTest extends TestCase
         );
     }
 
+    public function test_check_in_rejects_when_matching_planned_placement_does_not_exist(): void
+    {
+        $tenant = $this->createTenant(
+            'Missing Planned Placement Tenant',
+            'missing-planned-placement-tenant',
+        );
+        $membership = $this->createMembership(
+            $tenant,
+            'Missing Planned Placement Resident',
+        );
+        $this->activateTenant($tenant);
+
+        [$plannedRoom] = $this->createRoomWithResources(
+            'Existing Planned Placement Room',
+        );
+        [$targetRoom, $targetBed, $targetLocker] = $this->createRoomWithResources(
+            'Missing Planned Placement Target Room',
+        );
+
+        $existingPlannedPlacement = ResidentPlacement::query()->create([
+            'membership_id' => (string) $membership->getKey(),
+            'room_id' => (string) $plannedRoom->getKey(),
+            'resident_category' => ResidentCategory::REGULAR_RESIDENT,
+            'status' => PlacementStatus::PLANNED,
+            'planned_at' => now()->subMinutes(30),
+        ]);
+
+        $service = $this->app->make(
+            ResidentPlacementServiceInterface::class,
+        );
+
+        try {
+            $service->checkIn(
+                new CheckInResident(
+                    membershipId: (string) $membership->getKey(),
+                    roomId: (string) $targetRoom->getKey(),
+                    bedId: (string) $targetBed->getKey(),
+                    lockerId: (string) $targetLocker->getKey(),
+                    residentCategory: ResidentCategory::REGULAR_RESIDENT->value,
+                ),
+            );
+
+            $this->fail(
+                'Check-in must reject when no matching PLANNED placement exists.',
+            );
+        } catch (ResidentCheckInException $exception) {
+            $this->assertSame(
+                'A matching planned resident placement was not found.',
+                $exception->getMessage(),
+            );
+        }
+
+        $existingPlannedPlacement->refresh();
+
+        $this->assertSame(
+            PlacementStatus::PLANNED,
+            $existingPlannedPlacement->status,
+        );
+        $this->assertNull($existingPlannedPlacement->bed_id);
+        $this->assertNull($existingPlannedPlacement->locker_id);
+        $this->assertNull($existingPlannedPlacement->checked_in_at);
+        $this->assertSame(
+            1,
+            ResidentPlacement::query()
+                ->where('membership_id', $membership->getKey())
+                ->count(),
+        );
+    }
+
     /**
      * @return array{0: Room, 1: Bed, 2: Locker}
      */
