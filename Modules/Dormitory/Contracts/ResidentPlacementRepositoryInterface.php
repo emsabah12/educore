@@ -20,6 +20,11 @@ interface ResidentPlacementRepositoryInterface
         string $membershipId,
     ): ?ResidentPlacement;
 
+    public function findActiveForBedForUpdate(
+        string $tenantId,
+        string $bedId,
+    ): ?ResidentPlacement;
+
     public function save(
         ResidentPlacement $placement,
     ): ResidentPlacement;
