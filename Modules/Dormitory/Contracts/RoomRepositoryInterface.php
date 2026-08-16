@@ -17,12 +17,12 @@ interface RoomRepositoryInterface
         string $tenantId,
     ): ?Room;
 
-    public function findBuildingForUpdate(
+    public function findBuildingForShare(
         string $buildingId,
         string $tenantId,
     ): ?Building;
 
-    public function findDormitoryForUpdate(
+    public function findDormitoryForShare(
         string $dormitoryId,
         string $tenantId,
     ): ?Dormitory;

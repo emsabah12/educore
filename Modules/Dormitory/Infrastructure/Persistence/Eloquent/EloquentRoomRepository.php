@@ -24,25 +24,25 @@ final class EloquentRoomRepository implements RoomRepositoryInterface
             ->first();
     }
 
-    public function findBuildingForUpdate(
+    public function findBuildingForShare(
         string $buildingId,
         string $tenantId,
     ): ?Building {
         return Building::query()
             ->whereKey($buildingId)
             ->where('tenant_id', $tenantId)
-            ->lockForUpdate()
+            ->sharedLock()
             ->first();
     }
 
-    public function findDormitoryForUpdate(
+    public function findDormitoryForShare(
         string $dormitoryId,
         string $tenantId,
     ): ?Dormitory {
         return Dormitory::query()
             ->whereKey($dormitoryId)
             ->where('tenant_id', $tenantId)
-            ->lockForUpdate()
+            ->sharedLock()
             ->first();
     }
 

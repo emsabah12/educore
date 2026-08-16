@@ -83,4 +83,56 @@ final class DormitoryModuleArchitectureTest extends TestCase
             "Core production code must not depend on Dormitory:\n".implode("\n", $forbiddenReferences),
         );
     }
+
+    public function test_room_is_exclusive_concurrency_boundary_while_parents_use_shared_locks(): void
+    {
+        $repositoryPath = base_path(
+            'Modules/Dormitory/Infrastructure/Persistence/Eloquent/EloquentRoomRepository.php',
+        );
+        $servicePath = base_path(
+            'Modules/Dormitory/Application/Services/ResidentPlacementService.php',
+        );
+
+        $repositorySource = file_get_contents($repositoryPath);
+        $serviceSource = file_get_contents($servicePath);
+
+        if ($repositorySource === false) {
+            $this->fail(sprintf(
+                'Unable to read Dormitory room repository source [%s].',
+                $repositoryPath,
+            ));
+        }
+
+        if ($serviceSource === false) {
+            $this->fail(sprintf(
+                'Unable to read Dormitory placement service source [%s].',
+                $servicePath,
+            ));
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/public function findByIdAndTenantForUpdate\\((?:(?!public function).)*?->lockForUpdate\\(\\)/s',
+            $repositorySource,
+            'Room must remain the exclusive FOR UPDATE concurrency boundary.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/public function findBuildingForShare\\((?:(?!public function).)*?->sharedLock\\(\\)/s',
+            $repositorySource,
+            'Building state must be stabilized with a shared lock.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/public function findDormitoryForShare\\((?:(?!public function).)*?->sharedLock\\(\\)/s',
+            $repositorySource,
+            'Dormitory state must be stabilized with a shared lock.',
+        );
+
+        $this->assertStringContainsString(
+            'findBuildingForShare(',
+            $serviceSource,
+        );
+        $this->assertStringContainsString(
+            'findDormitoryForShare(',
+            $serviceSource,
+        );
+    }
 }

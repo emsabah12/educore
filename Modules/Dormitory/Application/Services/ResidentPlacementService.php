@@ -74,7 +74,7 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
                 throw ResidentCheckInException::roomUnavailable();
             }
 
-            $building = $this->roomRepository->findBuildingForUpdate(
+            $building = $this->roomRepository->findBuildingForShare(
                 (string) $room->building_id,
                 $tenantId,
             );
@@ -83,7 +83,7 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
                 throw ResidentCheckInException::roomUnavailable();
             }
 
-            $dormitory = $this->roomRepository->findDormitoryForUpdate(
+            $dormitory = $this->roomRepository->findDormitoryForShare(
                 (string) $building->dormitory_id,
                 $tenantId,
             );
