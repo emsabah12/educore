@@ -8,7 +8,10 @@ use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
+use Modules\Core\Authorization\Http\Api\v1\TenantCapabilityController;
+use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
 use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
+use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
 
@@ -51,8 +54,10 @@ Route::prefix('v1/auth')->group(function (): void {
 |--------------------------------------------------------------------------
 |
 | Auth owns bearer-token authentication and composes secured entry points
-| for Core capabilities. Core therefore remains independent from Auth while
-| the public API paths and route names remain unchanged.
+| for Core capabilities.
+|
+| Core therefore remains independent from Auth while HTTP composition
+| remains at the authentication boundary.
 |
 */
 
@@ -61,8 +66,45 @@ Route::middleware([
 ])->group(function (): void {
     Route::post(
         '/v1/core/notifications/dispatch',
-        [NotificationController::class, 'send'],
+        [
+            NotificationController::class,
+            'send',
+        ],
     )->name('api.v1.core.notifications.dispatch');
+
+    /*
+     * Tenant-level capability projection.
+     *
+     * Organizational context is intentionally optional/not resolved here.
+     */
+    Route::get(
+        '/v1/core/authorization/capabilities',
+        TenantCapabilityController::class,
+    )->name(
+        'api.v1.core.authorization.capabilities.index',
+    );
+
+    /*
+     * Workspace capability projection.
+     *
+     * Middleware ordering is security significant:
+     *
+     * bearer token
+     *   ↓
+     * verified Tenant/Membership context
+     *   ↓
+     * verified OrganizationalAssignment context
+     */
+    Route::middleware([
+        InjectOrganizationalContext::class,
+    ])->group(function (): void {
+        Route::get(
+            '/v1/core/authorization/workspace-capabilities',
+            WorkspaceCapabilityController::class,
+        )->name(
+            'api.v1.core.authorization.workspace-capabilities.index',
+        );
+    });
 });
 
 Route::middleware([
@@ -72,7 +114,9 @@ Route::middleware([
     Route::get(
         '/v1/core/authorization/roles',
         '\\' . RoleCatalogController::class,
-    )->name('api.v1.core.authorization.roles.index');
+    )->name(
+        'api.v1.core.authorization.roles.index',
+    );
 });
 
 Route::middleware([
@@ -81,16 +125,25 @@ Route::middleware([
 ])->group(function (): void {
     Route::get(
         '/v1/core/tenants',
-        [TenantManagementController::class, 'index'],
+        [
+            TenantManagementController::class,
+            'index',
+        ],
     )->name('api.v1.core.tenants.index');
 
     Route::post(
         '/v1/core/tenants',
-        [TenantManagementController::class, 'store'],
+        [
+            TenantManagementController::class,
+            'store',
+        ],
     )->name('api.v1.core.tenants.store');
 
     Route::put(
         '/v1/core/tenants/{id}',
-        [TenantManagementController::class, 'update'],
+        [
+            TenantManagementController::class,
+            'update',
+        ],
     )->name('api.v1.core.tenants.update');
 });
