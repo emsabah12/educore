@@ -10,5 +10,7 @@ final readonly class MembershipSwitchResult
         public string $membershipId,
         public string $tenantId,
         public string $tenantName,
+        public string $accessToken,
+        public int $expiresIn,
     ) {}
 }

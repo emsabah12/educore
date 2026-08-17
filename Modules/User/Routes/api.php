@@ -8,6 +8,7 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\User\Http\Controllers\Api\v1\AssignMembershipRoleController;
 use Modules\User\Http\Controllers\Api\v1\MembershipController;
 use Modules\User\Http\Controllers\Api\v1\SwitchMembershipController;
+use Modules\User\Http\Controllers\Api\v1\WorkspaceController;
 
 Route::middleware([
     InjectTenantContext::class,
@@ -18,6 +19,38 @@ Route::middleware([
         AssignMembershipRoleController::class,
     )->name('api.v1.user.rbac.assign');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Current Membership / Tenant Context
+|--------------------------------------------------------------------------
+|
+| Workspace discovery membutuhkan verified Membership + Tenant,
+| sehingga tidak cukup hanya memakai InjectAuthenticatedUser.
+|
+*/
+
+Route::middleware([
+    InjectTenantContext::class,
+])->group(function (): void {
+    Route::get(
+        '/v1/user/my-workspaces',
+        [
+            WorkspaceController::class,
+            'index',
+        ],
+    )->name('api.v1.user.workspaces.index');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Global User Membership Operations
+|--------------------------------------------------------------------------
+|
+| Listing/switching Membership tidak boleh terikat current Tenant,
+| karena tujuan endpoint ini justru memungkinkan User memilih Tenant lain.
+|
+*/
 
 Route::middleware([
     InjectAuthenticatedUser::class,

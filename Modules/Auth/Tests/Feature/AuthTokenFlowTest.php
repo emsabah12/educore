@@ -100,8 +100,36 @@ final class AuthTokenFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath(
-                'current_tenant',
+                'data.user.id',
+                $this->userId,
+            )
+            ->assertJsonPath(
+                'data.user.email',
+                $this->email,
+            )
+            ->assertJsonPath(
+                'data.person.id',
+                $this->personId,
+            )
+            ->assertJsonPath(
+                'data.person.name',
+                'Authentication Flow User',
+            )
+            ->assertJsonPath(
+                'data.membership.id',
+                $this->membershipId,
+            )
+            ->assertJsonPath(
+                'data.membership.status',
+                'ACTIVE',
+            )
+            ->assertJsonPath(
+                'data.tenant.id',
                 $this->tenantId,
+            )
+            ->assertJsonPath(
+                'data.tenant.name',
+                'Authentication Flow Tenant',
             );
 
         $logoutResponse = $this
@@ -117,9 +145,9 @@ final class AuthTokenFlowTest extends TestCase
             );
 
         /*
-        * Bearer credential yang sama tidak boleh digunakan kembali
-        * setelah explicit logout.
-        */
+     * Bearer credential yang sama tidak boleh digunakan kembali
+     * setelah explicit logout.
+     */
         $this
             ->withToken($accessToken)
             ->getJson('/api/v1/auth/me')
@@ -142,7 +170,12 @@ final class AuthTokenFlowTest extends TestCase
                 ],
             )
             ->assertUnauthorized()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'AUTHENTICATION_FAILED',
+                'message' =>
+                'Invalid authentication credentials.',
+            ]);
     }
 
     public function test_login_is_rejected_for_wrong_tenant(): void
@@ -153,11 +186,17 @@ final class AuthTokenFlowTest extends TestCase
                 [
                     'email' => $this->email,
                     'password' => 'secret123',
-                    'tenant_uuid' => Str::uuid()->toString(),
+                    'tenant_uuid' =>
+                    Str::uuid()->toString(),
                 ],
             )
             ->assertUnauthorized()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'AUTHENTICATION_FAILED',
+                'message' =>
+                'Invalid authentication credentials.',
+            ]);
     }
 
     public function test_me_requires_bearer_token(): void

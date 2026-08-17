@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\User\Application\Actions\SwitchMembership;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,15 +21,13 @@ final class SwitchMembershipController extends Controller
     ) {}
 
     /**
-     * Memvalidasi target membership dan mengembalikan context terpilih.
+     * Validate target Membership dan menerbitkan bearer token baru
+     * untuk Membership/Tenant context yang dipilih.
      *
-     * Endpoint ini stateless:
-     * - tidak menyimpan active membership di session;
-     * - tidak menyimpan active tenant di session;
-     * - tidak mengubah TenantContext runtime untuk request berikutnya.
-     *
-     * Client bertanggung jawab memakai context yang dikembalikan untuk
-     * memperoleh atau mengirim authentication context berikutnya.
+     * Endpoint tetap stateless:
+     * - tidak menyimpan active Membership di session;
+     * - tidak menyimpan active Tenant di session;
+     * - token lama tidak otomatis direvoke.
      */
     public function __invoke(
         Request $request,
@@ -37,10 +36,11 @@ final class SwitchMembershipController extends Controller
         $user = $request->user();
 
         if ($user === null) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthenticated.',
-            ], Response::HTTP_UNAUTHORIZED);
+            return ApiErrorResponse::make(
+                code: 'AUTHENTICATION_REQUIRED',
+                message: 'Unauthenticated. Invalid or missing identity context.',
+                status: Response::HTTP_UNAUTHORIZED,
+            );
         }
 
         $userId = trim(
@@ -48,10 +48,11 @@ final class SwitchMembershipController extends Controller
         );
 
         if ($userId === '') {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Authenticated user context is invalid.',
-            ], Response::HTTP_UNAUTHORIZED);
+            return ApiErrorResponse::make(
+                code: 'AUTHENTICATION_REQUIRED',
+                message: 'Unauthenticated. Invalid or missing identity context.',
+                status: Response::HTTP_UNAUTHORIZED,
+            );
         }
 
         try {
@@ -60,49 +61,76 @@ final class SwitchMembershipController extends Controller
                 targetMembershipId: $membership_id,
             );
 
+            /*
+             * Jangan pernah log raw bearer token.
+             */
             Log::info(
-                'User membership context selection validated successfully.',
+                'User membership context switched successfully.',
                 [
                     'user_id' => $userId,
-                    'selected_membership_id' => $result->membershipId,
-                    'selected_tenant_id' => $result->tenantId,
+                    'selected_membership_id' =>
+                    $result->membershipId,
+                    'selected_tenant_id' =>
+                    $result->tenantId,
                 ],
             );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => sprintf(
-                    'Berhasil memilih konteks lembaga: %s',
-                    $result->tenantName,
-                ),
-                'context' => [
-                    'membership_id' => $result->membershipId,
-                    'tenant_id' => $result->tenantId,
-                    'tenant_name' => $result->tenantName,
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'message' => sprintf(
+                        'Berhasil berpindah ke lembaga: %s',
+                        $result->tenantName,
+                    ),
+                    'data' => [
+                        'access_token' =>
+                        $result->accessToken,
+                        'token_type' => 'Bearer',
+                        'expires_in' =>
+                        $result->expiresIn,
+                        'context' => [
+                            'membership_id' =>
+                            $result->membershipId,
+                            'tenant_id' =>
+                            $result->tenantId,
+                            'tenant_name' =>
+                            $result->tenantName,
+                        ],
+                    ],
                 ],
-            ], Response::HTTP_OK);
+                Response::HTTP_OK,
+            );
         } catch (RuntimeException $exception) {
+            /*
+             * Detail ownership/lifecycle hanya untuk server log.
+             */
             Log::warning(
-                'User membership context selection rejected.',
+                'User membership context switch rejected.',
                 [
                     'user_id' => $userId,
-                    'target_membership_id' => $membership_id,
-                    'reason' => $exception->getMessage(),
+                    'target_membership_id' =>
+                    $membership_id,
+                    'reason' =>
+                    $exception->getMessage(),
                 ],
             );
 
-            return response()->json([
-                'status' => 'error',
-                'message' => $exception->getMessage(),
-            ], Response::HTTP_FORBIDDEN);
+            return ApiErrorResponse::make(
+                code: 'MEMBERSHIP_SWITCH_DENIED',
+                message: 'Requested membership is not available for this user.',
+                status: Response::HTTP_FORBIDDEN,
+            );
         } catch (Throwable $exception) {
             Log::error(
-                'User membership context selection failed.',
+                'User membership context switch failed.',
                 [
                     'user_id' => $userId,
-                    'target_membership_id' => $membership_id,
-                    'exception' => $exception::class,
-                    'message' => $exception->getMessage(),
+                    'target_membership_id' =>
+                    $membership_id,
+                    'exception' =>
+                    $exception::class,
+                    'message' =>
+                    $exception->getMessage(),
                 ],
             );
 
@@ -110,10 +138,11 @@ final class SwitchMembershipController extends Controller
                 throw $exception;
             }
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal memproses pemilihan konteks lembaga.',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ApiErrorResponse::make(
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'An unexpected error occurred.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
         }
     }
 }

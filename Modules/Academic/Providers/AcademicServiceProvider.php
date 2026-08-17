@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Providers;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
 use Modules\Academic\Contracts\GuardianRepositoryInterface;
@@ -82,9 +83,13 @@ final class AcademicServiceProvider extends ServiceProvider
         /*
          * Register Academic API routes.
          */
-        $this->loadRoutesFrom(
-            base_path('Modules/Academic/Routes/api.php')
-        );
+        Route::prefix('api')
+            ->middleware('api')
+            ->group(
+                base_path(
+                    'Modules/Academic/Routes/api.php',
+                ),
+            );
 
         /*
          * Register Academic database migrations.

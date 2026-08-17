@@ -115,6 +115,7 @@ final class TenantManagementTest extends TestCase
             ->assertInternalServerError()
             ->assertExactJson([
                 'status' => 'error',
+                'code' => 'INTERNAL_SERVER_ERROR',
                 'message' => 'Failed to register tenant.',
             ])
             ->assertDontSee('internal-secret');
@@ -353,7 +354,7 @@ final class TenantManagementTest extends TestCase
                 'updated_at' => now(),
             ]);
 
-        $this
+        $response = $this
             ->withToken(
                 $this->issueToken(
                     $this->superadminId,
@@ -363,15 +364,36 @@ final class TenantManagementTest extends TestCase
             ->postJson(
                 self::TENANTS_ENDPOINT,
                 [
-                    'name' => 'Tenant Inactive Person',
-                    'subdomain' => 'inactive-person-http',
-                    'initial_admin_user_id' => $this->pegawaiId,
+                    'name' =>
+                    'Tenant Inactive Person',
+                    'subdomain' =>
+                    'inactive-person-http',
+                    'initial_admin_user_id' =>
+                    $this->pegawaiId,
                 ],
-            )
+            );
+
+        $response
             ->assertUnprocessable()
+            ->assertJsonPath(
+                'status',
+                'error',
+            )
+            ->assertJsonPath(
+                'code',
+                'VALIDATION_FAILED',
+            )
+            ->assertJsonPath(
+                'message',
+                'The submitted data is invalid.',
+            )
             ->assertJsonValidationErrors([
                 'initial_admin_user_id',
-            ]);
+            ])
+            ->assertJsonPath(
+                'errors.initial_admin_user_id.0',
+                'The selected initial admin user is not eligible.',
+            );
 
         $this->assertDatabaseMissing('tenants', [
             'subdomain' => 'inactive-person-http',
@@ -402,7 +424,9 @@ final class TenantManagementTest extends TestCase
             ->assertForbidden()
             ->assertExactJson([
                 'status' => 'error',
-                'message' => 'Forbidden. This action requires global superadmin privileges.',
+                'code' => 'AUTHORIZATION_DENIED',
+                'message' =>
+                'You are not allowed to perform this operation.',
             ]);
 
         $this->assertDatabaseMissing('tenants', [
@@ -424,7 +448,9 @@ final class TenantManagementTest extends TestCase
             ->assertUnauthorized()
             ->assertExactJson([
                 'status' => 'error',
-                'message' => 'Unauthenticated. Invalid or missing identity context.',
+                'code' => 'AUTHENTICATION_REQUIRED',
+                'message' =>
+                'Unauthenticated. Invalid or missing identity context.',
             ]);
 
         $this->assertDatabaseMissing('tenants', [
@@ -831,6 +857,44 @@ final class TenantManagementTest extends TestCase
             DB::table('tenants')
                 ->where('subdomain', 'pusat')
                 ->count(),
+        );
+    }
+
+    public function test_update_returns_canonical_not_found_error_for_unknown_tenant(): void
+    {
+        $unknownTenantId =
+            UuidV7::generate();
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->putJson(
+                self::TENANTS_ENDPOINT
+                    . '/'
+                    . $unknownTenantId,
+                [
+                    'name' =>
+                    'Unknown Tenant Update',
+                ],
+            );
+
+        $response
+            ->assertNotFound()
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'RESOURCE_NOT_FOUND',
+                'message' => 'Tenant not found.',
+            ]);
+
+        $this->assertDatabaseMissing(
+            'tenants',
+            [
+                'id' => $unknownTenantId,
+            ],
         );
     }
 }

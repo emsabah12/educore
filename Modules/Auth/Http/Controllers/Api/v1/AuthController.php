@@ -8,36 +8,24 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
-use Modules\Auth\Token\Contracts\TokenManagerInterface;
-use Modules\Auth\Http\Requests\LoginTokenRequest;
-use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Illuminate\Support\Facades\Log;
+use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\Http\Requests\LoginTokenRequest;
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 final class AuthController extends Controller
 {
-    private AuthenticationRepositoryInterface $authRepository;
-
-    private TokenManagerInterface $tokenManager;
-
-    private AuditTrailServiceInterface $auditTrail;
-
-    private TokenRevocationStoreInterface $tokenRevocationStore;
-
     public function __construct(
-        AuthenticationRepositoryInterface $authRepository,
-        TokenManagerInterface $tokenManager,
-        TokenRevocationStoreInterface $tokenRevocationStore,
-        AuditTrailServiceInterface $auditTrail
-    ) {
-        $this->authRepository = $authRepository;
-        $this->tokenManager = $tokenManager;
-        $this->tokenRevocationStore = $tokenRevocationStore;
-        $this->auditTrail = $auditTrail;
-    }
+        private readonly AuthenticationRepositoryInterface $authRepository,
+        private readonly TokenManagerInterface $tokenManager,
+        private readonly TokenRevocationStoreInterface $tokenRevocationStore,
+        private readonly AuditTrailServiceInterface $auditTrail,
+    ) {}
 
     /**
      * Login stateless untuk Mobile/API.
@@ -49,8 +37,9 @@ final class AuthController extends Controller
      *
      * Authorization role tidak dimasukkan ke token.
      */
-    public function loginToken(LoginTokenRequest $request): JsonResponse
-    {
+    public function loginToken(
+        LoginTokenRequest $request,
+    ): JsonResponse {
         /**
          * @var array{
          *     email: string,
@@ -60,10 +49,11 @@ final class AuthController extends Controller
          */
         $credentials = $request->validated();
 
-        $user = $this->authRepository->findByEmailForTenant(
-            $credentials['email'],
-            $credentials['tenant_uuid'],
-        );
+        $user = $this->authRepository
+            ->findByEmailForTenant(
+                $credentials['email'],
+                $credentials['tenant_uuid'],
+            );
 
         if (
             $user === null
@@ -86,19 +76,22 @@ final class AuthController extends Controller
                 ],
             );
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized. Invalid identity credentials.',
-            ], 401);
+            return ApiErrorResponse::make(
+                code: 'AUTHENTICATION_FAILED',
+                message: 'Invalid authentication credentials.',
+                status: Response::HTTP_UNAUTHORIZED,
+            );
         }
 
-        $accessToken = $this->tokenManager->issueToken(
-            (string) $user['id'],
-            (string) $user['tenant_id'],
-            [
-                'membership_id' => (string) $user['membership_id'],
-            ],
-        );
+        $accessToken = $this->tokenManager
+            ->issueToken(
+                (string) $user['id'],
+                (string) $user['tenant_id'],
+                [
+                    'membership_id' =>
+                    (string) $user['membership_id'],
+                ],
+            );
 
         $this->auditTrail->log(
             'auth.login_token_success',
@@ -110,25 +103,33 @@ final class AuthController extends Controller
             (string) $user['id'],
             [
                 'channel' => 'mobile_api',
-                'membership_id' => (string) $user['membership_id'],
+                'membership_id' =>
+                (string) $user['membership_id'],
             ],
         );
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'access_token' => $accessToken,
-                'token_type' => 'Bearer',
-                'expires_in' => $this->tokenManager->lifetimeInSeconds(),
-                'context' => [
-                    'user_id' => $user['id'],
-                    'name' => $user['name'],
-                    'email' => $user['email'],
-                    'membership_id' => $user['membership_id'],
-                    'tenant_id' => $user['tenant_id'],
+        return response()->json(
+            [
+                'status' => 'success',
+                'data' => [
+                    'access_token' => $accessToken,
+                    'token_type' => 'Bearer',
+                    'expires_in' =>
+                    $this->tokenManager
+                        ->lifetimeInSeconds(),
+                    'context' => [
+                        'user_id' => $user['id'],
+                        'name' => $user['name'],
+                        'email' => $user['email'],
+                        'membership_id' =>
+                        $user['membership_id'],
+                        'tenant_id' =>
+                        $user['tenant_id'],
+                    ],
                 ],
             ],
-        ], 200);
+            Response::HTTP_OK,
+        );
     }
 
     /**
@@ -138,8 +139,9 @@ final class AuthController extends Controller
      * harus sudah memiliki canonical authenticated user, tenant, dan
      * membership context sebelum revocation dijalankan.
      */
-    public function logout(Request $request): JsonResponse
-    {
+    public function logout(
+        Request $request,
+    ): JsonResponse {
         $userId = $request->attributes->get(
             'authenticated_user_id',
         );
@@ -160,25 +162,22 @@ final class AuthController extends Controller
             || ! is_string($userId)
             || trim($userId) === ''
         ) {
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'message' => 'Authenticated logout context is invalid.',
-                ],
-                Response::HTTP_UNAUTHORIZED,
-            );
+            return $this->authenticationRequiredResponse();
         }
 
         /*
-     * Token sudah divalidasi oleh InjectTenantContext sebelum controller
-     * berjalan. Validasi ulang di sini diperlukan untuk mendapatkan
-     * canonical expires_at yang akan menentukan retention revocation row.
-     *
-     * Raw bearer token tidak dicatat ke log atau audit.
-     */
-        $claims = $this->tokenManager->validateAndExtract(
-            $bearerToken,
-        );
+         * Token sudah divalidasi oleh InjectTenantContext sebelum
+         * controller berjalan.
+         *
+         * Validasi ulang diperlukan untuk memperoleh canonical
+         * expires_at yang menentukan retention revocation row.
+         *
+         * Raw bearer token tidak dicatat ke log atau audit.
+         */
+        $claims = $this->tokenManager
+            ->validateAndExtract(
+                $bearerToken,
+            );
 
         $expiresAt = is_array($claims)
             ? ($claims['expires_at'] ?? null)
@@ -195,13 +194,7 @@ final class AuthController extends Controller
                 ],
             );
 
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'message' => 'Unable to resolve logout credential.',
-                ],
-                Response::HTTP_UNAUTHORIZED,
-            );
+            return $this->authenticationRequiredResponse();
         }
 
         try {
@@ -211,9 +204,12 @@ final class AuthController extends Controller
             );
         } catch (Throwable $exception) {
             /*
-         * Logout tidak boleh mengklaim sukses jika server gagal
-         * menyimpan revocation state.
-         */
+             * Logout tidak boleh mengklaim sukses apabila revocation
+             * state gagal disimpan.
+             *
+             * Detail storage/infrastructure hanya dikirim ke server
+             * logging, bukan ke public API response.
+             */
             Log::error(
                 'Authentication token revocation failed during logout.',
                 [
@@ -235,21 +231,17 @@ final class AuthController extends Controller
                 [
                     'status' => 'revocation_failed',
                     'token_revoked' => false,
-                    'membership_id' => is_string($membershipId)
+                    'membership_id' =>
+                    is_string($membershipId)
                         ? $membershipId
                         : null,
                 ],
             );
 
-            return response()->json(
-                [
-                    'status' => 'error',
-                    'message' => 'Unable to complete logout securely.',
-                    'data' => [
-                        'token_revoked' => false,
-                    ],
-                ],
-                Response::HTTP_SERVICE_UNAVAILABLE,
+            return ApiErrorResponse::make(
+                code: 'LOGOUT_UNAVAILABLE',
+                message: 'Unable to complete logout securely.',
+                status: Response::HTTP_SERVICE_UNAVAILABLE,
             );
         }
 
@@ -263,17 +255,19 @@ final class AuthController extends Controller
             [
                 'status' => 'explicit_logout',
                 'token_revoked' => true,
-                'membership_id' => is_string($membershipId)
+                'membership_id' =>
+                is_string($membershipId)
                     ? $membershipId
                     : null,
             ],
         );
 
         /*
-     * Middleware tetap menjadi pemilik lifecycle cleanup utama.
-     * Removal di sini memastikan controller juga tidak mempertahankan
-     * authenticated attributes setelah logout acknowledgement dibuat.
-     */
+         * Middleware tetap menjadi pemilik lifecycle cleanup utama.
+         *
+         * Removal di sini memastikan controller tidak mempertahankan
+         * authenticated attributes setelah logout acknowledgement.
+         */
         $request->attributes->remove(
             'authenticated_user_id',
         );
@@ -286,12 +280,25 @@ final class AuthController extends Controller
             'authenticated_membership_id',
         );
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Logout completed successfully.',
-            'data' => [
-                'token_revoked' => true,
+        return response()->json(
+            [
+                'status' => 'success',
+                'message' =>
+                'Logout completed successfully.',
+                'data' => [
+                    'token_revoked' => true,
+                ],
             ],
-        ], Response::HTTP_OK);
+            Response::HTTP_OK,
+        );
+    }
+
+    private function authenticationRequiredResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Unauthenticated. Invalid or missing identity context.',
+            status: Response::HTTP_UNAUTHORIZED,
+        );
     }
 }

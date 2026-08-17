@@ -17,6 +17,7 @@ use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
 use Modules\Core\Tenancy\Http\Requests\ListTenantsRequest;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantRequest;
 use Symfony\Component\HttpFoundation\Response;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Throwable;
 
 final class TenantManagementController extends Controller
@@ -99,15 +100,28 @@ final class TenantManagementController extends Controller
                 $initialAdminUserId,
             );
         } catch (InvalidInitialTenantAdminException $exception) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'The selected initial admin user is not eligible.',
-                'errors' => [
+            Log::warning(
+                'Initial tenant administrator selection was rejected.',
+                [
+                    'initial_admin_user_id' =>
+                    $initialAdminUserId,
+                    'operator_id' =>
+                    $operatorId,
+                    'reason' =>
+                    $exception->getMessage(),
+                ],
+            );
+
+            return ApiErrorResponse::make(
+                code: 'VALIDATION_FAILED',
+                message: 'The submitted data is invalid.',
+                status: Response::HTTP_UNPROCESSABLE_ENTITY,
+                errors: [
                     'initial_admin_user_id' => [
-                        $exception->getMessage(),
+                        'The selected initial admin user is not eligible.',
                     ],
                 ],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            );
         } catch (Throwable $exception) {
             $this->logOperationFailure(
                 exception: $exception,
@@ -180,10 +194,11 @@ final class TenantManagementController extends Controller
                 $payload,
             );
         } catch (ModelNotFoundException) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Tenant not found.',
-            ], Response::HTTP_NOT_FOUND);
+            return ApiErrorResponse::make(
+                code: 'RESOURCE_NOT_FOUND',
+                message: 'Tenant not found.',
+                status: Response::HTTP_NOT_FOUND,
+            );
         } catch (Throwable $exception) {
             $this->logOperationFailure(
                 exception: $exception,
@@ -300,9 +315,10 @@ final class TenantManagementController extends Controller
     private function internalServerErrorResponse(
         string $message,
     ): JsonResponse {
-        return response()->json([
-            'status' => 'error',
-            'message' => $message,
-        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        return ApiErrorResponse::make(
+            code: 'INTERNAL_SERVER_ERROR',
+            message: $message,
+            status: Response::HTTP_INTERNAL_SERVER_ERROR,
+        );
     }
 }

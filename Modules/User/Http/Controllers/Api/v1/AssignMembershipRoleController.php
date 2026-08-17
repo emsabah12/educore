@@ -7,6 +7,7 @@ namespace Modules\User\Http\Controllers\Api\v1;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\User\Application\Actions\AssignRoleToMembership;
 use Modules\User\Http\Requests\AssignMembershipRoleRequest;
 use RuntimeException;
@@ -37,39 +38,54 @@ final class AssignMembershipRoleController extends Controller
                     'actor_user_id' => $result->actorUserId,
                     'actor_membership_id' => $result->actorMembershipId,
                     'tenant_id' => $result->tenantId,
-                    'target_membership_id' => $result->targetMembershipId,
+                    'target_membership_id' =>
+                    $result->targetMembershipId,
                     'role_id' => $result->roleId,
                 ],
             );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Role berhasil ditetapkan pada target membership.',
-                'data' => [
-                    'target_membership_id' => $result->targetMembershipId,
-                    'role_id' => $result->roleId,
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'message' =>
+                    'Role berhasil ditetapkan pada target membership.',
+                    'data' => [
+                        'target_membership_id' =>
+                        $result->targetMembershipId,
+                        'role_id' => $result->roleId,
+                    ],
                 ],
-            ], Response::HTTP_OK);
+                Response::HTTP_OK,
+            );
         } catch (RuntimeException $exception) {
+            /*
+             * Internal rejection reason tetap berguna untuk observability,
+             * tetapi tidak menjadi public API contract.
+             */
             Log::warning(
                 'Membership role assignment rejected.',
                 [
-                    'target_membership_id' => $target_membership_id,
-                    'reason' => $exception->getMessage(),
+                    'target_membership_id' =>
+                    $target_membership_id,
+                    'reason' =>
+                    $exception->getMessage(),
                 ],
             );
 
-            return response()->json([
-                'status' => 'error',
-                'message' => $exception->getMessage(),
-            ], Response::HTTP_NOT_FOUND);
+            return ApiErrorResponse::make(
+                code: 'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
+                message: 'Requested membership or role is not available.',
+                status: Response::HTTP_NOT_FOUND,
+            );
         } catch (Throwable $exception) {
             Log::error(
                 'Membership role assignment failed.',
                 [
-                    'target_membership_id' => $target_membership_id,
+                    'target_membership_id' =>
+                    $target_membership_id,
                     'exception' => $exception::class,
-                    'message' => $exception->getMessage(),
+                    'message' =>
+                    $exception->getMessage(),
                 ],
             );
 
@@ -77,10 +93,11 @@ final class AssignMembershipRoleController extends Controller
                 throw $exception;
             }
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal memproses penetapan role.',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ApiErrorResponse::make(
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'An unexpected error occurred.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
         }
     }
 }

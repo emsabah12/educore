@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
+use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
@@ -40,14 +40,7 @@ Route::prefix('v1/auth')->group(function (): void {
 
         Route::get(
             '/me',
-            static function (Request $request) {
-                return response()->json([
-                    'status' => 'success',
-                    'current_tenant' => $request->attributes->get(
-                        'authenticated_tenant_id',
-                    ),
-                ]);
-            },
+            AuthenticatedContextController::class,
         )->name('api.v1.auth.me');
     });
 });
@@ -78,7 +71,7 @@ Route::middleware([
 ])->group(function (): void {
     Route::get(
         '/v1/core/authorization/roles',
-        '\\'.RoleCatalogController::class,
+        '\\' . RoleCatalogController::class,
     )->name('api.v1.core.authorization.roles.index');
 });
 

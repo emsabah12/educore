@@ -7,7 +7,9 @@ namespace Modules\User\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\User\Application\Queries\UserMembershipQueryInterface;
+use Modules\User\Application\Queries\UserWorkspaceQueryInterface;
 use Modules\User\Infrastructure\Queries\EloquentUserMembershipQuery;
+use Modules\User\Infrastructure\Queries\EloquentUserWorkspaceQuery;
 use RuntimeException;
 
 final class UserServiceProvider extends ServiceProvider
@@ -17,10 +19,14 @@ final class UserServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Belum ada binding khusus modul User.
         $this->app->bind(
             UserMembershipQueryInterface::class,
             EloquentUserMembershipQuery::class,
+        );
+
+        $this->app->bind(
+            UserWorkspaceQueryInterface::class,
+            EloquentUserWorkspaceQuery::class,
         );
     }
 

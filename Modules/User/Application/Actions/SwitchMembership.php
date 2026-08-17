@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\User\Application\Actions;
 
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
 use Modules\Core\Identity\Contracts\ActiveUserResolverInterface;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
@@ -16,14 +17,20 @@ final readonly class SwitchMembership
         private MembershipRepositoryInterface $membershipRepository,
         private TenantRuntimeResolverInterface $tenantRuntimeResolver,
         private ActiveUserResolverInterface $activeUserResolver,
+        private TokenManagerInterface $tokenManager,
     ) {}
 
     public function execute(
         string $authenticatedUserId,
         string $targetMembershipId,
     ): MembershipSwitchResult {
-        $authenticatedUserId = trim($authenticatedUserId);
-        $targetMembershipId = trim($targetMembershipId);
+        $authenticatedUserId = trim(
+            $authenticatedUserId,
+        );
+
+        $targetMembershipId = trim(
+            $targetMembershipId,
+        );
 
         if ($authenticatedUserId === '') {
             throw new RuntimeException(
@@ -37,12 +44,21 @@ final readonly class SwitchMembership
             );
         }
 
-        $user = $this->activeUserResolver->findActiveById(
-            $authenticatedUserId,
-        );
+        /*
+         * Resolve canonical active digital account.
+         *
+         * Membership ownership tidak berasal dari User secara langsung,
+         * tetapi dari canonical User → Person → Membership relation.
+         */
+        $user = $this->activeUserResolver
+            ->findActiveById(
+                $authenticatedUserId,
+            );
 
         $personId = $user !== null
-            ? trim((string) $user->person_id)
+            ? trim(
+                (string) $user->person_id,
+            )
             : '';
 
         if ($personId === '') {
@@ -51,6 +67,12 @@ final readonly class SwitchMembership
             );
         }
 
+        /*
+         * Target Membership harus:
+         *
+         * - ACTIVE;
+         * - dimiliki Person yang sama dengan authenticated User.
+         */
         $membership = $this->membershipRepository
             ->findActiveMembershipByIdForPerson(
                 $targetMembershipId,
@@ -63,6 +85,13 @@ final readonly class SwitchMembership
             );
         }
 
+        /*
+         * Membership valid belum cukup.
+         *
+         * Target Tenant juga harus masih ACTIVE pada saat switch
+         * dilakukan agar credential baru tidak pernah diterbitkan untuk
+         * Tenant yang sudah dinonaktifkan.
+         */
         $tenant = $this->tenantRuntimeResolver
             ->findActiveById(
                 (string) $membership->tenant_id,
@@ -74,10 +103,32 @@ final readonly class SwitchMembership
             );
         }
 
+        $membershipId = (string) $membership->getKey();
+        $tenantId = (string) $tenant->getKey();
+
+        /*
+         * Tenant switch merupakan authentication-context exchange.
+         *
+         * Credential baru membawa target Membership/Tenant.
+         * Role dan permission sengaja tidak dimasukkan karena canonical
+         * authorization tetap berasal dari database saat request berjalan.
+         */
+        $accessToken = $this->tokenManager
+            ->issueToken(
+                $authenticatedUserId,
+                $tenantId,
+                [
+                    'membership_id' => $membershipId,
+                ],
+            );
+
         return new MembershipSwitchResult(
-            membershipId: (string) $membership->getKey(),
-            tenantId: (string) $tenant->getKey(),
+            membershipId: $membershipId,
+            tenantId: $tenantId,
             tenantName: (string) $tenant->name,
+            accessToken: $accessToken,
+            expiresIn: $this->tokenManager
+                ->lifetimeInSeconds(),
         );
     }
 }

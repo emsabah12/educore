@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Auth\Application\Services\AuthenticatedIdentityResolver;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 final class InjectAuthenticatedUser
@@ -47,7 +48,10 @@ final class InjectAuthenticatedUser
          * Tidak membuat session atau persistent login.
          */
         $guard = $this->auth->guard();
-        $guard->setUser($identity->user);
+
+        $guard->setUser(
+            $identity->user,
+        );
 
         $request->attributes->set(
             'authenticated_user_id',
@@ -67,9 +71,10 @@ final class InjectAuthenticatedUser
 
     private function unauthenticatedResponse(): JsonResponse
     {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Unauthenticated. Invalid or missing identity context.',
-        ], Response::HTTP_UNAUTHORIZED);
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Unauthenticated. Invalid or missing identity context.',
+            status: Response::HTTP_UNAUTHORIZED,
+        );
     }
 }

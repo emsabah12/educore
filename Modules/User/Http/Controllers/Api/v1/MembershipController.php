@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\User\Application\Actions\ListMyMemberships;
 use Modules\User\Application\DTO\MembershipSummary;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,11 +25,13 @@ final class MembershipController extends Controller
     ): JsonResponse {
         $user = $request->user();
 
+        /*
+         * Route production sudah dijaga InjectAuthenticatedUser.
+         * Guard ini tetap dipertahankan sebagai defense-in-depth
+         * jika controller dipakai dari route/composition lain.
+         */
         if ($user === null) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthenticated.',
-            ], Response::HTTP_UNAUTHORIZED);
+            return $this->authenticationRequiredResponse();
         }
 
         $userId = trim(
@@ -36,10 +39,7 @@ final class MembershipController extends Controller
         );
 
         if ($userId === '') {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Authenticated user context is invalid.',
-            ], Response::HTTP_UNAUTHORIZED);
+            return $this->authenticationRequiredResponse();
         }
 
         try {
@@ -53,10 +53,13 @@ final class MembershipController extends Controller
                 ->values()
                 ->all();
 
-            return response()->json([
-                'status' => 'success',
-                'data' => $memberships,
-            ], Response::HTTP_OK);
+            return response()->json(
+                [
+                    'status' => 'success',
+                    'data' => $memberships,
+                ],
+                Response::HTTP_OK,
+            );
         } catch (Throwable $exception) {
             Log::error(
                 'Failed to list authenticated user memberships.',
@@ -71,10 +74,20 @@ final class MembershipController extends Controller
                 throw $exception;
             }
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal mengambil data keanggotaan.',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ApiErrorResponse::make(
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Failed to retrieve memberships.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
         }
+    }
+
+    private function authenticationRequiredResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Unauthenticated. Invalid or missing identity context.',
+            status: Response::HTTP_UNAUTHORIZED,
+        );
     }
 }

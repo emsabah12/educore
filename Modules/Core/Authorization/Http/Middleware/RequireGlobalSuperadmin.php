@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\Core\Identity\Models\User;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,15 +20,15 @@ final class RequireGlobalSuperadmin
     ) {}
 
     /**
-     * Memastikan request hanya dapat dilanjutkan oleh canonical user
+     * Memastikan request hanya dilanjutkan oleh canonical User
      * yang memiliki privilege global superadmin.
      *
-     * Sumber kebenaran authorization global:
+     * Canonical source:
      *
      * users.is_superadmin
      *
-     * Middleware ini tidak menggunakan membership, tenant role,
-     * authenticated role, ataupun role claim dari token.
+     * Middleware tidak menggunakan Membership role,
+     * tenant role, request role, atau token role claim.
      *
      * @param Closure(Request): Response $next
      */
@@ -35,7 +36,9 @@ final class RequireGlobalSuperadmin
         Request $request,
         Closure $next,
     ): Response {
-        $user = $this->resolveAuthenticatedUser($request);
+        $user = $this->resolveAuthenticatedUser(
+            $request,
+        );
 
         if (
             $user === null
@@ -58,12 +61,6 @@ final class RequireGlobalSuperadmin
         return $next($request);
     }
 
-    /**
-     * Mengambil canonical authenticated user dari request-scoped guard.
-     *
-     * authenticated_user_id diverifikasi agar guard identity dan request
-     * context tidak dapat menunjuk ke dua identity berbeda.
-     */
     private function resolveAuthenticatedUser(
         Request $request,
     ): ?User {
@@ -81,47 +78,48 @@ final class RequireGlobalSuperadmin
             return null;
         }
 
-        $contextUserId = trim($contextUserId);
+        $contextUserId = trim(
+            $contextUserId,
+        );
 
         if ($contextUserId === '') {
             return null;
         }
 
-        $guardUserId = (string) $user->getAuthIdentifier();
+        $guardUserId = (string) $user
+            ->getAuthIdentifier();
 
-        if (! hash_equals($guardUserId, $contextUserId)) {
+        if (
+            ! hash_equals(
+                $guardUserId,
+                $contextUserId,
+            )
+        ) {
             return null;
         }
 
         return $user;
     }
 
-    /**
-     * Memeriksa global privilege pada canonical User.
-     *
-     * Status ACTIVE diperiksa kembali sebagai defense-in-depth walaupun
-     * identity resolver juga telah memvalidasi status user.
-     */
     private function isGlobalSuperadmin(
         User $user,
     ): bool {
         return strtoupper(
-            (string) $user->getAttribute('status'),
+            (string) $user->getAttribute(
+                'status',
+            ),
         ) === 'ACTIVE'
             && (bool) $user->getAttribute(
                 'is_superadmin',
             );
     }
 
-    /**
-     * Response generik agar detail authorization internal
-     * tidak dibocorkan kepada client.
-     */
     private function forbiddenResponse(): JsonResponse
     {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Forbidden. This action requires global superadmin privileges.',
-        ], Response::HTTP_FORBIDDEN);
+        return ApiErrorResponse::make(
+            code: 'AUTHORIZATION_DENIED',
+            message: 'You are not allowed to perform this operation.',
+            status: Response::HTTP_FORBIDDEN,
+        );
     }
 }

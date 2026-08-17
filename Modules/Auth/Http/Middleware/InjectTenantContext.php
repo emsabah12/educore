@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Modules\Auth\Application\Services\AuthenticatedIdentityResolver;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -96,7 +97,9 @@ final class InjectTenantContext
 
         if (
             $membership === null
-            || trim((string) $membership->person_id) !== $personId
+            || trim(
+                (string) $membership->person_id,
+            ) !== $personId
         ) {
             return $this->contextErrorResponse();
         }
@@ -139,6 +142,7 @@ final class InjectTenantContext
             return $next($request);
         } finally {
             $this->tenantContext->clear();
+
             $guard->forgetUser();
 
             $request->attributes->remove(
@@ -157,12 +161,10 @@ final class InjectTenantContext
 
     private function contextErrorResponse(): JsonResponse
     {
-        return response()->json(
-            [
-                'status' => 'error',
-                'message' => 'Authentication context missing or invalid.',
-            ],
-            Response::HTTP_FORBIDDEN,
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_CONTEXT_DENIED',
+            message: 'Authentication context missing or invalid.',
+            status: Response::HTTP_FORBIDDEN,
         );
     }
 }

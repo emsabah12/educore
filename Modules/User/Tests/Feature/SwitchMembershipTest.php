@@ -17,15 +17,25 @@ final class SwitchMembershipTest extends TestCase
     use RefreshDatabase;
 
     private User $userA;
+
     private User $userB;
+
     private string $tenantAId;
+
     private string $tenantBId;
+
     private string $inactiveTenantId;
+
     private string $suspendedMembershipTenantId;
+
     private string $membershipAId;
+
     private string $membershipBId;
+
     private string $inactiveMembershipId;
+
     private string $inactiveTenantMembershipId;
+
     private string $otherUserMembershipId;
 
     protected function setUp(): void
@@ -39,6 +49,7 @@ final class SwitchMembershipTest extends TestCase
         $this->tenantBId = UuidV7::generate();
         $this->inactiveTenantId = UuidV7::generate();
         $this->suspendedMembershipTenantId = UuidV7::generate();
+
         $this->membershipAId = UuidV7::generate();
         $this->membershipBId = UuidV7::generate();
         $this->inactiveMembershipId = UuidV7::generate();
@@ -49,65 +60,204 @@ final class SwitchMembershipTest extends TestCase
         $this->createMemberships();
     }
 
-    public function test_authenticated_user_can_select_owned_active_membership(): void
+    public function test_authenticated_user_can_switch_to_owned_active_membership_and_receive_new_token(): void
     {
+        $oldToken = $this->tokenForUserA();
+
         $response = $this
-            ->withToken($this->tokenForUserA())
-            ->postJson(
-                sprintf(
-                    '/api/v1/user/memberships/%s/switch',
-                    $this->membershipAId,
-                ),
-            );
-
-        $response
-            ->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath(
-                'context.membership_id',
-                $this->membershipAId,
-            )
-            ->assertJsonPath(
-                'context.tenant_id',
-                $this->tenantAId,
-            )
-            ->assertJsonPath(
-                'context.tenant_name',
-                'Switch Tenant A',
-            );
-
-        $this->assertStatelessSwitchContext();
-    }
-
-    public function test_authenticated_user_can_select_between_person_owned_memberships(): void
-    {
-        $token = $this->tokenForUserA();
-
-        $this
-            ->withToken($token)
-            ->postJson(
-                sprintf(
-                    '/api/v1/user/memberships/%s/switch',
-                    $this->membershipAId,
-                ),
-            )
-            ->assertOk()
-            ->assertJsonPath(
-                'context.tenant_id',
-                $this->tenantAId,
-            );
-
-        $this
-            ->withToken($token)
+            ->withToken($oldToken)
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->membershipBId,
                 ),
-            )
+            );
+
+        $response
             ->assertOk()
             ->assertJsonPath(
-                'context.tenant_id',
+                'status',
+                'success',
+            )
+            ->assertJsonPath(
+                'data.token_type',
+                'Bearer',
+            )
+            ->assertJsonPath(
+                'data.context.membership_id',
+                $this->membershipBId,
+            )
+            ->assertJsonPath(
+                'data.context.tenant_id',
+                $this->tenantBId,
+            )
+            ->assertJsonPath(
+                'data.context.tenant_name',
+                'Switch Tenant B',
+            );
+
+        $newToken = $response->json(
+            'data.access_token',
+        );
+
+        $this->assertIsString($newToken);
+        $this->assertNotSame('', trim($newToken));
+
+        $expiresIn = $response->json(
+            'data.expires_in',
+        );
+
+        $this->assertSame(
+            app(TokenManagerInterface::class)
+                ->lifetimeInSeconds(),
+            $expiresIn,
+        );
+
+        $claims = app(TokenManagerInterface::class)
+            ->validateAndExtract(
+                $newToken,
+            );
+
+        $this->assertIsArray($claims);
+
+        $this->assertSame(
+            (string) $this->userA->getKey(),
+            $claims['user_id'] ?? null,
+        );
+
+        $this->assertSame(
+            $this->tenantBId,
+            $claims['tenant_id'] ?? null,
+        );
+
+        $this->assertSame(
+            $this->membershipBId,
+            $claims['membership_id'] ?? null,
+        );
+
+        $this->assertArrayNotHasKey(
+            'role',
+            $claims,
+        );
+
+        $this->assertArrayNotHasKey(
+            'permission',
+            $claims,
+        );
+
+        /*
+         * Token baru harus benar-benar dapat membangun canonical
+         * TenantContext untuk target Membership/Tenant.
+         */
+        $this
+            ->withToken($newToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.user.id',
+                (string) $this->userA->getKey(),
+            )
+            ->assertJsonPath(
+                'data.membership.id',
+                $this->membershipBId,
+            )
+            ->assertJsonPath(
+                'data.tenant.id',
+                $this->tenantBId,
+            );
+
+        /*
+         * Switch tidak mencabut credential lama.
+         *
+         * Old token tetap menjadi independent Tenant A context.
+         */
+        $this
+            ->withToken($oldToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.membership.id',
+                $this->membershipAId,
+            )
+            ->assertJsonPath(
+                'data.tenant.id',
+                $this->tenantAId,
+            );
+
+        $this->assertStatelessSwitchContext();
+    }
+
+    public function test_authenticated_user_can_switch_between_person_owned_memberships(): void
+    {
+        $oldToken = $this->tokenForUserA();
+
+        $switchToA = $this
+            ->withToken($oldToken)
+            ->postJson(
+                sprintf(
+                    '/api/v1/user/memberships/%s/switch',
+                    $this->membershipAId,
+                ),
+            );
+
+        $switchToA
+            ->assertOk()
+            ->assertJsonPath(
+                'data.context.membership_id',
+                $this->membershipAId,
+            )
+            ->assertJsonPath(
+                'data.context.tenant_id',
+                $this->tenantAId,
+            );
+
+        $tokenA = $switchToA->json(
+            'data.access_token',
+        );
+
+        $this->assertIsString($tokenA);
+
+        $switchToB = $this
+            ->withToken($oldToken)
+            ->postJson(
+                sprintf(
+                    '/api/v1/user/memberships/%s/switch',
+                    $this->membershipBId,
+                ),
+            );
+
+        $switchToB
+            ->assertOk()
+            ->assertJsonPath(
+                'data.context.membership_id',
+                $this->membershipBId,
+            )
+            ->assertJsonPath(
+                'data.context.tenant_id',
+                $this->tenantBId,
+            );
+
+        $tokenB = $switchToB->json(
+            'data.access_token',
+        );
+
+        $this->assertIsString($tokenB);
+
+        $this
+            ->withToken($tokenA)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.tenant.id',
+                $this->tenantAId,
+            );
+
+        $this
+            ->withToken($tokenB)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.tenant.id',
                 $this->tenantBId,
             );
 
@@ -116,46 +266,67 @@ final class SwitchMembershipTest extends TestCase
 
     public function test_user_cannot_select_another_persons_membership(): void
     {
-        $this
+        $response = $this
             ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->otherUserMembershipId,
                 ),
-            )
+            );
+
+        $response
             ->assertForbidden()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'MEMBERSHIP_SWITCH_DENIED',
+                'message' =>
+                'Requested membership is not available for this user.',
+            ]);
 
         $this->assertStatelessSwitchContext();
     }
 
     public function test_user_cannot_select_inactive_membership(): void
     {
-        $this
+        $response = $this
             ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->inactiveMembershipId,
                 ),
-            )
+            );
+
+        $response
             ->assertForbidden()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'MEMBERSHIP_SWITCH_DENIED',
+                'message' =>
+                'Requested membership is not available for this user.',
+            ]);
     }
 
     public function test_user_cannot_select_membership_of_inactive_tenant(): void
     {
-        $this
+        $response = $this
             ->withToken($this->tokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
                     $this->inactiveTenantMembershipId,
                 ),
-            )
+            );
+
+        $response
             ->assertForbidden()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'MEMBERSHIP_SWITCH_DENIED',
+                'message' =>
+                'Requested membership is not available for this user.',
+            ]);
     }
 
     public function test_unauthenticated_user_cannot_select_membership(): void
@@ -176,6 +347,9 @@ final class SwitchMembershipTest extends TestCase
             ->issueToken(
                 (string) $this->userA->getKey(),
                 $this->tenantAId,
+                [
+                    'membership_id' => $this->membershipAId,
+                ],
             );
     }
 
@@ -184,6 +358,7 @@ final class SwitchMembershipTest extends TestCase
         $this->assertNull(
             session('active_membership_id'),
         );
+
         $this->assertNull(
             session('active_tenant_id'),
         );
@@ -219,7 +394,9 @@ final class SwitchMembershipTest extends TestCase
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     */
     private function tenantData(
         string $id,
         string $name,
@@ -232,7 +409,9 @@ final class SwitchMembershipTest extends TestCase
             'subdomain' => sprintf(
                 '%s-%s',
                 $subdomainPrefix,
-                Str::lower(Str::random(8)),
+                Str::lower(
+                    Str::random(8),
+                ),
             ),
             'is_active' => $isActive,
             'created_at' => now(),
@@ -276,7 +455,9 @@ final class SwitchMembershipTest extends TestCase
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     */
     private function membershipData(
         string $id,
         string $personId,

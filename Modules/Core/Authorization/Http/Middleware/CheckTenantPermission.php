@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Modules\Core\Authorization\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
 use Modules\Core\Authorization\Exceptions\MembershipContextResolutionException;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 final class CheckTenantPermission
@@ -28,40 +30,55 @@ final class CheckTenantPermission
         $user = Auth::user();
 
         if ($user === null) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthenticated access path.',
-            ], Response::HTTP_UNAUTHORIZED);
+            return $this->unauthenticatedResponse();
         }
 
         /*
-         * Global superadmin bypasses tenant authorization checks, exactly like
-         * CheckTenantRole. Domain actor requirements remain the responsibility
-         * of the downstream use case; this middleware never fabricates one.
+         * Global superadmin bypasses tenant authorization checks.
+         *
+         * Domain actor requirements remain downstream concerns;
+         * middleware tidak membuat/fabricate domain actor.
          */
         if ((bool) $user->is_superadmin) {
             return $next($request);
         }
 
         try {
-            $hasRequiredPermission = $this->authorizationService
-                ->hasPermission($permission);
-        } catch (MembershipContextResolutionException $exception) {
+            $hasRequiredPermission =
+                $this->authorizationService
+                ->hasPermission(
+                    $permission,
+                );
+        } catch (
+            MembershipContextResolutionException $exception
+        ) {
             report($exception);
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized: required tenant permission is missing.',
-            ], Response::HTTP_FORBIDDEN);
+            return $this->forbiddenResponse();
         }
 
         if (! $hasRequiredPermission) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized: required tenant permission is missing.',
-            ], Response::HTTP_FORBIDDEN);
+            return $this->forbiddenResponse();
         }
 
         return $next($request);
+    }
+
+    private function unauthenticatedResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Unauthenticated. Invalid or missing identity context.',
+            status: Response::HTTP_UNAUTHORIZED,
+        );
+    }
+
+    private function forbiddenResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'AUTHORIZATION_DENIED',
+            message: 'You are not allowed to perform this operation.',
+            status: Response::HTTP_FORBIDDEN,
+        );
     }
 }

@@ -154,7 +154,13 @@ final class AssignMembershipRoleTest extends TestCase
 
         $response
             ->assertNotFound()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' =>
+                'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
+                'message' =>
+                'Requested membership or role is not available.',
+            ]);
 
         $this->assertDatabaseMissing('membership_roles', [
             'membership_id' => $this->otherTenantMembershipId,
@@ -182,7 +188,13 @@ final class AssignMembershipRoleTest extends TestCase
 
         $response
             ->assertNotFound()
-            ->assertJsonPath('status', 'error');
+            ->assertExactJson([
+                'status' => 'error',
+                'code' =>
+                'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
+                'message' =>
+                'Requested membership or role is not available.',
+            ]);
 
         $this->assertDatabaseMissing('membership_roles', [
             'membership_id' => $this->inactiveMembershipId,
@@ -260,7 +272,7 @@ final class AssignMembershipRoleTest extends TestCase
             membershipId: $this->adminMembershipId,
         );
 
-        $this
+        $response = $this
             ->withToken($token)
             ->postJson(
                 sprintf(
@@ -268,9 +280,29 @@ final class AssignMembershipRoleTest extends TestCase
                     $this->targetMembershipId,
                 ),
                 ['role_id' => UuidV7::generate()],
-            )
+            );
+
+        $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['role_id']);
+            ->assertJsonPath(
+                'status',
+                'error',
+            )
+            ->assertJsonPath(
+                'code',
+                'VALIDATION_FAILED',
+            )
+            ->assertJsonPath(
+                'message',
+                'The submitted data is invalid.',
+            )
+            ->assertJsonValidationErrors([
+                'role_id',
+            ])
+            ->assertJsonPath(
+                'errors.role_id.0',
+                'Role yang dipilih tidak ditemukan.',
+            );
     }
 
     private function createTenants(): void
