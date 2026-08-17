@@ -1,0 +1,1744 @@
+openapi: 3.1.0
+
+info:
+  title: EduCore Foundation API
+  version: 1.0.0-foundation
+  description: |
+    Canonical HTTP contract for the EduCore foundation surface.
+
+    This specification currently documents the stable Core, Auth, and User
+    foundation APIs only.
+
+    Academic and HR APIs remain public Laravel routes but are explicitly
+    recorded under x-educore-deferred-routes until their domain API boundary,
+    validation, and canonical error contracts are hardened.
+
+servers:
+  - url: /
+
+tags:
+  - name: Authentication
+  - name: Authorization
+  - name: Core Platform
+  - name: Tenancy
+  - name: User Context
+
+paths:
+  /api/v1/auth/login-token:
+    post:
+      operationId: authLoginToken
+      x-laravel-route-name: api.v1.auth.login-token
+      tags:
+        - Authentication
+      summary: Authenticate into a tenant membership context
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginTokenRequest"
+      responses:
+        "200":
+          description: Authentication succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginTokenSuccess"
+        "401":
+          $ref: "#/components/responses/AuthenticationFailed"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /api/v1/auth/logout:
+    post:
+      operationId: authLogout
+      x-laravel-route-name: api.v1.auth.logout
+      tags:
+        - Authentication
+      summary: Revoke the current bearer token
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Logout completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutSuccess"
+        "403":
+          $ref: "#/components/responses/AuthenticationContextDenied"
+        "503":
+          $ref: "#/components/responses/LogoutUnavailable"
+
+  /api/v1/auth/me:
+    get:
+      operationId: authBootstrapContext
+      x-laravel-route-name: api.v1.auth.me
+      tags:
+        - Authentication
+      summary: Return the authenticated frontend bootstrap context
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Authenticated frontend bootstrap context.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatedBootstrapSuccess"
+        "403":
+          $ref: "#/components/responses/AuthenticationContextDenied"
+
+  /api/v1/core/authorization/capabilities:
+    get:
+      operationId: authorizationTenantCapabilities
+      x-laravel-route-name: api.v1.core.authorization.capabilities.index
+      tags:
+        - Authorization
+      summary: Project effective tenant capabilities
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Effective tenant capability projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCapabilitySuccess"
+        "403":
+          $ref: "#/components/responses/AuthenticationContextDenied"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/authorization/workspace-capabilities:
+    get:
+      operationId: authorizationWorkspaceCapabilities
+      x-laravel-route-name: api.v1.core.authorization.workspace-capabilities.index
+      tags:
+        - Authorization
+      summary: Project effective capabilities for the selected organizational workspace
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+      responses:
+        "200":
+          description: Effective workspace capability projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceCapabilitySuccess"
+
+        "403":
+          description: |
+            Tenant authentication context or organizational context is
+            unavailable, missing, or not permitted.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/OrganizationalContextDeniedError"
+
+        "422":
+          $ref: "#/components/responses/InvalidOrganizationalAssignmentId"
+
+        "500":
+          description: |
+            Organizational context resolution or capability projection
+            failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/OrganizationalContextResolutionFailedError"
+                  - $ref: "#/components/schemas/InternalServerError"
+
+  /api/v1/core/authorization/roles:
+    get:
+      operationId: authorizationRoleCatalog
+      x-laravel-route-name: api.v1.core.authorization.roles.index
+      tags:
+        - Authorization
+      summary: Return the safe global role catalog for tenant administrators
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Safe role catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleCatalogSuccess"
+
+        "403":
+          description: |
+            Tenant authentication context is invalid or the current Membership
+            does not have the required tenant administrator role.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/health:
+    get:
+      operationId: coreHealth
+      x-laravel-route-name: api.core.health
+      tags:
+        - Core Platform
+      summary: Return platform health status
+      security: []
+      responses:
+        "200":
+          description: Platform is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+        "503":
+          description: |
+            At least one monitored platform component is unhealthy.
+
+            The response intentionally uses the HealthStatus representation
+            rather than the canonical business ApiError envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /api/v1/core/notifications/dispatch:
+    post:
+      operationId: notificationDispatch
+      x-laravel-route-name: api.v1.core.notifications.dispatch
+      tags:
+        - Core Platform
+      summary: Queue a tenant-scoped notification
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationDispatchRequest"
+      responses:
+        "202":
+          description: Notification accepted for asynchronous delivery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDispatchSuccess"
+
+        "403":
+          $ref: "#/components/responses/AuthenticationContextDenied"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/NotificationDispatchFailed"
+
+  /api/v1/core/tenants:
+    get:
+      operationId: tenantIndex
+      x-laravel-route-name: api.v1.core.tenants.index
+      tags:
+        - Tenancy
+      summary: List tenants as a global superadmin
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantPerPage"
+      responses:
+        "200":
+          description: Paginated tenant collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantListSuccess"
+
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+
+        "403":
+          $ref: "#/components/responses/AuthorizationDenied"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: tenantStore
+      x-laravel-route-name: api.v1.core.tenants.store
+      tags:
+        - Tenancy
+      summary: Provision a tenant as a global superadmin
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreTenantRequest"
+      responses:
+        "201":
+          description: Tenant and initial tenant administrator created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+
+        "403":
+          $ref: "#/components/responses/AuthorizationDenied"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/tenants/{id}:
+    put:
+      operationId: tenantUpdate
+      x-laravel-route-name: api.v1.core.tenants.update
+      tags:
+        - Tenancy
+      summary: Update a tenant as a global superadmin
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantRequest"
+      responses:
+        "200":
+          description: Tenant updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantUpdatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+
+        "403":
+          $ref: "#/components/responses/AuthorizationDenied"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/user/my-memberships:
+    get:
+      operationId: userMembershipIndex
+      x-laravel-route-name: api.v1.user.memberships.index
+      tags:
+        - User Context
+      summary: List active memberships owned by the authenticated Person
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Person-owned active membership projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipListSuccess"
+
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/user/memberships/{membership_id}/switch:
+    post:
+      operationId: userMembershipSwitch
+      x-laravel-route-name: api.v1.user.memberships.switch
+      tags:
+        - User Context
+      summary: Exchange the current token for another owned membership context
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MembershipId"
+      responses:
+        "200":
+          description: |
+            New bearer token issued for the selected Membership and Tenant.
+            The previously issued token is not implicitly revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipSwitchSuccess"
+
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+
+        "403":
+          $ref: "#/components/responses/MembershipSwitchDenied"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/user/my-workspaces:
+    get:
+      operationId: userWorkspaceIndex
+      x-laravel-route-name: api.v1.user.workspaces.index
+      tags:
+        - User Context
+      summary: Discover active organizational workspaces for the current membership
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Available frontend workspace projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceDiscoverySuccess"
+
+        "403":
+          $ref: "#/components/responses/AuthenticationContextDenied"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/user/memberships/{target_membership_id}/assign-role:
+    post:
+      operationId: userMembershipRoleAssign
+      x-laravel-route-name: api.v1.user.rbac.assign
+      tags:
+        - User Context
+        - Authorization
+      summary: Assign a global role to a membership as a tenant administrator
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TargetMembershipId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipRoleAssignmentRequest"
+      responses:
+        "200":
+          description: Membership role assignment completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipRoleAssignmentSuccess"
+
+        "403":
+          description: |
+            Tenant authentication context is invalid or the authenticated
+            Membership does not have the required administrator role.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/MembershipRoleAssignmentRejected"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        EduCore encrypted opaque bearer token.
+
+        The token establishes authenticated User, Membership, and Tenant
+        context. Roles, permissions, capabilities, organizational
+        assignments, and workspace authority are intentionally not encoded
+        as trusted authorization claims.
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: UUID accepted without a version-specific HTTP constraint.
+
+    UuidV7:
+      type: string
+      format: uuid
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      description: RFC 9562 UUID version 7 identifier.
+
+    MembershipPathIdentifier:
+      type: string
+      minLength: 1
+      description: |
+        Membership route identifier.
+
+        The current HTTP/application path does not perform explicit UUIDv7
+        validation before repository lookup. This schema intentionally does
+        not claim a version-specific validation contract.
+
+    PermissionName:
+      type: string
+      minLength: 1
+      description: Canonical machine-readable permission name.
+
+    LoginTokenRequest:
+      type: object
+      required:
+        - email
+        - password
+        - tenant_uuid
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: |
+            Email is trimmed and lowercased before credential lookup.
+        password:
+          type: string
+          minLength: 6
+        tenant_uuid:
+          $ref: "#/components/schemas/Uuid"
+      description: |
+        Login request for a specific Tenant.
+
+        tenant_uuid currently uses generic UUID validation rather than
+        UUIDv7-only validation.
+
+    AuthenticationTokenContext:
+      type: object
+      required:
+        - user_id
+        - name
+        - email
+        - membership_id
+        - tenant_id
+      properties:
+        user_id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    AuthenticationTokenData:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - context
+      properties:
+        access_token:
+          type: string
+          minLength: 1
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        context:
+          $ref: "#/components/schemas/AuthenticationTokenContext"
+
+    LoginTokenSuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/AuthenticationTokenData"
+
+    LogoutSuccess:
+      type: object
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Logout completed successfully.
+        data:
+          type: object
+          required:
+            - token_revoked
+          properties:
+            token_revoked:
+              type: boolean
+              const: true
+
+    AuthenticatedUser:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        email:
+          type: string
+          format: email
+
+    AuthenticatedPerson:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+
+    AuthenticatedMembership:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        status:
+          type: string
+          const: ACTIVE
+
+    AuthenticatedTenant:
+      type: object
+      required:
+        - id
+        - name
+        - subdomain
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        subdomain:
+          type:
+            - string
+            - "null"
+
+    AuthenticatedBootstrapData:
+      type: object
+      required:
+        - user
+        - person
+        - membership
+        - tenant
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthenticatedUser"
+        person:
+          $ref: "#/components/schemas/AuthenticatedPerson"
+        membership:
+          $ref: "#/components/schemas/AuthenticatedMembership"
+        tenant:
+          $ref: "#/components/schemas/AuthenticatedTenant"
+
+    AuthenticatedBootstrapSuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/AuthenticatedBootstrapData"
+
+    TenantCapabilityScope:
+      type: object
+      required:
+        - type
+        - tenant_id
+        - membership_id
+      properties:
+        type:
+          type: string
+          const: tenant
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    TenantCapabilityData:
+      type: object
+      required:
+        - scope
+        - is_global_superadmin
+        - permissions
+      properties:
+        scope:
+          $ref: "#/components/schemas/TenantCapabilityScope"
+        is_global_superadmin:
+          type: boolean
+        permissions:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/PermissionName"
+
+    TenantCapabilitySuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/TenantCapabilityData"
+
+    WorkspaceCapabilityScope:
+      type: object
+      required:
+        - type
+        - tenant_id
+        - membership_id
+        - organizational_assignment_id
+        - organization_id
+        - organization_unit_id
+      properties:
+        type:
+          type: string
+          enum:
+            - organization
+            - organization_unit
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        organizational_assignment_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_unit_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+
+    WorkspaceCapabilityData:
+      type: object
+      required:
+        - scope
+        - is_global_superadmin
+        - permissions
+      properties:
+        scope:
+          $ref: "#/components/schemas/WorkspaceCapabilityScope"
+        is_global_superadmin:
+          type: boolean
+        permissions:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/PermissionName"
+
+    WorkspaceCapabilitySuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/WorkspaceCapabilityData"
+
+    RoleSummary:
+      type: object
+      required:
+        - id
+        - name
+        - display_name
+        - description
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+
+    RoleCatalogSuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleSummary"
+
+    HealthComponent:
+      type: object
+      required:
+        - healthy
+        - message
+      properties:
+        healthy:
+          type: boolean
+        message:
+          type: string
+
+    HealthComponents:
+      type: object
+      required:
+        - database
+        - storage
+      properties:
+        database:
+          $ref: "#/components/schemas/HealthComponent"
+        storage:
+          $ref: "#/components/schemas/HealthComponent"
+
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - timestamp
+        - components
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+            - DOWN
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          $ref: "#/components/schemas/HealthComponents"
+
+    NotificationOptions:
+      type:
+        - object
+        - "null"
+      properties:
+        title:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+      additionalProperties: false
+
+    NotificationDispatchRequest:
+      type: object
+      required:
+        - recipient
+        - body
+      properties:
+        recipient:
+          type: string
+          maxLength: 150
+          description: Trimmed before validation output is consumed.
+        body:
+          type: string
+          maxLength: 5000
+          description: Trimmed before validation output is consumed.
+        options:
+          $ref: "#/components/schemas/NotificationOptions"
+
+    NotificationDispatchSuccess:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Notification dispatch has been accepted and queued for transmission.
+
+    TenantListItem:
+      type: object
+      required:
+        - id
+        - name
+        - subdomain
+        - domain
+        - is_active
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        subdomain:
+          type: string
+        domain:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          description: Raw persisted timestamp returned by the query builder.
+
+    PaginationMeta:
+      type: object
+      required:
+        - current_page
+        - last_page
+        - per_page
+        - total
+      properties:
+        current_page:
+          type: integer
+          minimum: 1
+        last_page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+
+    TenantListSuccess:
+      type: object
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantListItem"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    StoreTenantRequest:
+      type: object
+      required:
+        - name
+        - subdomain
+        - initial_admin_user_id
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Trimmed before validation.
+        subdomain:
+          type: string
+          maxLength: 50
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$"
+          description: Trimmed and converted to lowercase before validation.
+        is_active:
+          type: boolean
+        initial_admin_user_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Trimmed before validation.
+        is_active:
+          type: boolean
+      anyOf:
+        - required:
+            - name
+        - required:
+            - is_active
+
+    TenantResource:
+      type: object
+      required:
+        - id
+        - name
+        - subdomain
+        - domain
+        - is_active
+        - settings
+        - created_at
+        - updated_at
+        - deleted_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        subdomain:
+          type: string
+        domain:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        settings:
+          type:
+            - string
+            - "null"
+          description: |
+            Raw JSON database value returned by the query-builder repository.
+            The current repository does not hydrate this field through the
+            Tenant model cast before returning the HTTP projection.
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        deleted_at:
+          type:
+            - string
+            - "null"
+
+    InitialTenantAdmin:
+      type: object
+      required:
+        - user_id
+        - person_id
+        - membership_id
+      properties:
+        user_id:
+          $ref: "#/components/schemas/UuidV7"
+        person_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    TenantProvisionedData:
+      allOf:
+        - $ref: "#/components/schemas/TenantResource"
+        - type: object
+          required:
+            - initial_admin
+          properties:
+            initial_admin:
+              $ref: "#/components/schemas/InitialTenantAdmin"
+
+    TenantCreatedSuccess:
+      type: object
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Tenant registered successfully.
+        data:
+          $ref: "#/components/schemas/TenantProvisionedData"
+
+    TenantUpdatedSuccess:
+      type: object
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Tenant updated successfully.
+        data:
+          $ref: "#/components/schemas/TenantResource"
+
+    MembershipSummary:
+      type: object
+      required:
+        - membership_id
+        - membership_status
+        - tenant_id
+        - tenant_name
+        - tenant_subdomain
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_status:
+          type: string
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_name:
+          type: string
+        tenant_subdomain:
+          type: string
+
+    MembershipListSuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MembershipSummary"
+
+    MembershipSwitchContext:
+      type: object
+      required:
+        - membership_id
+        - tenant_id
+        - tenant_name
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_name:
+          type: string
+
+    MembershipSwitchData:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - context
+      properties:
+        access_token:
+          type: string
+          minLength: 1
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        context:
+          $ref: "#/components/schemas/MembershipSwitchContext"
+
+    MembershipSwitchSuccess:
+      type: object
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          description: Human-readable confirmation containing the selected tenant name.
+        data:
+          $ref: "#/components/schemas/MembershipSwitchData"
+
+    TenantWorkspaceSummary:
+      type: object
+      required:
+        - type
+        - organizational_assignment_id
+        - organization_id
+        - organization_unit_id
+        - label
+      properties:
+        type:
+          type: string
+          const: TENANT
+        organizational_assignment_id:
+          type: "null"
+        organization_id:
+          type: "null"
+        organization_unit_id:
+          type: "null"
+        label:
+          type: string
+
+    OrganizationWorkspaceSummary:
+      type: object
+      required:
+        - type
+        - organizational_assignment_id
+        - organization_id
+        - organization_unit_id
+        - label
+      properties:
+        type:
+          type: string
+          const: ORGANIZATION
+        organizational_assignment_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_unit_id:
+          type: "null"
+        label:
+          type: string
+
+    OrganizationUnitWorkspaceSummary:
+      type: object
+      required:
+        - type
+        - organizational_assignment_id
+        - organization_id
+        - organization_unit_id
+        - label
+      properties:
+        type:
+          type: string
+          const: ORGANIZATION_UNIT
+        organizational_assignment_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_unit_id:
+          $ref: "#/components/schemas/UuidV7"
+        label:
+          type: string
+
+    WorkspaceSummary:
+      oneOf:
+        - $ref: "#/components/schemas/TenantWorkspaceSummary"
+        - $ref: "#/components/schemas/OrganizationWorkspaceSummary"
+        - $ref: "#/components/schemas/OrganizationUnitWorkspaceSummary"
+
+    WorkspaceDiscoveryTenant:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+
+    WorkspaceDiscoveryData:
+      type: object
+      required:
+        - tenant
+        - workspaces
+      properties:
+        tenant:
+          $ref: "#/components/schemas/WorkspaceDiscoveryTenant"
+        workspaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceSummary"
+
+    WorkspaceDiscoverySuccess:
+      type: object
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/WorkspaceDiscoveryData"
+
+    MembershipRoleAssignmentRequest:
+      type: object
+      required:
+        - role_id
+      properties:
+        role_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    MembershipRoleAssignmentData:
+      type: object
+      required:
+        - target_membership_id
+        - role_id
+      properties:
+        target_membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        role_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    MembershipRoleAssignmentSuccess:
+      type: object
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Role berhasil ditetapkan pada target membership.
+        data:
+          $ref: "#/components/schemas/MembershipRoleAssignmentData"
+
+    ApiError:
+      type: object
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]*$"
+        message:
+          type: string
+          minLength: 1
+
+    ValidationErrors:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+
+    ValidationError:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - errors
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: VALIDATION_FAILED
+        message:
+          type: string
+          const: The submitted data is invalid.
+        errors:
+          $ref: "#/components/schemas/ValidationErrors"
+
+    AuthenticationFailedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: AUTHENTICATION_FAILED
+
+    AuthenticationRequiredError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: AUTHENTICATION_REQUIRED
+
+    AuthenticationContextDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: AUTHENTICATION_CONTEXT_DENIED
+
+    AuthorizationDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: AUTHORIZATION_DENIED
+
+    LogoutUnavailableError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: LOGOUT_UNAVAILABLE
+
+    InternalServerError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: INTERNAL_SERVER_ERROR
+
+    InvalidOrganizationalAssignmentIdError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: INVALID_ORGANIZATIONAL_ASSIGNMENT_ID
+
+    OrganizationalContextRequiredError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: ORGANIZATIONAL_CONTEXT_REQUIRED
+
+    OrganizationalContextDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: ORGANIZATIONAL_CONTEXT_DENIED
+
+    OrganizationalContextResolutionFailedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: ORGANIZATIONAL_CONTEXT_RESOLUTION_FAILED
+
+    ResourceNotFoundError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: RESOURCE_NOT_FOUND
+
+    MembershipSwitchDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: MEMBERSHIP_SWITCH_DENIED
+
+    MembershipRoleAssignmentRejectedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED
+
+    NotificationDispatchFailedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: NOTIFICATION_DISPATCH_FAILED
+
+  parameters:
+    OrganizationalAssignmentId:
+      name: X-EduCore-Organizational-Assignment-Id
+      in: header
+      required: true
+      description: |
+        UUIDv7 locator for the selected organizational assignment.
+
+        This header is a context locator only. It does not grant authority.
+        The backend resolves and verifies the assignment against the current
+        Tenant and Membership on every request.
+      schema:
+        $ref: "#/components/schemas/UuidV7"
+
+    TenantPerPage:
+      name: per_page
+      in: query
+      required: false
+      description: Number of tenants returned per page. Defaults to 15.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 15
+
+    TenantId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/UuidV7"
+
+    MembershipId:
+      name: membership_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/MembershipPathIdentifier"
+
+    TargetMembershipId:
+      name: target_membership_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/MembershipPathIdentifier"
+
+  responses:
+    AuthenticationFailed:
+      description: Authentication credentials are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthenticationFailedError"
+
+    AuthenticationRequired:
+      description: An authenticated identity is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthenticationRequiredError"
+
+    AuthenticationContextDenied:
+      description: Authenticated Tenant or Membership context is unavailable or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthenticationContextDeniedError"
+
+    AuthorizationDenied:
+      description: The authenticated actor is not authorized for this operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AuthorizationDeniedError"
+
+    LogoutUnavailable:
+      description: Token revocation could not be completed securely.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LogoutUnavailableError"
+
+    ValidationFailed:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+
+    ResourceNotFound:
+      description: Requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ResourceNotFoundError"
+
+    MembershipSwitchDenied:
+      description: Requested Membership is unavailable for the authenticated Person.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MembershipSwitchDeniedError"
+
+    MembershipRoleAssignmentRejected:
+      description: Requested Membership or Role is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MembershipRoleAssignmentRejectedError"
+
+    NotificationDispatchFailed:
+      description: Notification could not be queued.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/NotificationDispatchFailedError"
+
+    InvalidOrganizationalAssignmentId:
+      description: Organizational assignment header is malformed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InvalidOrganizationalAssignmentIdError"
+
+    OrganizationalContextRequired:
+      description: Organizational assignment context is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/OrganizationalContextRequiredError"
+
+    OrganizationalContextDenied:
+      description: Organizational assignment context is unavailable or not permitted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/OrganizationalContextDeniedError"
+
+    OrganizationalContextResolutionFailed:
+      description: Organizational context resolution failed unexpectedly.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/OrganizationalContextResolutionFailedError"
+
+    InternalServerError:
+      description: Operation failed unexpectedly.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InternalServerError"
+
+x-educore-deferred-routes:
+  - method: GET
+    path: /api/v1/academic/academic-years
+    route_name: api.v1.academic.years.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/academic-years
+    route_name: api.v1.academic.years.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/academic-years/{yearId}/semesters
+    route_name: api.v1.academic.semesters.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/academic/classes
+    route_name: api.v1.academic.classes.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/classes
+    route_name: api.v1.academic.classes.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/grades/bulk
+    route_name: api.v1.academic.grades.bulk
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/academic/guardians
+    route_name: api.v1.academic.guardians.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/guardians
+    route_name: api.v1.academic.guardians.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/guardians/associations
+    route_name: api.v1.academic.guardians.associations.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: DELETE
+    path: /api/v1/academic/guardians/associations
+    route_name: api.v1.academic.guardians.associations.destroy
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/academic/guardians/{guardianId}/students
+    route_name: api.v1.academic.guardians.students.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/academic/students
+    route_name: api.v1.academic.students.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/students
+    route_name: api.v1.academic.students.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/academic/subjects
+    route_name: api.v1.academic.subjects.index
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/academic/subjects
+    route_name: api.v1.academic.subjects.store
+    owner: Academic
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/employees
+    route_name: api.v1.hr.employees.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employees
+    route_name: api.v1.hr.employees.store
+    owner: HR
+    reason: domain-api-hardening-deferred
