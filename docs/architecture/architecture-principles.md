@@ -1,11 +1,11 @@
 # EduCore Architecture Principles
 
-- **Version**: 3.1
+- **Version**: 3.2
 - **Status**: Current Architecture Principle Baseline
-- **Updated**: 2026-08-14
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
+- **Updated**: 2026-08-17
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
 
-Dokumen ini mendefinisikan prinsip arsitektur yang berlaku untuk pengembangan EduCore setelah canonical identity, tenancy, authentication, RBAC, dan downstream human/profile foundation di-lock.
+Dokumen ini mendefinisikan prinsip arsitektur yang berlaku untuk pengembangan EduCore setelah canonical identity, tenancy, authentication, RBAC, downstream human/profile foundation, frontend-facing transport, canonical API error, capability projection, dan executable OpenAPI contract di-lock.
 
 Dokumen ini bukan daftar pola yang wajib diterapkan secara mekanis. Prinsip digunakan untuk menjaga boundary, keamanan, maintainability, dan arah evolusi sistem. Abstraction baru hanya dibuat ketika ada kebutuhan yang nyata.
 
@@ -14,6 +14,7 @@ Untuk contract implementasi yang berlaku saat ini, baca juga:
 - [`current-architecture.md`](current-architecture.md)
 - [`folder-structure.md`](folder-structure.md)
 - [`adr/README.md`](adr/README.md)
+- [`../api/openapi.yaml`](../api/openapi.yaml) — executable public foundation HTTP transport contract; explicitly deferred domain operations tetap bukan hardened foundation contract
 
 ---
 
@@ -331,6 +332,8 @@ Laravel Gate/Policy tetap concern terpisah dari tenant RBAC.
 Tenant-wide `AuthorizationService` mempertahankan semantics `membership_roles`. Organization/unit-aware checks menggunakan dedicated `OrganizationalAuthorizationService` dengan verified `OrganizationalContext`.
 
 Organization-level scoped role inherit ke unit dalam Organization yang sama. Unit role hanya berlaku pada exact Unit dan tidak inherit ke parent/sibling.
+
+Frontend capability projection adalah read-only UX/navigation hint. Capability yang diproyeksikan ke client tidak menjadi authorization source dan protected backend operation tetap harus mengevaluasi current persistence state melalui canonical authorization boundary.
 
 ---
 
@@ -704,7 +707,7 @@ Unit tests tetap digunakan untuk isolated business rules ketika boundary HTTP ti
 
 # 28. Error Handling Must Preserve Security Boundaries
 
-Expected client/domain errors harus dipetakan ke response yang aman dan konsisten.
+Expected client/domain errors harus dipetakan ke response yang aman dan konsisten. Public JSON error contract menggunakan HTTP status + stable machine-readable `code` + safe user-facing `message`; validation error boleh menambahkan field-level `errors`.
 
 Contoh semantic:
 
@@ -783,7 +786,7 @@ FUTURE / NOT LOCKED
 
 ADR tidak dihapus hanya karena keputusan berubah; statusnya diperbarui dan replacement dicatat.
 
-Kode dan dokumentasi harus berevolusi bersama setelah architecture lock.
+Kode dan dokumentasi harus berevolusi bersama setelah architecture lock. Untuk public foundation HTTP transport, `docs/api/openapi.yaml` adalah executable compatibility contract yang harus berubah bersama implementation dan route contract tests. Domain operations yang belum hardened harus tetap ditandai explicit deferred, bukan diasumsikan covered.
 
 ---
 
@@ -819,7 +822,7 @@ TenantRoles
 ∪ ExactUnitRoles (only when unit context exists)
 ```
 
-Dormitory does not become another Core topology level. Its concrete implementation belongs to future `Modules/Dormitory`, consuming Core through the dependency direction `Dormitory → Core` as defined by ADR-019.
+Dormitory does not become another Core topology level. Concrete implementation now lives in `Modules/Dormitory`, consuming Core through the dependency direction `Dormitory → Core` as defined by ADR-019. Ongoing Dormitory business lifecycle work remains downstream and must not reopen Core topology, identity, tenancy, or authorization contracts.
 
 The locked topology must not reintroduce tenant ownership on `User`, duplicate Person/Membership identity, or create a second Role/Permission catalog.
 
@@ -835,8 +838,10 @@ EduCore dikembangkan dengan prinsip utama:
 - Tenant sebagai security/data-isolation boundary;
 - locked `Tenant → Organization → OrganizationUnit` topology dengan separate `OrganizationalAssignment`/`OrganizationalContext`;
 - tenant-wide + organizational scoped authorization yang tetap memakai global Role/Permission catalog;
+- frontend capability projection sebagai UX hint, bukan authorization authority;
 - Dormitory sebagai downstream module boundary (`Dormitory → Core`), bukan Core topology level;
 - fail-closed authentication, tenancy, dan authorization;
+- canonical `/api/v1` public transport dengan stable machine-readable error codes dan executable OpenAPI contract;
 - explicit tenant-aware persistence;
 - database-backed RBAC;
 - module ownership dan dependency direction yang jelas;
@@ -851,4 +856,4 @@ EduCore dikembangkan dengan prinsip utama:
 - canonical foundation tidak dibuka ulang untuk legacy compatibility;
 - documentation lifecycle yang membedakan current, superseded, historical, dan future.
 
-Prinsip-prinsip ini menjadi guardrail ketika EduCore berevolusi dari current multi-tenant foundation menuju multi-lembaga, multi-cabang, dan integrated dormitory platform.
+Prinsip-prinsip ini menjadi guardrail ketika EduCore terus berevolusi di atas current multi-tenant dan organizational foundation, sementara downstream domain seperti Dormitory berkembang tanpa memperluas Core topology secara implisit.

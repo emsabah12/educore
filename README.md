@@ -1,58 +1,73 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# EduCore
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+EduCore is a Laravel-based modular monolith that provides a shared foundation for education-domain applications and modules.
 
-## About Laravel
+The project is designed around explicit module boundaries, canonical identity and tenancy contracts, database-backed authorization, and documented API contracts.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Architecture
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+EduCore uses a modular monolith architecture.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Application capabilities are separated into modules while shared technical concerns remain centralized in the application foundation and Core layer.
 
-## Learning Laravel
+Current foundation contracts include:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- canonical human identity separated from authentication identity;
+- tenant membership as the boundary between a person and a tenant;
+- database-backed role and permission authorization;
+- authenticated request context derived from validated current persistence state;
+- organizational topology and scoped authorization;
+- explicit module runtime bootstrap and dependency contracts;
+- OpenAPI-backed HTTP API documentation and discoverability.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Role and permission information is not treated as authoritative when supplied by bearer-token claims. Authorization decisions are resolved against the current application state through the canonical authorization boundary.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Legacy identity and authorization models must not be reintroduced as current architecture.
 
-## Agentic Development
+## Documentation
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Start with the documentation index:
+
+- [Documentation](docs/README.md)
+- [Architecture](docs/architecture/README.md)
+- [Current Architecture](docs/architecture/current-architecture.md)
+- [Architecture Decision Records](docs/architecture/adr/README.md)
+- [Product Requirements](docs/prd/README.md)
+- [Sprint Documentation](docs/sprint/README.md)
+
+Architecture Decision Records contain the rationale and historical context behind important architectural decisions. Current-state documentation should be used when determining how EduCore behaves today.
+
+## Development
+
+Install PHP dependencies:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Create the local environment file when one does not already exist:
 
-## Contributing
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Configure the required database and environment settings in .env, then run the application migrations:
 
-## Code of Conduct
+```bash
+php artisan migrate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Run the test suite with:
 
-## Security Vulnerabilities
+```bash
+php artisan test
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Documentation Contract
 
-## License
+Documentation changes should preserve the canonical architecture and current HTTP contracts.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+When implementation and historical documentation differ, update current-state documentation explicitly rather than silently treating superseded architecture as current behavior.
+
+Historical or superseded terminology may remain in Architecture Decision Records when it is clearly identified as historical, rejected, amended, or superseded context.

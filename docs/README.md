@@ -1,7 +1,7 @@
 # EduCore Documentation Index
 
 - **Status**: Current Documentation Entry Point
-- **Updated**: 2026-08-12
+- **Updated**: 2026-08-17
 
 Dokumentasi EduCore menggunakan lifecycle eksplisit agar dokumen current tidak tercampur dengan planning atau keputusan lama.
 
@@ -39,30 +39,27 @@ Current historical documents:
 
 Historical documents tidak boleh mengalahkan current architecture atau Accepted ADR.
 
-## 4. Future Architecture
+## 4. Current Foundation Coverage
 
-Visi multi-lembaga, multi-cabang, dan manajemen asrama sudah menjadi product direction, tetapi topology berikut belum menjadi current contract:
+Beberapa capability yang sebelumnya didokumentasikan sebagai future direction telah melewati audit dan architectural lock dan sekarang menjadi bagian dari current foundation baseline.
 
-```text
-Tenant
-  └── Organization / Lembaga
-        └── Organization Unit / Branch
-```
+Current foundation coverage mencakup:
 
-Organization, branch/unit, organizational assignment, organizational context, scoped authorization, dan dormitory topology harus melalui audit dan architectural lock terlebih dahulu.
+- organizational topology dan hierarchy;
+- membership organizational assignment;
+- authenticated organizational context;
+- scoped authorization persistence dan evaluation;
+- Dormitory integration boundary;
+- OpenAPI-backed HTTP API contract dan discoverability.
 
-## 5. Documentation Alignment Status
+Detail schema, ownership boundary, authorization semantics, dan integration contract tidak diduplikasi di documentation index ini. Gunakan current architecture documentation dan Accepted ADR sebagai canonical reference.
 
-```text
-DOC STEP 1 — Current architecture index              COMPLETE
-DOC STEP 2 — Canonical architecture ADRs             COMPLETE
-DOC STEP 3 — Current repository structure            COMPLETE
-DOC STEP 4 — Architecture principles refresh         COMPLETE
-DOC STEP 5 — Module Kernel revalidation              COMPLETE
-DOC STEP 6 — Historical PRD/Sprint classification    COMPLETE
-DOC STEP 7 — Documentation consistency closure       COMPLETE
-```
+Future capability yang belum melewati audit dan architectural lock tetap harus diklasifikasikan sebagai `FUTURE / NOT LOCKED` dan tidak boleh dianggap sebagai implementation contract.
 
-**EduCore Documentation Alignment: LOCKED / COMPLETE.**
+## 5. Documentation Alignment
+
+Current-state documentation harus direvalidasi ketika locked implementation atau architectural contract berubah.
+
+Status `CURRENT` pada dokumen berarti dokumen tersebut merepresentasikan baseline yang berlaku pada revision saat ini; status tersebut bukan jaminan bahwa dokumentasi tidak akan membutuhkan alignment pada foundation phase berikutnya.
 
 Future documentation must extend this baseline through the same lifecycle (`CURRENT`, `ACCEPTED ADR`, `SUPERSEDED`, `HISTORICAL`, or `FUTURE / NOT LOCKED`) rather than silently rewriting historical decisions.

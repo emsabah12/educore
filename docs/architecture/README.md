@@ -1,10 +1,10 @@
 # EduCore Architecture Documentation
 
-**Version**: 4.1
+**Version**: 4.2
 **Status**: Current Baseline
-**Updated**: 2026-08-14
+**Updated**: 2026-08-17
 
-Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, **Phase 4A Module Kernel Runtime Hardening**, dan **Phase 4B Organizational Topology Foundation**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
+Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, **Phase 4A Module Kernel Runtime Hardening**, **Phase 4B Organizational Topology Foundation**, dan **Foundation 6D HTTP/OpenAPI Contract**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
 
 Dokumen lama dari Sprint `CORE-001` tetap dipertahankan sebagai histori keputusan, tetapi tidak semuanya lagi menjadi current implementation contract. Gunakan status setiap dokumen/ADR sebelum menjadikannya acuan implementasi.
 
@@ -18,7 +18,8 @@ Urutan baca untuk memahami arsitektur yang berlaku saat ini:
 2. [`folder-structure.md`](folder-structure.md) — current repository map dan ownership boundary.
 3. [`architecture-principles.md`](architecture-principles.md) — current architecture principles dan guardrails untuk evolusi platform.
 4. [`adr/README.md`](adr/README.md) — indeks dan lifecycle Architecture Decision Records.
-5. Dokumentasi subsystem module kernel:
+5. [`../api/openapi.yaml`](../api/openapi.yaml) — executable public HTTP transport contract untuk foundation routes; Academic/HR coverage yang belum hardened tetap explicit deferred.
+6. Dokumentasi subsystem module kernel:
    - [`kernel.md`](kernel.md)
    - [`discovery-flow.md`](discovery-flow.md)
    - [`module-manager.md`](module-manager.md) — historical compatibility note; `ModuleManager` retired
@@ -47,6 +48,7 @@ EduCore
 ├── User
 ├── Academic
 ├── HR
+├── Dormitory
 └── other downstream modules
 ```
 
@@ -113,6 +115,7 @@ The following contracts are considered stable and must not be reopened for legac
 - Tenant-wide roles remain in `membership_roles`; scoped roles attach to `OrganizationalAssignment`.
 - Organization-level scoped roles inherit downward to exact units; unit roles never inherit upward or to siblings.
 - Dormitory is a downstream business module boundary, not a Core topology level.
+- Foundation public HTTP transport uses the canonical `/api/v1` namespace and OpenAPI-backed route discoverability; Academic/HR operations that are not yet hardened remain explicitly deferred rather than implicitly treated as covered.
 
 See [`current-architecture.md`](current-architecture.md) for the detailed baseline.
 
@@ -176,7 +179,7 @@ Unit context
 = TenantRoles ∪ OrganizationRoles ∪ ExactUnitRoles
 ```
 
-Dormitory consumes this foundation later from `Modules/Dormitory`; it does not redefine Tenant, Organization, OrganizationUnit, Membership, Role, or Permission.
+Dormitory consumes this foundation from `Modules/Dormitory`; its concrete implementation remains downstream and does not redefine Tenant, Organization, OrganizationUnit, Membership, Role, or Permission.
 
 ---
 
@@ -221,37 +224,30 @@ Each document now carries an explicit historical notice. They remain useful for 
 
 ---
 
-## 8. Documentation Alignment Status
+## 8. Current Documentation Alignment
 
-Core/Phase-3A and Phase 4A documentation alignment are historical completed baselines.
+Core/Phase-3A, Phase 4A, dan Phase 4B documentation alignment merupakan historical locked baselines. Foundation 6D menambahkan canonical `/api/v1` transport namespace serta OpenAPI-backed foundation HTTP contract/discoverability.
 
-Phase 4B closure is tracked as:
+Current-state documentation harus direvalidasi ketika locked implementation atau architectural contract berubah. Completion label dari alignment phase sebelumnya adalah historical evidence, bukan jaminan bahwa current documentation tidak akan memerlukan alignment lagi.
 
-```text
-4B.6.1 — Current Baseline + ADR + Principles/Folder Alignment
-CURRENT STEP
-
-4B.6.2 — Documentation Consistency + Final Regression Gate
-PENDING
-```
-
-Phase 4B documentation must describe Organization/Unit topology and scoped authorization as **LOCKED / CURRENT**, while Dormitory must be documented only as a downstream integration boundary. Concrete Dormitory implementation remains a separate future workstream.
+Organization/OrganizationUnit topology dan scoped authorization tetap **LOCKED / CURRENT**. Dormitory tetap downstream business module yang mengonsumsi foundation tersebut, sementara Core tidak memperoleh Dormitory topology atau ownership.
 
 ---
 
-## 9. Documentation Consistency Closure
+## 9. Documentation Consistency Guardrails
 
-Documentation Alignment dinyatakan complete setelah repository-wide documentation audit memverifikasi bahwa:
+Repository-wide documentation audit harus memverifikasi bahwa:
 
 - current documents tidak menggunakan legacy identity/tenancy contracts sebagai implementation guidance;
 - legacy terms seperti `users.tenant_id`, `memberships.user_id`, `memberships.role`, `MockStudent`, atau `DiscoveredModule` hanya boleh muncul sebagai forbidden, superseded, amended, atau historical context;
 - Accepted ADR memiliki lifecycle/status yang dapat dibaca secara eksplisit;
 - relative Markdown links pada `docs/` resolve ke target yang ada;
 - Organization/OrganizationUnit/scoped-authorization semantics match ADR-018 as **LOCKED / CURRENT**;
-- Dormitory is described only as the ADR-019 downstream integration boundary until `Modules/Dormitory` implementation begins;
+- Dormitory tetap dideskripsikan sebagai downstream business module/integration boundary dan tidak dipromosikan menjadi Core topology atau authorization source;
+- current foundation HTTP/OpenAPI documentation mencerminkan implemented public foundation route contracts, sementara Academic/HR operations yang belum hardened tetap ditandai explicit deferred;
 - documentation tidak menjanjikan hot module enable/disable atau disabled-module isolation;
 - documentation mencatat manifest-driven, dependency-ordered provider activation sebagai current runtime guarantee;
 - documentation tidak menghidupkan kembali `ModuleStateRepository`, `ModuleManager`, provider guessing, atau global event auto-discovery sebagai current contract;
 - current mixed-case manifest keys dibedakan jelas dari lowercase canonical technical-key target.
 
-Dengan closure ini, `docs/README.md` dan dokumen pada bagian **Current Source of Truth** di atas menjadi baseline dokumentasi resmi sampai ada ADR atau workstream baru yang secara eksplisit mengubahnya.
+Dengan guardrails ini, `docs/README.md` dan dokumen pada bagian **Current Source of Truth** di atas menjadi baseline dokumentasi resmi sampai ada ADR atau workstream baru yang secara eksplisit mengubahnya.

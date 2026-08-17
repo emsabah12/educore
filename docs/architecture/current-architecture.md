@@ -1,8 +1,8 @@
 # EduCore Current Architecture Baseline
 
 **Status**: Locked Baseline
-**Updated**: 2026-08-14
-**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
+**Updated**: 2026-08-17
+**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
 
 ---
 
@@ -12,7 +12,7 @@ This document consolidates the architecture that is already implemented, tested,
 
 It is not a proposal for new architecture. It exists so developers can distinguish the current canonical contract from historical documents written before the identity, tenancy, authentication, RBAC, and downstream-profile refactors.
 
-When historical documentation conflicts with this baseline, this baseline and the current accepted canonical ADRs—especially ADR-013 through ADR-017—describe the current implementation contract.
+When historical documentation conflicts with this baseline, this baseline, the current accepted canonical ADRs—especially ADR-013 through ADR-019—and the executable public HTTP contract describe the current implementation contract.
 
 ---
 
@@ -37,6 +37,7 @@ Application
 ├── User
 ├── Academic
 ├── HR
+├── Dormitory
 └── downstream modules
 ```
 
@@ -138,6 +139,7 @@ Auth      → Core
 User      → Core, Auth
 HR        → Core, Auth
 Academic  → Core, HR, Auth
+Dormitory → Core
 PPDB      → Core
 ```
 
@@ -175,7 +177,7 @@ module bootstrap composition
 ≠ authorization
 ```
 
-Current module identity lookup still uses exact manifest names (`core`, `Auth`, `User`, `HR`, `Academic`, `PPDB`). The canonical target is lowercase technical slugs, but the physical lowercase cutover is not yet implemented.
+Current module identity lookup still uses exact manifest names (`core`, `Auth`, `User`, `HR`, `Academic`, `Dormitory`, `PPDB`). The canonical target is lowercase technical slugs, but the physical lowercase cutover is not yet implemented.
 
 See ADR-017.
 
@@ -342,6 +344,44 @@ Membership-context resolution must read the **current request instance** rather 
 
 ---
 
+## 6A. Frontend Bootstrap, Tenant Switching & Workspace Transport
+
+Public JSON APIs use the canonical `/api/v1` namespace.
+
+Frontend bootstrap uses:
+
+```text
+GET /api/v1/auth/me
+```
+
+The bootstrap response projects the already-verified current `User`, canonical `Person`, current `Membership`, and current `Tenant`. It does not make role/permission or organizational identifiers trusted authentication claims.
+
+Tenant switching is a stateless authentication-context exchange:
+
+```text
+POST /api/v1/user/memberships/{membership_id}/switch
+```
+
+The target Membership must belong to the same canonical Person, remain ACTIVE, and belong to an ACTIVE Tenant. A successful switch issues a new bearer token for the target Membership/Tenant. The previous token is not automatically revoked, so independent browser tabs may retain independent tenant contexts until normal expiry/revocation.
+
+Workspace discovery is a read projection:
+
+```text
+GET /api/v1/user/my-workspaces
+```
+
+It derives Tenant/Organization/OrganizationUnit workspace choices from the verified current Membership/Tenant and active `OrganizationalAssignment` records. There is no canonical `Workspace` persistence entity or `workspaces` table.
+
+Organization-scoped HTTP operations use the canonical locator header:
+
+```text
+X-EduCore-Organizational-Assignment-Id
+```
+
+The header is never authority by itself. `InjectOrganizationalContext` validates UUID format, current Membership/Tenant ownership, active assignment, active Organization, and active OrganizationUnit consistency. Organizational runtime state is cleared before resolution and after the request so it cannot leak across request lifecycles.
+
+---
+
 ## 7. Authorization / RBAC Contract
 
 Authorization is database-backed.
@@ -408,6 +448,41 @@ Academic
 ```
 
 The database is the authorization source of truth. EduCore does not use a global static `CanonicalRoles.php` / `CanonicalPermissions.php` registry as the canonical RBAC source.
+
+---
+
+## 8A. Frontend Capability Projection
+
+Frontend capability responses are read projections for navigation and UX, not authorization sources.
+
+Current foundation endpoints are:
+
+```text
+GET /api/v1/core/authorization/capabilities
+GET /api/v1/core/authorization/workspace-capabilities
+```
+
+Tenant capability projection resolves effective tenant permissions from the canonical database-backed authorization boundary. Workspace capability projection additionally requires a verified OrganizationalContext and delegates scoped evaluation to the canonical organizational authorization boundary.
+
+The client may use returned permission/capability names to show or hide navigation and actions, but protected backend operations must authorize again from current persistence state. Capability values are never written into bearer-token claims and are never accepted back from the client as authority.
+
+---
+
+## 8B. Canonical Public API Error Contract
+
+Foundation HTTP errors use a stable machine-readable envelope:
+
+```json
+{
+  "status": "error",
+  "code": "STABLE_MACHINE_READABLE_CODE",
+  "message": "Safe user-facing message."
+}
+```
+
+Validation errors additionally expose field-specific `errors` while retaining the canonical `VALIDATION_FAILED` code.
+
+Frontend logic may depend on HTTP status and stable `code`; it must not parse arbitrary exception text. Raw SQL errors, stack traces, internal paths, exception classes, bearer tokens, credentials, and other sensitive implementation details are not public API contract.
 
 ---
 
@@ -564,32 +639,37 @@ direct repository fallback
 test still passes
 ```
 
-Canonical Phase 4A.8 integration regression baseline:
+Current Foundation 6D regression evidence is:
 
 ```text
-Core full      189 passed / 623 assertions
-Core Feature   112 passed / 447 assertions
-Auth            38 passed / 135 assertions
-User            15 passed / 54 assertions
-HR               7 passed / 60 assertions
-Academic         30 passed / 223 assertions
-Entire app     272 passed / 1081 assertions
-DB             MIGRATE_SEED_OK
-Boot/routes    ROUTES_BOOT_OK
+Full foundation regression   399 passed / 3586 assertions
 ```
 
-PPDB currently has no test files.
+That gate includes canonical route namespace, API validation/error semantics, capability projection, OpenAPI route coverage, OpenAPI schema/operation contracts, and OpenAPI integrity checks in addition to the existing module regressions. Exact pass/assertion counts are phase evidence rather than permanent architecture; future changes must preserve zero failures and update the relevant contract gates deliberately.
 
-Latest Phase 4B Core Feature regression before documentation closure:
+Database/schema changes must continue to pass the project migration/seeding gate on a disposable environment.
+
+---
+
+## 15A. Executable Public HTTP Contract
+
+The foundation transport contract is represented by:
 
 ```text
-Core Feature   192 passed / 588 assertions
-DB             MIGRATE_SEED_OK
+docs/api/openapi.yaml
 ```
 
-The final Phase 4B closure gate must rerun the broader regression set after documentation alignment.
+The document uses OpenAPI 3.1 and is executable through repository tests. At this baseline the public `/api/v1` inventory is enforced as:
 
-This supersedes the earlier Phase 3A-only regression baseline for Module Kernel closure.
+```text
+32 public operations
+= 15 documented foundation operations
++ 17 explicitly deferred Academic/HR operations
+```
+
+Deferred Academic/HR operations remain public Laravel routes, but they are marked explicitly as domain-API hardening debt rather than being represented as already-hardened foundation contracts.
+
+Executable OpenAPI gates verify route coverage, Laravel route-name linkage, unique operation IDs, schema components, request/response wiring, security/context parameters, and local reference integrity. A new or changed public operation must therefore update implementation and transport contract together rather than silently drifting.
 
 ---
 
@@ -619,6 +699,13 @@ The following contracts are frozen unless a new concrete requirement justifies a
 - tenant-wide `membership_roles` retaining their original meaning;
 - organization/unit scoped role grants through OrganizationalAssignment;
 - dedicated OrganizationalAuthorizationService semantics;
+- canonical `/api/v1` public JSON namespace;
+- canonical frontend bootstrap and stateless Membership/Tenant token exchange;
+- workspace discovery as a read projection rather than a Core persistence entity;
+- request-scoped organizational context transport through `X-EduCore-Organizational-Assignment-Id`;
+- canonical API error envelope with stable machine-readable codes;
+- tenant/workspace capability projections as UX hints rather than authorization sources;
+- OpenAPI-backed foundation HTTP contract/discoverability with explicit deferred-domain inventory;
 - Dormitory as a downstream business domain that depends on Core rather than extending Core topology.
 
 ---
@@ -671,9 +758,7 @@ See ADR-018.
 
 ## 18. Dormitory Integration Boundary
 
-Dormitory is **not** a Core topology level.
-
-Future implementation belongs to:
+Dormitory is **not** a Core topology level. Concrete downstream implementation now exists under:
 
 ```text
 Modules/Dormitory
@@ -687,11 +772,11 @@ Dormitory
 Core
 ```
 
-The Dormitory root is expected to be tenant-aware, owned by one Organization, and optionally owned by an OrganizationUnit. Building, Room, Bed, and ResidentPlacement remain Dormitory-domain concepts rather than `OrganizationUnit` variants.
+The Dormitory root is tenant-aware, owned by one Organization, and optionally owned by an OrganizationUnit. Building, Room, Bed, Locker, and ResidentPlacement remain Dormitory-domain concepts rather than `OrganizationUnit` variants.
 
-Resident identity remains rooted in canonical Membership. Dormitory must reuse Core organizational ownership/context and scoped authorization rather than duplicate tenancy, identity, Role, or Permission catalogs.
+Resident identity remains rooted in canonical Membership. Dormitory reuses Core organizational ownership/context and scoped authorization rather than duplicating tenancy, identity, Role, or Permission catalogs. Core production code must not depend on Dormitory.
 
-Actual Dormitory schema and business implementation are a separate downstream phase.
+Current repository implementation includes concrete Dormitory persistence, facility/capacity resources, placement persistence, check-in orchestration, and concurrency safeguards. This does not make unfinished Dormitory business lifecycle work part of Core; further Dormitory capabilities continue as a downstream module workstream under the ADR-019 boundary.
 
 See ADR-019.
 
@@ -717,6 +802,8 @@ Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as super
 
 ## 20. Next Architectural Work
 
-Phase 4B architecture implementation is complete. The remaining Phase 4B work is documentation consistency and final regression closure.
+The Core/domain foundation, frontend-facing transport contract, canonical API error boundary, capability projection, and Foundation OpenAPI contract are current locked baselines. Documentation/regression closure must align to those contracts rather than reopen them implicitly.
 
-After that closure, concrete Dormitory implementation may begin as a separate downstream workstream in `Modules/Dormitory`; it is not part of Core Phase 4B.
+Concrete Dormitory implementation already exists and continues as a downstream workstream under ADR-019. Academic/HR operations that are still listed as explicit OpenAPI deferred routes remain separate domain API-hardening work and must not be silently promoted into the foundation contract.
+
+Future architectural changes should enter through a concrete requirement and explicit ADR/workstream when they alter a frozen contract.

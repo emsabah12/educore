@@ -1,13 +1,13 @@
 # EduCore Current Repository Structure
 
-- **Version**: 3.1
+- **Version**: 3.2
 - **Status**: Current Architecture Baseline
-- **Updated**: 2026-08-14
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation
+- **Updated**: 2026-08-17
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
 
 ## Purpose
 
-Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G, Phase 3A, Phase 4A, dan Phase 4B Organizational Topology Foundation selesai.
+Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G, Phase 3A, Phase 4A, Phase 4B Organizational Topology Foundation, Frontend Transport 1-6A, dan Foundation 6B-6D selesai.
 
 Dokumen ini menggantikan `folder-structure.md` versi lama yang masih menggambarkan Sprint `CORE-001`, `MockStudent`, dan struktur Core sebelum canonical identity/tenancy/RBAC selesai.
 
@@ -43,6 +43,8 @@ educore/
 │   └── seeders/
 │
 ├── docs/
+│   ├── api/
+│   │   └── openapi.yaml
 │   ├── architecture/
 │   ├── prd/
 │   └── sprint/
@@ -53,6 +55,7 @@ educore/
 │   ├── User/
 │   ├── Academic/
 │   ├── HR/
+│   ├── Dormitory/
 │   └── PPDB/
 │
 ├── routes/
@@ -78,6 +81,7 @@ Human Identity       → Modules/Core/Person
 User Account          → Modules/Core/Identity
 Student / Guardian   → Modules/Academic
 Employee             → Modules/HR
+Dormitory residential domain → Modules/Dormitory
 ```
 
 `app/` tetap dipertahankan untuk Laravel application shell dan komponen global yang benar-benar bukan milik satu module.
@@ -94,6 +98,7 @@ Auth      → Core
 User      → Core, Auth
 HR        → Core, Auth
 Academic  → Core, HR, Auth
+Dormitory → Core
 PPDB      → Core
 ```
 
@@ -343,7 +348,9 @@ Modules/Core/Authorization/
 │   └── MembershipContextResolverInterface.php
 │
 ├── DTO/
-│   └── MembershipContext.php
+│   ├── MembershipContext.php
+│   ├── TenantCapabilityProjection.php
+│   └── WorkspaceCapabilityProjection.php
 │
 ├── Database/
 │   ├── Migrations/
@@ -355,11 +362,14 @@ Modules/Core/Authorization/
 │       └── AuthorizationCatalogSeeder.php
 │
 ├── Exceptions/
+│   ├── CapabilityProjectionContextException.php
 │   └── MembershipContextResolutionException.php
 │
 ├── Http/
 │   ├── Api/v1/
-│   │   └── RoleCatalogController.php
+│   │   ├── RoleCatalogController.php
+│   │   ├── TenantCapabilityController.php
+│   │   └── WorkspaceCapabilityController.php
 │   └── Middleware/
 │       ├── CheckTenantRole.php
 │       ├── CheckTenantPermission.php
@@ -373,7 +383,10 @@ Modules/Core/Authorization/
 │   └── RolePermission.php
 │
 ├── Queries/
-│   └── RoleCatalogQuery.php
+│   ├── PermissionCatalogQuery.php
+│   ├── RoleCatalogQuery.php
+│   ├── TenantCapabilityProjectionQuery.php
+│   └── WorkspaceCapabilityProjectionQuery.php
 │
 ├── Repositories/
 │   ├── Contracts/
@@ -452,6 +465,8 @@ Modules/Core/Organization/
 │   ├── create_organizational_assignments_table.php
 │   └── create_organizational_assignment_roles_table.php
 ├── Exceptions/
+├── Http/Middleware/
+│   └── InjectOrganizationalContext.php
 ├── Models/
 │   ├── Organization.php
 │   ├── OrganizationUnit.php
@@ -485,7 +500,7 @@ Scoped authorization preserves tenant-wide `membership_roles` and adds Organizat
 
 See ADR-018.
 
-Dormitory is not implemented in Core. Future `Modules/Dormitory` depends on this foundation; Core must not depend on Dormitory. See ADR-019.
+Dormitory is not implemented in Core. Concrete implementation lives in `Modules/Dormitory`, depends on this foundation, and Core must not depend on Dormitory. See ADR-019.
 
 ---
 
@@ -690,7 +705,8 @@ Modules/Auth/
 │
 ├── Http/
 │   ├── Controllers/Api/v1/
-│   │   └── AuthController.php
+│   │   ├── AuthController.php
+│   │   └── AuthenticatedContextController.php
 │   ├── Middleware/
 │   │   ├── InjectAuthenticatedUser.php
 │   │   └── InjectTenantContext.php
@@ -756,18 +772,30 @@ Modules/User/
 │   ├── Actions/
 │   │   ├── AssignRoleToMembership.php
 │   │   ├── ListMyMemberships.php
+│   │   ├── ListMyWorkspaces.php
 │   │   └── SwitchMembership.php
 │   ├── DTO/
+│   │   ├── MembershipSummary.php
+│   │   ├── MembershipSwitchResult.php
+│   │   ├── RoleAssignmentResult.php
+│   │   ├── WorkspaceDiscoveryResult.php
+│   │   └── WorkspaceSummary.php
 │   └── Queries/
-│       └── UserMembershipQueryInterface.php
+│       ├── UserMembershipQueryInterface.php
+│       └── UserWorkspaceQueryInterface.php
 │
 ├── Http/
 │   ├── Controllers/Api/v1/
+│   │   ├── AssignMembershipRoleController.php
+│   │   ├── MembershipController.php
+│   │   ├── SwitchMembershipController.php
+│   │   └── WorkspaceController.php
 │   └── Requests/
 │
 ├── Infrastructure/
 │   └── Queries/
-│       └── EloquentUserMembershipQuery.php
+│       ├── EloquentUserMembershipQuery.php
+│       └── EloquentUserWorkspaceQuery.php
 │
 ├── Providers/
 │   └── UserServiceProvider.php
@@ -793,7 +821,8 @@ Modules/Core/Identity/Models/User.php
 
 ```text
 list membership
-switch membership
+switch membership / tenant credential context
+list current Membership workspaces
 assign role to membership
 ```
 
@@ -1000,6 +1029,63 @@ HR → Core, Auth
 
 ---
 
+# 16A. `Modules/Dormitory` — Downstream Residential Domain
+
+`Modules/Dormitory` adalah concrete downstream business module yang mengonsumsi Core foundation tanpa memperluas Core topology.
+
+```text
+Modules/Dormitory/
+├── Application/
+│   ├── Commands/
+│   │   └── CheckInResident.php
+│   ├── Contracts/
+│   │   └── ResidentPlacementServiceInterface.php
+│   └── Services/
+│       └── ResidentPlacementService.php
+├── Contracts/
+│   ├── ResidentEligibilityCheckerInterface.php
+│   ├── ResidentPlacementRepositoryInterface.php
+│   └── RoomRepositoryInterface.php
+├── Database/Migrations/
+│   ├── create_dormitories_table.php
+│   ├── create_buildings_table.php
+│   ├── create_rooms_table.php
+│   ├── create_beds_table.php
+│   ├── create_lockers_table.php
+│   └── create_resident_placements_table.php
+├── Domain/
+│   ├── Enums/
+│   ├── Exceptions/
+│   └── ValueObjects/
+├── Infrastructure/
+│   ├── Eligibility/
+│   └── Persistence/Eloquent/
+├── Models/
+│   ├── Dormitory.php
+│   ├── Building.php
+│   ├── Room.php
+│   ├── Bed.php
+│   ├── Locker.php
+│   └── ResidentPlacement.php
+├── Providers/
+│   └── DormitoryServiceProvider.php
+├── Tests/
+└── module.yaml
+```
+
+Current dependency direction:
+
+```text
+Dormitory → Core
+Core ↛ Dormitory
+```
+
+Current implementation includes facility/capacity persistence, room/bed/locker resources, resident placement persistence, check-in orchestration, eligibility validation, and concurrency safeguards. This is a downstream implementation surface; unfinished Dormitory business lifecycle work remains owned by the Dormitory module and does not reopen Core foundation contracts.
+
+See ADR-019.
+
+---
+
 # 17. `Modules/PPDB` — Current Scaffold Only
 
 Current tracked structure masih minimal:
@@ -1117,6 +1203,7 @@ AuthServiceProvider
 UserServiceProvider
 AcademicServiceProvider
 HRServiceProvider
+DormitoryServiceProvider
 ```
 
 Business orchestration berada di application/service/action layer module yang memiliki capability tersebut.
@@ -1173,6 +1260,7 @@ Modules/Auth/Tests
 Modules/User/Tests
 Modules/Academic/Tests
 Modules/HR/Tests
+Modules/Dormitory/Tests
 ```
 
 Root `tests/` digunakan untuk application-level integration yang benar-benar melintasi ownership module atau Laravel shell.
@@ -1218,6 +1306,7 @@ HTTP gagal
 | Employee | `Modules/HR` |
 | Teacher capability | RBAC catalog owned by Academic |
 | Grading human/domain actor | `Modules/HR/Employee` |
+| Dormitory residential/facility domain | `Modules/Dormitory` |
 | PPDB | Scaffold only |
 
 ---
@@ -1281,7 +1370,7 @@ Dormitory → Core
 Core ↛ Dormitory
 ```
 
-`Dormitory`, `Building`, `Room`, `Bed`, dan `ResidentPlacement` bukan `OrganizationUnit` variants dan tidak diimplementasikan di Core. Concrete implementation tetap future workstream di `Modules/Dormitory`.
+`Dormitory`, `Building`, `Room`, `Bed`, `Locker`, dan `ResidentPlacement` bukan `OrganizationUnit` variants dan tidak diimplementasikan di Core. Concrete downstream implementation berada di `Modules/Dormitory` dan tetap mengonsumsi Core ownership/context/authorization contracts.
 
 ---
 
@@ -1313,7 +1402,7 @@ Architecture lebih penting daripada cosmetic symmetry.
 
 # 27. Current Baseline
 
-Setelah Core 2G + Phase 3A + Phase 4A + Phase 4B:
+Setelah Core 2G + Phase 3A + Phase 4A + Phase 4B + Frontend Transport 1-6A + Foundation 6B-6D:
 
 ```text
 Core Identity Foundation
@@ -1352,8 +1441,11 @@ Scoped Organizational Authorization
 Dormitory Integration Boundary
 🔒 LOCKED — Phase 4B.5 / ADR-019
 
+Frontend-facing transport / error / capability / OpenAPI contracts
+🔒 LOCKED — Frontend Transport 1-6A + Foundation 6B-6D
+
 Concrete Dormitory implementation (`Modules/Dormitory`)
-⬜ NOT STARTED — downstream future workstream
+🟡 IMPLEMENTED / EVOLVING — downstream business module; not part of the Core foundation freeze
 ```
 
 New modules harus mengonsumsi canonical foundation tersebut.
