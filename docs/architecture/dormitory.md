@@ -526,9 +526,137 @@ This is not a generic placement lifecycle manager. The implemented service path 
 
 # 7. Placement Resource Requirements
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan resource requirements berdasarkan current room capacity basis dan bagaimana requirement tersebut direvalidasi pada Check-In.
+`PlacementResourceRequirements` is a small immutable Dormitory-domain value object that translates the current `RoomCapacityBasis` into the Bed/Locker presence required for a placement operation. It keeps resource-presence policy separate from persistence, availability checks, and placement lifecycle state.
+
+## 7.1 Requirement matrix
+
+`PlacementResourceRequirements::fromBasis(...)` maps the three current Room capacity bases as follows:
+
+| Room capacity basis | Bed required | Locker required | Satisfied examples |
+| --- | --- | --- | --- |
+| `BED` | yes | no | Bed only; Bed + Locker |
+| `LOCKER` | no | yes | Locker only; Bed + Locker |
+| `BED_AND_LOCKER` | yes | yes | Bed + Locker only |
+
+Canonical rule:
+
+```text
+BED
+  → requires Bed
+  → Locker optional
+
+LOCKER
+  → Bed optional
+  → requires Locker
+
+BED_AND_LOCKER
+  → requires Bed
+  → requires Locker
+```
+
+The value object exposes:
+
+```text
+requiresBed()
+requiresLocker()
+isSatisfiedBy(hasBed, hasLocker)
+```
+
+`isSatisfiedBy(...)` evaluates only whether the required resource types are present. It intentionally allows an additional optional resource. For example, a `BED` room is still requirement-satisfied when both a Bed and Locker are supplied because Bed is required while Locker is optional.
+
+## 7.2 Presence policy is not resource-validity policy
+
+`PlacementResourceRequirements` does not query persistence and does not determine whether a supplied resource is usable, active, belongs to the target Room/Tenant, or is already referenced by another active placement. Those checks are separate application/persistence responsibilities.
+
+The current Check-In path therefore separates the concerns conceptually as:
+
+```text
+current Room.capacity_basis
+        ↓
+PlacementResourceRequirements
+        ↓
+required resource presence
+
+provided Bed / Locker
+        ↓
+Room repository + placement repository
+        ↓
+Room/Tenant ownership, active/usable state,
+and active-placement availability
+```
+
+This separation means `isSatisfiedBy(...)` must not be interpreted as a complete resource-validity or occupancy check.
+
+## 7.3 Optional supplied resources are still validated
+
+A resource that is optional for the current basis may still be supplied. The requirement policy accepts that extra resource, but the current Check-In service still validates any supplied Bed or Locker before activation.
+
+For example:
+
+```text
+Room basis = BED
+Bed supplied = yes
+Locker supplied = yes
+
+requirement policy
+  → satisfied
+
+Locker validity/availability
+  → still must pass Check-In validation
+```
+
+The same principle applies symmetrically to a supplied Bed in a `LOCKER` room. The policy therefore answers **which resource types must be present**, not **which optional resources should be ignored**.
+
+## 7.4 Operation-time basis revalidation
+
+Resource requirements are derived from the Room's current `capacity_basis` during the Check-In transaction. They are not permanently copied from an earlier planning-time Room configuration.
+
+If the Room basis changes after a placement was planned, the current basis governs the activation attempt. For example:
+
+```text
+planning time
+Room basis = BED
+
+check-in time
+Room basis = BED_AND_LOCKER
+
+Bed supplied    = yes
+Locker supplied = no
+
+result
+→ requirement not satisfied
+→ placement remains PLANNED
+```
+
+Current regression coverage explicitly proves that Check-In rejects this case rather than relying on stale planning-time capacity policy.
+
+## 7.5 Enforcement boundary
+
+The database intentionally keeps `resident_placements.bed_id` and `resident_placements.locker_id` nullable and does not encode a basis-specific CHECK constraint such as `BED → bed_id IS NOT NULL`. Resource presence is an operation-time Dormitory policy because it depends on the target Room's current mutable capacity basis.
+
+Current Check-In enforcement is:
+
+```text
+Room current capacity basis
+        ↓
+PlacementResourceRequirements::fromBasis(...)
+        ↓
+validate supplied Bed/Locker when present
+        ↓
+isSatisfiedBy(
+    hasBed: resolved Bed exists,
+    hasLocker: resolved Locker exists,
+)
+        ↓
+false
+→ ResidentCheckInException::resourceRequirementsNotSatisfied()
+```
+
+A failed requirement check does not activate or partially mutate the planned placement; the transaction leaves the placement in its prior `PLANNED` state.
+
+The broader Check-In orchestration, validation order, transaction boundary, and locking behavior are documented in Sections 8 and 9.
 
 ---
 
