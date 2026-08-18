@@ -43,6 +43,12 @@ final class UserServiceProvider extends ServiceProvider
      */
     private function registerRoutes(): void
     {
+        $this->registerApiRoutes();
+        $this->registerBrowserRoutes();
+    }
+
+    private function registerApiRoutes(): void
+    {
         $routeFile = base_path(
             'Modules/User/Routes/api.php',
         );
@@ -58,6 +64,21 @@ final class UserServiceProvider extends ServiceProvider
 
         Route::prefix('api')
             ->middleware('api')
+            ->group($routeFile);
+    }
+
+    private function registerBrowserRoutes(): void
+    {
+        $routeFile = base_path(
+            'Modules/User/Routes/browser.php',
+        );
+
+        if (! is_file($routeFile)) {
+            return;
+        }
+
+        Route::prefix('api')
+            ->middleware('web')
             ->group($routeFile);
     }
 }
