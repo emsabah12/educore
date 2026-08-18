@@ -7,6 +7,8 @@ namespace Modules\Auth\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
+use Modules\Auth\BrowserSession\Infrastructure\SessionCredentialVault;
 use Modules\Auth\Repositories\AuthenticationRepository;
 use Modules\Auth\Services\DeterministicTokenManager;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
@@ -33,6 +35,11 @@ final class AuthServiceProvider extends ServiceProvider
         $this->app->singleton(
             TokenManagerInterface::class,
             DeterministicTokenManager::class,
+        );
+
+        $this->app->bind(
+            BrowserSessionCredentialVaultInterface::class,
+            SessionCredentialVault::class,
         );
     }
 
