@@ -89,15 +89,15 @@ final class OpenApiRouteCoverageTest extends TestCase
         $deferred = $this->deferredOperations();
 
         $this->assertCount(
-            32,
+            37,
             $actual,
             'Expected the current public /api/v1 operation inventory.',
         );
 
         $this->assertCount(
-            15,
+            20,
             $documented,
-            'Foundation OpenAPI must contain exactly the 15 locked foundation operations.',
+            'Foundation OpenAPI must contain exactly the 20 locked foundation and Browser BFF operations.',
         );
 
         $this->assertCount(
@@ -249,7 +249,7 @@ final class OpenApiRouteCoverageTest extends TestCase
         }
 
         $this->assertCount(
-            15,
+            20,
             $operationIds,
         );
     }
@@ -264,8 +264,7 @@ final class OpenApiRouteCoverageTest extends TestCase
 
         $this->assertContains(
             [
-                '$ref' =>
-                '#/components/parameters/OrganizationalAssignmentId',
+                '$ref' => '#/components/parameters/OrganizationalAssignmentId',
             ],
             $parameters,
         );
@@ -450,8 +449,7 @@ final class OpenApiRouteCoverageTest extends TestCase
             );
 
             $operations[$key] = [
-                'route_name' =>
-                $routeName,
+                'route_name' => $routeName,
             ];
         }
 
@@ -468,8 +466,7 @@ final class OpenApiRouteCoverageTest extends TestCase
         $operations = [];
 
         foreach (
-            Route::getRoutes()->getRoutes()
-            as $route
+            Route::getRoutes()->getRoutes() as $route
         ) {
             $uri = $route->uri();
 
@@ -516,7 +513,7 @@ final class OpenApiRouteCoverageTest extends TestCase
 
                 $key = $this->operationKey(
                     $method,
-                    '/' . $uri,
+                    '/'.$uri,
                 );
 
                 $this->assertArrayNotHasKey(
@@ -548,7 +545,7 @@ final class OpenApiRouteCoverageTest extends TestCase
             strtoupper(
                 trim($method),
             ),
-            '/' . ltrim(
+            '/'.ltrim(
                 trim($path),
                 '/',
             ),

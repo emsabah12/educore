@@ -13,50 +13,43 @@ final class OpenApiOperationContractTest extends TestCase
      * @var array<string, string>
      */
     private const SUCCESS_SCHEMAS = [
-        'POST /api/v1/auth/login-token'
-        => '#/components/schemas/LoginTokenSuccess',
+        'POST /api/v1/auth/login-token' => '#/components/schemas/LoginTokenSuccess',
 
-        'POST /api/v1/auth/logout'
-        => '#/components/schemas/LogoutSuccess',
+        'POST /api/v1/auth/logout' => '#/components/schemas/LogoutSuccess',
 
-        'GET /api/v1/auth/me'
-        => '#/components/schemas/AuthenticatedBootstrapSuccess',
+        'GET /api/v1/auth/me' => '#/components/schemas/AuthenticatedBootstrapSuccess',
 
-        'GET /api/v1/core/authorization/capabilities'
-        => '#/components/schemas/TenantCapabilitySuccess',
+        'POST /api/v1/browser/auth/login' => '#/components/schemas/BrowserLoginSuccess',
 
-        'GET /api/v1/core/authorization/workspace-capabilities'
-        => '#/components/schemas/WorkspaceCapabilitySuccess',
+        'GET /api/v1/browser/auth/me' => '#/components/schemas/AuthenticatedBootstrapSuccess',
 
-        'GET /api/v1/core/authorization/roles'
-        => '#/components/schemas/RoleCatalogSuccess',
+        'POST /api/v1/browser/auth/logout' => '#/components/schemas/BrowserLogoutSuccess',
 
-        'GET /api/v1/core/health'
-        => '#/components/schemas/HealthStatus',
+        'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '#/components/schemas/BrowserMembershipSwitchSuccess',
 
-        'POST /api/v1/core/notifications/dispatch'
-        => '#/components/schemas/NotificationDispatchSuccess',
+        'GET /api/v1/core/authorization/capabilities' => '#/components/schemas/TenantCapabilitySuccess',
 
-        'GET /api/v1/core/tenants'
-        => '#/components/schemas/TenantListSuccess',
+        'GET /api/v1/core/authorization/workspace-capabilities' => '#/components/schemas/WorkspaceCapabilitySuccess',
 
-        'POST /api/v1/core/tenants'
-        => '#/components/schemas/TenantCreatedSuccess',
+        'GET /api/v1/core/authorization/roles' => '#/components/schemas/RoleCatalogSuccess',
 
-        'PUT /api/v1/core/tenants/{id}'
-        => '#/components/schemas/TenantUpdatedSuccess',
+        'GET /api/v1/core/health' => '#/components/schemas/HealthStatus',
 
-        'GET /api/v1/user/my-memberships'
-        => '#/components/schemas/MembershipListSuccess',
+        'POST /api/v1/core/notifications/dispatch' => '#/components/schemas/NotificationDispatchSuccess',
 
-        'POST /api/v1/user/memberships/{membership_id}/switch'
-        => '#/components/schemas/MembershipSwitchSuccess',
+        'GET /api/v1/core/tenants' => '#/components/schemas/TenantListSuccess',
 
-        'GET /api/v1/user/my-workspaces'
-        => '#/components/schemas/WorkspaceDiscoverySuccess',
+        'POST /api/v1/core/tenants' => '#/components/schemas/TenantCreatedSuccess',
 
-        'POST /api/v1/user/memberships/{target_membership_id}/assign-role'
-        => '#/components/schemas/MembershipRoleAssignmentSuccess',
+        'PUT /api/v1/core/tenants/{id}' => '#/components/schemas/TenantUpdatedSuccess',
+
+        'GET /api/v1/user/my-memberships' => '#/components/schemas/MembershipListSuccess',
+
+        'POST /api/v1/user/memberships/{membership_id}/switch' => '#/components/schemas/MembershipSwitchSuccess',
+
+        'GET /api/v1/user/my-workspaces' => '#/components/schemas/WorkspaceDiscoverySuccess',
+
+        'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/schemas/MembershipRoleAssignmentSuccess',
     ];
 
     /**
@@ -66,6 +59,10 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/auth/login-token' => '200',
         'POST /api/v1/auth/logout' => '200',
         'GET /api/v1/auth/me' => '200',
+        'POST /api/v1/browser/auth/login' => '200',
+        'GET /api/v1/browser/auth/me' => '200',
+        'POST /api/v1/browser/auth/logout' => '200',
+        'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '200',
         'GET /api/v1/core/authorization/capabilities' => '200',
         'GET /api/v1/core/authorization/workspace-capabilities' => '200',
         'GET /api/v1/core/authorization/roles' => '200',
@@ -84,26 +81,23 @@ final class OpenApiOperationContractTest extends TestCase
      * @var array<string, string>
      */
     private const REQUEST_BODY_SCHEMAS = [
-        'POST /api/v1/auth/login-token'
-        => '#/components/schemas/LoginTokenRequest',
+        'POST /api/v1/auth/login-token' => '#/components/schemas/LoginTokenRequest',
 
-        'POST /api/v1/core/notifications/dispatch'
-        => '#/components/schemas/NotificationDispatchRequest',
+        'POST /api/v1/browser/auth/login' => '#/components/schemas/LoginTokenRequest',
 
-        'POST /api/v1/core/tenants'
-        => '#/components/schemas/StoreTenantRequest',
+        'POST /api/v1/core/notifications/dispatch' => '#/components/schemas/NotificationDispatchRequest',
 
-        'PUT /api/v1/core/tenants/{id}'
-        => '#/components/schemas/UpdateTenantRequest',
+        'POST /api/v1/core/tenants' => '#/components/schemas/StoreTenantRequest',
 
-        'POST /api/v1/user/memberships/{target_membership_id}/assign-role'
-        => '#/components/schemas/MembershipRoleAssignmentRequest',
+        'PUT /api/v1/core/tenants/{id}' => '#/components/schemas/UpdateTenantRequest',
+
+        'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/schemas/MembershipRoleAssignmentRequest',
     ];
 
-    public function test_all_15_foundation_operations_have_exact_success_schema_wiring(): void
+    public function test_all_19_json_foundation_operations_have_exact_success_schema_wiring(): void
     {
         $this->assertCount(
-            15,
+            19,
             self::SUCCESS_SCHEMAS,
         );
 
@@ -129,11 +123,27 @@ final class OpenApiOperationContractTest extends TestCase
         }
     }
 
+    public function test_browser_csrf_bootstrap_is_explicit_no_content_success(): void
+    {
+        $operation = $this->operation(
+            'GET /api/v1/browser/session/csrf',
+        );
+
+        $this->assertArrayHasKey(
+            '204',
+            $operation['responses'],
+        );
+
+        $this->assertArrayNotHasKey(
+            'content',
+            $operation['responses']['204'],
+        );
+    }
+
     public function test_exact_request_body_schemas_are_wired_to_mutating_operations(): void
     {
         foreach (
-            self::REQUEST_BODY_SCHEMAS
-            as $operationKey => $schemaRef
+            self::REQUEST_BODY_SCHEMAS as $operationKey => $schemaRef
         ) {
             $operation = $this->operation(
                 $operationKey,
@@ -171,23 +181,78 @@ final class OpenApiOperationContractTest extends TestCase
                 'POST /api/v1/user/memberships/{membership_id}/switch',
             ),
         );
+
+        $this->assertArrayNotHasKey(
+            'requestBody',
+            $this->operation(
+                'POST /api/v1/browser/user/memberships/{membership_id}/switch',
+            ),
+        );
     }
 
     public function test_public_and_authenticated_security_boundaries_are_explicit(): void
     {
-        $this->assertSame(
-            [],
-            $this->operation(
+        foreach (
+            [
                 'POST /api/v1/auth/login-token',
-            )['security'] ?? null,
-        );
+                'GET /api/v1/core/health',
+                'GET /api/v1/browser/session/csrf',
+                'POST /api/v1/browser/auth/login',
+            ] as $operationKey
+        ) {
+            $this->assertSame(
+                [],
+                $this->operation(
+                    $operationKey,
+                )['security'] ?? null,
+                sprintf(
+                    'Public security drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+        }
+
+        foreach (
+            [
+                'GET /api/v1/browser/auth/me',
+                'POST /api/v1/browser/user/memberships/{membership_id}/switch',
+            ] as $operationKey
+        ) {
+            $this->assertSame(
+                [
+                    [
+                        'BrowserSessionAuth' => [],
+                    ],
+                ],
+                $this->operation(
+                    $operationKey,
+                )['security'] ?? null,
+                sprintf(
+                    'Browser Session security drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+        }
 
         $this->assertSame(
-            [],
+            [
+                [
+                    'BrowserSessionAuth' => [],
+                ],
+                [],
+            ],
             $this->operation(
-                'GET /api/v1/core/health',
+                'POST /api/v1/browser/auth/logout',
             )['security'] ?? null,
+            'Browser logout must remain idempotent for an anonymous session while accepting BrowserSessionAuth.',
         );
+
+        $browserOperations = [
+            'POST /api/v1/browser/auth/login',
+            'GET /api/v1/browser/auth/me',
+            'POST /api/v1/browser/auth/logout',
+            'POST /api/v1/browser/user/memberships/{membership_id}/switch',
+        ];
 
         foreach (
             array_keys(
@@ -197,10 +262,13 @@ final class OpenApiOperationContractTest extends TestCase
             if (
                 in_array(
                     $operationKey,
-                    [
-                        'POST /api/v1/auth/login-token',
-                        'GET /api/v1/core/health',
-                    ],
+                    array_merge(
+                        [
+                            'POST /api/v1/auth/login-token',
+                            'GET /api/v1/core/health',
+                        ],
+                        $browserOperations,
+                    ),
                     true,
                 )
             ) {
@@ -227,20 +295,19 @@ final class OpenApiOperationContractTest extends TestCase
     public function test_context_and_path_parameters_are_wired_to_canonical_components(): void
     {
         $expected = [
-            'GET /api/v1/core/authorization/workspace-capabilities'
-            => '#/components/parameters/OrganizationalAssignmentId',
+            'GET /api/v1/core/authorization/workspace-capabilities' => '#/components/parameters/OrganizationalAssignmentId',
 
-            'GET /api/v1/core/tenants'
-            => '#/components/parameters/TenantPerPage',
+            'GET /api/v1/core/tenants' => '#/components/parameters/TenantPerPage',
 
-            'PUT /api/v1/core/tenants/{id}'
-            => '#/components/parameters/TenantId',
+            'PUT /api/v1/core/tenants/{id}' => '#/components/parameters/TenantId',
 
-            'POST /api/v1/user/memberships/{membership_id}/switch'
-            => '#/components/parameters/MembershipId',
+            'POST /api/v1/user/memberships/{membership_id}/switch' => '#/components/parameters/MembershipId',
 
-            'POST /api/v1/user/memberships/{target_membership_id}/assign-role'
-            => '#/components/parameters/TargetMembershipId',
+            'GET /api/v1/browser/auth/me' => '#/components/parameters/BrowserMembershipLocator',
+
+            'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '#/components/parameters/BrowserMembershipPathId',
+
+            'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/parameters/TargetMembershipId',
         ];
 
         foreach (
@@ -291,16 +358,13 @@ final class OpenApiOperationContractTest extends TestCase
         $this->assertSame(
             [
                 [
-                    '$ref' =>
-                    '#/components/schemas/AuthenticationContextDeniedError',
+                    '$ref' => '#/components/schemas/AuthenticationContextDeniedError',
                 ],
                 [
-                    '$ref' =>
-                    '#/components/schemas/OrganizationalContextRequiredError',
+                    '$ref' => '#/components/schemas/OrganizationalContextRequiredError',
                 ],
                 [
-                    '$ref' =>
-                    '#/components/schemas/OrganizationalContextDeniedError',
+                    '$ref' => '#/components/schemas/OrganizationalContextDeniedError',
                 ],
             ],
             $forbiddenSchemas,
@@ -319,12 +383,10 @@ final class OpenApiOperationContractTest extends TestCase
         $this->assertSame(
             [
                 [
-                    '$ref' =>
-                    '#/components/schemas/OrganizationalContextResolutionFailedError',
+                    '$ref' => '#/components/schemas/OrganizationalContextResolutionFailedError',
                 ],
                 [
-                    '$ref' =>
-                    '#/components/schemas/InternalServerError',
+                    '$ref' => '#/components/schemas/InternalServerError',
                 ],
             ],
             $serverSchemas,

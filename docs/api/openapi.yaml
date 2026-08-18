@@ -6,8 +6,8 @@ info:
   description: |
     Canonical HTTP contract for the EduCore foundation surface.
 
-    This specification currently documents the stable Core, Auth, and User
-    foundation APIs only.
+    This specification currently documents the stable Core, Auth, User, and
+    first-party Browser BFF foundation APIs.
 
     Academic and HR APIs remain public Laravel routes but are explicitly
     recorded under x-educore-deferred-routes until their domain API boundary,
@@ -18,6 +18,7 @@ servers:
 
 tags:
   - name: Authentication
+  - name: Browser Session
   - name: Authorization
   - name: Core Platform
   - name: Tenancy
@@ -89,6 +90,128 @@ paths:
                 $ref: "#/components/schemas/AuthenticatedBootstrapSuccess"
         "403":
           $ref: "#/components/responses/AuthenticationContextDenied"
+
+  /api/v1/browser/session/csrf:
+    get:
+      operationId: browserSessionCsrfBootstrap
+      x-laravel-route-name: api.v1.browser.session.csrf
+      tags:
+        - Browser Session
+      summary: Bootstrap the browser session and request-forgery cookie pair
+      description: |
+        Starts or resumes the server-side Laravel browser session and emits
+        the anti-forgery cookie pair used by the first-party same-origin SPA.
+
+        The response intentionally contains no authentication material.
+      security: []
+      responses:
+        "204":
+          description: Browser session / request-forgery bootstrap completed with no response body.
+
+  /api/v1/browser/auth/login:
+    post:
+      operationId: browserAuthLogin
+      x-laravel-route-name: api.v1.browser.auth.login
+      x-educore-request-forgery-protected: true
+      tags:
+        - Browser Session
+      summary: Authenticate into a server-side Browser Session
+      description: |
+        Authenticates with the canonical credential issuer, regenerates the
+        pre-authentication session identifier, and stores the issued bearer
+        credential exclusively in server-side Browser Session custody.
+
+        The browser response never includes access_token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginTokenRequest"
+      responses:
+        "200":
+          description: Browser authentication succeeded and credential custody remains server-side.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserLoginSuccess"
+        "401":
+          $ref: "#/components/responses/AuthenticationFailed"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
+
+  /api/v1/browser/auth/me:
+    get:
+      operationId: browserAuthBootstrapContext
+      x-laravel-route-name: api.v1.browser.auth.me
+      tags:
+        - Browser Session
+      summary: Return canonical authenticated context through Browser Session mediation
+      description: |
+        X-EduCore-Membership-Id is an untrusted tab-local locator only. The
+        server resolves the corresponding bearer from Browser Session custody
+        and delegates canonical User, Membership, and Tenant validation to the
+        existing authentication middleware. Browser-supplied Authorization
+        input is not authoritative for this operation.
+      security:
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BrowserMembershipLocator"
+      responses:
+        "200":
+          description: Canonical authenticated bootstrap context for the selected Browser Session Membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatedBootstrapSuccess"
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+        "403":
+          description: Browser Membership context is missing, unavailable, mismatched, or canonically invalid.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+        "422":
+          $ref: "#/components/responses/InvalidBrowserMembershipId"
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
+
+  /api/v1/browser/auth/logout:
+    post:
+      operationId: browserAuthLogout
+      x-laravel-route-name: api.v1.browser.auth.logout
+      x-educore-request-forgery-protected: true
+      tags:
+        - Browser Session
+      summary: Revoke Browser Session credentials and invalidate the shared session
+      description: |
+        Best-effort revokes every canonical bearer credential currently held
+        by the shared Browser Session Broker, clears credential custody,
+        invalidates the session identifier, and rotates the CSRF token.
+
+        Logout is intentionally idempotent for an anonymous browser session.
+      security:
+        - BrowserSessionAuth: []
+        - {}
+      responses:
+        "200":
+          description: Browser logout completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserLogoutSuccess"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          $ref: "#/components/responses/LogoutUnavailable"
 
   /api/v1/core/authorization/capabilities:
     get:
@@ -404,6 +527,45 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/browser/user/memberships/{membership_id}/switch:
+    post:
+      operationId: browserUserMembershipSwitch
+      x-laravel-route-name: api.v1.browser.user.memberships.switch
+      x-educore-request-forgery-protected: true
+      tags:
+        - Browser Session
+        - User Context
+      summary: Prepare another canonical Membership credential inside Browser Session custody
+      description: |
+        Uses Browser Session identity and the canonical Membership switch action
+        to validate ownership and Tenant availability. The newly issued bearer
+        is stored server-side and the previously prepared Membership credential
+        remains available for independent browser tabs.
+
+        The browser response never includes access_token and no global active
+        Membership is written into the shared session.
+      security:
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BrowserMembershipPathId"
+      responses:
+        "200":
+          description: Target Membership credential prepared in server-side Browser Session custody.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserMembershipSwitchSuccess"
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+        "403":
+          $ref: "#/components/responses/MembershipSwitchDenied"
+        "422":
+          $ref: "#/components/responses/InvalidBrowserMembershipId"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
+
   /api/v1/user/my-workspaces:
     get:
       operationId: userWorkspaceIndex
@@ -485,6 +647,17 @@ components:
         context. Roles, permissions, capabilities, organizational
         assignments, and workspace authority are intentionally not encoded
         as trusted authorization claims.
+
+    BrowserSessionAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-educore-session
+      description: |
+        First-party same-origin Browser Session credential. Production uses a
+        host-only Secure HttpOnly SameSite=Strict __Host- session cookie.
+
+        Canonical bearer credentials remain exclusively in server-side
+        Browser Session custody and are never exposed to JavaScript.
 
   schemas:
     Uuid:
@@ -611,6 +784,73 @@ components:
             token_revoked:
               type: boolean
               const: true
+
+    BrowserLoginData:
+      type: object
+      additionalProperties: false
+      required:
+        - membership_id
+        - tenant_id
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+
+    BrowserLoginSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/BrowserLoginData"
+
+    BrowserLogoutSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Logout completed successfully.
+
+    BrowserMembershipSwitchData:
+      type: object
+      additionalProperties: false
+      required:
+        - membership_id
+        - tenant_id
+        - tenant_name
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_name:
+          type: string
+
+    BrowserMembershipSwitchSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/BrowserMembershipSwitchData"
 
     AuthenticatedUser:
       type: object
@@ -1464,6 +1704,54 @@ components:
             code:
               const: RESOURCE_NOT_FOUND
 
+    BrowserSessionAuthenticationRequiredError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: BROWSER_SESSION_AUTHENTICATION_REQUIRED
+
+    BrowserMembershipContextRequiredError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: BROWSER_MEMBERSHIP_CONTEXT_REQUIRED
+
+    InvalidBrowserMembershipIdError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: INVALID_BROWSER_MEMBERSHIP_ID
+
+    BrowserMembershipContextDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: BROWSER_MEMBERSHIP_CONTEXT_DENIED
+
+    BrowserSessionContextMismatchError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: BROWSER_SESSION_CONTEXT_MISMATCH
+
+    BrowserSessionUnavailableError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: BROWSER_SESSION_UNAVAILABLE
+
     MembershipSwitchDeniedError:
       allOf:
         - $ref: "#/components/schemas/ApiError"
@@ -1499,6 +1787,25 @@ components:
         This header is a context locator only. It does not grant authority.
         The backend resolves and verifies the assignment against the current
         Tenant and Membership on every request.
+      schema:
+        $ref: "#/components/schemas/UuidV7"
+
+    BrowserMembershipLocator:
+      name: X-EduCore-Membership-Id
+      in: header
+      required: true
+      description: |
+        UUIDv7 locator selecting one Membership credential already prepared
+        inside the current Browser Session. This header is not authentication
+        or authorization authority and cannot create a new Membership context.
+      schema:
+        $ref: "#/components/schemas/UuidV7"
+
+    BrowserMembershipPathId:
+      name: membership_id
+      in: path
+      required: true
+      description: UUIDv7 target Membership locator for Browser Session switch mediation.
       schema:
         $ref: "#/components/schemas/UuidV7"
 
@@ -1569,6 +1876,27 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/LogoutUnavailableError"
+
+    BrowserSessionAuthenticationRequired:
+      description: An authenticated Browser Session is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BrowserSessionAuthenticationRequiredError"
+
+    InvalidBrowserMembershipId:
+      description: Browser Membership locator is malformed or not UUIDv7.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InvalidBrowserMembershipIdError"
+
+    BrowserSessionUnavailable:
+      description: Secure Browser Session credential custody could not be resolved or updated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BrowserSessionUnavailableError"
 
     ValidationFailed:
       description: Request validation failed.

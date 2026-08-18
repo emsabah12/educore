@@ -19,6 +19,17 @@ final class OpenApiSchemaComponentsTest extends TestCase
         'LoginTokenRequest',
         'LoginTokenSuccess',
         'LogoutSuccess',
+        'BrowserLoginData',
+        'BrowserLoginSuccess',
+        'BrowserLogoutSuccess',
+        'BrowserMembershipSwitchData',
+        'BrowserMembershipSwitchSuccess',
+        'BrowserSessionAuthenticationRequiredError',
+        'BrowserMembershipContextRequiredError',
+        'InvalidBrowserMembershipIdError',
+        'BrowserMembershipContextDeniedError',
+        'BrowserSessionContextMismatchError',
+        'BrowserSessionUnavailableError',
         'AuthenticatedBootstrapSuccess',
         'TenantCapabilitySuccess',
         'WorkspaceCapabilitySuccess',
@@ -148,6 +159,59 @@ final class OpenApiSchemaComponentsTest extends TestCase
         $this->assertSame(
             'ORGANIZATION_UNIT',
             $schemas['OrganizationUnitWorkspaceSummary']['properties']['type']['const']
+                ?? null,
+        );
+    }
+
+    public function test_browser_success_schemas_never_expose_bearer_credentials(): void
+    {
+        $schemas = $this->schemas();
+
+        foreach (
+            [
+                'BrowserLoginData',
+                'BrowserMembershipSwitchData',
+            ] as $schemaName
+        ) {
+            $properties = $schemas[$schemaName]['properties']
+                ?? [];
+
+            $this->assertArrayNotHasKey(
+                'access_token',
+                $properties,
+                sprintf(
+                    'Browser-safe schema [%s] must not expose access_token.',
+                    $schemaName,
+                ),
+            );
+
+            $this->assertArrayNotHasKey(
+                'token_type',
+                $properties,
+            );
+        }
+    }
+
+    public function test_browser_membership_locators_are_uuid_v7_and_never_authority_claims(): void
+    {
+        $spec = $this->spec();
+
+        foreach (
+            [
+                'BrowserMembershipLocator',
+                'BrowserMembershipPathId',
+            ] as $parameterName
+        ) {
+            $this->assertSame(
+                '#/components/schemas/UuidV7',
+                $spec['components']['parameters'][$parameterName]['schema']['$ref']
+                    ?? null,
+            );
+        }
+
+        $this->assertSame(
+            'X-EduCore-Membership-Id',
+            $spec['components']['parameters']['BrowserMembershipLocator']['name']
                 ?? null,
         );
     }

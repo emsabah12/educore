@@ -51,8 +51,7 @@ final class OpenApiIntegrityGateTest extends TestCase
         $spec = $this->spec();
 
         foreach (
-            $this->operations($spec)
-            as $operation
+            $this->operations($spec) as $operation
         ) {
             $path = $operation['path'];
             $pathItem = $operation['path_item'];
@@ -190,13 +189,12 @@ final class OpenApiIntegrityGateTest extends TestCase
         }
     }
 
-    public function test_every_documented_response_has_an_application_json_schema(): void
+    public function test_every_documented_response_has_json_schema_or_explicit_no_content_contract(): void
     {
         $spec = $this->spec();
 
         foreach (
-            $this->operations($spec)
-            as $operation
+            $this->operations($spec) as $operation
         ) {
             $responses =
                 $operation['definition']['responses']
@@ -253,6 +251,22 @@ final class OpenApiIntegrityGateTest extends TestCase
                     $response = $resolved;
                 }
 
+                if ((string) $status === '204') {
+                    $this->assertArrayNotHasKey(
+                        'content',
+                        $response,
+                        sprintf(
+                            'No-content response [%s %s] must not declare a response body.',
+                            strtoupper(
+                                $operation['method'],
+                            ),
+                            $operation['path'],
+                        ),
+                    );
+
+                    continue;
+                }
+
                 $schema =
                     $response['content']['application/json']['schema']
                     ?? null;
@@ -289,8 +303,7 @@ final class OpenApiIntegrityGateTest extends TestCase
         $spec = $this->spec();
 
         foreach (
-            $this->operations($spec)
-            as $operation
+            $this->operations($spec) as $operation
         ) {
             if (
                 ! array_key_exists(
@@ -358,7 +371,7 @@ final class OpenApiIntegrityGateTest extends TestCase
             );
 
         $this->assertCount(
-            15,
+            20,
             $operations,
         );
 
@@ -412,8 +425,6 @@ final class OpenApiIntegrityGateTest extends TestCase
     }
 
     /**
-     * @param mixed $value
-     *
      * @return array<int, string>
      */
     private function collectReferences(
@@ -529,8 +540,7 @@ final class OpenApiIntegrityGateTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $spec
-     *
+     * @param  array<string, mixed>  $spec
      * @return array<int, array{
      *     method: string,
      *     path: string,
@@ -544,8 +554,7 @@ final class OpenApiIntegrityGateTest extends TestCase
         $operations = [];
 
         foreach (
-            $spec['paths'] ?? []
-            as $path => $pathItem
+            $spec['paths'] ?? [] as $path => $pathItem
         ) {
             $this->assertIsString(
                 $path,
@@ -556,8 +565,7 @@ final class OpenApiIntegrityGateTest extends TestCase
             );
 
             foreach (
-                self::HTTP_METHODS
-                as $method
+                self::HTTP_METHODS as $method
             ) {
                 if (
                     ! isset(
@@ -574,10 +582,8 @@ final class OpenApiIntegrityGateTest extends TestCase
                 $operations[] = [
                     'method' => $method,
                     'path' => $path,
-                    'path_item' =>
-                    $pathItem,
-                    'definition' =>
-                    $pathItem[$method],
+                    'path_item' => $pathItem,
+                    'definition' => $pathItem[$method],
                 ];
             }
         }
