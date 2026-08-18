@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Auth\Http\Controllers\Browser\v1\BrowserLoginController;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserSessionCsrfController;
 
 Route::prefix('v1/browser')->group(function (): void {
@@ -16,4 +17,9 @@ Route::prefix('v1/browser')->group(function (): void {
         '/session/csrf',
         BrowserSessionCsrfController::class,
     )->name('api.v1.browser.session.csrf');
+
+    Route::post(
+        '/auth/login',
+        BrowserLoginController::class,
+    )->name('api.v1.browser.auth.login');
 });

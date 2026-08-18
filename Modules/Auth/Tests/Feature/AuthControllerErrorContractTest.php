@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Auth\Tests\Feature;
 
 use Illuminate\Http\Request;
+use Modules\Auth\Application\Services\AuthenticationCredentialIssuer;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
@@ -40,8 +41,7 @@ final class AuthControllerErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ],
             $response->getData(true),
         );
@@ -96,8 +96,14 @@ final class AuthControllerErrorContractTest extends TestCase
             ->expects($this->once())
             ->method('log');
 
-        $controller = new AuthController(
+        $credentialIssuer = new AuthenticationCredentialIssuer(
             authRepository: $authenticationRepository,
+            tokenManager: $tokenManager,
+            auditTrail: $auditTrail,
+        );
+
+        $controller = new AuthController(
+            credentialIssuer: $credentialIssuer,
             tokenManager: $tokenManager,
             tokenRevocationStore: $revocationStore,
             auditTrail: $auditTrail,
@@ -107,8 +113,7 @@ final class AuthControllerErrorContractTest extends TestCase
             '/api/v1/auth/logout',
             'POST',
             server: [
-                'HTTP_AUTHORIZATION' =>
-                'Bearer opaque-token',
+                'HTTP_AUTHORIZATION' => 'Bearer opaque-token',
             ],
         );
 
@@ -140,8 +145,7 @@ final class AuthControllerErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'LOGOUT_UNAVAILABLE',
-                'message' =>
-                'Unable to complete logout securely.',
+                'message' => 'Unable to complete logout securely.',
             ],
             $response->getData(true),
         );

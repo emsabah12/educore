@@ -7,9 +7,9 @@ namespace Modules\Auth\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\Application\AuthenticationChannel;
+use Modules\Auth\Application\Services\AuthenticationCredentialIssuer;
 use Modules\Auth\Http\Requests\LoginTokenRequest;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
@@ -21,7 +21,7 @@ use Throwable;
 final class AuthController extends Controller
 {
     public function __construct(
-        private readonly AuthenticationRepositoryInterface $authRepository,
+        private readonly AuthenticationCredentialIssuer $credentialIssuer,
         private readonly TokenManagerInterface $tokenManager,
         private readonly TokenRevocationStoreInterface $tokenRevocationStore,
         private readonly AuditTrailServiceInterface $auditTrail,
@@ -49,33 +49,14 @@ final class AuthController extends Controller
          */
         $credentials = $request->validated();
 
-        $user = $this->authRepository
-            ->findByEmailForTenant(
-                $credentials['email'],
-                $credentials['tenant_uuid'],
-            );
+        $issuedCredential = $this->credentialIssuer->issue(
+            email: $credentials['email'],
+            password: $credentials['password'],
+            tenantUuid: $credentials['tenant_uuid'],
+            channel: AuthenticationChannel::MOBILE_API,
+        );
 
-        if (
-            $user === null
-            || ! Hash::check(
-                $credentials['password'],
-                (string) $user['password'],
-            )
-        ) {
-            $this->auditTrail->log(
-                'auth.login_failed',
-                sprintf(
-                    'Gagal login via token untuk email: %s',
-                    $credentials['email'],
-                ),
-                $credentials['tenant_uuid'],
-                $user['id'] ?? null,
-                [
-                    'channel' => 'mobile_api',
-                    'email' => $credentials['email'],
-                ],
-            );
-
+        if ($issuedCredential === null) {
             return ApiErrorResponse::make(
                 code: 'AUTHENTICATION_FAILED',
                 message: 'Invalid authentication credentials.',
@@ -83,28 +64,17 @@ final class AuthController extends Controller
             );
         }
 
-        $accessToken = $this->tokenManager
-            ->issueToken(
-                (string) $user['id'],
-                (string) $user['tenant_id'],
-                [
-                    'membership_id' =>
-                    (string) $user['membership_id'],
-                ],
-            );
-
         $this->auditTrail->log(
             'auth.login_token_success',
             sprintf(
                 'User %s sukses login via Mobile Token.',
-                (string) $user['name'],
+                $issuedCredential->name,
             ),
-            (string) $user['tenant_id'],
-            (string) $user['id'],
+            $issuedCredential->tenantId,
+            $issuedCredential->userId,
             [
-                'channel' => 'mobile_api',
-                'membership_id' =>
-                (string) $user['membership_id'],
+                'channel' => AuthenticationChannel::MOBILE_API->value,
+                'membership_id' => $issuedCredential->membershipId,
             ],
         );
 
@@ -112,19 +82,15 @@ final class AuthController extends Controller
             [
                 'status' => 'success',
                 'data' => [
-                    'access_token' => $accessToken,
+                    'access_token' => $issuedCredential->bearerCredential,
                     'token_type' => 'Bearer',
-                    'expires_in' =>
-                    $this->tokenManager
-                        ->lifetimeInSeconds(),
+                    'expires_in' => $issuedCredential->expiresInSeconds,
                     'context' => [
-                        'user_id' => $user['id'],
-                        'name' => $user['name'],
-                        'email' => $user['email'],
-                        'membership_id' =>
-                        $user['membership_id'],
-                        'tenant_id' =>
-                        $user['tenant_id'],
+                        'user_id' => $issuedCredential->userId,
+                        'name' => $issuedCredential->name,
+                        'email' => $issuedCredential->email,
+                        'membership_id' => $issuedCredential->membershipId,
+                        'tenant_id' => $issuedCredential->tenantId,
                     ],
                 ],
             ],
@@ -231,8 +197,7 @@ final class AuthController extends Controller
                 [
                     'status' => 'revocation_failed',
                     'token_revoked' => false,
-                    'membership_id' =>
-                    is_string($membershipId)
+                    'membership_id' => is_string($membershipId)
                         ? $membershipId
                         : null,
                 ],
@@ -255,8 +220,7 @@ final class AuthController extends Controller
             [
                 'status' => 'explicit_logout',
                 'token_revoked' => true,
-                'membership_id' =>
-                is_string($membershipId)
+                'membership_id' => is_string($membershipId)
                     ? $membershipId
                     : null,
             ],
@@ -283,8 +247,7 @@ final class AuthController extends Controller
         return response()->json(
             [
                 'status' => 'success',
-                'message' =>
-                'Logout completed successfully.',
+                'message' => 'Logout completed successfully.',
                 'data' => [
                     'token_revoked' => true,
                 ],
