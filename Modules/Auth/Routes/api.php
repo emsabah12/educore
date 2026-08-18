@@ -7,6 +7,8 @@ use Modules\Auth\Http\Controllers\Api\v1\AuthController;
 use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
+use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
 use Modules\Core\Authorization\Http\Api\v1\TenantCapabilityController;
 use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
@@ -28,24 +30,33 @@ Route::prefix('v1/auth')->group(function (): void {
     )->name('api.v1.auth.login-token');
 
     /*
-     * Tenant-aware authenticated routes.
+     * Canonical bearer logout remains stateless. Browser logout has its own
+     * credential-revocation/session-destruction boundary.
      */
-    Route::middleware([
+    Route::post(
+        '/logout',
+        [
+            AuthController::class,
+            'logout',
+        ],
+    )->middleware([
         InjectTenantContext::class,
-    ])->group(function (): void {
-        Route::post(
-            '/logout',
-            [
-                AuthController::class,
-                'logout',
-            ],
-        )->name('api.v1.auth.logout');
+    ])->name('api.v1.auth.logout');
 
-        Route::get(
-            '/me',
-            AuthenticatedContextController::class,
-        )->name('api.v1.auth.me');
-    });
+    /*
+     * Canonical authenticated context supports two transports on one resource:
+     *
+     * - BearerAuth remains stateless for API/mobile clients.
+     * - BrowserSessionAuth conditionally activates the server-side session and
+     *   resolves the tab-local Membership locator to a server-held credential.
+     */
+    Route::get(
+        '/me',
+        AuthenticatedContextController::class,
+    )->middleware([
+        UseBrowserSessionForCanonicalApi::class,
+        InjectTransportAwareTenantContext::class,
+    ])->name('api.v1.auth.me');
 });
 
 /*
@@ -113,7 +124,7 @@ Route::middleware([
 ])->group(function (): void {
     Route::get(
         '/v1/core/authorization/roles',
-        '\\' . RoleCatalogController::class,
+        '\\'.RoleCatalogController::class,
     )->name(
         'api.v1.core.authorization.roles.index',
     );
