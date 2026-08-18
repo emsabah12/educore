@@ -662,19 +662,192 @@ The broader Check-In orchestration, validation order, transaction boundary, and 
 
 # 8. Check-In Application Flow
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan:
+The current Dormitory Check-In use case activates an **existing matching `PLANNED` ResidentPlacement**. It does not create a new placement, perform Check-Out, transfer a resident, or expose an HTTP endpoint. The application boundary is intentionally small:
 
-- `CheckInResident` command boundary;
-- `ResidentPlacementServiceInterface`;
-- tenant-context resolution;
-- resident eligibility adapter;
-- transactional state revalidation;
-- `PLANNED → ACTIVE` transition;
-- persistence responsibilities.
+```text
+CheckInResident command
+        ↓
+ResidentPlacementServiceInterface::checkIn(...)
+        ↓
+ResidentPlacementService
+        ↓
+Dormitory repositories + eligibility adapter
+        ↓
+existing ResidentPlacement: PLANNED → ACTIVE
+```
 
-Current documentation tidak boleh mengklaim actor/scoped-authorization invocation di concrete Check-In service selama behavior tersebut belum terdapat pada implementation.
+## 8.1 Command boundary
+
+`CheckInResident` is an immutable application command carrying only caller-supplied placement data:
+
+```text
+membershipId
+roomId
+bedId nullable
+lockerId nullable
+residentCategory
+```
+
+The command does **not** carry:
+
+```text
+tenantId
+actorId
+Organization / OrganizationUnit context
+authorization result
+```
+
+The command constructor itself is only a data carrier. `ResidentPlacementService` validates the operational input before opening the database transaction:
+
+- current Tenant must be resolvable from `TenantContextInterface`;
+- Tenant, Membership, Room, and any supplied Bed/Locker identifiers must be valid UUIDv7 strings;
+- `residentCategory` must map to the current `ResidentCategory` enum.
+
+A missing tenant context is surfaced through Core's `TenantContextNotResolvedException`. Invalid identifiers or resident category values are rejected through `ResidentCheckInException` factories.
+
+## 8.2 Service and dependency boundary
+
+`ResidentPlacementServiceInterface` currently exposes one Dormitory placement operation:
+
+```text
+checkIn(CheckInResident $command): ResidentPlacement
+```
+
+`DormitoryServiceProvider` binds that contract to `ResidentPlacementService` and binds the service's persistence/eligibility dependencies to Dormitory-owned interfaces:
+
+```text
+ResidentPlacementService
+├── TenantContextInterface                 (Core)
+├── RoomRepositoryInterface                (Dormitory)
+├── ResidentPlacementRepositoryInterface   (Dormitory)
+└── ResidentEligibilityCheckerInterface    (Dormitory)
+```
+
+Concrete infrastructure is supplied through:
+
+```text
+RoomRepositoryInterface
+→ EloquentRoomRepository
+
+ResidentPlacementRepositoryInterface
+→ EloquentResidentPlacementRepository
+
+ResidentEligibilityCheckerInterface
+→ MembershipResidentEligibilityChecker
+```
+
+This keeps the application service responsible for orchestration while query/persistence mechanics stay behind repositories and Core Membership access stays behind a Dormitory-owned eligibility boundary.
+
+## 8.3 Current resident eligibility baseline
+
+`MembershipResidentEligibilityChecker` is the current implementation of `ResidentEligibilityCheckerInterface`. Its baseline rule is intentionally narrow:
+
+```text
+Membership must exist as ACTIVE
+for the current Tenant
+```
+
+The adapter uses Core `MembershipRepositoryInterface::findActiveMembershipByIdAndTenantForShare(...)`. A missing/inactive Membership is translated to `ResidentCheckInException::membershipNotEligible()`.
+
+`residentCategory` is passed through the Dormitory eligibility contract, but the current Membership-backed adapter does not use the category to apply additional policy. Documentation must therefore not claim that `REGULAR_RESIDENT` and `SUPERVISOR_RESIDENT` currently have different eligibility rules.
+
+The shared-lock behavior used by this lookup is part of the concurrency contract and is documented in Section 9.
+
+## 8.4 Transactional application flow
+
+After context and basic input validation, Check-In executes its state-changing work inside `DB::transaction(..., 3)`. The current application-level sequence is:
+
+```text
+1. resolve current Room in Tenant
+2. reject missing/inactive Room
+3. resolve and revalidate Building
+4. resolve and revalidate Dormitory
+5. revalidate Membership eligibility
+6. reject an existing ACTIVE placement for Membership
+7. load the matching PLANNED placement
+8. derive requirements from current Room.capacity_basis
+9. resolve/validate supplied Bed when present
+10. reject Bed already referenced by an ACTIVE placement
+11. resolve/validate supplied Locker when present
+12. reject Locker already referenced by an ACTIVE placement
+13. verify current resource-presence requirements
+14. mutate the existing PLANNED placement
+15. persist and return refreshed ResidentPlacement
+```
+
+This ordering describes application responsibilities only. The exact row-lock modes and serialization guarantees behind those repository calls are documented separately in Section 9.
+
+## 8.5 Transactional revalidation
+
+Check-In does not trust planning-time facility/resource state. Before activation, the current implementation revalidates mutable state from persistence inside the transaction:
+
+- Room must still exist in the current Tenant and be active;
+- parent Building must still exist and be active;
+- parent Dormitory must still exist and be active;
+- Membership must still satisfy the current eligibility baseline;
+- Membership must not already have another active placement;
+- a matching `PLANNED` placement must still exist for the same Tenant, Membership, Room, and resident category;
+- supplied Bed/Locker must belong to the target Room/Tenant and remain active and usable;
+- supplied Bed/Locker must not already be referenced by another active placement;
+- required resource presence is recalculated from the Room's **current** capacity basis.
+
+Focused regression coverage proves rejection when these conditions change before Check-In, including inactive Building/Dormitory/Membership/Room/resources, occupied resources, missing planned placement, existing active placement, missing required Bed/Locker, and changed Room capacity basis.
+
+A failed validation path does not partially activate the placement. Tests verify that the relevant planned placement remains `PLANNED` with `checked_in_at`, Bed, and Locker state unchanged where applicable.
+
+## 8.6 PLANNED → ACTIVE mutation
+
+A successful Check-In mutates the **same** planned-placement row rather than inserting a replacement row:
+
+```text
+existing placement
+status         PLANNED → ACTIVE
+bed_id         → selected Bed id or NULL
+locker_id      → selected Locker id or NULL
+checked_in_at  → current application time
+```
+
+The service does not modify:
+
+```text
+planned_at
+ended_at
+cancelled_at
+```
+
+The placement repository persists with `saveOrFail()` and returns a refreshed model. Regression coverage verifies that the original placement identifier is preserved and no additional placement row is created for the successful activation.
+
+## 8.7 Authorization and exposure boundary
+
+The concrete Check-In service currently resolves Tenant context and resident eligibility, but it does **not**:
+
+- resolve an authenticated actor;
+- invoke Core `AuthorizationService` or scoped Role/Permission evaluation;
+- expose an HTTP/controller/route boundary;
+- derive Organization/OrganizationUnit authorization context for the caller.
+
+This is an implementation-status statement, not a relaxation of ADR-019. When Check-In or another Dormitory operation is exposed through an authenticated application/HTTP boundary, Core authorization plus Dormitory resource-ownership validation remains required by the accepted architectural contract.
+
+## 8.8 Responsibility boundary
+
+Current responsibilities remain separated as follows:
+
+| Concern | Current owner |
+| --- | --- |
+| Tenant resolution | Core `TenantContextInterface` consumed by application service |
+| Check-In orchestration and state transition | `ResidentPlacementService` |
+| Facility/resource lookup | `RoomRepositoryInterface` |
+| Placement lookup and persistence | `ResidentPlacementRepositoryInterface` |
+| Membership eligibility abstraction | `ResidentEligibilityCheckerInterface` |
+| Current Membership-backed eligibility | `MembershipResidentEligibilityChecker` |
+| Resource-presence rule | `PlacementResourceRequirements` |
+| Database lifecycle/uniqueness safeguards | PostgreSQL schema |
+| Exact locking/concurrency semantics | Section 9 |
+| Persistence-conflict/domain-error translation details | Section 11 |
+
+The service catches the recognized active-Membership unique conflict at its persistence boundary and converts it to the corresponding Dormitory domain error; the exact conflict-recognition strategy is intentionally deferred to Section 11.
 
 ---
 
