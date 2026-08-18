@@ -9,6 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Auth\BrowserSession\Infrastructure\SessionCredentialVault;
+use Modules\Auth\BrowserSession\Security\BrowserSessionSecurityPolicy;
 use Modules\Auth\Repositories\AuthenticationRepository;
 use Modules\Auth\Services\DeterministicTokenManager;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
@@ -48,6 +49,7 @@ final class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->assertProductionBrowserSessionSecurity();
         $this->registerMigrations();
         $this->registerRoutes();
     }
@@ -67,7 +69,26 @@ final class AuthServiceProvider extends ServiceProvider
         );
     }
 
+    private function assertProductionBrowserSessionSecurity(): void
+    {
+        if (! $this->app->environment('production')) {
+            return;
+        }
+
+        $this->app
+            ->make(BrowserSessionSecurityPolicy::class)
+            ->assertProductionReady(
+                (array) config('session'),
+            );
+    }
+
     private function registerRoutes(): void
+    {
+        $this->registerApiRoutes();
+        $this->registerBrowserRoutes();
+    }
+
+    private function registerApiRoutes(): void
     {
         $routeFilePath = base_path(
             'Modules/Auth/Routes/api.php',
@@ -79,6 +100,21 @@ final class AuthServiceProvider extends ServiceProvider
 
         Route::prefix('api')
             ->middleware('api')
+            ->group($routeFilePath);
+    }
+
+    private function registerBrowserRoutes(): void
+    {
+        $routeFilePath = base_path(
+            'Modules/Auth/Routes/browser.php',
+        );
+
+        if (! is_file($routeFilePath)) {
+            return;
+        }
+
+        Route::prefix('api')
+            ->middleware('web')
             ->group($routeFilePath);
     }
 }

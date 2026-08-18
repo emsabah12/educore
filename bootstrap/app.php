@@ -7,6 +7,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Modules\Core\Authorization\Http\Middleware\CheckTenantPermission;
+use Modules\Core\Authorization\Http\Middleware\CheckTenantRole;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,18 +16,30 @@ return Application::configure(
     basePath: dirname(__DIR__),
 )
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(
         function (Middleware $middleware): void {
             $middleware->alias([
-                'tenant.role' =>
-                \Modules\Core\Authorization\Http\Middleware\CheckTenantRole::class,
-                'tenant.permission' =>
-                \Modules\Core\Authorization\Http\Middleware\CheckTenantPermission::class,
+                'tenant.role' => CheckTenantRole::class,
+                'tenant.permission' => CheckTenantPermission::class,
             ]);
+
+            /*
+             * BrowserSession/BFF request-forgery baseline.
+             *
+             * Same-origin Sec-Fetch-Site requests may pass Laravel's origin
+             * verification. Requests that cannot establish same-origin trust
+             * must present the session-bound anti-forgery token. Same-site
+             * sibling origins are intentionally not trusted by default.
+             */
+            $middleware->preventRequestForgery(
+                except: [],
+                originOnly: false,
+                allowSameSite: false,
+            );
         },
     )
     ->withExceptions(
@@ -35,7 +49,7 @@ return Application::configure(
              * JSON exception responses.
              */
             $exceptions->shouldRenderJsonWhen(
-                static fn(
+                static fn (
                     Request $request,
                 ): bool => $request->is('api/*')
                     || $request->expectsJson(),
