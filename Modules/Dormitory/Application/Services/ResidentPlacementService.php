@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Dormitory\Application\Services;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
@@ -21,6 +22,8 @@ use Modules\Dormitory\Models\ResidentPlacement;
 
 final readonly class ResidentPlacementService implements ResidentPlacementServiceInterface
 {
+    private const ACTIVE_MEMBERSHIP_UNIQUE_INDEX = 'uq_resident_placements_active_membership';
+
     public function __construct(
         private TenantContextInterface $tenantContext,
         private RoomRepositoryInterface $roomRepository,
@@ -56,7 +59,7 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
             throw ResidentCheckInException::invalidResidentCategory();
         }
 
-        return DB::transaction(function () use (
+        $transaction = function () use (
             $tenantId,
             $membershipId,
             $roomId,
@@ -197,7 +200,17 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
             $placement->checked_in_at = now();
 
             return $this->placementRepository->save($placement);
-        }, 3);
+        };
+
+        try {
+            return DB::transaction($transaction, 3);
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($exception->index !== self::ACTIVE_MEMBERSHIP_UNIQUE_INDEX) {
+                throw $exception;
+            }
+
+            throw ResidentCheckInException::activePlacementExists();
+        }
     }
 
     private function resolveTenantId(): string
