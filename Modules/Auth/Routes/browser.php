@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserLoginController;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserSessionCsrfController;
+use Modules\Auth\Http\Middleware\InjectBrowserTenantContext;
 
 Route::prefix('v1/browser')->group(function (): void {
     /*
@@ -22,4 +24,11 @@ Route::prefix('v1/browser')->group(function (): void {
         '/auth/login',
         BrowserLoginController::class,
     )->name('api.v1.browser.auth.login');
+
+    Route::get(
+        '/auth/me',
+        AuthenticatedContextController::class,
+    )->middleware([
+        InjectBrowserTenantContext::class,
+    ])->name('api.v1.browser.auth.me');
 });
