@@ -853,20 +853,394 @@ The service catches the recognized active-Membership unique conflict at its pers
 
 # 9. Transaction, Locking & Concurrency Contract
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan current single-Room Check-In concurrency contract, termasuk:
+The current concurrency contract applies to the implemented **single-Room Check-In** workflow. It combines application-level transactional revalidation, explicit PostgreSQL row locks, and database uniqueness constraints. None of those layers should be treated as sufficient in isolation.
 
-- deterministic lock sequence;
-- Room exclusive serialization boundary;
-- parent/Membership shared-lock behavior;
-- active placement/resource revalidation;
-- same-Membership/different-Room race handling;
-- same Bed/Locker serialization behavior;
-- combined `BED_AND_LOCKER` safety;
-- database unique constraints sebagai final race guards.
+## 9.1 Canonical Check-In lock sequence
 
-Concurrency guarantee pada section ini hanya berlaku untuk workflow yang telah diuji. Future Transfer/Reassignment tidak boleh mengasumsikan contract single-Room Check-In otomatis deadlock-safe.
+After basic input validation and Tenant-context resolution, the state-changing flow runs inside the Check-In transaction with the following canonical lock order:
+
+```text
+BEGIN TRANSACTION
+
+Room
+  → FOR UPDATE
+
+Building
+  → FOR SHARE
+
+Dormitory
+  → FOR SHARE
+
+Membership
+  → FOR SHARE
+
+existing ACTIVE placement for Membership
+  → FOR UPDATE if present
+
+matching PLANNED placement
+  → FOR UPDATE
+
+Bed
+  → FOR UPDATE if supplied
+
+existing ACTIVE placement for Bed
+  → FOR UPDATE if present
+
+Locker
+  → FOR UPDATE if supplied
+
+existing ACTIVE placement for Locker
+  → FOR UPDATE if present
+
+transactional revalidation
+PLANNED → ACTIVE
+persist
+
+COMMIT
+```
+
+Repository methods own the persistence-specific lock queries while `ResidentPlacementService` owns their application ordering.
+
+The order is part of the current Check-In concurrency contract. Future state-changing workflows must not arbitrarily reorder these resources if they participate in the same concurrency domain.
+
+## 9.2 Room is the primary exclusive serialization boundary
+
+The target Room is locked with `FOR UPDATE` before the parent facility hierarchy and resident/resource checks proceed.
+
+Conceptually:
+
+```text
+Check-In for Room R
+        ↓
+Room R FOR UPDATE
+        ↓
+all later Check-In work for Room R
+is serialized behind that lock
+```
+
+This gives the current Check-In flow a deterministic per-Room exclusive boundary.
+
+Two Check-In transactions targeting the same Room cannot concurrently progress through Bed/Locker allocation and placement activation. The second transaction waits until the first transaction releases the Room lock, then re-runs the relevant current-state checks.
+
+The Room lock is deliberately narrower than locking the entire Building or Dormitory exclusively.
+
+## 9.3 Parent hierarchy uses shared locks
+
+After the Room lock is acquired, the current Building and Dormitory are re-read using shared locks:
+
+```text
+Building
+  → FOR SHARE
+
+Dormitory
+  → FOR SHARE
+```
+
+These locks protect the parent hierarchy from incompatible concurrent mutation while avoiding unnecessary serialization of independent Rooms.
+
+For example:
+
+```text
+Building B
+├── Room A
+└── Room B
+```
+
+Check-In for Room A and Check-In for Room B may each hold their own Room `FOR UPDATE` lock while both hold compatible shared locks on Building B and its Dormitory.
+
+The current implementation therefore does not use:
+
+```text
+Building  FOR UPDATE
+Dormitory FOR UPDATE
+```
+
+as the normal Check-In hierarchy boundary.
+
+That design prevents the shared parent hierarchy from becoming a global Check-In mutex.
+
+## 9.4 Membership eligibility uses a shared lock
+
+Dormitory eligibility delegates to Core Membership persistence through:
+
+```text
+findActiveMembershipByIdAndTenantForShare(...)
+```
+
+The current Membership lookup therefore uses a shared lock:
+
+```text
+Membership
+  → FOR SHARE
+```
+
+Its purpose is eligibility stability: while Check-In relies on the Membership being active, an incompatible concurrent mutation of that Membership cannot silently invalidate the same transaction's eligibility assumption.
+
+The Membership shared lock is **not** the exclusive resident-placement mutex.
+
+Multiple Check-In transactions for the same Membership may hold compatible Membership shared locks if they target different Rooms. ACTIVE placement uniqueness therefore requires an additional database-level correctness boundary.
+
+## 9.5 ACTIVE-placement checks and the zero-row limitation
+
+After Membership eligibility is established, the service checks for an existing active placement using a lock-aware repository query:
+
+```text
+ACTIVE placement for Membership
+  → FOR UPDATE if a matching row exists
+```
+
+A PostgreSQL row lock can lock an existing row, but it cannot lock the **absence** of a row.
+
+Therefore this sequence:
+
+```text
+SELECT ACTIVE placement
+...
+FOR UPDATE
+```
+
+does not create a lock representing:
+
+```text
+there is currently no ACTIVE placement
+```
+
+This is the zero-row race that matters for same-Membership/different-Room Check-In.
+
+## 9.6 Same Membership / different Room safety
+
+Consider two transactions:
+
+```text
+Transaction A
+Membership M
+→ Room A
+
+Transaction B
+Membership M
+→ Room B
+```
+
+They acquire different Room locks:
+
+```text
+A → Room A FOR UPDATE
+B → Room B FOR UPDATE
+```
+
+and both may acquire compatible:
+
+```text
+Membership M FOR SHARE
+```
+
+If there is initially no active placement, both transactions can also observe no existing ACTIVE Membership placement because no row exists to lock.
+
+The final correctness guard is therefore the PostgreSQL partial unique index:
+
+```text
+uq_resident_placements_active_membership
+
+UNIQUE (tenant_id, membership_id)
+WHERE status = 'ACTIVE'
+```
+
+Only one transaction can commit an ACTIVE placement for that Membership in the Tenant.
+
+The losing transaction receives the recognized unique conflict at persistence time. The Check-In service translates that conflict into the Dormitory active-placement domain error rather than exposing the raw database exception. The detailed PostgreSQL conflict-recognition strategy is documented in Section 11.
+
+Application checking and database uniqueness are therefore complementary:
+
+```text
+transactional ACTIVE lookup
+        +
+partial unique index
+        =
+same-Membership correctness
+```
+
+## 9.7 Same Bed / different Membership safety
+
+A Bed belongs to one Room. Two Check-In operations competing for the same Bed therefore also compete for the same Room lock.
+
+Conceptually:
+
+```text
+Membership A ─┐
+              ├── Room R / Bed X
+Membership B ─┘
+```
+
+Serialization proceeds as:
+
+```text
+Transaction A
+→ Room R FOR UPDATE
+→ Bed X FOR UPDATE
+→ no ACTIVE Bed placement
+→ activate placement
+→ COMMIT
+
+Transaction B
+→ waits at Room R FOR UPDATE
+→ continues after A commits
+→ Bed X FOR UPDATE
+→ re-check ACTIVE Bed placement
+→ winner is now visible
+→ bedUnavailable()
+```
+
+The second transaction does not continue based on a stale pre-wait resource snapshot. It revalidates the Bed and its active placement state inside its own transaction after obtaining the serialization boundary.
+
+The database partial unique Bed index remains a final invariant, but the normal current same-Bed Check-In race is serialized earlier by the Room boundary.
+
+## 9.8 Same Locker / different Membership safety
+
+Locker concurrency follows the same structure:
+
+```text
+Membership A ─┐
+              ├── Room R / Locker X
+Membership B ─┘
+```
+
+Both operations must first pass:
+
+```text
+Room R FOR UPDATE
+```
+
+The losing transaction waits at the Room boundary. After the winning transaction commits, the loser revalidates the Locker and detects the active placement reference, producing the Dormitory locker-unavailable error.
+
+Again, the partial unique Locker index is a final database invariant rather than a substitute for operation-time revalidation.
+
+## 9.9 BED_AND_LOCKER combined-resource safety
+
+The current Room-first lock ordering also protects a Check-In that requires both resource types.
+
+A crossed-resource scenario can be represented as:
+
+```text
+Room R
+capacity_basis = BED_AND_LOCKER
+
+Transaction A
+→ Bed A
+→ Locker B
+
+Transaction B
+→ Bed B
+→ Locker A
+```
+
+Without a higher serialization boundary, an unsafe design could form:
+
+```text
+A holds Bed A
+→ waits for Locker B
+
+B holds Bed B
+→ waits for Locker A
+```
+
+The current Check-In flow does not allow both transactions to reach that state concurrently because both must first acquire:
+
+```text
+Room R FOR UPDATE
+```
+
+Only one transaction progresses into Bed and Locker locking/revalidation at a time for the Room. The second transaction remains blocked at the Room boundary until the first completes.
+
+This is the current deadlock-avoidance property for the tested single-Room combined-resource scenario.
+
+It does not prove that every future multi-resource or multi-Room workflow is automatically deadlock-safe.
+
+## 9.10 Database uniqueness remains the final invariant layer
+
+The current persistence layer also protects ACTIVE placement exclusivity through:
+
+```text
+uq_resident_placements_active_membership
+uq_resident_placements_active_bed
+uq_resident_placements_active_locker
+```
+
+Their responsibilities are:
+
+```text
+Membership index
+→ at most one ACTIVE placement
+  per Membership / Tenant
+
+Bed index
+→ at most one ACTIVE placement
+  per Bed / Tenant
+
+Locker index
+→ at most one ACTIVE placement
+  per Locker / Tenant
+```
+
+These constraints remain necessary even though the Check-In service performs explicit lock-aware revalidation.
+
+The layers serve different purposes:
+
+```text
+row locks
+→ serialize relevant mutable state
+
+transactional revalidation
+→ convert current state into domain decisions
+
+database constraints
+→ final protection if competing transactions
+  still reach persistence
+```
+
+Correctness must not depend solely on an earlier application check.
+
+## 9.11 Current concurrency proof and boundary
+
+Current executable regression coverage includes dedicated proofs for:
+
+```text
+ParentHierarchyLockConcurrencyTest
+MembershipSharedLockConcurrencyTest
+SameMembershipDifferentRoomConcurrencyTest
+SameBedDifferentMembershipConcurrencyTest
+SameLockerDifferentMembershipConcurrencyTest
+SameBedAndLockerDifferentMembershipConcurrencyTest
+```
+
+The locked Check-In concurrency milestone establishes the current contract only for the implemented single-Room Check-In workflow.
+
+It must **not** be generalized automatically to future workflows such as:
+
+```text
+Check-Out
+Transfer
+Room reassignment
+bulk resident movement
+multi-Room allocation
+```
+
+Transfer is especially important. A future opposing workflow could require locks such as:
+
+```text
+Transaction A
+Room 1 → Room 2
+
+Transaction B
+Room 2 → Room 1
+```
+
+If each transaction acquires its source Room first, the workflow could create an opposing multi-Room lock order.
+
+A future Transfer/Reassignment implementation must therefore define a deterministic multi-Room ordering, apply transactional revalidation appropriate to that workflow, and receive its own concurrency regression audit before being considered safe.
+
+The current Check-In contract must not be cited as proof of Transfer deadlock safety.
 
 ---
 
