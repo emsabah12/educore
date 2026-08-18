@@ -7,6 +7,7 @@ namespace Modules\Auth\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\BrowserSession\Contracts\BrowserSessionAuthenticationCredentialProviderInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialInventoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Auth\BrowserSession\Infrastructure\SessionCredentialVault;
@@ -41,6 +42,11 @@ final class AuthServiceProvider extends ServiceProvider
 
         $this->app->bind(
             BrowserSessionCredentialVaultInterface::class,
+            SessionCredentialVault::class,
+        );
+
+        $this->app->bind(
+            BrowserSessionAuthenticationCredentialProviderInterface::class,
             SessionCredentialVault::class,
         );
 

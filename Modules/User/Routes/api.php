@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\Auth\Http\Middleware\InjectTransportAwareAuthenticatedUser;
+use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\User\Http\Controllers\Api\v1\AssignMembershipRoleController;
 use Modules\User\Http\Controllers\Api\v1\MembershipController;
 use Modules\User\Http\Controllers\Api\v1\SwitchMembershipController;
@@ -52,19 +54,25 @@ Route::middleware([
 |
 */
 
-Route::middleware([
-    InjectAuthenticatedUser::class,
-])->group(function (): void {
-    Route::get(
-        '/v1/user/my-memberships',
-        [
-            MembershipController::class,
-            'index',
-        ],
-    )->name('api.v1.user.memberships.index');
+Route::get(
+    '/v1/user/my-memberships',
+    [
+        MembershipController::class,
+        'index',
+    ],
+)->middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareAuthenticatedUser::class,
+])->name('api.v1.user.memberships.index');
 
-    Route::post(
-        '/v1/user/memberships/{membership_id}/switch',
-        SwitchMembershipController::class,
-    )->name('api.v1.user.memberships.switch');
-});
+/*
+ * Canonical Membership switch remains bearer-only because BrowserSession
+ * switching has its own credential-custody endpoint and must never return the
+ * newly issued bearer token to the browser.
+ */
+Route::post(
+    '/v1/user/memberships/{membership_id}/switch',
+    SwitchMembershipController::class,
+)->middleware([
+    InjectAuthenticatedUser::class,
+])->name('api.v1.user.memberships.switch');

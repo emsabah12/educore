@@ -8,6 +8,7 @@ use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
 use InvalidArgumentException;
 use LogicException;
+use Modules\Auth\BrowserSession\Contracts\BrowserSessionAuthenticationCredentialProviderInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialInventoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Auth\BrowserSession\Infrastructure\SessionCredentialVault;
@@ -97,6 +98,43 @@ final class SessionCredentialVaultTest extends TestCase
         $vault->storeMembershipCredential(
             UuidV7::generate(),
             'bearer-a',
+        );
+    }
+
+    public function test_authentication_credential_provider_returns_one_credential_without_exposing_membership_map(): void
+    {
+        $vault = $this->createVault();
+        $membershipAId = UuidV7::generate();
+        $membershipBId = UuidV7::generate();
+
+        $vault->establishForUser(UuidV7::generate());
+        $vault->storeMembershipCredential(
+            $membershipAId,
+            'bearer-a',
+        );
+        $vault->storeMembershipCredential(
+            $membershipBId,
+            'bearer-b',
+        );
+
+        $this->assertSame(
+            'bearer-a',
+            $vault->credentialForAuthentication(),
+        );
+    }
+
+    public function test_authentication_credential_provider_returns_null_without_usable_credential(): void
+    {
+        $vault = $this->createVault();
+
+        $this->assertNull(
+            $vault->credentialForAuthentication(),
+        );
+
+        $vault->establishForUser(UuidV7::generate());
+
+        $this->assertNull(
+            $vault->credentialForAuthentication(),
         );
     }
 
@@ -223,6 +261,18 @@ final class SessionCredentialVaultTest extends TestCase
         $vault->storeMembershipCredential(
             UuidV7::generate(),
             '   ',
+        );
+    }
+
+    public function test_container_resolves_authentication_credential_provider_contract(): void
+    {
+        $resolved = $this->app->make(
+            BrowserSessionAuthenticationCredentialProviderInterface::class,
+        );
+
+        $this->assertInstanceOf(
+            SessionCredentialVault::class,
+            $resolved,
         );
     }
 

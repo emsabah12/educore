@@ -7,11 +7,12 @@ namespace Modules\Auth\BrowserSession\Infrastructure;
 use Illuminate\Contracts\Session\Session;
 use InvalidArgumentException;
 use LogicException;
+use Modules\Auth\BrowserSession\Contracts\BrowserSessionAuthenticationCredentialProviderInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialInventoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 
-final class SessionCredentialVault implements BrowserSessionCredentialInventoryInterface, BrowserSessionCredentialVaultInterface
+final class SessionCredentialVault implements BrowserSessionAuthenticationCredentialProviderInterface, BrowserSessionCredentialInventoryInterface, BrowserSessionCredentialVaultInterface
 {
     private const SESSION_KEY = 'educore.browser_auth';
 
@@ -75,6 +76,19 @@ final class SessionCredentialVault implements BrowserSessionCredentialInventoryI
         ];
 
         return $credentials[$membershipId] ?? null;
+    }
+
+    public function credentialForAuthentication(): ?string
+    {
+        $credentials = $this->readState()[
+            self::MEMBERSHIP_CREDENTIALS_KEY
+        ];
+
+        foreach ($credentials as $credential) {
+            return $credential;
+        }
+
+        return null;
     }
 
     public function credentialsForRevocation(): array
