@@ -33,6 +33,7 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
     {
         [$service, $command] = $this->makeCheckInScenario(
             'uq_resident_placements_active_membership',
+            ['tenant_id', 'membership_id'],
         );
 
         try {
@@ -47,10 +48,50 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
         }
     }
 
+    public function test_check_in_translates_active_membership_unique_conflict_by_columns_when_index_is_unavailable(): void
+    {
+        [$service, $command] = $this->makeCheckInScenario(
+            null,
+            ['tenant_id', 'membership_id'],
+        );
+
+        try {
+            $service->checkIn($command);
+            $this->fail('The active-membership column signature must be translated.');
+        } catch (ResidentCheckInException $exception) {
+            $this->assertSame(
+                'The membership already has an active resident placement.',
+                $exception->getMessage(),
+            );
+            $this->assertSame(0, DB::connection()->transactionLevel());
+        }
+    }
+
+    public function test_check_in_translates_active_membership_unique_conflict_by_driver_message_when_metadata_is_unavailable(): void
+    {
+        [$service, $command] = $this->makeCheckInScenario(
+            null,
+            [],
+            'ERROR: nilai kunci ganda melanggar batasan unik « uq_resident_placements_active_membership »',
+        );
+
+        try {
+            $service->checkIn($command);
+            $this->fail('The active-membership driver constraint token must be translated.');
+        } catch (ResidentCheckInException $exception) {
+            $this->assertSame(
+                'The membership already has an active resident placement.',
+                $exception->getMessage(),
+            );
+            $this->assertSame(0, DB::connection()->transactionLevel());
+        }
+    }
+
     public function test_check_in_rethrows_unrelated_unique_conflict(): void
     {
         [$service, $command, $uniqueViolation] = $this->makeCheckInScenario(
             'uq_resident_placements_active_bed',
+            ['tenant_id', 'bed_id'],
         );
 
         try {
@@ -66,6 +107,46 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
         }
     }
 
+    public function test_check_in_rethrows_unrelated_unique_conflict_by_columns_when_index_is_unavailable(): void
+    {
+        [$service, $command, $uniqueViolation] = $this->makeCheckInScenario(
+            null,
+            ['tenant_id', 'bed_id'],
+        );
+
+        try {
+            $service->checkIn($command);
+            $this->fail('Unrelated column signatures must not be translated.');
+        } catch (UniqueConstraintViolationException $exception) {
+            $this->assertSame($uniqueViolation, $exception);
+            $this->assertNull($exception->index);
+            $this->assertSame(
+                ['tenant_id', 'bed_id'],
+                $exception->columns,
+            );
+            $this->assertSame(0, DB::connection()->transactionLevel());
+        }
+    }
+
+    public function test_check_in_rethrows_unrelated_unique_conflict_by_driver_message_when_metadata_is_unavailable(): void
+    {
+        [$service, $command, $uniqueViolation] = $this->makeCheckInScenario(
+            null,
+            [],
+            'ERROR: nilai kunci ganda melanggar batasan unik « uq_resident_placements_active_bed »',
+        );
+
+        try {
+            $service->checkIn($command);
+            $this->fail('Unrelated driver constraint tokens must not be translated.');
+        } catch (UniqueConstraintViolationException $exception) {
+            $this->assertSame($uniqueViolation, $exception);
+            $this->assertNull($exception->index);
+            $this->assertSame([], $exception->columns);
+            $this->assertSame(0, DB::connection()->transactionLevel());
+        }
+    }
+
     /**
      * @return array{
      *     0: ResidentPlacementService,
@@ -74,7 +155,9 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
      * }
      */
     private function makeCheckInScenario(
-        string $uniqueIndex,
+        ?string $uniqueIndex,
+        array $uniqueColumns,
+        ?string $driverMessage = null,
     ): array {
         $tenantId = UuidV7::generate();
         $membershipId = UuidV7::generate();
@@ -126,7 +209,11 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
             'status' => PlacementStatus::PLANNED,
         ]);
 
-        $uniqueViolation = $this->uniqueViolation($uniqueIndex);
+        $uniqueViolation = $this->uniqueViolation(
+            $uniqueIndex,
+            $uniqueColumns,
+            $driverMessage,
+        );
 
         /** @var TenantContextInterface&MockInterface $tenantContext */
         $tenantContext = Mockery::mock(TenantContextInterface::class);
@@ -209,22 +296,36 @@ final class ResidentPlacementUniqueConflictTranslationTest extends TestCase
         ];
     }
 
+    /**
+     * @param  list<string>  $columns
+     */
     private function uniqueViolation(
-        string $index,
+        ?string $index,
+        array $columns,
+        ?string $driverMessage = null,
     ): UniqueConstraintViolationException {
+        $driverMessage ??= sprintf(
+            'duplicate key value violates unique constraint "%s"',
+            $index ?? 'unknown_unique_index',
+        );
+
         $previous = new PDOException(
-            sprintf(
-                'duplicate key value violates unique constraint "%s"',
-                $index,
-            ),
+            $driverMessage,
             23505,
         );
+        $previous->errorInfo = [
+            '23505',
+            7,
+            $driverMessage,
+        ];
 
         return (new UniqueConstraintViolationException(
             'pgsql',
             'update resident_placements set status = ?',
             [PlacementStatus::ACTIVE->value],
             $previous,
-        ))->setIndex($index);
+        ))
+            ->setIndex($index)
+            ->setColumns($columns);
     }
 }

@@ -24,6 +24,11 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
 {
     private const ACTIVE_MEMBERSHIP_UNIQUE_INDEX = 'uq_resident_placements_active_membership';
 
+    private const ACTIVE_MEMBERSHIP_UNIQUE_COLUMNS = [
+        'membership_id',
+        'tenant_id',
+    ];
+
     public function __construct(
         private TenantContextInterface $tenantContext,
         private RoomRepositoryInterface $roomRepository,
@@ -205,12 +210,40 @@ final readonly class ResidentPlacementService implements ResidentPlacementServic
         try {
             return DB::transaction($transaction, 3);
         } catch (UniqueConstraintViolationException $exception) {
-            if ($exception->index !== self::ACTIVE_MEMBERSHIP_UNIQUE_INDEX) {
+            if (! $this->isActiveMembershipUniqueConflict($exception)) {
                 throw $exception;
             }
 
             throw ResidentCheckInException::activePlacementExists();
         }
+    }
+
+    private function isActiveMembershipUniqueConflict(
+        UniqueConstraintViolationException $exception,
+    ): bool {
+        if ($exception->index === self::ACTIVE_MEMBERSHIP_UNIQUE_INDEX) {
+            return true;
+        }
+
+        $columns = $exception->columns;
+        sort($columns);
+
+        if ($columns === self::ACTIVE_MEMBERSHIP_UNIQUE_COLUMNS) {
+            return true;
+        }
+
+        $driverMessage = $exception->errorInfo[2] ?? null;
+
+        if (! is_string($driverMessage) || $driverMessage === '') {
+            return false;
+        }
+
+        $indexPattern = '#\b'.preg_quote(
+            self::ACTIVE_MEMBERSHIP_UNIQUE_INDEX,
+            '#',
+        ).'\b#u';
+
+        return preg_match($indexPattern, $driverMessage) === 1;
     }
 
     private function resolveTenantId(): string
