@@ -1,8 +1,8 @@
 # Architecture Decision Records (ADR)
 
-**Version**: 4.0
+**Version**: 4.1
 **Status**: Current Index
-**Updated**: 2026-08-14
+**Updated**: 2026-08-18
 
 ---
 
@@ -63,6 +63,18 @@ Superseded
 | ADR-017 | Module Runtime & Bootstrap Contract | **Accepted** | Canonical Module Kernel runtime contract after Phase 4A hardening |
 | ADR-018 | Organizational Topology & Scoped Authorization | **Accepted** | Tenant → Organization → OrganizationUnit + Assignment/Context/scoped-role semantics |
 | ADR-019 | Dormitory Integration Boundary | **Accepted** | Dormitory is downstream business domain consuming Core topology |
+| ADR-020 | Frontend Framework & Rendering Strategy | **Accepted** | React SPA baseline, rendering and deployment strategy |
+| ADR-021 | Frontend Modular Application Architecture | **Accepted** | `app/platform/shared/modules` boundaries and explicit module public API |
+| ADR-022 | Authentication Credential Storage & Browser Session Isolation | **Accepted** | HttpOnly browser session with server-side bearer custody and tab isolation |
+| ADR-023 | Tenant / Membership Context Switching | **Accepted** | Membership switch lifecycle and atomic tenant-context commit |
+| ADR-024 | Workspace / Organizational Context Management | **Accepted** | Runtime workspace projection and organizational assignment locator |
+| ADR-025 | API Client, OpenAPI & Canonical Error Handling | **Accepted** | Generated contracts, browser-BFF contract and canonical error handling |
+| ADR-026 | Server-State & Client-State Ownership | **Accepted** | TanStack Query server-state ownership and client-state boundaries |
+| ADR-027 | Capability-Aware Navigation & Authorization UX | **Accepted** | Permission-driven UX without role-name authorization checks |
+| ADR-028 | Routing & Code-Splitting Strategy | **Accepted** | React Router data-mode routing and route-level code splitting |
+| ADR-029 | Frontend Testing Strategy | **Accepted** | Vitest, RTL, MSW and Playwright testing baseline |
+| ADR-030 | Frontend Security Baseline | **Accepted** | Same-origin SPA+BFF, CSP, CSRF and browser security baseline |
+| ADR-031 | Frontend Observability & Performance Strategy | **Accepted** | Vendor-neutral telemetry and Core Web Vitals/performance budgets |
 
 ---
 
@@ -101,6 +113,27 @@ ADR-019 — Dormitory Integration Boundary
 
 The consolidated implemented baseline remains available in [`../current-architecture.md`](../current-architecture.md).
 
+### Frontend Foundation
+
+Current frontend foundation decisions are formalized as:
+
+```text
+ADR-020 — Frontend Framework & Rendering Strategy
+ADR-021 — Frontend Modular Application Architecture
+ADR-022 — Authentication Credential Storage & Browser Session Isolation
+ADR-023 — Tenant / Membership Context Switching
+ADR-024 — Workspace / Organizational Context Management
+ADR-025 — API Client, OpenAPI & Canonical Error Handling
+ADR-026 — Server-State & Client-State Ownership
+ADR-027 — Capability-Aware Navigation & Authorization UX
+ADR-028 — Routing & Code-Splitting Strategy
+ADR-029 — Frontend Testing Strategy
+ADR-030 — Frontend Security Baseline
+ADR-031 — Frontend Observability & Performance Strategy
+```
+
+These decisions implement the accepted Frontend Foundation PRD in [`../../prd/PRD-001-frontend-foundation.md`](../../prd/PRD-001-frontend-foundation.md). The Browser Session/BFF work required by ADR-022, ADR-025, and ADR-030 is additive backend follow-up and does not reopen Core identity, tenancy, membership, or RBAC semantics.
+
 ---
 
 ## Reading Order
@@ -115,7 +148,9 @@ For a new developer:
 5. ADR-013 → ADR-016 (current identity/tenancy/auth/RBAC contracts)
 6. ADR-018 (current organizational topology/scoped authorization contract)
 7. ADR-019 (Dormitory integration boundary)
-8. ADR-006 / ADR-007 / ADR-011 / ADR-012 only as superseded historical context
+8. ../../prd/PRD-001-frontend-foundation.md (accepted Frontend Foundation product contract)
+9. ADR-020 → ADR-031 (current Frontend Foundation architecture decisions)
+10. ADR-006 / ADR-007 / ADR-011 / ADR-012 only as superseded historical context
 ```
 
 ---
