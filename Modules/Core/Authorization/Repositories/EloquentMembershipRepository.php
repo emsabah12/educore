@@ -14,27 +14,20 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
         string $membershipId,
         string $tenantId,
     ): ?Membership {
-        $membershipId = trim($membershipId);
-        $tenantId = trim($tenantId);
+        return $this->activeMembershipByIdAndTenantQuery(
+            $membershipId,
+            $tenantId,
+        )?->first();
+    }
 
-        if (
-            $membershipId === ''
-            || $tenantId === ''
-        ) {
-            return null;
-        }
-
-        return $this->explicitBoundaryQuery()
-            ->whereKey($membershipId)
-            ->where(
-                'memberships.tenant_id',
-                $tenantId,
-            )
-            ->where(
-                'memberships.status',
-                'ACTIVE',
-            )
-            ->first();
+    public function findActiveMembershipByIdAndTenantForShare(
+        string $membershipId,
+        string $tenantId,
+    ): ?Membership {
+        return $this->activeMembershipByIdAndTenantQuery(
+            $membershipId,
+            $tenantId,
+        )?->sharedLock()->first();
     }
 
     public function findActiveMembershipByIdForPerson(
@@ -76,6 +69,35 @@ final class EloquentMembershipRepository implements MembershipRepositoryInterfac
                 true,
             )
             ->first();
+    }
+
+    /**
+     * @return Builder<Membership>|null
+     */
+    private function activeMembershipByIdAndTenantQuery(
+        string $membershipId,
+        string $tenantId,
+    ): ?Builder {
+        $membershipId = trim($membershipId);
+        $tenantId = trim($tenantId);
+
+        if (
+            $membershipId === ''
+            || $tenantId === ''
+        ) {
+            return null;
+        }
+
+        return $this->explicitBoundaryQuery()
+            ->whereKey($membershipId)
+            ->where(
+                'memberships.tenant_id',
+                $tenantId,
+            )
+            ->where(
+                'memberships.status',
+                'ACTIVE',
+            );
     }
 
     /**

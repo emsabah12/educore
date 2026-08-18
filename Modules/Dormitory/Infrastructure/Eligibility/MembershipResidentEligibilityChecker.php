@@ -20,7 +20,7 @@ final readonly class MembershipResidentEligibilityChecker implements ResidentEli
         string $residentCategory,
     ): void {
         $membership = $this->membershipRepository
-            ->findActiveMembershipByIdAndTenant(
+            ->findActiveMembershipByIdAndTenantForShare(
                 $membershipId,
                 $tenantId,
             );

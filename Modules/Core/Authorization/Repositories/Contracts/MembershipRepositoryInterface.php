@@ -17,6 +17,14 @@ interface MembershipRepositoryInterface
     ): ?Membership;
 
     /**
+     * Find an active membership and hold a shared row lock for the caller's transaction.
+     */
+    public function findActiveMembershipByIdAndTenantForShare(
+        string $membershipId,
+        string $tenantId,
+    ): ?Membership;
+
+    /**
      * Find an active membership by explicit membership and canonical Person.
      *
      * Used when selecting/switching memberships before the target tenant has
