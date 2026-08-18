@@ -8,6 +8,7 @@ use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
 use InvalidArgumentException;
 use LogicException;
+use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialInventoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Auth\BrowserSession\Infrastructure\SessionCredentialVault;
 use Modules\Core\Support\Uuid\UuidV7;
@@ -96,6 +97,40 @@ final class SessionCredentialVaultTest extends TestCase
         $vault->storeMembershipCredential(
             UuidV7::generate(),
             'bearer-a',
+        );
+    }
+
+    public function test_revocation_inventory_returns_all_membership_credentials_without_mutating_vault(): void
+    {
+        $vault = $this->createVault();
+        $membershipAId = UuidV7::generate();
+        $membershipBId = UuidV7::generate();
+
+        $vault->establishForUser(UuidV7::generate());
+        $vault->storeMembershipCredential(
+            $membershipAId,
+            'bearer-a',
+        );
+        $vault->storeMembershipCredential(
+            $membershipBId,
+            'bearer-b',
+        );
+
+        $this->assertSame(
+            [
+                $membershipAId => 'bearer-a',
+                $membershipBId => 'bearer-b',
+            ],
+            $vault->credentialsForRevocation(),
+        );
+
+        $this->assertSame(
+            'bearer-a',
+            $vault->credentialForMembership($membershipAId),
+        );
+        $this->assertSame(
+            'bearer-b',
+            $vault->credentialForMembership($membershipBId),
         );
     }
 
@@ -188,6 +223,18 @@ final class SessionCredentialVaultTest extends TestCase
         $vault->storeMembershipCredential(
             UuidV7::generate(),
             '   ',
+        );
+    }
+
+    public function test_container_resolves_revocation_inventory_contract(): void
+    {
+        $resolved = $this->app->make(
+            BrowserSessionCredentialInventoryInterface::class,
+        );
+
+        $this->assertInstanceOf(
+            SessionCredentialVault::class,
+            $resolved,
         );
     }
 

@@ -53,8 +53,7 @@ final class DeterministicTokenManagerTest extends TestCase
             '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
             '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
             [
-                'membership_id' =>
-                '019f6e4d-c67c-7064-a1d5-5261c4162922',
+                'membership_id' => '019f6e4d-c67c-7064-a1d5-5261c4162922',
             ],
         );
 
@@ -103,15 +102,53 @@ final class DeterministicTokenManagerTest extends TestCase
         $manager = $this->createTokenManager();
 
         $token = $this->encryptPayload([
-            'user_id' =>
-            '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
-            'tenant_id' =>
-            '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
+            'user_id' => '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
+            'tenant_id' => '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
             'expires_at' => $now->timestamp,
         ]);
 
         $this->assertNull(
             $manager->validateAndExtract($token),
+        );
+    }
+
+    /**
+     * @throws JsonException
+     */
+    public function test_revocation_expiration_metadata_remains_available_at_expiration_boundary(): void
+    {
+        $now = Carbon::parse(
+            '2026-08-04 00:00:00',
+            'UTC',
+        );
+
+        Carbon::setTestNow($now);
+
+        $manager = $this->createTokenManager();
+
+        $token = $this->encryptPayload([
+            'user_id' => '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
+            'tenant_id' => '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
+            'expires_at' => $now->timestamp,
+        ]);
+
+        $this->assertSame(
+            $now->timestamp,
+            $manager->expiresAtForRevocation($token),
+        );
+        $this->assertNull(
+            $manager->validateAndExtract($token),
+        );
+    }
+
+    public function test_revocation_expiration_metadata_rejects_tampered_token(): void
+    {
+        $manager = $this->createTokenManager();
+
+        $this->assertNull(
+            $manager->expiresAtForRevocation(
+                'tampered-browser-credential',
+            ),
         );
     }
 
@@ -130,12 +167,9 @@ final class DeterministicTokenManagerTest extends TestCase
         $manager = $this->createTokenManager();
 
         $expectedPayload = [
-            'user_id' =>
-            '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
-            'tenant_id' =>
-            '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
-            'membership_id' =>
-            '019f6e4d-c67c-7064-a1d5-5261c4162922',
+            'user_id' => '019f6e4d-c4cc-72c2-b8d7-cd6faabe6fd2',
+            'tenant_id' => '019f62f3-f5b5-7216-9578-0af9cb3b5b54',
+            'membership_id' => '019f6e4d-c67c-7064-a1d5-5261c4162922',
             'expires_at' => $now->timestamp + 1,
         ];
 
@@ -150,7 +184,7 @@ final class DeterministicTokenManagerTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      *
      * @throws JsonException
      */
@@ -163,6 +197,7 @@ final class DeterministicTokenManagerTest extends TestCase
             ),
         );
     }
+
     public function test_revoked_token_is_rejected(): void
     {
         $revocationStore = $this->createMock(
@@ -177,8 +212,7 @@ final class DeterministicTokenManagerTest extends TestCase
             '11111111-1111-4111-8111-111111111111',
             '22222222-2222-4222-8222-222222222222',
             [
-                'membership_id' =>
-                '33333333-3333-4333-8333-333333333333',
+                'membership_id' => '33333333-3333-4333-8333-333333333333',
             ],
         );
 

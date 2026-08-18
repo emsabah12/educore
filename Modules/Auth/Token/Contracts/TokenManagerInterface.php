@@ -15,7 +15,7 @@ interface TokenManagerInterface
      *
      * Core claims tidak boleh ditimpa oleh custom claims.
      *
-     * @param array<string, mixed> $customClaims
+     * @param  array<string, mixed>  $customClaims
      */
     public function issueToken(
         string $userUuid,
@@ -30,6 +30,15 @@ interface TokenManagerInterface
      * @return array<string, mixed>|null
      */
     public function validateAndExtract(string $token): ?array;
+
+    /**
+     * Resolve canonical token expiration metadata for revocation lifecycle.
+     *
+     * This method validates the encrypted envelope and required core claims but
+     * MUST NOT be used as an authentication decision and does not require the
+     * token to still be unexpired or unrevoked.
+     */
+    public function expiresAtForRevocation(string $token): ?int;
 
     /**
      * Masa aktif token dalam detik.

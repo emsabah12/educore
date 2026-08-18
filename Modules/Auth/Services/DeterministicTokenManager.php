@@ -31,7 +31,7 @@ final class DeterministicTokenManager implements TokenManagerInterface
     }
 
     /**
-     * @param array<string, mixed> $customClaims
+     * @param  array<string, mixed>  $customClaims
      *
      * @throws JsonException
      */
@@ -70,69 +70,25 @@ final class DeterministicTokenManager implements TokenManagerInterface
     public function validateAndExtract(
         string $token,
     ): ?array {
+        $payload = $this->extractCanonicalPayload($token);
+
+        if ($payload === null) {
+            return null;
+        }
+
+        $userId = $payload['user_id'];
+        $tenantId = $payload['tenant_id'];
+        $expiresAt = $payload['expires_at'];
+
         /*
-         * Tahap pertama hanya memvalidasi cryptographic envelope
-         * dan canonical claims.
-         *
-         * Revocation store tidak disentuh untuk token malformed agar
-         * request sampah tidak menghasilkan database lookup.
+         * Token tidak lagi valid tepat pada detik expires_at.
          */
-        try {
-            $decryptedPayload = Crypt::decryptString(
-                $token,
-            );
-
-            $payload = json_decode(
-                $decryptedPayload,
-                true,
-                512,
-                JSON_THROW_ON_ERROR,
-            );
-
-            if (! is_array($payload)) {
-                return null;
-            }
-
-            $userId = $payload['user_id'] ?? null;
-            $tenantId = $payload['tenant_id'] ?? null;
-            $expiresAt = $payload['expires_at'] ?? null;
-
-            if (
-                ! is_string($userId)
-                || trim($userId) === ''
-                || ! is_string($tenantId)
-                || trim($tenantId) === ''
-                || ! is_int($expiresAt)
-            ) {
-                Log::warning(
-                    'Malformed authentication token payload blocked.',
-                );
-
-                return null;
-            }
-
-            /*
-             * Token tidak lagi valid tepat pada detik expires_at.
-             */
-            if ($this->currentTimestamp() >= $expiresAt) {
-                Log::warning(
-                    'Expired authentication token blocked.',
-                    [
-                        'user_id' => $userId,
-                        'tenant_id' => $tenantId,
-                    ],
-                );
-
-                return null;
-            }
-        } catch (Throwable $exception) {
-            /*
-             * Jangan mencatat raw token atau decrypted payload.
-             */
+        if ($this->currentTimestamp() >= $expiresAt) {
             Log::warning(
-                'Tampered or invalid authentication token blocked.',
+                'Expired authentication token blocked.',
                 [
-                    'exception' => $exception::class,
+                    'user_id' => $userId,
+                    'tenant_id' => $tenantId,
                 ],
             );
 
@@ -180,6 +136,78 @@ final class DeterministicTokenManager implements TokenManagerInterface
         }
 
         return $payload;
+    }
+
+    public function expiresAtForRevocation(
+        string $token,
+    ): ?int {
+        $payload = $this->extractCanonicalPayload($token);
+
+        return is_array($payload)
+            ? $payload['expires_at']
+            : null;
+    }
+
+    /**
+     * Validate only the encrypted envelope and canonical core claims.
+     *
+     * This intentionally does not enforce token lifetime or revocation so the
+     * logout lifecycle can still persist a revocation for a structurally valid
+     * credential without treating this method as authentication.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function extractCanonicalPayload(
+        string $token,
+    ): ?array {
+        try {
+            $decryptedPayload = Crypt::decryptString(
+                $token,
+            );
+
+            $payload = json_decode(
+                $decryptedPayload,
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            if (! is_array($payload)) {
+                return null;
+            }
+
+            $userId = $payload['user_id'] ?? null;
+            $tenantId = $payload['tenant_id'] ?? null;
+            $expiresAt = $payload['expires_at'] ?? null;
+
+            if (
+                ! is_string($userId)
+                || trim($userId) === ''
+                || ! is_string($tenantId)
+                || trim($tenantId) === ''
+                || ! is_int($expiresAt)
+            ) {
+                Log::warning(
+                    'Malformed authentication token payload blocked.',
+                );
+
+                return null;
+            }
+
+            return $payload;
+        } catch (Throwable $exception) {
+            /*
+             * Jangan mencatat raw token atau decrypted payload.
+             */
+            Log::warning(
+                'Tampered or invalid authentication token blocked.',
+                [
+                    'exception' => $exception::class,
+                ],
+            );
+
+            return null;
+        }
     }
 
     private function currentTimestamp(): int
