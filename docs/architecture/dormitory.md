@@ -240,15 +240,116 @@ This protects hierarchy integrity and prevents parent hard deletion from silentl
 
 # 5. Room Capacity Model
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan:
+Room capacity is modeled as a Dormitory-domain calculation rather than as a single numeric `capacity` column. A Room persists the resource basis that determines which resource count constrains occupancy, while the `RoomCapacity` value object evaluates an operational capacity snapshot supplied by its caller.
 
-- `RoomCapacityBasis`;
-- `BED`, `LOCKER`, dan `BED_AND_LOCKER` semantics;
-- effective-capacity calculation;
-- usable-resource semantics;
-- non-destructive over-capacity behavior.
+## 5.1 Capacity basis
+
+`RoomCapacityBasis` defines exactly three current modes:
+
+```text
+BED
+LOCKER
+BED_AND_LOCKER
+```
+
+`rooms.capacity_basis` is required persistence state and is cast by the `Room` model to `RoomCapacityBasis`. The migration does not define a generic integer room-capacity column or a default capacity basis; callers creating a Room must choose one of the supported values.
+
+The basis determines effective capacity as follows:
+
+| Basis | Effective capacity | Meaning |
+| --- | --- | --- |
+| `BED` | `usableBeds` | Bed count constrains capacity |
+| `LOCKER` | `usableLockers` | Locker count constrains capacity |
+| `BED_AND_LOCKER` | `min(usableBeds, usableLockers)` | Both resource types are required, so the scarcer resource constrains capacity |
+
+`BED_AND_LOCKER` never adds Bed and Locker counts. For example, 20 usable Beds and 16 usable Lockers produce an effective capacity of 16, not 36.
+
+## 5.2 Capacity snapshot value object
+
+`RoomCapacity` is an immutable domain value object with four inputs:
+
+```text
+basis
+usableBeds
+usableLockers
+activeOccupancy
+```
+
+All three numeric counts must be non-negative. Negative capacity or occupancy inputs are rejected with `InvalidArgumentException`.
+
+The value object exposes the following calculations:
+
+```text
+effectiveCapacity
+  = basis-specific resource capacity
+
+availableCapacity
+  = max(0, effectiveCapacity - activeOccupancy)
+
+isOverCapacity
+  = activeOccupancy > effectiveCapacity
+
+overCapacityBy
+  = max(0, activeOccupancy - effectiveCapacity)
+```
+
+`availableCapacity` therefore never becomes negative. If active occupancy exceeds the currently effective capacity, the room is represented as over-capacity while available capacity remains zero.
+
+## 5.3 Resource availability persistence
+
+Bed and Locker are persisted as Room resources with separate operational flags:
+
+```text
+is_active
+is_usable
+```
+
+Both columns default to `true` in the current migrations. The flags have distinct purposes: a resource can remain part of the persisted facility history while being inactive or temporarily unusable. Current Check-In validation requires a supplied Bed or Locker to be both active and usable before it can participate in an activation.
+
+The capacity domain model intentionally does not encode an automatic database query for these flags. `RoomCapacity` receives already-calculated `usableBeds` and `usableLockers` counts; it does not query `beds`, `lockers`, or resident placements itself. The current module does not expose a dedicated database-backed service that assembles a complete `RoomCapacity` snapshot automatically.
+
+This distinction is part of the current contract:
+
+```text
+persistence
+  → stores Room basis and Bed/Locker operational state
+
+RoomCapacity
+  → evaluates supplied counts
+
+caller/read model
+  → responsible for assembling those counts when such a workflow is implemented
+```
+
+Documentation must therefore describe the effective-capacity **calculation semantics** as implemented, without claiming that a general persisted capacity read model already exists.
+
+## 5.4 Non-destructive over-capacity behavior
+
+Capacity reduction is treated as operational state, not destructive reconciliation. If a later capacity snapshot has fewer usable resources than active occupancy, `RoomCapacity` reports the room as over-capacity and reports the excess through `overCapacityBy()`.
+
+Example:
+
+```text
+basis             = BED_AND_LOCKER
+usableBeds         = 20
+usableLockers      = 16
+activeOccupancy    = 17
+
+effectiveCapacity = 16
+availableCapacity = 0
+isOverCapacity     = true
+overCapacityBy     = 1
+```
+
+The domain calculation does not remove, move, cancel, or otherwise mutate resident placements to make occupancy fit the new capacity. Existing resident history is preserved. Any future reconciliation or resident-movement workflow is a separate application-domain decision and must not be inferred from `RoomCapacity`.
+
+## 5.5 Mutable Room basis and operation-time policy
+
+`capacity_basis` is current Room state rather than immutable historical configuration. A Room may therefore have a different basis when a later operation executes than when an earlier placement was planned. Current Check-In behavior re-reads and revalidates the Room's current basis inside its transaction before activating a placement.
+
+The exact Bed/Locker requirement for each basis and its Check-In enforcement are documented in Sections 7 and 8. This section defines only the capacity calculation and resource-state semantics.
 
 ---
 
