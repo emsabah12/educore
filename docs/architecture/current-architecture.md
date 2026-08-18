@@ -1,8 +1,8 @@
 # EduCore Current Architecture Baseline
 
 **Status**: Locked Baseline
-**Updated**: 2026-08-17
-**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
+**Updated**: 2026-08-19
+**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D + Dormitory Check-In Foundation through 3.8.3
 
 ---
 
@@ -758,7 +758,7 @@ See ADR-018.
 
 ## 18. Dormitory Integration Boundary
 
-Dormitory is **not** a Core topology level. Concrete downstream implementation now exists under:
+Dormitory is **not** a Core topology level. Concrete downstream implementation exists under:
 
 ```text
 Modules/Dormitory
@@ -772,11 +772,72 @@ Dormitory
 Core
 ```
 
-The Dormitory root is tenant-aware, owned by one Organization, and optionally owned by an OrganizationUnit. Building, Room, Bed, Locker, and ResidentPlacement remain Dormitory-domain concepts rather than `OrganizationUnit` variants.
+Core production code must not depend on Dormitory.
 
-Resident identity remains rooted in canonical Membership. Dormitory reuses Core organizational ownership/context and scoped authorization rather than duplicating tenancy, identity, Role, or Permission catalogs. Core production code must not depend on Dormitory.
+### Current ownership and resident model
 
-Current repository implementation includes concrete Dormitory persistence, facility/capacity resources, placement persistence, check-in orchestration, and concurrency safeguards. This does not make unfinished Dormitory business lifecycle work part of Core; further Dormitory capabilities continue as a downstream module workstream under the ADR-019 boundary.
+The Dormitory root is tenant-aware, owned by exactly one Organization, and optionally scoped to one OrganizationUnit from the same Tenant and Organization. Its facility hierarchy is:
+
+```text
+Dormitory
+  ↓
+Building
+  ↓
+Room
+  ├── Bed
+  └── Locker
+```
+
+Descendant facility resources inherit organizational ownership through their parent hierarchy and remain Dormitory-domain concepts rather than `OrganizationUnit` variants. Tenant-qualified database constraints protect the persisted hierarchy from cross-tenant or mismatched parent references.
+
+Resident identity remains rooted in canonical Core Membership. Resident placement is a separate Dormitory-domain relationship whose canonical resident location is Room:
+
+```text
+Membership
+  ↓
+ResidentPlacement
+  ↓
+Room
+```
+
+Dormitory and Building location are derived through the Room hierarchy rather than duplicated on resident placement. Current placement persistence supports `PLANNED`, `ACTIVE`, `ENDED`, and `CANCELLED` lifecycle states and preserves historical records.
+
+### Current capacity and Check-In foundation
+
+Current room capacity bases are:
+
+```text
+BED
+LOCKER
+BED_AND_LOCKER
+```
+
+Effective capacity is derived from usable Bed/Locker counts according to the room basis; `BED_AND_LOCKER` uses the smaller usable-resource count rather than adding both resource counts. Resource requirement policy is revalidated when a planned resident placement is checked in.
+
+The implemented Check-In application service:
+
+- resolves the current Tenant through `TenantContext`;
+- validates resident eligibility through a Dormitory-owned interface backed by Core Membership persistence;
+- transactionally revalidates Room, parent hierarchy, Membership, planned placement, and supplied Bed/Locker state;
+- transitions the matching planned placement to `ACTIVE`;
+- relies on database invariants as final guards against duplicate active Membership/Bed/Locker placement.
+
+Current Check-In concurrency uses Room as the primary exclusive serialization boundary, with Building, Dormitory, and Membership protected using shared locks where appropriate. Active-placement/resource checks are repeated inside the same transaction. The active Membership partial unique constraint remains the final guard for the same-Membership/different-Room zero-row race, and recognized PostgreSQL unique conflicts are translated into Dormitory domain errors rather than leaking raw database exceptions.
+
+The locked 3.8.3 closure evidence is:
+
+```text
+Dormitory suite             78 passed / 453 assertions
+Focused concurrency suite   12 passed / 212 assertions
+```
+
+These counts are phase evidence rather than permanent architecture. Future changes must preserve the documented invariants and deliberately update the relevant regression gates.
+
+### Authorization and unfinished lifecycle boundary
+
+Dormitory continues to reuse Core Role/Permission and organizational authorization contracts rather than creating a parallel authorization system. However, the current Check-In application service does **not** resolve an actor or invoke Core scoped authorization itself, and no Dormitory HTTP/API boundary is implemented yet. Authorization plus resource-ownership validation remains required when Dormitory operations are exposed through an authenticated application/HTTP boundary.
+
+Check-Out, Transfer/Room reassignment, bulk movement, complete END/CANCEL application workflows, and Dormitory HTTP/API integration remain unfinished downstream work. The current single-Room Check-In locking contract must not be assumed to make a future multi-Room Transfer/Reassignment workflow deadlock-safe; such workflows require their own deterministic multi-Room locking design and concurrency audit.
 
 See ADR-019.
 
@@ -804,6 +865,6 @@ Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as super
 
 The Core/domain foundation, frontend-facing transport contract, canonical API error boundary, capability projection, and Foundation OpenAPI contract are current locked baselines. Documentation/regression closure must align to those contracts rather than reopen them implicitly.
 
-Concrete Dormitory implementation already exists and continues as a downstream workstream under ADR-019. Academic/HR operations that are still listed as explicit OpenAPI deferred routes remain separate domain API-hardening work and must not be silently promoted into the foundation contract.
+Dormitory Check-In through concurrency milestone 3.8.3 is a locked downstream baseline under ADR-019. Remaining Dormitory lifecycle/API work—especially Check-Out, Transfer/Reassignment, authenticated HTTP exposure, and multi-Room concurrency—requires explicit downstream design and regression work rather than being inferred from the current Check-In contract. Academic/HR operations that are still listed as explicit OpenAPI deferred routes remain separate domain API-hardening work and must not be silently promoted into the foundation contract.
 
 Future architectural changes should enter through a concrete requirement and explicit ADR/workstream when they alter a frozen contract.
