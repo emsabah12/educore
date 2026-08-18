@@ -87,32 +87,154 @@ Detail unfinished boundary akan didokumentasikan pada section khusus setelah cur
 
 # 3. Architectural Boundary
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan current dependency direction dan Core integration contract tanpa menduplikasi rationale ADR-019.
+ADR-019 remains the canonical architectural decision for the Dormitory integration boundary. The current implementation preserves that decision rather than extending Core with residential concepts.
 
-Canonical boundary yang tidak boleh berubah secara implisit:
+Canonical dependency direction:
 
 ```text
 Dormitory → Core
 Core ↛ Dormitory
 ```
 
-Canonical resident identity tetap berasal dari Core `Membership`. Dormitory, Building, Room, Bed, Locker, dan ResidentPlacement tetap merupakan konsep downstream Dormitory domain.
+`Modules/Dormitory/module.yaml` declares only `core` as a module dependency and registers `DormitoryServiceProvider` through the manifest-driven module runtime. Dormitory is therefore a downstream business module that consumes Core contracts and models without becoming part of Core organizational topology.
+
+The reverse dependency is explicitly prohibited: Core production code must not reference the `Modules\Dormitory\` namespace. This boundary is covered by `DormitoryModuleArchitectureTest`.
+
+Dormitory may consume Core concepts that are already canonical platform primitives, including:
+
+- Tenant and tenant context;
+- Organization and OrganizationUnit ownership;
+- canonical Membership identity;
+- Core UUIDv7 support;
+- Core contracts required by a Dormitory-owned adapter or application service.
+
+Dormitory-specific concepts remain owned by `Modules/Dormitory`, including:
+
+```text
+Dormitory
+Building
+Room
+Bed
+Locker
+ResidentPlacement
+RoomCapacityBasis
+PlacementStatus
+ResidentCategory
+Dormitory Check-In application behavior
+```
+
+These concepts must not be promoted into `OrganizationalContext`, modeled as new Core topology levels, or introduced as reverse Core dependencies merely because Dormitory consumes Core identity or organizational ownership.
+
+Canonical resident identity remains Core `Membership`. Dormitory does not create a duplicate Person, User, Student, or employee identity for residency. `ResidentPlacement` is the Dormitory-owned relationship that associates a Membership with its residential placement.
+
+The current Dormitory module also does not introduce a separate `DormitoryContext`. Tenant context is consumed from Core where required by application/persistence behavior. Any future authenticated Dormitory boundary must continue to reuse Core authorization contracts rather than create a parallel Role/Permission system; the concrete current Check-In service does not itself resolve an actor or invoke scoped authorization.
 
 ---
 
 # 4. Facility Hierarchy & Persistence Ownership
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan:
+## 4.1 Canonical facility hierarchy
 
-- Dormitory root ownership;
-- Building → Room → Bed/Locker hierarchy;
-- Tenant/Organization/OrganizationUnit constraints;
-- inherited descendant ownership;
-- tenant-qualified composite foreign-key safeguards.
+The persisted facility hierarchy is:
+
+```text
+Tenant
+└── Organization
+    └── OrganizationUnit?
+        └── Dormitory
+            └── Building
+                └── Room
+                    ├── Bed
+                    └── Locker
+```
+
+`OrganizationUnit` is optional ownership metadata on the Dormitory root; it is not a mandatory physical level between Organization and Dormitory. A Dormitory may therefore be owned directly at Organization level by storing `organization_unit_id = NULL`.
+
+The canonical physical parent chain is:
+
+```text
+Dormitory → Building → Room → Bed / Locker
+```
+
+Each descendant stores only its immediate physical parent reference plus `tenant_id`. Higher-level organizational ownership is derived through the parent hierarchy rather than duplicated across descendant tables.
+
+## 4.2 Dormitory root ownership
+
+The `dormitories` table stores:
+
+```text
+id
+tenant_id
+organization_id
+organization_unit_id nullable
+name
+code nullable
+is_active
+timestamps
+deleted_at
+```
+
+Current persistence guarantees:
+
+- `tenant_id` must reference an existing Tenant;
+- `(organization_id, tenant_id)` must reference an Organization in the same Tenant;
+- when `organization_unit_id` is present, `(organization_unit_id, organization_id, tenant_id)` must reference an OrganizationUnit belonging to that same Organization and Tenant;
+- cross-tenant Organization ownership and mismatched OrganizationUnit ownership are rejected by database constraints;
+- the model uses the Core `BelongsToTenant` boundary, UUIDv7 identifiers, and soft deletion.
+
+This means the Dormitory root is the only facility entity that directly stores Organization/OrganizationUnit ownership.
+
+## 4.3 Descendant persistence shape
+
+Current descendant ownership columns are intentionally narrow:
+
+| Entity | Tenant projection | Immediate parent | Higher ownership columns intentionally absent |
+| --- | --- | --- | --- |
+| Building | `tenant_id` | `dormitory_id` | `organization_id`, `organization_unit_id` |
+| Room | `tenant_id` | `building_id` | `dormitory_id`, `organization_id`, `organization_unit_id` |
+| Bed | `tenant_id` | `room_id` | `building_id`, `dormitory_id`, `organization_id`, `organization_unit_id` |
+| Locker | `tenant_id` | `room_id` | `building_id`, `dormitory_id`, `organization_id`, `organization_unit_id` |
+
+`tenant_id` is deliberately retained on each persisted facility entity. It is a tenant-qualified persistence/security projection, not a competing organizational ownership model. The organizational owner remains derived from the Dormitory root.
+
+Models `Building`, `Room`, `Bed`, and `Locker` use Core tenant scoping and UUIDv7 support. They also use soft deletion, matching the Dormitory root.
+
+## 4.4 Tenant-qualified parent integrity
+
+Parent-child references are tenant-qualified composite foreign keys:
+
+```text
+Building (dormitory_id, tenant_id)
+    → Dormitory (id, tenant_id)
+
+Room (building_id, tenant_id)
+    → Building (id, tenant_id)
+
+Bed (room_id, tenant_id)
+    → Room (id, tenant_id)
+
+Locker (room_id, tenant_id)
+    → Room (id, tenant_id)
+```
+
+Supporting unique `(id, tenant_id)` identities exist on the facility tables so PostgreSQL can enforce those composite references. The result is that a descendant cannot point at a parent from another Tenant even if a raw identifier is supplied outside the normal tenant-scoped Eloquent path.
+
+Bed and Locker additionally receive tenant-and-Room-qualified unique identities later in the placement migration so `ResidentPlacement` can prove nested resource ownership. The detailed placement/resource foreign-key contract is documented in the Resident Placement and Database Invariants sections rather than duplicated here.
+
+## 4.5 Deletion boundary
+
+Facility foreign keys use restrictive delete behavior. Normal model deletion is soft deletion, while a hard delete of a parent with persisted children is rejected by the database. Current regression coverage proves at least:
+
+- Organization with a Dormitory cannot be hard-deleted;
+- Dormitory with Buildings cannot be hard-deleted;
+- Building with Rooms cannot be hard-deleted;
+- Room with Beds or Lockers cannot be hard-deleted.
+
+This protects hierarchy integrity and prevents parent hard deletion from silently orphaning downstream Dormitory records.
 
 ---
 
