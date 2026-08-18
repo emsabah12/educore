@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareAuthenticatedUser;
+use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\User\Http\Controllers\Api\v1\AssignMembershipRoleController;
 use Modules\User\Http\Controllers\Api\v1\MembershipController;
@@ -32,17 +33,16 @@ Route::middleware([
 |
 */
 
-Route::middleware([
-    InjectTenantContext::class,
-])->group(function (): void {
-    Route::get(
-        '/v1/user/my-workspaces',
-        [
-            WorkspaceController::class,
-            'index',
-        ],
-    )->name('api.v1.user.workspaces.index');
-});
+Route::get(
+    '/v1/user/my-workspaces',
+    [
+        WorkspaceController::class,
+        'index',
+    ],
+)->middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+])->name('api.v1.user.workspaces.index');
 
 /*
 |--------------------------------------------------------------------------
