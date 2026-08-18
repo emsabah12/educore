@@ -355,16 +355,172 @@ The exact Bed/Locker requirement for each basis and its Check-In enforcement are
 
 # 6. Resident Placement Model & Lifecycle
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan:
+`ResidentPlacement` is the Dormitory-owned persistence model for a Membership's residential placement. It preserves canonical Core identity, stores the Room as the canonical residential location, optionally references Bed/Locker resources, and records placement lifecycle state without duplicating higher facility or organizational identity.
 
-- canonical resident/location references;
-- `ResidentCategory`;
-- `PlacementStatus`;
-- lifecycle timestamps;
-- historical-record preservation;
-- active-placement uniqueness invariants.
+## 6.1 Canonical placement fact
+
+The `resident_placements` table stores:
+
+```text
+id
+tenant_id
+membership_id
+room_id
+bed_id nullable
+locker_id nullable
+resident_category
+status
+planned_at
+checked_in_at nullable
+ended_at nullable
+cancelled_at nullable
+end_reason nullable
+cancellation_reason nullable
+created_at
+updated_at
+```
+
+`planned_at` is required database state. It is not nullable in the current migration. `checked_in_at`, `ended_at`, and `cancelled_at` are lifecycle timestamps whose required/null combinations depend on `status`.
+
+Canonical identity and location are intentionally narrow:
+
+```text
+Core Membership
+      ↓
+ResidentPlacement
+      ↓
+Room
+```
+
+Dormitory and Building location are derived through the Room hierarchy. Bed and Locker are optional resource references attached to the placement; they do not replace Room as the canonical residential location.
+
+The table intentionally does not duplicate inherited identity/location columns such as:
+
+```text
+student_id
+building_id
+dormitory_id
+organization_id
+organization_unit_id
+```
+
+The model uses UUIDv7 and Core tenant scoping. Unlike the facility models, `ResidentPlacement` does not use soft deletion and the table has no `deleted_at` column. Historical residency is represented by lifecycle rows rather than by soft-deleting the placement record.
+
+## 6.2 Resident category
+
+`ResidentCategory` currently defines exactly:
+
+```text
+REGULAR_RESIDENT
+SUPERVISOR_RESIDENT
+```
+
+The model casts `resident_category` to this enum, and PostgreSQL enforces the same value set through `chk_resident_placements_category`.
+
+Resident category classifies the Dormitory placement. It is not a replacement for Core Membership identity, Role/Permission authorization, or a generalized person type. Advanced resident-eligibility policy remains outside this persistence enum.
+
+## 6.3 Placement lifecycle
+
+`PlacementStatus` currently defines:
+
+```text
+PLANNED
+ACTIVE
+ENDED
+CANCELLED
+```
+
+PostgreSQL constrains the timestamp shape for each status:
+
+| Status | `planned_at` | `checked_in_at` | `ended_at` | `cancelled_at` | Meaning in current persistence |
+| --- | --- | --- | --- | --- | --- |
+| `PLANNED` | required | `NULL` | `NULL` | `NULL` | Placement exists but has not been checked in |
+| `ACTIVE` | required | required | `NULL` | `NULL` | Resident has been checked in and placement is current |
+| `ENDED` | required | required | required | `NULL` | Previously active placement has ended |
+| `CANCELLED` | required | `NULL` | `NULL` | required | Planned placement was cancelled before check-in |
+
+The database also constrains `status` to those four enum-compatible values through `chk_resident_placements_status`.
+
+`end_reason` and `cancellation_reason` are nullable descriptive fields. The current lifecycle CHECK constraint does not require a reason for `ENDED` or `CANCELLED`, and it does not enforce chronological ordering between lifecycle timestamps. Documentation and future services must not claim stricter database semantics than the migration currently provides.
+
+## 6.4 Historical-record preservation
+
+Historical placement rows are intentionally retained. Partial uniqueness rules apply only to `ACTIVE` rows, so an ended or cancelled placement does not erase the Membership's prior residential history and does not prevent a later active placement.
+
+Current persistence therefore supports a history such as:
+
+```text
+Membership M
+├── Placement A  ENDED
+└── Placement B  ACTIVE
+```
+
+The current application layer does not yet provide complete planning, Check-Out/END, or cancellation workflows. Persistence can represent `ENDED` and `CANCELLED`, but the concrete lifecycle application behavior implemented today is Check-In of an existing matching `PLANNED` row into `ACTIVE`.
+
+## 6.5 ACTIVE uniqueness invariants
+
+The database is the final guard for current active-placement exclusivity through PostgreSQL partial unique indexes:
+
+```text
+uq_resident_placements_active_membership
+  UNIQUE (tenant_id, membership_id)
+  WHERE status = 'ACTIVE'
+
+uq_resident_placements_active_bed
+  UNIQUE (tenant_id, bed_id)
+  WHERE status = 'ACTIVE' AND bed_id IS NOT NULL
+
+uq_resident_placements_active_locker
+  UNIQUE (tenant_id, locker_id)
+  WHERE status = 'ACTIVE' AND locker_id IS NOT NULL
+```
+
+These constraints mean:
+
+- one Membership may have at most one `ACTIVE` placement per Tenant;
+- one Bed may be referenced by at most one `ACTIVE` placement;
+- one Locker may be referenced by at most one `ACTIVE` placement;
+- historical `PLANNED`, `ENDED`, and `CANCELLED` rows remain possible because the uniqueness rules are status-filtered.
+
+The concurrency role of these indexes is documented in Section 9. This section records only the persisted lifecycle/exclusivity contract.
+
+## 6.6 Tenant and nested resource ownership
+
+Placement ownership is enforced with tenant-qualified foreign keys:
+
+```text
+(membership_id, tenant_id)
+    → memberships (id, tenant_id)
+
+(room_id, tenant_id)
+    → rooms (id, tenant_id)
+
+(bed_id, room_id, tenant_id)
+    → beds (id, room_id, tenant_id)
+
+(locker_id, room_id, tenant_id)
+    → lockers (id, room_id, tenant_id)
+```
+
+The nested Bed/Locker references prove that an allocated resource belongs to the same Room and Tenant recorded by the placement. Cross-tenant Membership/Room references and Bed/Locker references from another Room are rejected by the database.
+
+`bed_id` and `locker_id` remain nullable schema fields. The lifecycle CHECK constraint does not make either resource mandatory merely because a placement is `ACTIVE`; the exact resource requirement depends on the Room's current `RoomCapacityBasis` and is an application-domain policy documented in Section 7.
+
+## 6.7 Current lifecycle application boundary
+
+The current repository contract supports the lock-aware queries required by Check-In:
+
+```text
+findPlannedForMembershipInRoomForUpdate(...)
+findActiveForMembershipForUpdate(...)
+findActiveForBedForUpdate(...)
+findActiveForLockerForUpdate(...)
+save(...)
+```
+
+This is not a generic placement lifecycle manager. The implemented service path currently activates an existing matching `PLANNED` placement; full placement planning, Check-Out/END, cancellation, Transfer, and reassignment workflows remain separate downstream work.
 
 ---
 
