@@ -1246,9 +1246,305 @@ The current Check-In contract must not be cited as proof of Transfer deadlock sa
 
 # 10. Database Invariants
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan database constraints yang menjadi bagian dari current correctness boundary, termasuk ownership, lifecycle, resource exclusivity, dan active-placement invariants.
+PostgreSQL is part of the Dormitory correctness boundary. The application layer performs context resolution, policy evaluation, transactional revalidation, and domain-error translation, while the database independently protects persisted ownership, lifecycle shape, and ACTIVE-placement exclusivity.
+
+The database invariants documented here are limited to constraints that exist in the current migrations. Application rules that require mutable cross-table state are intentionally not described as database guarantees.
+
+## 10.1 Tenant-qualified facility ownership
+
+Every persisted Dormitory facility entity carries `tenant_id`. Parent-child ownership is enforced with tenant-qualified foreign keys rather than relying only on tenant-scoped Eloquent queries.
+
+Current hierarchy constraints are:
+
+```text
+Dormitory
+(organization_id, tenant_id)
+  → organizations (id, tenant_id)
+
+Dormitory
+(organization_unit_id, organization_id, tenant_id)
+  → organization_units (id, organization_id, tenant_id)
+  when organization_unit_id is non-null
+
+Building
+(dormitory_id, tenant_id)
+  → dormitories (id, tenant_id)
+
+Room
+(building_id, tenant_id)
+  → buildings (id, tenant_id)
+
+Bed
+(room_id, tenant_id)
+  → rooms (id, tenant_id)
+
+Locker
+(room_id, tenant_id)
+  → rooms (id, tenant_id)
+```
+
+These constraints reject a raw cross-Tenant parent identifier even when a caller bypasses normal tenant-scoped model lookup.
+
+The Dormitory root therefore owns Organization/optional OrganizationUnit directly, while Building, Room, Bed, and Locker derive that organizational ownership through the persisted parent chain.
+
+## 10.2 Supporting tenant-qualified identities
+
+PostgreSQL composite foreign keys require matching unique or primary-key targets. The Dormitory migrations therefore create supporting unique identities:
+
+```text
+uq_dormitories_id_tenant
+  UNIQUE (id, tenant_id)
+
+uq_buildings_id_tenant
+  UNIQUE (id, tenant_id)
+
+uq_rooms_id_tenant
+  UNIQUE (id, tenant_id)
+
+uq_beds_id_tenant
+  UNIQUE (id, tenant_id)
+
+uq_lockers_id_tenant
+  UNIQUE (id, tenant_id)
+```
+
+The ResidentPlacement migration adds stricter resource identities for nested Room ownership:
+
+```text
+uq_beds_id_room_tenant
+  UNIQUE (id, room_id, tenant_id)
+
+uq_lockers_id_room_tenant
+  UNIQUE (id, room_id, tenant_id)
+```
+
+These supporting unique constraints are structural FK targets. They do not mean a Bed or Locker may belong to multiple Rooms; the row still stores one canonical `room_id`.
+
+## 10.3 ResidentPlacement ownership and nested resource integrity
+
+`resident_placements` is constrained to the same Tenant across its canonical identity/location references:
+
+```text
+(membership_id, tenant_id)
+  → memberships (id, tenant_id)
+
+(room_id, tenant_id)
+  → rooms (id, tenant_id)
+
+(bed_id, room_id, tenant_id)
+  → beds (id, room_id, tenant_id)
+
+(locker_id, room_id, tenant_id)
+  → lockers (id, room_id, tenant_id)
+```
+
+The Bed/Locker foreign keys use nullable resource ids. Under PostgreSQL `MATCH SIMPLE` semantics, a null `bed_id` or `locker_id` does not require a matching resource row, while any non-null resource id must belong to the exact Room and Tenant stored on the placement.
+
+The database therefore rejects:
+
+```text
+Membership from another Tenant
+Room from another Tenant
+Bed from another Room or Tenant
+Locker from another Room or Tenant
+```
+
+without requiring the application layer to reconstruct higher-level ownership manually.
+
+## 10.4 Persisted value domains
+
+The current Room schema restricts `capacity_basis` to:
+
+```text
+BED
+LOCKER
+BED_AND_LOCKER
+```
+
+ResidentPlacement uses explicit PostgreSQL CHECK constraints for its string-backed domain values:
+
+```text
+chk_resident_placements_category
+  resident_category IN (
+    'REGULAR_RESIDENT',
+    'SUPERVISOR_RESIDENT'
+  )
+
+chk_resident_placements_status
+  status IN (
+    'PLANNED',
+    'ACTIVE',
+    'ENDED',
+    'CANCELLED'
+  )
+```
+
+These database constraints complement PHP enum casts; direct SQL or raw inserts cannot persist values outside the supported sets.
+
+## 10.5 Lifecycle timestamp shape
+
+`planned_at` is a required column for every ResidentPlacement row. The lifecycle CHECK constraint `chk_resident_placements_lifecycle` additionally enforces the nullable/non-null timestamp shape associated with each status:
+
+| Status | `planned_at` | `checked_in_at` | `ended_at` | `cancelled_at` |
+| --- | --- | --- | --- | --- |
+| `PLANNED` | required | `NULL` | `NULL` | `NULL` |
+| `ACTIVE` | required | required | `NULL` | `NULL` |
+| `ENDED` | required | required | required | `NULL` |
+| `CANCELLED` | required | `NULL` | `NULL` | required |
+
+The database does **not** currently require `end_reason` or `cancellation_reason`, and it does not enforce chronological comparisons such as:
+
+```text
+checked_in_at >= planned_at
+ended_at >= checked_in_at
+cancelled_at >= planned_at
+```
+
+Those stronger semantics must not be claimed unless a future migration or application contract introduces them explicitly.
+
+## 10.6 ACTIVE placement exclusivity
+
+Historical placement rows are preserved, while partial PostgreSQL unique indexes enforce exclusivity only for `ACTIVE` state:
+
+```text
+uq_resident_placements_active_membership
+  UNIQUE (tenant_id, membership_id)
+  WHERE status = 'ACTIVE'
+
+uq_resident_placements_active_bed
+  UNIQUE (tenant_id, bed_id)
+  WHERE status = 'ACTIVE'
+    AND bed_id IS NOT NULL
+
+uq_resident_placements_active_locker
+  UNIQUE (tenant_id, locker_id)
+  WHERE status = 'ACTIVE'
+    AND locker_id IS NOT NULL
+```
+
+The resulting database guarantees are:
+
+```text
+one Membership
+→ at most one ACTIVE placement per Tenant
+
+one Bed
+→ at most one ACTIVE placement per Tenant
+
+one Locker
+→ at most one ACTIVE placement per Tenant
+```
+
+The indexes intentionally do not prevent multiple historical or non-active rows. `PLANNED`, `ENDED`, and `CANCELLED` rows are outside these partial uniqueness predicates.
+
+This distinction is essential for history preservation and for the concurrency behavior documented in Section 9.
+
+## 10.7 Restrictive hard-delete boundaries
+
+Dormitory ownership and hierarchy foreign keys use restrictive delete behavior. Current database relationships prevent a parent row from being hard-deleted while dependent persisted children still reference it.
+
+Current regression coverage proves restrictive behavior for at least:
+
+```text
+Organization
+  → Dormitory
+
+Dormitory
+  → Building
+
+Building
+  → Room
+
+Room
+  → Bed
+
+Room
+  → Locker
+```
+
+ResidentPlacement foreign keys similarly use restrictive deletion for Tenant, Membership, Room, Bed, and Locker references.
+
+Facility models normally use soft deletion, but soft deletion does not remove the underlying row or bypass these referential-integrity relationships. A forced/hard delete remains subject to PostgreSQL foreign-key constraints.
+
+## 10.8 Database indexes that support operational queries
+
+In addition to correctness constraints, current migrations define indexes supporting tenant/status and hierarchy/resource lookup patterns, including:
+
+```text
+Dormitory
+→ (tenant_id, organization_id)
+→ (tenant_id, is_active)
+
+Building
+→ (dormitory_id, tenant_id)
+→ (tenant_id, is_active)
+
+Room
+→ (building_id, tenant_id)
+→ (tenant_id, is_active)
+
+Bed / Locker
+→ (room_id, tenant_id)
+→ (tenant_id, is_active, is_usable)
+
+ResidentPlacement
+→ (tenant_id, status)
+→ (membership_id, status)
+→ (room_id, status)
+```
+
+These ordinary indexes support expected access paths but are not themselves business correctness guarantees. The correctness boundary comes from primary keys, unique constraints/indexes, foreign keys, NOT NULL declarations, and CHECK constraints.
+
+## 10.9 Rules intentionally not enforced by the database
+
+The current schema does **not** encode every Dormitory business rule. In particular, PostgreSQL does not currently enforce:
+
+```text
+Room effective capacity calculation
+Room over-capacity reconciliation
+Bed/Locker requirement by Room.capacity_basis
+Bed.is_active = true for an ACTIVE placement
+Bed.is_usable = true for an ACTIVE placement
+Locker.is_active = true for an ACTIVE placement
+Locker.is_usable = true for an ACTIVE placement
+Dormitory/Building/Room is_active = true for Check-In
+Membership status = ACTIVE for Check-In
+end_reason required for ENDED
+cancellation_reason required for CANCELLED
+lifecycle timestamp chronology
+```
+
+Those rules depend on mutable cross-table/application state or have not been defined as database invariants. The Check-In application service currently enforces the relevant operational subset transactionally before activation.
+
+The schema also does not impose ACTIVE resource presence from `Room.capacity_basis`. `resident_placements.bed_id` and `locker_id` remain nullable at database level; `PlacementResourceRequirements` evaluates that policy from the Room's current basis at operation time.
+
+## 10.10 Database invariant test evidence
+
+Current executable persistence coverage includes:
+
+```text
+DormitoryPersistenceTest
+FacilityHierarchyPersistenceTest
+CapacityResourcePersistenceTest
+ResidentPlacementPersistenceTest
+```
+
+Those suites prove representative behavior including:
+
+- tenant-qualified Organization/OrganizationUnit ownership;
+- tenant-qualified Building/Room/Bed/Locker hierarchy rejection;
+- nested Bed/Locker Room ownership rejection;
+- restrictive parent hard deletes;
+- allowed historical placement rows;
+- rejection of second ACTIVE Membership placement;
+- rejection of double ACTIVE Bed/Locker allocation;
+- rejection of invalid resident category/status values;
+- rejection of invalid lifecycle timestamp shape;
+- valid CANCELLED historical placement representation.
+
+Test pass counts are closure evidence, not permanent database invariants. The migration definitions remain the canonical source for the exact persisted constraints.
 
 ---
 
