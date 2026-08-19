@@ -72,51 +72,45 @@ Route::prefix('v1/auth')->group(function (): void {
 |
 */
 
-Route::middleware([
+Route::post(
+    '/v1/core/notifications/dispatch',
+    [
+        NotificationController::class,
+        'send',
+    ],
+)->middleware([
     InjectTenantContext::class,
-])->group(function (): void {
-    Route::post(
-        '/v1/core/notifications/dispatch',
-        [
-            NotificationController::class,
-            'send',
-        ],
-    )->name('api.v1.core.notifications.dispatch');
+])->name('api.v1.core.notifications.dispatch');
 
-    /*
-     * Tenant-level capability projection.
-     *
-     * Organizational context is intentionally optional/not resolved here.
-     */
-    Route::get(
-        '/v1/core/authorization/capabilities',
-        TenantCapabilityController::class,
-    )->name(
-        'api.v1.core.authorization.capabilities.index',
-    );
+/*
+ * Tenant-level capability projection supports the canonical dual transport.
+ * Organizational context is intentionally optional/not resolved here.
+ */
+Route::get(
+    '/v1/core/authorization/capabilities',
+    TenantCapabilityController::class,
+)->middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+])->name(
+    'api.v1.core.authorization.capabilities.index',
+);
 
-    /*
-     * Workspace capability projection.
-     *
-     * Middleware ordering is security significant:
-     *
-     * bearer token
-     *   ↓
-     * verified Tenant/Membership context
-     *   ↓
-     * verified OrganizationalAssignment context
-     */
-    Route::middleware([
-        InjectOrganizationalContext::class,
-    ])->group(function (): void {
-        Route::get(
-            '/v1/core/authorization/workspace-capabilities',
-            WorkspaceCapabilityController::class,
-        )->name(
-            'api.v1.core.authorization.workspace-capabilities.index',
-        );
-    });
-});
+/*
+ * Workspace capability projection uses the same verified Tenant/Membership
+ * transport before resolving the organizational locator. Middleware ordering
+ * is security significant for both bearer and BrowserSession clients.
+ */
+Route::get(
+    '/v1/core/authorization/workspace-capabilities',
+    WorkspaceCapabilityController::class,
+)->middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    InjectOrganizationalContext::class,
+])->name(
+    'api.v1.core.authorization.workspace-capabilities.index',
+);
 
 Route::middleware([
     InjectTenantContext::class,
