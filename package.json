@@ -4,13 +4,24 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "frontend:dev": "vite --config frontend/vite.config.ts",
+        "frontend:typecheck": "tsc --project frontend/tsconfig.json --noEmit",
+        "frontend:build": "vite build --config frontend/vite.config.ts"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
+        "@types/react": "^19.2.18",
+        "@types/react-dom": "^19.2.4",
+        "@vitejs/plugin-react": "^6.0.5",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",
+        "typescript": "^5.9.3",
         "vite": "^8.0.0"
+    },
+    "dependencies": {
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8"
     }
 }
