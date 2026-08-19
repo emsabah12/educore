@@ -1,7 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { App } from '@/app/App';
+import { AppBootstrap } from '@/app/AppBootstrap';
+import { createApplicationRuntime } from '@/app/runtime';
 
 import './styles.css';
 
@@ -13,8 +14,10 @@ if (rootElement === null) {
     );
 }
 
+const runtime = createApplicationRuntime();
+
 createRoot(rootElement).render(
     <StrictMode>
-        <App />
+        <AppBootstrap runtime={runtime} />
     </StrictMode>,
 );
