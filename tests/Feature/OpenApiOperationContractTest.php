@@ -428,6 +428,132 @@ final class OpenApiOperationContractTest extends TestCase
         );
     }
 
+    public function test_canonical_dual_transport_errors_preserve_transport_specific_machine_codes(): void
+    {
+        $tenantScopedOperations = [
+            'GET /api/v1/auth/me',
+            'GET /api/v1/user/my-workspaces',
+            'GET /api/v1/core/authorization/capabilities',
+        ];
+
+        $tenantForbiddenSchemas = [
+            [
+                '$ref' => '#/components/schemas/AuthenticationContextDeniedError',
+            ],
+            [
+                '$ref' => '#/components/schemas/BrowserMembershipContextRequiredError',
+            ],
+            [
+                '$ref' => '#/components/schemas/BrowserMembershipContextDeniedError',
+            ],
+            [
+                '$ref' => '#/components/schemas/BrowserSessionContextMismatchError',
+            ],
+        ];
+
+        foreach ($tenantScopedOperations as $operationKey) {
+            $operation = $this->operation(
+                $operationKey,
+            );
+
+            $this->assertSame(
+                '#/components/responses/BrowserSessionAuthenticationRequired',
+                $operation['responses']['401']['$ref']
+                    ?? null,
+                sprintf(
+                    'Browser authentication error drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+
+            $this->assertSame(
+                $tenantForbiddenSchemas,
+                $operation['responses']['403']['content']['application/json']['schema']['oneOf']
+                    ?? [],
+                sprintf(
+                    'Tenant/Browser forbidden error drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+
+            $this->assertSame(
+                '#/components/responses/InvalidBrowserMembershipId',
+                $operation['responses']['422']['$ref']
+                    ?? null,
+                sprintf(
+                    'Browser Membership validation error drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+
+            $this->assertSame(
+                '#/components/responses/BrowserSessionUnavailable',
+                $operation['responses']['503']['$ref']
+                    ?? null,
+                sprintf(
+                    'Browser Session availability error drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+        }
+
+        foreach (
+            [
+                'GET /api/v1/user/my-workspaces',
+                'GET /api/v1/core/authorization/capabilities',
+            ] as $operationKey
+        ) {
+            $this->assertSame(
+                '#/components/responses/InternalServerError',
+                $this->operation(
+                    $operationKey,
+                )['responses']['500']['$ref'] ?? null,
+                sprintf(
+                    'Canonical server error drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+        }
+
+        $membershipDiscovery = $this->operation(
+            'GET /api/v1/user/my-memberships',
+        );
+
+        $membershipUnauthorizedSchemas =
+            $membershipDiscovery['responses']['401']['content']['application/json']['schema']['oneOf']
+            ?? [];
+
+        $this->assertSame(
+            [
+                [
+                    '$ref' => '#/components/schemas/AuthenticationRequiredError',
+                ],
+                [
+                    '$ref' => '#/components/schemas/BrowserSessionAuthenticationRequiredError',
+                ],
+            ],
+            $membershipUnauthorizedSchemas,
+        );
+
+        $this->assertSame(
+            '#/components/schemas/BrowserSessionContextMismatchError',
+            $membershipDiscovery['responses']['403']['content']['application/json']['schema']['$ref']
+                ?? null,
+        );
+
+        $this->assertSame(
+            '#/components/responses/InternalServerError',
+            $membershipDiscovery['responses']['500']['$ref']
+                ?? null,
+        );
+
+        $this->assertSame(
+            '#/components/responses/BrowserSessionUnavailable',
+            $membershipDiscovery['responses']['503']['$ref']
+                ?? null,
+        );
+    }
+
     public function test_health_503_keeps_health_status_representation(): void
     {
         $operation = $this->operation(
@@ -447,6 +573,12 @@ final class OpenApiOperationContractTest extends TestCase
             'GET /api/v1/core/authorization/workspace-capabilities',
         );
 
+        $this->assertSame(
+            '#/components/responses/BrowserSessionAuthenticationRequired',
+            $operation['responses']['401']['$ref']
+                ?? null,
+        );
+
         $forbiddenSchemas =
             $operation['responses']['403']['content']['application/json']['schema']['oneOf']
             ?? [];
@@ -455,6 +587,15 @@ final class OpenApiOperationContractTest extends TestCase
             [
                 [
                     '$ref' => '#/components/schemas/AuthenticationContextDeniedError',
+                ],
+                [
+                    '$ref' => '#/components/schemas/BrowserMembershipContextRequiredError',
+                ],
+                [
+                    '$ref' => '#/components/schemas/BrowserMembershipContextDeniedError',
+                ],
+                [
+                    '$ref' => '#/components/schemas/BrowserSessionContextMismatchError',
                 ],
                 [
                     '$ref' => '#/components/schemas/OrganizationalContextRequiredError',
@@ -466,10 +607,20 @@ final class OpenApiOperationContractTest extends TestCase
             $forbiddenSchemas,
         );
 
+        $validationSchemas =
+            $operation['responses']['422']['content']['application/json']['schema']['oneOf']
+            ?? [];
+
         $this->assertSame(
-            '#/components/responses/InvalidOrganizationalAssignmentId',
-            $operation['responses']['422']['$ref']
-                ?? null,
+            [
+                [
+                    '$ref' => '#/components/schemas/InvalidBrowserMembershipIdError',
+                ],
+                [
+                    '$ref' => '#/components/schemas/InvalidOrganizationalAssignmentIdError',
+                ],
+            ],
+            $validationSchemas,
         );
 
         $serverSchemas =
@@ -486,6 +637,12 @@ final class OpenApiOperationContractTest extends TestCase
                 ],
             ],
             $serverSchemas,
+        );
+
+        $this->assertSame(
+            '#/components/responses/BrowserSessionUnavailable',
+            $operation['responses']['503']['$ref']
+                ?? null,
         );
     }
 

@@ -96,8 +96,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthenticatedBootstrapSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
         "403":
-          $ref: "#/components/responses/AuthenticationContextDenied"
+          description: |
+            Authentication or Browser Session Membership context is missing,
+            unavailable, mismatched, or denied.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
+
+        "422":
+          $ref: "#/components/responses/InvalidBrowserMembershipId"
+
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
 
   /api/v1/browser/session/csrf:
     get:
@@ -244,10 +264,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TenantCapabilitySuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
         "403":
-          $ref: "#/components/responses/AuthenticationContextDenied"
+          description: |
+            Authentication or Browser Session Membership context is missing,
+            unavailable, mismatched, or denied.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
+
+        "422":
+          $ref: "#/components/responses/InvalidBrowserMembershipId"
+
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
 
   /api/v1/core/authorization/workspace-capabilities:
     get:
@@ -275,20 +316,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkspaceCapabilitySuccess"
 
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
         "403":
           description: |
-            Tenant authentication context or organizational context is
-            unavailable, missing, or not permitted.
+            Tenant authentication, Browser Session Membership, or
+            organizational context is missing, unavailable, mismatched, or
+            denied.
           content:
             application/json:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/OrganizationalContextDeniedError"
 
         "422":
-          $ref: "#/components/responses/InvalidOrganizationalAssignmentId"
+          description: |
+            Browser Membership or organizational assignment locator validation
+            failed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/InvalidBrowserMembershipIdError"
+                  - $ref: "#/components/schemas/InvalidOrganizationalAssignmentIdError"
 
         "500":
           description: |
@@ -300,6 +356,9 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/OrganizationalContextResolutionFailedError"
                   - $ref: "#/components/schemas/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
 
   /api/v1/core/authorization/roles:
     get:
@@ -520,10 +579,30 @@ paths:
                 $ref: "#/components/schemas/MembershipListSuccess"
 
         "401":
-          $ref: "#/components/responses/AuthenticationRequired"
+          description: |
+            Authentication is required for the selected Bearer or Browser
+            Session transport.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationRequiredError"
+                  - $ref: "#/components/schemas/BrowserSessionAuthenticationRequiredError"
+
+        "403":
+          description: |
+            Browser Session identity context does not match the canonical
+            authenticated identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserSessionContextMismatchError"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
 
   /api/v1/user/memberships/{membership_id}/switch:
     post:
@@ -618,11 +697,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkspaceDiscoverySuccess"
 
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
         "403":
-          $ref: "#/components/responses/AuthenticationContextDenied"
+          description: |
+            Authentication or Browser Session Membership context is missing,
+            unavailable, mismatched, or denied.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
+                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
+                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
+
+        "422":
+          $ref: "#/components/responses/InvalidBrowserMembershipId"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
 
   /api/v1/user/memberships/{target_membership_id}/assign-role:
     post:
