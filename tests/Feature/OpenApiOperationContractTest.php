@@ -21,8 +21,6 @@ final class OpenApiOperationContractTest extends TestCase
 
         'POST /api/v1/browser/auth/login' => '#/components/schemas/BrowserLoginSuccess',
 
-        'GET /api/v1/browser/auth/me' => '#/components/schemas/AuthenticatedBootstrapSuccess',
-
         'POST /api/v1/browser/auth/logout' => '#/components/schemas/BrowserLogoutSuccess',
 
         'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '#/components/schemas/BrowserMembershipSwitchSuccess',
@@ -60,7 +58,6 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/auth/logout' => '200',
         'GET /api/v1/auth/me' => '200',
         'POST /api/v1/browser/auth/login' => '200',
-        'GET /api/v1/browser/auth/me' => '200',
         'POST /api/v1/browser/auth/logout' => '200',
         'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '200',
         'GET /api/v1/core/authorization/capabilities' => '200',
@@ -94,10 +91,10 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/schemas/MembershipRoleAssignmentRequest',
     ];
 
-    public function test_all_19_json_foundation_operations_have_exact_success_schema_wiring(): void
+    public function test_all_18_json_foundation_operations_have_exact_success_schema_wiring(): void
     {
         $this->assertCount(
-            19,
+            18,
             self::SUCCESS_SCHEMAS,
         );
 
@@ -214,7 +211,6 @@ final class OpenApiOperationContractTest extends TestCase
 
         foreach (
             [
-                'GET /api/v1/browser/auth/me',
                 'POST /api/v1/browser/user/memberships/{membership_id}/switch',
             ] as $operationKey
         ) {
@@ -277,7 +273,6 @@ final class OpenApiOperationContractTest extends TestCase
 
         $browserOperations = [
             'POST /api/v1/browser/auth/login',
-            'GET /api/v1/browser/auth/me',
             'POST /api/v1/browser/auth/logout',
             'POST /api/v1/browser/user/memberships/{membership_id}/switch',
         ];
@@ -331,8 +326,6 @@ final class OpenApiOperationContractTest extends TestCase
             'PUT /api/v1/core/tenants/{id}' => '#/components/parameters/TenantId',
 
             'POST /api/v1/user/memberships/{membership_id}/switch' => '#/components/parameters/MembershipId',
-
-            'GET /api/v1/browser/auth/me' => '#/components/parameters/BrowserMembershipLocator',
 
             'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '#/components/parameters/BrowserMembershipPathId',
 
@@ -391,7 +384,7 @@ final class OpenApiOperationContractTest extends TestCase
         );
     }
 
-    public function test_canonical_browser_membership_locator_is_optional_while_transitional_locator_remains_required(): void
+    public function test_canonical_browser_membership_locator_is_optional_and_transitional_locator_is_retired(): void
     {
         $parameters = $this->spec()['components']['parameters']
             ?? [];
@@ -419,12 +412,10 @@ final class OpenApiOperationContractTest extends TestCase
             $canonical['schema']['$ref'] ?? null,
         );
 
-        $this->assertTrue(
-            (bool) (
-                $parameters['BrowserMembershipLocator']['required']
-                ?? false
-            ),
-            'Transitional /browser/auth/me locator must remain required until BFF-9.3 retirement.',
+        $this->assertArrayNotHasKey(
+            'BrowserMembershipLocator',
+            $parameters,
+            'Transitional Browser Membership locator must remain retired.',
         );
     }
 

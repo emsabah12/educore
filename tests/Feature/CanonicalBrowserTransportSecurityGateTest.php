@@ -338,7 +338,7 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
         }
     }
 
-    public function test_browser_route_inventory_allows_only_control_plane_endpoints_and_transitional_auth_me_alias(): void
+    public function test_browser_route_inventory_allows_only_control_plane_endpoints(): void
     {
         $browserRoutes = collect(
             Route::getRoutes()->getRoutes(),
@@ -361,7 +361,6 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
             [
                 'api.v1.browser.auth.login' => 'api/v1/browser/auth/login',
                 'api.v1.browser.auth.logout' => 'api/v1/browser/auth/logout',
-                'api.v1.browser.auth.me' => 'api/v1/browser/auth/me',
                 'api.v1.browser.session.csrf' => 'api/v1/browser/session/csrf',
                 'api.v1.browser.user.memberships.switch' => 'api/v1/browser/user/memberships/{membership_id}/switch',
             ],

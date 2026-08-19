@@ -192,27 +192,24 @@ final class OpenApiSchemaComponentsTest extends TestCase
         }
     }
 
-    public function test_browser_membership_locators_are_uuid_v7_and_never_authority_claims(): void
+    public function test_browser_membership_path_id_is_uuid_v7_and_transitional_locator_is_retired(): void
     {
         $spec = $this->spec();
 
-        foreach (
-            [
-                'BrowserMembershipLocator',
-                'BrowserMembershipPathId',
-            ] as $parameterName
-        ) {
-            $this->assertSame(
-                '#/components/schemas/UuidV7',
-                $spec['components']['parameters'][$parameterName]['schema']['$ref']
-                    ?? null,
-            );
-        }
+        $parameters =
+            $spec['components']['parameters']
+            ?? [];
 
         $this->assertSame(
-            'X-EduCore-Membership-Id',
-            $spec['components']['parameters']['BrowserMembershipLocator']['name']
+            '#/components/schemas/UuidV7',
+            $parameters['BrowserMembershipPathId']['schema']['$ref']
                 ?? null,
+        );
+
+        $this->assertArrayNotHasKey(
+            'BrowserMembershipLocator',
+            $parameters,
+            'Transitional Browser Membership locator must remain retired.',
         );
     }
 

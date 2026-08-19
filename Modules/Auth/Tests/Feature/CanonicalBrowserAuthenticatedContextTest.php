@@ -153,6 +153,64 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
             ]);
     }
 
+    public function test_canonical_browser_me_rejects_invalid_membership_locator(): void
+    {
+        $this->loginBrowserSessionAndAttachCookie();
+
+        $this
+            ->withHeader(
+                InjectBrowserTenantContext::HEADER,
+                'not-a-uuid',
+            )
+            ->getJson('/api/v1/auth/me')
+            ->assertUnprocessable()
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'INVALID_BROWSER_MEMBERSHIP_ID',
+                'message' => 'Browser membership identifier is invalid.',
+            ]);
+    }
+
+    public function test_canonical_browser_me_fails_closed_when_vault_locator_maps_to_different_canonical_membership(): void
+    {
+        $mismatchedBearer = $this->app
+            ->make(TokenManagerInterface::class)
+            ->issueToken(
+                $this->userId,
+                $this->alternateTenantId,
+                [
+                    'membership_id' => $this->alternateMembershipId,
+                ],
+            );
+
+        $this->withSession([
+            'educore.browser_auth' => [
+                'user_id' => $this->userId,
+                'membership_credentials' => [
+                    $this->membershipId => $mismatchedBearer,
+                ],
+            ],
+        ]);
+
+        $this
+            ->withCredentials()
+            ->withCookie(
+                $this->sessionCookieName(),
+                $this->app['session']->getId(),
+            )
+            ->withHeader(
+                InjectBrowserTenantContext::HEADER,
+                $this->membershipId,
+            )
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertExactJson([
+                'status' => 'error',
+                'code' => 'BROWSER_SESSION_CONTEXT_MISMATCH',
+                'message' => 'Browser session context does not match canonical authentication context.',
+            ]);
+    }
+
     public function test_browser_session_cookie_takes_precedence_over_bearer_when_session_is_not_authenticated(): void
     {
         $bearerCredential = $this->app

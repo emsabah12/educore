@@ -171,47 +171,6 @@ paths:
         "503":
           $ref: "#/components/responses/BrowserSessionUnavailable"
 
-  /api/v1/browser/auth/me:
-    get:
-      operationId: browserAuthBootstrapContext
-      x-laravel-route-name: api.v1.browser.auth.me
-      tags:
-        - Browser Session
-      summary: Return canonical authenticated context through Browser Session mediation
-      description: |
-        X-EduCore-Membership-Id is an untrusted tab-local locator only. The
-        server resolves the corresponding bearer from Browser Session custody
-        and delegates canonical User, Membership, and Tenant validation to the
-        existing authentication middleware. Browser-supplied Authorization
-        input is not authoritative for this operation.
-      security:
-        - BrowserSessionAuth: []
-      parameters:
-        - $ref: "#/components/parameters/BrowserMembershipLocator"
-      responses:
-        "200":
-          description: Canonical authenticated bootstrap context for the selected Browser Session Membership.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthenticatedBootstrapSuccess"
-        "401":
-          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
-        "403":
-          description: Browser Membership context is missing, unavailable, mismatched, or canonically invalid.
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/BrowserMembershipContextRequiredError"
-                  - $ref: "#/components/schemas/BrowserMembershipContextDeniedError"
-                  - $ref: "#/components/schemas/BrowserSessionContextMismatchError"
-                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
-        "422":
-          $ref: "#/components/responses/InvalidBrowserMembershipId"
-        "503":
-          $ref: "#/components/responses/BrowserSessionUnavailable"
-
   /api/v1/browser/auth/logout:
     post:
       operationId: browserAuthLogout
@@ -1934,17 +1893,6 @@ components:
 
         Omit this header for BearerAuth. The header is never authentication or
         authorization authority and cannot create a Membership context.
-      schema:
-        $ref: "#/components/schemas/UuidV7"
-
-    BrowserMembershipLocator:
-      name: X-EduCore-Membership-Id
-      in: header
-      required: true
-      description: |
-        UUIDv7 locator selecting one Membership credential already prepared
-        inside the current Browser Session. This header is not authentication
-        or authorization authority and cannot create a new Membership context.
       schema:
         $ref: "#/components/schemas/UuidV7"
 

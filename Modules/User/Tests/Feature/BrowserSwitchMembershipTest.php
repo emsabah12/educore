@@ -367,12 +367,21 @@ final class BrowserSwitchMembershipTest extends TestCase
         string $membershipId,
         string $tenantId,
     ): void {
+        $sessionCookieName = config('session.cookie');
+
+        $this->assertIsString($sessionCookieName);
+
         $this
+            ->withCredentials()
+            ->withCookie(
+                $sessionCookieName,
+                $this->app['session']->getId(),
+            )
             ->withHeader(
                 InjectBrowserTenantContext::HEADER,
                 $membershipId,
             )
-            ->getJson('/api/v1/browser/auth/me')
+            ->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath(
                 'data.membership.id',
