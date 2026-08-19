@@ -1550,9 +1550,326 @@ Test pass counts are closure evidence, not permanent database invariants. The mi
 
 # 11. Domain Errors & Persistence Conflict Translation
 
-**Documentation slice status**: pending detailed alignment.
+**Documentation slice status**: aligned to current implementation.
 
-Section ini akan mendokumentasikan current `ResidentCheckInException` behavior dan translation boundary untuk recognized PostgreSQL persistence conflicts tanpa mengekspos raw database exceptions sebagai Dormitory-domain contract.
+The current Check-In use case exposes Dormitory business failures primarily through `ResidentCheckInException`. Persistence-level uniqueness failures are translated only when they are recognized as the specific concurrent **active-Membership** conflict that belongs to the Check-In domain contract. Unrecognized persistence failures remain persistence failures and are rethrown unchanged.
+
+## 11.1 Current Check-In error taxonomy
+
+`ResidentCheckInException` is the Dormitory-owned runtime exception used for the current Check-In business failures. Its factory methods are:
+
+```text
+invalidIdentifier(field)
+invalidResidentCategory()
+membershipNotEligible()
+roomUnavailable()
+plannedPlacementNotFound()
+activePlacementExists()
+bedUnavailable()
+lockerUnavailable()
+resourceRequirementsNotSatisfied()
+```
+
+Their current responsibility mapping is:
+
+| Domain error | Current trigger |
+| --- | --- |
+| `invalidIdentifier(field)` | Tenant/Member/Room or supplied Bed/Locker identifier is not valid UUIDv7 |
+| `invalidResidentCategory()` | supplied category does not map to `ResidentCategory` |
+| `membershipNotEligible()` | current Tenant has no eligible ACTIVE Membership for the resident |
+| `roomUnavailable()` | Room, Building, or Dormitory is missing/inactive in the current Tenant boundary |
+| `plannedPlacementNotFound()` | matching `PLANNED` placement cannot be locked/found |
+| `activePlacementExists()` | active Membership placement is already visible, or recognized active-Membership unique conflict wins at persistence |
+| `bedUnavailable()` | supplied Bed is missing, outside target Room/Tenant, inactive, unusable, or already actively allocated |
+| `lockerUnavailable()` | supplied Locker is missing, outside target Room/Tenant, inactive, unusable, or already actively allocated |
+| `resourceRequirementsNotSatisfied()` | selected Bed/Locker presence does not satisfy the Room's current capacity basis |
+
+The exception messages are current implementation messages, not a documented HTTP/API error-code contract. Dormitory Check-In does not currently expose a controller/route layer that maps these exceptions to public status codes or machine-readable error identifiers.
+
+## 11.2 Tenant-context failure is a Core boundary error
+
+A missing current Tenant is not represented by `ResidentCheckInException`.
+
+The service resolves Tenant context before entering the database transaction:
+
+```text
+TenantContextInterface::getCurrentTenantId()
+        ↓
+NULL
+        ↓
+TenantContextNotResolvedException
+```
+
+`TenantContextNotResolvedException` belongs to Core Tenancy and remains the canonical missing-context failure.
+
+If a non-null Tenant identifier is present but is not a valid UUIDv7, the service routes that invalid value through:
+
+```text
+ResidentCheckInException::invalidIdentifier('tenant_id')
+```
+
+This preserves the distinction between **missing context** and **malformed context identity**.
+
+## 11.3 Transactional validation failures remain domain errors
+
+Inside the Check-In transaction, expected business-state rejection paths are raised directly as `ResidentCheckInException` values rather than leaking lower-level query details.
+
+Examples include:
+
+```text
+inactive Room / Building / Dormitory
+→ roomUnavailable()
+
+ineligible Membership
+→ membershipNotEligible()
+
+existing ACTIVE Membership placement
+→ activePlacementExists()
+
+missing matching PLANNED placement
+→ plannedPlacementNotFound()
+
+invalid/occupied Bed
+→ bedUnavailable()
+
+invalid/occupied Locker
+→ lockerUnavailable()
+
+current capacity-basis requirement mismatch
+→ resourceRequirementsNotSatisfied()
+```
+
+These errors are produced after the relevant current state has been re-read under the transaction/locking contract described in Section 9.
+
+## 11.4 Unique-conflict translation boundary
+
+The Check-In service wraps its `DB::transaction(..., 3)` call with a catch for:
+
+```text
+Illuminate\Database\UniqueConstraintViolationException
+```
+
+It does **not** translate every unique violation.
+
+Only a conflict recognized as the active-Membership uniqueness invariant:
+
+```text
+uq_resident_placements_active_membership
+```
+
+is translated to:
+
+```text
+ResidentCheckInException::activePlacementExists()
+```
+
+This is the persistence fallback for the zero-row race documented in Section 9: two different Room transactions for the same Membership may both observe no existing ACTIVE row, but the database permits only one ACTIVE Membership placement to persist.
+
+The translation happens outside the transaction callback. By the time the translated domain exception is emitted, Laravel has already unwound the failed transaction.
+
+## 11.5 Conflict recognition precedence
+
+`ResidentPlacementService::isActiveMembershipUniqueConflict(...)` recognizes the specific conflict through three progressively weaker evidence sources.
+
+### 11.5.1 Exact index metadata
+
+The strongest signal is the exception's index metadata:
+
+```text
+exception.index
+===
+"uq_resident_placements_active_membership"
+```
+
+An exact match is accepted immediately.
+
+### 11.5.2 Normalized column signature
+
+If index metadata is unavailable, the service reads the exception's reported unique columns, sorts them, and compares them with the canonical active-Membership signature:
+
+```text
+membership_id
+tenant_id
+```
+
+Conceptually:
+
+```text
+exception.columns
+        ↓
+sort
+        ↓
+['membership_id', 'tenant_id']
+        ↓
+recognized active-Membership conflict
+```
+
+Sorting prevents metadata column-order differences from changing the classification.
+
+### 11.5.3 Exact constraint token in driver message
+
+If neither index metadata nor usable columns identify the constraint, the service inspects:
+
+```text
+exception.errorInfo[2]
+```
+
+and searches for the exact identifier token:
+
+```text
+uq_resident_placements_active_membership
+```
+
+using an escaped Unicode regular expression with word boundaries.
+
+The fallback therefore depends on the stable constraint identifier, not on an English PostgreSQL sentence.
+
+## 11.6 PostgreSQL `23505` and localized driver messages
+
+PostgreSQL reports unique-constraint violations with SQLSTATE:
+
+```text
+23505
+```
+
+The focused test fixtures construct their underlying `PDOException` with `23505` to model that database failure and Laravel surfaces it as `UniqueConstraintViolationException`.
+
+The current Dormitory service does **not** directly branch on the numeric/string SQLSTATE `23505`. Its translation logic begins after Laravel has classified the persistence error as `UniqueConstraintViolationException`.
+
+This distinction is important:
+
+```text
+PostgreSQL unique violation
+        ↓
+Laravel UniqueConstraintViolationException
+        ↓
+Dormitory recognizes which unique invariant failed
+        ↓
+translate only active-Membership conflict
+```
+
+The driver-message fallback is intentionally localization tolerant. Regression coverage uses a non-English message containing the unchanged database constraint token:
+
+```text
+... uq_resident_placements_active_membership ...
+```
+
+The surrounding natural-language text is not parsed. Only the exact constraint identifier is relevant.
+
+## 11.7 Unrelated unique violations are rethrown unchanged
+
+The translator is intentionally narrow.
+
+For example, a unique conflict identified as:
+
+```text
+uq_resident_placements_active_bed
+```
+
+must **not** be converted to `activePlacementExists()`.
+
+The same rule applies when that unrelated conflict is visible only through:
+
+```text
+['tenant_id', 'bed_id']
+```
+
+or only through a driver message containing the Bed constraint token.
+
+In those cases the original `UniqueConstraintViolationException` is rethrown.
+
+Focused tests assert object identity for the rethrown exception, proving that the service does not manufacture a replacement persistence exception for unrelated unique failures.
+
+The current catch block also does not define special translation for:
+
+```text
+uq_resident_placements_active_bed
+uq_resident_placements_active_locker
+```
+
+Normal same-Bed/same-Locker Check-In races are expected to be rejected earlier through the Room serialization and transactional revalidation contract from Section 9. If an unrelated unique violation still reaches persistence, it remains visible as a persistence failure rather than being misclassified as an active-Membership domain conflict.
+
+## 11.8 Transaction rollback precedes surfaced persistence translation
+
+`ResidentPlacementService` executes Check-In through:
+
+```text
+DB::transaction($transaction, 3)
+```
+
+and catches `UniqueConstraintViolationException` around that transaction call.
+
+The focused conflict-translation tests verify:
+
+```text
+DB::connection()->transactionLevel() === 0
+```
+
+for both translated and rethrown unique conflicts.
+
+This is executable evidence that the failed transaction has been unwound before the caller receives either:
+
+```text
+ResidentCheckInException::activePlacementExists()
+```
+
+or the original unrelated `UniqueConstraintViolationException`.
+
+The retry count `3` belongs to Laravel's transaction execution contract; it must not be documented as a guarantee that uniqueness conflicts are automatically retried into success.
+
+## 11.9 Responsibility boundary
+
+The current error responsibilities are separated as follows:
+
+| Concern | Current owner |
+| --- | --- |
+| Missing Tenant context | Core `TenantContextNotResolvedException` |
+| Check-In input/business rejection | Dormitory `ResidentCheckInException` |
+| Membership eligibility rejection | Dormitory eligibility adapter translated to `membershipNotEligible()` |
+| PostgreSQL uniqueness enforcement | database partial unique indexes |
+| Laravel unique-violation classification | `UniqueConstraintViolationException` |
+| Active-Membership conflict recognition | `ResidentPlacementService` |
+| Unrelated unique-conflict propagation | original persistence exception rethrown |
+| Public HTTP/API error mapping | not implemented |
+
+The current implementation does not provide a generic Dormitory persistence-error translator, error-code enum, HTTP exception renderer, or localization layer for `ResidentCheckInException` messages.
+
+Future API exposure should define a stable external error contract separately rather than treating current exception text as a permanent client-facing protocol.
+
+## 11.10 Current regression evidence
+
+Focused executable coverage for this boundary is provided by:
+
+```text
+ResidentPlacementUniqueConflictTranslationTest
+ResidentCheckInServiceTest
+MembershipResidentEligibilityCheckerTest
+SameMembershipDifferentRoomConcurrencyTest
+```
+
+The unique-conflict translation suite specifically proves:
+
+```text
+exact active-Membership index
+→ translated
+
+active-Membership column signature without index metadata
+→ translated
+
+localized driver message with exact active-Membership token
+→ translated
+
+unrelated Bed index
+→ rethrown
+
+unrelated Bed column signature
+→ rethrown
+
+localized driver message with unrelated Bed token
+→ rethrown
+```
+
+The same-Membership/different-Room concurrency proof complements these synthetic translation cases by demonstrating the real zero-row race that makes the active-Membership database fallback necessary.
 
 ---
 
