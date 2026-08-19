@@ -79,8 +79,16 @@ paths:
       tags:
         - Authentication
       summary: Return the authenticated frontend bootstrap context
+      description: |
+        Supports canonical Bearer clients and first-party Browser Session
+        clients. BrowserSessionAuth requires X-EduCore-Membership-Id to select
+        one server-held Membership credential. The header is a locator only
+        and is not required for BearerAuth.
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
       responses:
         "200":
           description: Authenticated frontend bootstrap context.
@@ -220,8 +228,15 @@ paths:
       tags:
         - Authorization
       summary: Project effective tenant capabilities
+      description: |
+        Supports BearerAuth and BrowserSessionAuth. Browser Session requests
+        require X-EduCore-Membership-Id to select a prepared server-held
+        Membership credential; Bearer requests do not require the header.
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
       responses:
         "200":
           description: Effective tenant capability projection.
@@ -241,9 +256,16 @@ paths:
       tags:
         - Authorization
       summary: Project effective capabilities for the selected organizational workspace
+      description: |
+        Supports BearerAuth and BrowserSessionAuth. Browser Session requests
+        require X-EduCore-Membership-Id to select the canonical Membership
+        context. X-EduCore-Organizational-Assignment-Id remains required for
+        both transports and is a locator only.
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
       parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
         - $ref: "#/components/parameters/OrganizationalAssignmentId"
       responses:
         "200":
@@ -481,8 +503,14 @@ paths:
       tags:
         - User Context
       summary: List active memberships owned by the authenticated Person
+      description: |
+        Supports BearerAuth and BrowserSessionAuth at User identity scope.
+        X-EduCore-Membership-Id is intentionally not required because this
+        operation discovers the Memberships available to the authenticated
+        Person.
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
       responses:
         "200":
           description: Person-owned active membership projection.
@@ -573,8 +601,15 @@ paths:
       tags:
         - User Context
       summary: Discover active organizational workspaces for the current membership
+      description: |
+        Supports BearerAuth and BrowserSessionAuth. Browser Session requests
+        require X-EduCore-Membership-Id to select a prepared server-held
+        Membership credential; Bearer requests do not require the header.
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
       responses:
         "200":
           description: Available frontend workspace projection.
@@ -1787,6 +1822,20 @@ components:
         This header is a context locator only. It does not grant authority.
         The backend resolves and verifies the assignment against the current
         Tenant and Membership on every request.
+      schema:
+        $ref: "#/components/schemas/UuidV7"
+
+    CanonicalBrowserMembershipLocator:
+      name: X-EduCore-Membership-Id
+      in: header
+      required: false
+      description: |
+        UUIDv7 tab-local locator used only when a canonical operation is
+        authenticated with BrowserSessionAuth. It selects one Membership
+        credential already prepared in server-side Browser Session custody.
+
+        Omit this header for BearerAuth. The header is never authentication or
+        authorization authority and cannot create a Membership context.
       schema:
         $ref: "#/components/schemas/UuidV7"
 

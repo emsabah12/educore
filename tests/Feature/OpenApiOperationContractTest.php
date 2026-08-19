@@ -247,6 +247,34 @@ final class OpenApiOperationContractTest extends TestCase
             'Browser logout must remain idempotent for an anonymous session while accepting BrowserSessionAuth.',
         );
 
+        $canonicalDualTransportOperations = [
+            'GET /api/v1/auth/me',
+            'GET /api/v1/core/authorization/capabilities',
+            'GET /api/v1/core/authorization/workspace-capabilities',
+            'GET /api/v1/user/my-memberships',
+            'GET /api/v1/user/my-workspaces',
+        ];
+
+        foreach ($canonicalDualTransportOperations as $operationKey) {
+            $this->assertSame(
+                [
+                    [
+                        'BearerAuth' => [],
+                    ],
+                    [
+                        'BrowserSessionAuth' => [],
+                    ],
+                ],
+                $this->operation(
+                    $operationKey,
+                )['security'] ?? null,
+                sprintf(
+                    'Canonical dual-transport security drift detected for [%s].',
+                    $operationKey,
+                ),
+            );
+        }
+
         $browserOperations = [
             'POST /api/v1/browser/auth/login',
             'GET /api/v1/browser/auth/me',
@@ -268,6 +296,7 @@ final class OpenApiOperationContractTest extends TestCase
                             'GET /api/v1/core/health',
                         ],
                         $browserOperations,
+                        $canonicalDualTransportOperations,
                     ),
                     true,
                 )
@@ -330,6 +359,73 @@ final class OpenApiOperationContractTest extends TestCase
                 ),
             );
         }
+
+        foreach (
+            [
+                'GET /api/v1/auth/me',
+                'GET /api/v1/core/authorization/capabilities',
+                'GET /api/v1/core/authorization/workspace-capabilities',
+                'GET /api/v1/user/my-workspaces',
+            ] as $operationKey
+        ) {
+            $this->assertContains(
+                [
+                    '$ref' => '#/components/parameters/CanonicalBrowserMembershipLocator',
+                ],
+                $this->operation(
+                    $operationKey,
+                )['parameters'] ?? [],
+                sprintf(
+                    'Conditional Browser Membership locator missing from [%s].',
+                    $operationKey,
+                ),
+            );
+        }
+
+        $this->assertArrayNotHasKey(
+            'parameters',
+            $this->operation(
+                'GET /api/v1/user/my-memberships',
+            ),
+            'Membership discovery must not require or advertise a Membership locator.',
+        );
+    }
+
+    public function test_canonical_browser_membership_locator_is_optional_while_transitional_locator_remains_required(): void
+    {
+        $parameters = $this->spec()['components']['parameters']
+            ?? [];
+
+        $canonical =
+            $parameters['CanonicalBrowserMembershipLocator']
+            ?? [];
+
+        $this->assertSame(
+            'X-EduCore-Membership-Id',
+            $canonical['name'] ?? null,
+        );
+
+        $this->assertSame(
+            'header',
+            $canonical['in'] ?? null,
+        );
+
+        $this->assertFalse(
+            (bool) ($canonical['required'] ?? true),
+        );
+
+        $this->assertSame(
+            '#/components/schemas/UuidV7',
+            $canonical['schema']['$ref'] ?? null,
+        );
+
+        $this->assertTrue(
+            (bool) (
+                $parameters['BrowserMembershipLocator']['required']
+                ?? false
+            ),
+            'Transitional /browser/auth/me locator must remain required until BFF-9.3 retirement.',
+        );
     }
 
     public function test_health_503_keeps_health_status_representation(): void
