@@ -1,12 +1,26 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { RouterProvider } from 'react-router/dom';
+import {
+    QueryClientProvider,
+} from '@tanstack/react-query';
+import {
+    RouterProvider,
+} from 'react-router/dom';
 
-import { ApplicationErrorBoundary } from '@/app/ApplicationErrorBoundary';
-import { BrowserAuthProvider } from '@/app/auth/BrowserAuthProvider';
-import type { ApplicationRuntime } from '@/app/runtime';
+import {
+    ApplicationErrorBoundary,
+} from '@/app/ApplicationErrorBoundary';
+import {
+    BrowserAuthProvider,
+} from '@/app/auth/BrowserAuthProvider';
+import {
+    MembershipContextProvider,
+} from '@/app/membership/MembershipContextProvider';
+import type {
+    ApplicationRuntime,
+} from '@/app/runtime';
 
 interface AppBootstrapProps {
-    runtime: ApplicationRuntime;
+    runtime:
+        ApplicationRuntime;
 }
 
 export function AppBootstrap({
@@ -17,13 +31,23 @@ export function AppBootstrap({
             <BrowserAuthProvider
                 runtime={runtime.auth}
             >
-                <QueryClientProvider
-                    client={runtime.queryClient}
+                <MembershipContextProvider
+                    runtime={
+                        runtime.membership
+                    }
                 >
-                    <RouterProvider
-                        router={runtime.router}
-                    />
-                </QueryClientProvider>
+                    <QueryClientProvider
+                        client={
+                            runtime.queryClient
+                        }
+                    >
+                        <RouterProvider
+                            router={
+                                runtime.router
+                            }
+                        />
+                    </QueryClientProvider>
+                </MembershipContextProvider>
             </BrowserAuthProvider>
         </ApplicationErrorBoundary>
     );

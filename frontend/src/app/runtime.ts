@@ -9,10 +9,17 @@ import {
     createBrowserAuthRuntime,
     type BrowserAuthRuntime,
 } from '@/platform/auth';
+import {
+    createMembershipContextOperations,
+    createMembershipContextRuntime,
+    type MembershipContextRuntime,
+} from '@/platform/membership';
 
 export interface ApplicationRuntime {
     apiClient: BrowserApiClient;
     auth: BrowserAuthRuntime;
+    membership:
+        MembershipContextRuntime;
     queryClient: ReturnType<
         typeof createAppQueryClient
     >;
@@ -33,9 +40,18 @@ export function createApplicationRuntime():
             ),
         );
 
+    const membership =
+        createMembershipContextRuntime(
+            createMembershipContextOperations(
+                apiClient,
+            ),
+            auth,
+        );
+
     return {
         apiClient,
         auth,
+        membership,
         queryClient:
             createAppQueryClient(),
         router:
