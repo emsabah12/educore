@@ -46,6 +46,9 @@ export function AppBootstrap({
                         runtime={
                             runtime.workspace
                         }
+                        activateLifecycle={
+                            false
+                        }
                     >
                         <CapabilityContextProvider
                             runtime={

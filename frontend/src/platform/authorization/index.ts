@@ -80,3 +80,25 @@ export type {
 export {
     createWorkspaceCapabilityVerifier,
 } from './workspace-verifier';
+
+export {
+    createPermissionEvaluator,
+} from './permission-evaluator';
+
+export type {
+    PermissionEvaluator,
+} from './permission-evaluator';
+
+export {
+    createAuthorizationDecisionEvaluator,
+} from './decision';
+
+export type {
+    AllowedAuthorizationDecision,
+    AuthorizationDecision,
+    AuthorizationDecisionEvaluator,
+    DeniedAuthorizationDecision,
+    PendingAuthorizationDecision,
+    PermissionRequirement,
+    UnavailableAuthorizationDecision,
+} from './decision';

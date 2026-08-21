@@ -173,10 +173,20 @@ describe(
                     'heading',
                     {
                         name:
-                            'Frontend Foundation',
+                            'Pilih Membership',
                     },
                 ),
             ).toBeInTheDocument();
+
+            expect(
+                screen.queryByRole(
+                    'heading',
+                    {
+                        name:
+                            'Frontend Foundation',
+                    },
+                ),
+            ).not.toBeInTheDocument();
 
             await waitFor(() => {
                 expect(

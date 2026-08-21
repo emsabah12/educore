@@ -32,6 +32,16 @@ export interface WorkspaceContextProviderProps
     extends PropsWithChildren {
     readonly runtime:
         WorkspaceContextRuntime;
+
+    /*
+     * Existing standalone Provider consumers keep the
+     * established lifecycle behavior by default.
+     *
+     * Application composition may disable it when route
+     * ownership activates Workspace lifecycle explicitly.
+     */
+    readonly activateLifecycle?:
+        boolean;
 }
 
 function useWorkspaceBootstrapLifecycleClassifier():
@@ -53,15 +63,15 @@ function useWorkspaceBootstrapLifecycleClassifier():
     return classifierRef.current;
 }
 
-export function WorkspaceContextProvider({
-    runtime,
-    children,
-}: WorkspaceContextProviderProps) {
+export function WorkspaceContextLifecycle() {
     const authenticationState =
         useBrowserAuthState();
 
     const membershipState =
         useMembershipContextState();
+
+    const runtime =
+        useWorkspaceContextRuntime();
 
     const lifecycleClassifier =
         useWorkspaceBootstrapLifecycleClassifier();
@@ -73,10 +83,9 @@ export function WorkspaceContextProvider({
              * before deciding whether Workspace may
              * bootstrap.
              *
-             * In particular, authenticating,
-             * resolving-context, and Membership switching
-             * are needed to distinguish fresh context from
-             * initial reload.
+             * This lifecycle component may be route-scoped,
+             * while WorkspaceRuntime itself remains a
+             * long-lived application-owned object.
              */
             const decision =
                 lifecycleClassifier.observe(
@@ -112,11 +121,7 @@ export function WorkspaceContextProvider({
 
             /*
              * StrictMode may clean up the first Effect while
-             * Workspace discovery is already in flight.
-             *
-             * WorkspaceRuntime supports replacing an
-             * in-flight discovery through its operation
-             * revision fence.
+             * discovery is already in flight.
              *
              * Stable READY/UNAVAILABLE states are not
              * automatically reloaded by React.
@@ -153,10 +158,24 @@ export function WorkspaceContextProvider({
         ],
     );
 
+    return null;
+}
+
+export function WorkspaceContextProvider({
+    runtime,
+    activateLifecycle = true,
+    children,
+}: WorkspaceContextProviderProps) {
     return (
         <WorkspaceRuntimeContext.Provider
             value={runtime}
         >
+            {activateLifecycle
+                ? (
+                    <WorkspaceContextLifecycle />
+                )
+                : null}
+
             {children}
         </WorkspaceRuntimeContext.Provider>
     );

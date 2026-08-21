@@ -1,0 +1,304 @@
+import {
+    render,
+    screen,
+} from '@testing-library/react';
+import {
+    describe,
+    expect,
+    it,
+} from 'vitest';
+
+import {
+    ProtectedRouteStateView,
+} from '@/app/routing/ProtectedRouteStateView';
+import type {
+    BrowserApiFailure,
+} from '@/platform/api';
+
+const networkFailure:
+    BrowserApiFailure = {
+        ok:
+            false,
+
+        kind:
+            'network',
+
+        cause:
+            new Error(
+                'sensitive transport detail',
+            ),
+    };
+
+describe(
+    'ProtectedRouteStateView',
+    () => {
+        it('renders authentication bootstrap as pending instead of access denied', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'authentication',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Menyiapkan halaman',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Sedang memeriksa sesi Anda.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Akses ditolak',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders Membership selection as its own controlled state', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'membership-required',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Pilih Membership',
+                    },
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('keeps an empty Membership catalog distinct from access denial', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'membership-empty',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Membership belum tersedia',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Akses ditolak',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders unavailable authorization authority without exposing raw failure details', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'unavailable',
+
+                        source:
+                            'authorization',
+
+                        failure:
+                            networkFailure,
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Konteks belum tersedia',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Informasi otorisasi belum dapat dimuat.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'sensitive transport detail',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders organizational context requirement distinctly from permission denial', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'context-required',
+
+                        requiredContext:
+                            'organizational',
+
+                        currentWorkspace:
+                            'TENANT',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Pilih Workspace organisasi',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Akses ditolak',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders Tenant context requirement distinctly from organizational selection', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'context-required',
+
+                        requiredContext:
+                            'tenant',
+
+                        currentWorkspace:
+                            'ORGANIZATION',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Gunakan Workspace Tenant',
+                    },
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('renders canonical permission denial as controlled Access Denied UX', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'denied',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Akses ditolak',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    /permission yang diperlukan/,
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('uses source-specific pending copy without collapsing route lifecycle states', () => {
+            const {
+                rerender,
+            } =
+                render(
+                    <ProtectedRouteStateView
+                        decision={{
+                            status:
+                                'pending',
+
+                            source:
+                                'membership',
+                        }}
+                    />,
+                );
+
+            expect(
+                screen.getByText(
+                    'Sedang memuat konteks Membership Anda.',
+                ),
+            ).toBeInTheDocument();
+
+            rerender(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'workspace',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByText(
+                    'Sedang menyiapkan Workspace aktif.',
+                ),
+            ).toBeInTheDocument();
+
+            rerender(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'authorization',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByText(
+                    'Sedang memeriksa akses halaman.',
+                ),
+            ).toBeInTheDocument();
+        });
+    },
+);
