@@ -44,6 +44,24 @@ export interface WorkspaceContextRuntimeOptions {
         AbortSignal;
 }
 
+export interface WorkspaceContextBootstrapOptions
+    extends WorkspaceContextRuntimeOptions {
+    /*
+     * Reload bootstrap may validate and restore the
+     * advisory per-tab Workspace hint.
+     *
+     * Fresh authentication or Membership/Tenant context
+     * must set this to false so stale organizational
+     * context is discarded and TENANT remains the safe
+     * baseline.
+     *
+     * Default true preserves the established reload
+     * behavior for existing callers.
+     */
+    readonly restoreHint?:
+        boolean;
+}
+
 export type WorkspaceMembershipRuntime =
     Pick<
         MembershipContextRuntime,
@@ -62,7 +80,7 @@ export interface WorkspaceContextRuntime {
 
     bootstrap(
         options?:
-            WorkspaceContextRuntimeOptions,
+            WorkspaceContextBootstrapOptions,
     ): Promise<
         WorkspaceContextState
     >;
@@ -904,39 +922,68 @@ export function createWorkspaceContextRuntime(
         };
 
     const bootstrap =
-        async (
-            options:
-                WorkspaceContextRuntimeOptions = {},
-        ): Promise<
-            WorkspaceContextState
-        > => {
+    async (
+        options:
+            WorkspaceContextBootstrapOptions = {},
+    ): Promise<
+        WorkspaceContextState
+    > => {
+        /*
+         * A concurrent explicit switch owns Workspace
+         * transition until verification completes.
+         */
+        if (
+            state.status
+                === 'switching'
+        ) {
+            return state;
+        }
+
+        const context =
+            currentMembershipContext();
+
+        if (
+            context
+                === undefined
+        ) {
+            return reset();
+        }
+
+        const restoreHint =
+            options.restoreHint
+                ?? true;
+
+        if (
+            ! restoreHint
+        ) {
             /*
-             * A concurrent explicit switch owns Workspace
-             * transition until verification completes.
+             * Fresh authentication / Membership context
+             * must establish TENANT as a genuinely fresh
+             * baseline.
+             *
+             * Merely skipping the read would leave an old
+             * organizational hint available to a later
+             * bootstrap or reload.
              */
-            if (
-                state.status
-                    === 'switching'
-            ) {
-                return state;
-            }
+            clearRestorationHint();
+        }
 
-            const context =
-                currentMembershipContext();
-
-            if (
-                context
-                    === undefined
-            ) {
-                return reset();
-            }
-
-            return runDiscovery(
-                context,
-                options,
-                true,
-            );
-        };
+        return runDiscovery(
+            context,
+            {
+                ...(
+                    options.signal
+                        === undefined
+                        ? {}
+                        : {
+                            signal:
+                                options.signal,
+                        }
+                ),
+            },
+            restoreHint,
+        );
+    };
 
     const switchWorkspace =
         async (

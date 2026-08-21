@@ -2,6 +2,7 @@ import {
     describe,
     expect,
     it,
+    vi,
 } from 'vitest';
 
 import {
@@ -37,6 +38,18 @@ describe(
             );
 
             expect(
+                firstRuntime.workspace,
+            ).not.toBe(
+                secondRuntime.workspace,
+            );
+
+            expect(
+                firstRuntime.capabilities,
+            ).not.toBe(
+                secondRuntime.capabilities,
+            );
+
+            expect(
                 firstRuntime.queryClient,
             ).not.toBe(
                 secondRuntime.queryClient,
@@ -46,6 +59,74 @@ describe(
                 firstRuntime.router,
             ).not.toBe(
                 secondRuntime.router,
+            );
+
+            firstRuntime
+                .capabilities
+                .dispose();
+
+            firstRuntime
+                .workspace
+                .dispose();
+
+            secondRuntime
+                .capabilities
+                .dispose();
+
+            secondRuntime
+                .workspace
+                .dispose();
+        });
+
+        it('owns idempotent disposal of composed long-lived runtimes', () => {
+            const runtime =
+                createApplicationRuntime();
+
+            const capabilitiesDispose =
+                vi.spyOn(
+                    runtime.capabilities,
+                    'dispose',
+                );
+
+            const workspaceDispose =
+                vi.spyOn(
+                    runtime.workspace,
+                    'dispose',
+                );
+
+            runtime.dispose();
+
+            expect(
+                capabilitiesDispose,
+            ).toHaveBeenCalledTimes(
+                1,
+            );
+
+            expect(
+                workspaceDispose,
+            ).toHaveBeenCalledTimes(
+                1,
+            );
+
+            /*
+            * Application ownership is idempotent even though
+            * individual child runtimes also protect themselves.
+            *
+            * This prevents accidental repeated teardown from
+            * HMR or future mounting infrastructure.
+            */
+            runtime.dispose();
+
+            expect(
+                capabilitiesDispose,
+            ).toHaveBeenCalledTimes(
+                1,
+            );
+
+            expect(
+                workspaceDispose,
+            ).toHaveBeenCalledTimes(
+                1,
             );
         });
     },

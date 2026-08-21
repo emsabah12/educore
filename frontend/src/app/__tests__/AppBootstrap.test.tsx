@@ -30,18 +30,26 @@ const membershipId =
 const tenantId =
     '018f3b6a-7c20-7cde-8def-1234567890ab';
 
+const userId =
+    '018f3b6a-7c20-7def-8abc-1234567890ab';
+
+const personId =
+    '018f3b6a-7c20-7eee-8abc-1234567890ab';
+
 afterEach(() => {
     window.history.replaceState(
         null,
         '',
         '/',
     );
+
+    window.sessionStorage.clear();
 });
 
 describe(
     'AppBootstrap',
     () => {
-        it('mounts the composed providers and resolves initial Membership selection truth', async () => {
+        it('mounts the composed providers and resolves initial Membership selection truth without inventing Workspace authority', async () => {
             window.history.replaceState(
                 null,
                 '',
@@ -51,22 +59,29 @@ describe(
             let membershipRequestCount =
                 0;
 
+            let workspaceRequestCount =
+                0;
+
             apiMockServer.use(
                 http.get(
                     `${window.location.origin}/api/v1/auth/me`,
-                    () => HttpResponse.json(
-                        {
-                            status:
-                                'error',
-                            code:
-                                'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
-                            message:
-                                'Browser membership context is required.',
-                        },
-                        {
-                            status: 403,
-                        },
-                    ),
+                    () =>
+                        HttpResponse.json(
+                            {
+                                status:
+                                    'error',
+
+                                code:
+                                    'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
+
+                                message:
+                                    'Browser membership context is required.',
+                            },
+                            {
+                                status:
+                                    403,
+                            },
+                        ),
                 ),
 
                 http.get(
@@ -78,20 +93,67 @@ describe(
                         return HttpResponse.json({
                             status:
                                 'success',
+
                             data: [
                                 {
                                     membership_id:
                                         membershipId,
+
                                     membership_status:
                                         'ACTIVE',
+
                                     tenant_id:
                                         tenantId,
+
                                     tenant_name:
                                         'EduCore School',
+
                                     tenant_subdomain:
                                         'school',
                                 },
                             ],
+                        });
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-workspaces`,
+                    () => {
+                        workspaceRequestCount +=
+                            1;
+
+                        return HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: {
+                                tenant: {
+                                    id:
+                                        tenantId,
+
+                                    name:
+                                        'EduCore School',
+                                },
+
+                                workspaces: [
+                                    {
+                                        type:
+                                            'TENANT',
+
+                                        organizational_assignment_id:
+                                            null,
+
+                                        organization_id:
+                                            null,
+
+                                        organization_unit_id:
+                                            null,
+
+                                        label:
+                                            'EduCore School',
+                                    },
+                                ],
+                            },
                         });
                     },
                 ),
@@ -138,7 +200,406 @@ describe(
 
             expect(
                 membershipRequestCount,
-            ).toBe(1);
+            ).toBe(
+                1,
+            );
+
+            /*
+             * No canonical Membership/Tenant has been
+             * selected yet, therefore Workspace discovery
+             * must remain dormant.
+             */
+            expect(
+                workspaceRequestCount,
+            ).toBe(
+                0,
+            );
+
+            expect(
+                runtime.workspace
+                    .getState(),
+            ).toEqual({
+                status:
+                    'unresolved',
+            });
+
+            expect(
+                runtime.capabilities
+                    .getState(),
+            ).toEqual({
+                status:
+                    'unresolved',
+            });
+        });
+
+        it('resolves an initial authenticated Membership into a verified TENANT Workspace', async () => {
+            window.history.replaceState(
+                null,
+                '',
+                '/',
+            );
+
+            let membershipRequestCount =
+                0;
+
+            let workspaceRequestCount =
+                0;
+
+            let capabilityRequestCount =
+                0;
+
+            let workspaceMembershipLocator:
+                string | null =
+                    null;
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/auth/me`,
+                    () =>
+                        HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: {
+                                user: {
+                                    id:
+                                        userId,
+
+                                    email:
+                                        'member@example.com',
+                                },
+
+                                person: {
+                                    id:
+                                        personId,
+
+                                    name:
+                                        'EduCore Member',
+                                },
+
+                                membership: {
+                                    id:
+                                        membershipId,
+
+                                    status:
+                                        'ACTIVE',
+                                },
+
+                                tenant: {
+                                    id:
+                                        tenantId,
+
+                                    name:
+                                        'EduCore School',
+
+                                    subdomain:
+                                        'school',
+                                },
+                            },
+                        }),
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-memberships`,
+                    () => {
+                        membershipRequestCount +=
+                            1;
+
+                        return HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: [
+                                {
+                                    membership_id:
+                                        membershipId,
+
+                                    membership_status:
+                                        'ACTIVE',
+
+                                    tenant_id:
+                                        tenantId,
+
+                                    tenant_name:
+                                        'EduCore School',
+
+                                    tenant_subdomain:
+                                        'school',
+                                },
+                            ],
+                        });
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-workspaces`,
+                    ({
+                        request,
+                    }) => {
+                        workspaceRequestCount +=
+                            1;
+
+                        workspaceMembershipLocator =
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            );
+
+                        return HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: {
+                                tenant: {
+                                    id:
+                                        tenantId,
+
+                                    name:
+                                        'EduCore School',
+                                },
+
+                                workspaces: [
+                                    {
+                                        type:
+                                            'TENANT',
+
+                                        organizational_assignment_id:
+                                            null,
+
+                                        organization_id:
+                                            null,
+
+                                        organization_unit_id:
+                                            null,
+
+                                        label:
+                                            'EduCore School',
+                                    },
+                                ],
+                            },
+                        });
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/core/authorization/capabilities`,
+                    () => {
+                        capabilityRequestCount +=
+                            1;
+
+                        return HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: {
+                                scope: {
+                                    type:
+                                        'tenant',
+
+                                    tenant_id:
+                                        tenantId,
+
+                                    membership_id:
+                                        membershipId,
+                                },
+
+                                is_global_superadmin:
+                                    false,
+
+                                permissions:
+                                    [],
+                            },
+                        });
+                    },
+                ),
+            );
+
+            const runtime =
+                createApplicationRuntime();
+
+            render(
+                <AppBootstrap
+                    runtime={runtime}
+                />,
+            );
+
+            expect(
+                await screen.findByRole(
+                    'heading',
+                    {
+                        name:
+                            'Frontend Foundation',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            await waitFor(() => {
+                expect(
+                    runtime.auth
+                        .getState()
+                        .status,
+                ).toBe(
+                    'authenticated',
+                );
+            });
+
+            await waitFor(() => {
+                expect(
+                    runtime.membership
+                        .getState()
+                        .status,
+                ).toBe(
+                    'ready',
+                );
+            });
+
+            await waitFor(() => {
+                expect(
+                    runtime.workspace
+                        .getState()
+                        .status,
+                ).toBe(
+                    'ready',
+                );
+            });
+
+            /*
+             * CapabilityRuntime owns synchronization with
+             * committed Membership + Workspace truth.
+             *
+             * CapabilityContextProvider is intentionally
+             * only a React read bridge and does not start
+             * this lifecycle itself.
+             */
+            await waitFor(() => {
+                expect(
+                    runtime.capabilities
+                        .getState()
+                        .status,
+                ).toBe(
+                    'ready',
+                );
+            });
+
+            const capabilityState =
+                runtime.capabilities
+                    .getState();
+
+            if (
+                capabilityState.status
+                    !== 'ready'
+            ) {
+                throw new Error(
+                    'AppBootstrap must expose validated Capability authority after the verified TENANT Workspace is committed.',
+                );
+            }
+
+            expect(
+                capabilityState.projection.scope,
+            ).toEqual({
+                type:
+                    'tenant',
+
+                tenant_id:
+                    tenantId,
+
+                membership_id:
+                    membershipId,
+            });
+
+            expect(
+                capabilityState.projection
+                    .is_global_superadmin,
+            ).toBe(
+                false,
+            );
+
+            expect(
+                capabilityState.projection
+                    .permissions,
+            ).toEqual([]);
+
+            const workspaceState =
+                runtime.workspace
+                    .getState();
+
+            if (
+                workspaceState.status
+                    !== 'ready'
+            ) {
+                throw new Error(
+                    'AppBootstrap must resolve a verified Workspace before asserting current Workspace truth.',
+                );
+            }
+
+            expect(
+                workspaceState.context
+                    .membership
+                    .id,
+            ).toBe(
+                membershipId,
+            );
+
+            expect(
+                workspaceState.context
+                    .tenant
+                    .id,
+            ).toBe(
+                tenantId,
+            );
+
+            expect(
+                workspaceState.current,
+            ).toEqual({
+                type:
+                    'TENANT',
+
+                organizational_assignment_id:
+                    null,
+
+                organization_id:
+                    null,
+
+                organization_unit_id:
+                    null,
+
+                label:
+                    'EduCore School',
+            });
+
+            expect(
+                membershipRequestCount,
+            ).toBe(
+                1,
+            );
+
+            expect(
+                workspaceRequestCount,
+            ).toBe(
+                1,
+            );
+
+            expect(
+                workspaceMembershipLocator,
+            ).toBe(
+                membershipId,
+            );
+
+            /*
+             * At least the Workspace verifier must project
+             * canonical TENANT capabilities before the
+             * Workspace can become authoritative.
+             *
+             * CapabilityRuntime may subsequently perform its
+             * own active projection from the same committed
+             * Workspace. Duplicate transport projection is
+             * intentionally acceptable at this foundation
+             * stage.
+             */
+            expect(
+                capabilityRequestCount,
+            ).toBeGreaterThanOrEqual(
+                1,
+            );
         });
     },
 );

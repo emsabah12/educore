@@ -9,6 +9,9 @@ import {
     ApplicationErrorBoundary,
 } from '@/app/ApplicationErrorBoundary';
 import {
+    CapabilityContextProvider,
+} from '@/app/authorization/CapabilityContextProvider';
+import {
     BrowserAuthProvider,
 } from '@/app/auth/BrowserAuthProvider';
 import {
@@ -17,6 +20,9 @@ import {
 import type {
     ApplicationRuntime,
 } from '@/app/runtime';
+import {
+    WorkspaceContextProvider,
+} from '@/app/workspace/WorkspaceContextProvider';
 
 interface AppBootstrapProps {
     runtime:
@@ -36,17 +42,29 @@ export function AppBootstrap({
                         runtime.membership
                     }
                 >
-                    <QueryClientProvider
-                        client={
-                            runtime.queryClient
+                    <WorkspaceContextProvider
+                        runtime={
+                            runtime.workspace
                         }
                     >
-                        <RouterProvider
-                            router={
-                                runtime.router
+                        <CapabilityContextProvider
+                            runtime={
+                                runtime.capabilities
                             }
-                        />
-                    </QueryClientProvider>
+                        >
+                            <QueryClientProvider
+                                client={
+                                    runtime.queryClient
+                                }
+                            >
+                                <RouterProvider
+                                    router={
+                                        runtime.router
+                                    }
+                                />
+                            </QueryClientProvider>
+                        </CapabilityContextProvider>
+                    </WorkspaceContextProvider>
                 </MembershipContextProvider>
             </BrowserAuthProvider>
         </ApplicationErrorBoundary>

@@ -1119,5 +1119,112 @@ describe(
 
             runtime.dispose();
         });
+
+        it('discards restoration and remains on verified TENANT when bootstrap disables restoration', async () => {
+            const verifiedWorkspaceTypes:
+                string[] = [];
+
+            const membership = {
+                getState() {
+                    return readyMembershipState;
+                },
+
+                subscribe(
+                    _listener:
+                        () => void,
+                ) {
+                    return () => {
+                        // Static Membership fixture has no updates.
+                    };
+                },
+            };
+
+            const verifier:
+                WorkspaceContextVerifier = {
+                    async verify(
+                        _context,
+                        workspace,
+                    ) {
+                        verifiedWorkspaceTypes.push(
+                            workspace.type,
+                        );
+
+                        return {
+                            ok:
+                                true,
+                        };
+                    },
+                };
+
+            const persisted =
+                persistBrowserWorkspaceRestorationHint(
+                    context,
+                    organizationWorkspace,
+                );
+
+            expect(
+                persisted,
+            ).toEqual({
+                ok:
+                    true,
+            });
+
+            expect(
+                readRestorationHint(),
+            ).not.toBeNull();
+
+            const runtime =
+                createWorkspaceContextRuntime(
+                    createSuccessOperations(),
+                    membership,
+                    verifier,
+                );
+
+            const state =
+                await runtime.bootstrap({
+                    restoreHint:
+                        false,
+                });
+
+            expect(
+                state.status,
+            ).toBe(
+                'ready',
+            );
+
+            if (
+                state.status
+                    !== 'ready'
+            ) {
+                throw new Error(
+                    'Expected fresh Workspace bootstrap to publish verified TENANT.',
+                );
+            }
+
+            expect(
+                state.current,
+            ).toEqual(
+                tenantWorkspace,
+            );
+
+            /*
+            * Fresh bootstrap verifies only the safe TENANT
+            * baseline. The stored organizational target must
+            * never participate in this discovery cycle.
+            */
+            expect(
+                verifiedWorkspaceTypes,
+            ).toEqual([
+                'TENANT',
+            ]);
+
+            expect(
+                readRestorationHint(),
+            ).toBeNull();
+
+            runtime.dispose();
+        });
     },
+
+
 );

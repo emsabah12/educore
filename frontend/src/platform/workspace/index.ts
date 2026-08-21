@@ -47,6 +47,7 @@ export {
 } from './runtime';
 
 export type {
+    WorkspaceContextBootstrapOptions,
     WorkspaceContextRuntime,
     WorkspaceContextRuntimeOptions,
     WorkspaceMembershipRuntime,
