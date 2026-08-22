@@ -1,7 +1,9 @@
 import {
+    fireEvent,
     render,
     screen,
     waitFor,
+    within,
 } from '@testing-library/react';
 import {
     http,
@@ -217,12 +219,58 @@ describe(
                 );
 
             try {
+                /*
+                * BrowserAuth bootstrap is asynchronous and may remain in
+                * the intentional unknown/pending state for longer than
+                * Testing Library's default findBy timeout on a loaded CI
+                * or development machine.
+                *
+                * Synchronize against canonical runtime authority first,
+                * then verify the routed public presentation.
+                */
+                await waitFor(
+                    () => {
+                        expect(
+                            runtime.auth
+                                .getState()
+                                .status,
+                        ).toBe(
+                            'anonymous',
+                        );
+                    },
+                    {
+                        timeout:
+                            5000,
+                    },
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            runtime.router
+                                .state
+                                .location
+                                .pathname,
+                        ).toBe(
+                            '/login',
+                        );
+                    },
+                    {
+                        timeout:
+                            5000,
+                    },
+                );
+
                 expect(
                     await screen.findByRole(
                         'heading',
                         {
                             name:
                                 'Masuk ke EduCore',
+                        },
+                        {
+                            timeout:
+                                5000,
                         },
                     ),
                 ).toBeInTheDocument();
@@ -313,6 +361,42 @@ describe(
                         },
                     ),
                 ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'navigation',
+                        {
+                            name:
+                                'Navigasi utama',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByLabelText(
+                        'Konteks pengguna aktif',
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'link',
+                        {
+                            name:
+                                'Lewati ke konten utama',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'button',
+                        {
+                            name:
+                                'Keluar',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
             } finally {
                 rendered.unmount();
 
@@ -320,7 +404,7 @@ describe(
             }
         });
 
-        it('redirects an authenticated direct login route into the verified protected application', async () => {
+        it('redirects an authenticated direct login route into the verified protected shell and canonical navigation', async () => {
             window.history.replaceState(
                 null,
                 '',
@@ -425,6 +509,15 @@ describe(
                 );
 
             try {
+                /*
+                * LoginRouteBoundary must redirect the already
+                * authenticated browser into the canonical
+                * protected application.
+                *
+                * Waiting for the actual page heading also proves
+                * that protected routing eventually reached the
+                * application Outlet.
+                */
                 expect(
                     await screen.findByRole(
                         'heading',
@@ -494,6 +587,165 @@ describe(
                     );
                 });
 
+                /*
+                * These assertions use the real
+                * AuthenticatedApplicationShell.
+                *
+                * They prove that authoritative canonical identity
+                * and Workspace state are projected into the
+                * authenticated presentation tree.
+                */
+                const activeContext =
+                    screen.getByLabelText(
+                        'Konteks pengguna aktif',
+                    );
+
+                expect(
+                    within(
+                        activeContext,
+                    ).getByText(
+                        'EduCore Member',
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    within(
+                        activeContext,
+                    ).getByText(
+                        'member@example.com',
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    within(
+                        activeContext,
+                    ).getByText(
+                        'Workspace: EduCore School',
+                    ),
+                ).toBeInTheDocument();
+
+                /*
+                * Navigation is not mocked here.
+                *
+                * The visible Beranda item therefore proves:
+                *
+                * Provider snapshots
+                *   → React navigation adapter
+                *   → pure navigation projection
+                *   → canonical route policy registry
+                *   → protected route evaluator
+                *   → ApplicationNavigation
+                */
+                const navigation =
+                    screen.getByRole(
+                        'navigation',
+                        {
+                            name:
+                                'Navigasi utama',
+                        },
+                    );
+
+                const homeLink =
+                    within(
+                        navigation,
+                    ).getByRole(
+                        'link',
+                        {
+                            name:
+                                'Beranda',
+                        },
+                    );
+
+                expect(
+                    homeLink,
+                ).toHaveAttribute(
+                    'href',
+                    '/',
+                );
+
+                expect(
+                    homeLink,
+                ).toHaveAttribute(
+                    'aria-current',
+                    'page',
+                );
+
+                expect(
+                    within(
+                        navigation,
+                    ).getAllByRole(
+                        'link',
+                    ),
+                ).toHaveLength(
+                    1,
+                );
+
+                /*
+                * The shell owns one canonical main landmark and
+                * the page must be rendered through its Outlet.
+                */
+                const main =
+                    screen.getByRole(
+                        'main',
+                    );
+
+                expect(
+                    main,
+                ).toHaveAttribute(
+                    'id',
+                    'main-content',
+                );
+
+                expect(
+                    main,
+                ).toHaveAttribute(
+                    'tabindex',
+                    '-1',
+                );
+
+                expect(
+                    within(
+                        main,
+                    ).getByRole(
+                        'heading',
+                        {
+                            name:
+                                'Frontend Foundation',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                /*
+                * Skip navigation and logout are also real shell
+                * controls, not test substitutes.
+                */
+                expect(
+                    screen.getByRole(
+                        'link',
+                        {
+                            name:
+                                'Lewati ke konten utama',
+                        },
+                    ),
+                ).toHaveAttribute(
+                    'href',
+                    '#main-content',
+                );
+
+                expect(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name:
+                                'Keluar',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                /*
+                * Existing transport/lifecycle contracts remain
+                * unchanged by shell/navigation integration.
+                */
                 expect(
                     membershipRequestCount,
                 ).toBe(
@@ -507,11 +759,10 @@ describe(
                 );
 
                 /*
-                 * Workspace verification and the active
-                 * CapabilityRuntime projection may each
-                 * request the same TENANT capability
-                 * projection at this foundation stage.
-                 */
+                * Workspace verification and active Capability
+                * synchronization may currently each obtain a
+                * TENANT capability projection.
+                */
                 expect(
                     capabilityRequestCount,
                 ).toBeGreaterThanOrEqual(
@@ -696,6 +947,474 @@ describe(
                         },
                     ),
                 ).not.toBeInTheDocument();
+            } finally {
+                rendered.unmount();
+
+                runtime.dispose();
+            }
+        });
+
+        it('tears down the protected shell and downstream authority after browser logout returns the application to public login', async () => {
+            window.history.replaceState(
+                null,
+                '',
+                '/',
+            );
+
+            let csrfRequestCount =
+                0;
+
+            let logoutRequestCount =
+                0;
+
+            let membershipRequestCount =
+                0;
+
+            let workspaceRequestCount =
+                0;
+
+            let capabilityRequestCount =
+                0;
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/browser/session/csrf`,
+                    () => {
+                        csrfRequestCount +=
+                            1;
+
+                        /*
+                        * Match the BrowserSession request-forgery
+                        * bootstrap contract.
+                        *
+                        * BrowserAuth bootstrap and explicit logout
+                        * may both establish this boundary, so the
+                        * test snapshots the count immediately
+                        * before logout instead of assuming this is
+                        * the first CSRF request.
+                        */
+                        document.cookie =
+                            'XSRF-TOKEN=logout%20integration; Path=/';
+
+                        return new HttpResponse(
+                            null,
+                            {
+                                status:
+                                    204,
+                            },
+                        );
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/auth/me`,
+                    () =>
+                        HttpResponse.json({
+                            status:
+                                'success',
+
+                            data: {
+                                user: {
+                                    id:
+                                        userId,
+
+                                    email:
+                                        'member@example.com',
+                                },
+
+                                person: {
+                                    id:
+                                        personId,
+
+                                    name:
+                                        'EduCore Member',
+                                },
+
+                                membership: {
+                                    id:
+                                        membershipId,
+
+                                    status:
+                                        'ACTIVE',
+                                },
+
+                                tenant: {
+                                    id:
+                                        tenantId,
+
+                                    name:
+                                        'EduCore School',
+
+                                    subdomain:
+                                        'school',
+                                },
+                            },
+                        }),
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-memberships`,
+                    () => {
+                        membershipRequestCount +=
+                            1;
+
+                        return membershipResponse();
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-workspaces`,
+                    () => {
+                        workspaceRequestCount +=
+                            1;
+
+                        return workspaceResponse();
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/core/authorization/capabilities`,
+                    () => {
+                        capabilityRequestCount +=
+                            1;
+
+                        return capabilityResponse();
+                    },
+                ),
+
+                http.post(
+                    `${window.location.origin}/api/v1/browser/auth/logout`,
+                    () => {
+                        logoutRequestCount +=
+                            1;
+
+                        return HttpResponse.json({
+                            status:
+                                'success',
+
+                            message:
+                                'Logout completed successfully.',
+                        });
+                    },
+                ),
+            );
+
+            const runtime =
+                createApplicationRuntime();
+
+            const rendered =
+                render(
+                    <AppBootstrap
+                        runtime={runtime}
+                    />,
+                );
+
+            try {
+                /*
+                * Establish the real protected application before
+                * exercising logout.
+                */
+                expect(
+                    await screen.findByRole(
+                        'heading',
+                        {
+                            name:
+                                'Frontend Foundation',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                await waitFor(() => {
+                    expect(
+                        runtime.auth
+                            .getState()
+                            .status,
+                    ).toBe(
+                        'authenticated',
+                    );
+                });
+
+                await waitFor(() => {
+                    expect(
+                        runtime.membership
+                            .getState()
+                            .status,
+                    ).toBe(
+                        'ready',
+                    );
+                });
+
+                await waitFor(() => {
+                    expect(
+                        runtime.workspace
+                            .getState()
+                            .status,
+                    ).toBe(
+                        'ready',
+                    );
+                });
+
+                await waitFor(() => {
+                    expect(
+                        runtime.capabilities
+                            .getState()
+                            .status,
+                    ).toBe(
+                        'ready',
+                    );
+                });
+
+                expect(
+                    runtime.router
+                        .state
+                        .location
+                        .pathname,
+                ).toBe(
+                    '/',
+                );
+
+                /*
+                * Prove the controls belong to the real protected
+                * shell before logout.
+                */
+                expect(
+                    screen.getByRole(
+                        'navigation',
+                        {
+                            name:
+                                'Navigasi utama',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.getByLabelText(
+                        'Konteks pengguna aktif',
+                    ),
+                ).toBeInTheDocument();
+
+                const logoutButton =
+                    screen.getByRole(
+                        'button',
+                        {
+                            name:
+                                'Keluar',
+                        },
+                    );
+
+                /*
+                * Snapshot all transport counts after initial
+                * protected bootstrap.
+                *
+                * Logout must invalidate downstream truth; it must
+                * not rediscover Membership, Workspace, or
+                * Capability authority on the way to public login.
+                */
+                const csrfRequestsBeforeLogout =
+                    csrfRequestCount;
+
+                const membershipRequestsBeforeLogout =
+                    membershipRequestCount;
+
+                const workspaceRequestsBeforeLogout =
+                    workspaceRequestCount;
+
+                const capabilityRequestsBeforeLogout =
+                    capabilityRequestCount;
+
+                fireEvent.click(
+                    logoutButton,
+                );
+
+                /*
+                * Successful canonical logout must eventually move
+                * BrowserAuth to authoritative anonymous truth.
+                */
+                await waitFor(() => {
+                    expect(
+                        runtime.auth
+                            .getState(),
+                    ).toEqual({
+                        status:
+                            'anonymous',
+
+                        failure:
+                            null,
+                    });
+                });
+
+                /*
+                * Authentication loss invalidates all downstream
+                * authority.
+                *
+                * No stale Tenant/Workspace/Capability projection
+                * may survive logout.
+                */
+                await waitFor(() => {
+                    expect(
+                        runtime.membership
+                            .getState(),
+                    ).toEqual({
+                        status:
+                            'unresolved',
+                    });
+                });
+
+                await waitFor(() => {
+                    expect(
+                        runtime.workspace
+                            .getState(),
+                    ).toEqual({
+                        status:
+                            'unresolved',
+                    });
+                });
+
+                await waitFor(() => {
+                    expect(
+                        runtime.capabilities
+                            .getState(),
+                    ).toEqual({
+                        status:
+                            'unresolved',
+                    });
+                });
+
+                /*
+                * Protected routing owns the transition back to the
+                * public login boundary.
+                *
+                * The current protected root is retained only as a
+                * validated navigation convenience, never as
+                * authentication authority.
+                */
+                await waitFor(() => {
+                    expect(
+                        runtime.router
+                            .state
+                            .location
+                            .pathname,
+                    ).toBe(
+                        '/login',
+                    );
+                });
+
+                expect(
+                    new URLSearchParams(
+                        runtime.router
+                            .state
+                            .location
+                            .search,
+                    ).get(
+                        'returnTo',
+                    ),
+                ).toBe(
+                    '/',
+                );
+
+                expect(
+                    await screen.findByRole(
+                        'heading',
+                        {
+                            name:
+                                'Masuk ke EduCore',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                /*
+                * The authenticated presentation tree must be gone.
+                *
+                * Hiding only the page while retaining the old
+                * identity/navigation shell would leak stale
+                * authenticated context.
+                */
+                expect(
+                    screen.queryByRole(
+                        'heading',
+                        {
+                            name:
+                                'Frontend Foundation',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'navigation',
+                        {
+                            name:
+                                'Navigasi utama',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByLabelText(
+                        'Konteks pengguna aktif',
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'link',
+                        {
+                            name:
+                                'Lewati ke konten utama',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'button',
+                        {
+                            name:
+                                'Keluar',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                /*
+                * Explicit logout owns exactly one logout mutation
+                * and one additional CSRF/session bootstrap.
+                */
+                expect(
+                    logoutRequestCount,
+                ).toBe(
+                    1,
+                );
+
+                expect(
+                    csrfRequestCount,
+                ).toBe(
+                    csrfRequestsBeforeLogout
+                        + 1,
+                );
+
+                /*
+                * Leaving protected authority is cleanup-only.
+                *
+                * It must never trigger another downstream
+                * discovery/projection cycle.
+                */
+                expect(
+                    membershipRequestCount,
+                ).toBe(
+                    membershipRequestsBeforeLogout,
+                );
+
+                expect(
+                    workspaceRequestCount,
+                ).toBe(
+                    workspaceRequestsBeforeLogout,
+                );
+
+                expect(
+                    capabilityRequestCount,
+                ).toBe(
+                    capabilityRequestsBeforeLogout,
+                );
             } finally {
                 rendered.unmount();
 

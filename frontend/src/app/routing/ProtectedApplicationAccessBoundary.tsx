@@ -3,35 +3,20 @@ import {
 } from 'react-router';
 
 import {
+    protectedApplicationPolicy,
+} from '@/app/routing/application-route-access';
+import {
     ProtectedRouteBoundary,
 } from '@/app/routing/ProtectedRouteBoundary';
-import {
-    defineProtectedRoutePolicy,
-} from '@/platform/routing';
 
 /*
- * Application-level protected shell policy.
+ * Application-level protected shell boundary.
  *
- * Business routes will contribute their own explicit
- * permission policies later. This policy establishes only
- * the canonical authenticated Membership/Workspace
- * application boundary.
+ * Policy metadata is owned by the canonical application
+ * route-access registry so routing and later navigation
+ * projection cannot drift into separate authorization
+ * vocabularies.
  */
-const protectedApplicationPolicy =
-    defineProtectedRoutePolicy({
-        routeId:
-            'app.protected-root',
-
-        contextRequirement:
-            'tenant',
-
-        authorizationScope:
-            'tenant',
-
-        requiredPermissions:
-            null,
-    });
-
 export function ProtectedApplicationAccessBoundary() {
     return (
         <ProtectedRouteBoundary

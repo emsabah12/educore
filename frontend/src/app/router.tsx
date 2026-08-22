@@ -3,18 +3,27 @@ import {
     type RouteObject,
 } from 'react-router';
 
-import { App } from '@/app/App';
+import {
+    App,
+} from '@/app/App';
+import {
+    NotFoundPage,
+} from '@/app/NotFoundPage';
+import {
+    RouteErrorPage,
+} from '@/app/RouteErrorPage';
 import {
     LoginRouteBoundary,
 } from '@/app/routing/LoginRouteBoundary';
-import { NotFoundPage } from '@/app/NotFoundPage';
 import {
     ProtectedApplicationAccessBoundary,
 } from '@/app/routing/ProtectedApplicationAccessBoundary';
 import {
     ProtectedApplicationLifecycleBoundary,
 } from '@/app/routing/ProtectedApplicationLifecycleBoundary';
-import { RouteErrorPage } from '@/app/RouteErrorPage';
+import {
+    AuthenticatedApplicationShell,
+} from '@/app/shell/AuthenticatedApplicationShell';
 
 export const appRoutes = [
     {
@@ -35,16 +44,26 @@ export const appRoutes = [
                 children: [
                     {
                         id:
-                            'root',
-
-                        path:
-                            '/',
+                            'authenticated-application-shell',
 
                         Component:
-                            App,
+                            AuthenticatedApplicationShell,
 
-                        ErrorBoundary:
-                            RouteErrorPage,
+                        children: [
+                            {
+                                id:
+                                    'root',
+
+                                path:
+                                    '/',
+
+                                Component:
+                                    App,
+
+                                ErrorBoundary:
+                                    RouteErrorPage,
+                            },
+                        ],
                     },
                 ],
             },

@@ -536,6 +536,529 @@ test(
             ),
         ).toBeVisible();
 
+        /*
+        * FEI-11 authenticated application chrome must be a
+        * consequence of the same canonical authority that allowed
+        * the protected route.
+        *
+        * These are real production components rendered by real
+        * Chromium. No shell, navigation, or authority projection
+        * is mocked in this E2E suite.
+        */
+        const activeUserContext =
+            page.getByLabel(
+                'Konteks pengguna aktif',
+            );
+
+        await expect(
+            activeUserContext,
+        ).toBeVisible();
+
+        await expect(
+            activeUserContext.getByText(
+                'EduCore Browser E2E User',
+            ),
+        ).toBeVisible();
+
+        await expect(
+            activeUserContext.getByText(
+                'browser-e2e@educore.test',
+            ),
+        ).toBeVisible();
+
+        await expect(
+            activeUserContext.getByText(
+                /^Workspace:\s+/u,
+            ),
+        ).toBeVisible();
+
+        /*
+        * Canonical navigation currently exposes only the real
+        * registered root destination.
+        *
+        * Navigation visibility remains presentation only;
+        * ProtectedRouteBoundary is still the security boundary.
+        */
+        const primaryNavigation =
+            page.getByRole(
+                'navigation',
+                {
+                    name:
+                        'Navigasi utama',
+                },
+            );
+
+        await expect(
+            primaryNavigation,
+        ).toBeVisible();
+
+        const homeLink =
+            primaryNavigation.getByRole(
+                'link',
+                {
+                    name:
+                        'Beranda',
+                },
+            );
+
+        await expect(
+            homeLink,
+        ).toHaveAttribute(
+            'href',
+            '/',
+        );
+
+        await expect(
+            homeLink,
+        ).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+
+        await expect(
+            primaryNavigation.getByRole(
+                'link',
+            ),
+        ).toHaveCount(
+            1,
+        );
+
+        /*
+        * The protected page must be projected through the
+        * authenticated shell's canonical main landmark rather
+        * than rendering beside or outside the shell.
+        */
+        const mainContent =
+            page.getByRole(
+                'main',
+            );
+
+        await expect(
+            mainContent,
+        ).toHaveAttribute(
+            'id',
+            'main-content',
+        );
+
+        await expect(
+            mainContent.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'button',
+                {
+                    name:
+                        'Keluar',
+                },
+            ),
+        ).toBeVisible();
+
+        expect(
+            new URL(
+                page.url(),
+            ).pathname,
+        ).toBe(
+            '/',
+        );
+
+        /*
+        * FEI-11 responsive shell must retain authenticated
+        * context and navigation at a real narrow browser
+        * viewport.
+        *
+        * Reuse the already-authoritative BrowserSession rather
+        * than performing a second credential flow merely to
+        * exercise responsive CSS.
+        */
+        const originalViewport =
+            page.viewportSize();
+
+        if (
+            originalViewport
+                === null
+        ) {
+            throw new Error(
+                'Expected the Chromium E2E project to expose a viewport.',
+            );
+        }
+
+        try {
+            await page.setViewportSize({
+                width:
+                    390,
+
+                height:
+                    844,
+            });
+
+            expect(
+                page.viewportSize(),
+            ).toEqual({
+                width:
+                    390,
+
+                height:
+                    844,
+            });
+
+            /*
+            * Person identity and Workspace context must not
+            * disappear at the mobile breakpoint.
+            */
+            await expect(
+                activeUserContext,
+            ).toBeVisible();
+
+            await expect(
+                activeUserContext.getByText(
+                    'EduCore Browser E2E User',
+                ),
+            ).toBeVisible();
+
+            await expect(
+                activeUserContext.getByText(
+                    'browser-e2e@educore.test',
+                ),
+            ).toBeVisible();
+
+            await expect(
+                activeUserContext.getByText(
+                    /^Workspace:\s+/u,
+                ),
+            ).toBeVisible();
+
+            /*
+            * Global authenticated controls remain available on
+            * the narrow shell.
+            */
+            await expect(
+                page.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Keluar',
+                    },
+                ),
+            ).toBeVisible();
+
+            await expect(
+                primaryNavigation,
+            ).toBeVisible();
+
+            await expect(
+                homeLink,
+            ).toBeVisible();
+
+            await expect(
+                homeLink,
+            ).toHaveAttribute(
+                'aria-current',
+                'page',
+            );
+
+            await expect(
+                mainContent,
+            ).toBeVisible();
+
+            /*
+            * ApplicationNavigation deliberately owns a
+            * non-wrapping intrinsic row while its shell parent
+            * owns horizontal scrolling.
+            *
+            * With only one production item there may be nothing
+            * to scroll yet, so assert the real CSS containment
+            * contract rather than inventing fake routes.
+            */
+            const navigationLayout =
+                await primaryNavigation.evaluate(
+                    (
+                        navigation,
+                    ) => {
+                        const scrollRegion =
+                            navigation.parentElement;
+
+                        if (
+                            scrollRegion
+                                === null
+                        ) {
+                            throw new Error(
+                                'Expected primary navigation to have a responsive scroll container.',
+                            );
+                        }
+
+                        return {
+                            overflowX:
+                                window
+                                    .getComputedStyle(
+                                        scrollRegion,
+                                    )
+                                    .overflowX,
+
+                            scrollRegionClientWidth:
+                                scrollRegion
+                                    .clientWidth,
+
+                            scrollRegionScrollWidth:
+                                scrollRegion
+                                    .scrollWidth,
+                        };
+                    },
+                );
+
+            expect(
+                navigationLayout
+                    .overflowX,
+            ).toBe(
+                'auto',
+            );
+
+            expect(
+                navigationLayout
+                    .scrollRegionClientWidth,
+            ).toBeGreaterThan(
+                0,
+            );
+
+            expect(
+                navigationLayout
+                    .scrollRegionScrollWidth,
+            ).toBeGreaterThanOrEqual(
+                navigationLayout
+                    .scrollRegionClientWidth,
+            );
+
+            /*
+            * Horizontal navigation overflow must remain inside
+            * its dedicated scroll region rather than expanding
+            * the complete document beyond the mobile viewport.
+            */
+            const documentLayout =
+                await page.evaluate(
+                    () => ({
+                        viewportWidth:
+                            window.innerWidth,
+
+                        documentScrollWidth:
+                            document
+                                .documentElement
+                                .scrollWidth,
+                    }),
+                );
+
+            expect(
+                documentLayout
+                    .viewportWidth,
+            ).toBe(
+                390,
+            );
+
+            expect(
+                documentLayout
+                    .documentScrollWidth,
+            ).toBeLessThanOrEqual(
+                documentLayout
+                    .viewportWidth,
+            );
+
+            /*
+            * The canonical navigation entry retains the
+            * production min-h-10 touch/focus target in a real
+            * browser layout.
+            */
+            const homeLinkBox =
+                await homeLink.boundingBox();
+
+            if (
+                homeLinkBox
+                    === null
+            ) {
+                throw new Error(
+                    'Expected the visible Beranda navigation link to have a browser layout box.',
+                );
+            }
+
+            expect(
+                homeLinkBox.height,
+            ).toBeGreaterThanOrEqual(
+                40,
+            );
+        } finally {
+            /*
+            * Keep every assertion that follows in the existing
+            * authenticated test independent of this temporary
+            * responsive viewport check.
+            */
+            await page.setViewportSize(
+                originalViewport,
+            );
+        }
+
+        /*
+        * FEI-11 keyboard accessibility must work in a real
+        * browser, not only exist as semantic markup.
+        *
+        * Reset incidental focus left by the preceding
+        * authentication/responsive interaction before exercising
+        * the document's natural Tab order.
+        */
+        await page.evaluate(
+            () => {
+                const activeElement =
+                    document.activeElement;
+
+                if (
+                    activeElement
+                        instanceof HTMLElement
+                ) {
+                    activeElement.blur();
+                }
+            },
+        );
+
+        await expect
+            .poll(
+                () =>
+                    page.evaluate(
+                        () =>
+                            document.activeElement
+                                === document.body,
+                    ),
+            )
+            .toBe(
+                true,
+            );
+
+        const skipToMainLink =
+            page.getByRole(
+                'link',
+                {
+                    name:
+                        'Lewati ke konten utama',
+                },
+            );
+
+        /*
+        * The skip link is intentionally the first keyboard
+        * control in the authenticated shell.
+        */
+        await page.keyboard.press(
+            'Tab',
+        );
+
+        await expect(
+            skipToMainLink,
+        ).toBeFocused();
+
+        /*
+        * sr-only gives the unfocused link a 1×1 clipped layout.
+        * Once focus:not-sr-only takes effect, the keyboard user
+        * must receive a genuine visible control.
+        */
+        const focusedSkipLinkBox =
+            await skipToMainLink.boundingBox();
+
+        if (
+            focusedSkipLinkBox
+                === null
+        ) {
+            throw new Error(
+                'Expected the focused skip link to have a real browser layout box.',
+            );
+        }
+
+        expect(
+            focusedSkipLinkBox.width,
+        ).toBeGreaterThan(
+            1,
+        );
+
+        expect(
+            focusedSkipLinkBox.height,
+        ).toBeGreaterThan(
+            1,
+        );
+
+        /*
+        * Activate through the keyboard exactly as a user would.
+        */
+        await page.keyboard.press(
+            'Enter',
+        );
+
+        await expect
+            .poll(
+                () =>
+                    new URL(
+                        page.url(),
+                    ).hash,
+            )
+            .toBe(
+                '#main-content',
+            );
+
+        /*
+        * The target carries tabIndex=-1 specifically so native
+        * fragment navigation can transfer focus without adding
+        * main to the normal Tab sequence.
+        */
+        await expect(
+            mainContent,
+        ).toBeFocused();
+
+        await expect(
+            mainContent,
+        ).toHaveAttribute(
+            'id',
+            'main-content',
+        );
+
+        await expect(
+            mainContent,
+        ).toHaveAttribute(
+            'tabindex',
+            '-1',
+        );
+
+        /*
+        * Keep later assertions in this existing authentication
+        * scenario independent of the temporary fragment URL and
+        * focus state introduced by this accessibility proof.
+        */
+        await page.evaluate(
+            () => {
+                window.history.replaceState(
+                    window.history.state,
+                    '',
+                    `${window.location.pathname}${window.location.search}`,
+                );
+
+                const activeElement =
+                    document.activeElement;
+
+                if (
+                    activeElement
+                        instanceof HTMLElement
+                ) {
+                    activeElement.blur();
+                }
+            },
+        );
+
+        expect(
+            new URL(
+                page.url(),
+            ).hash,
+        ).toBe(
+            '',
+        );
+
         await expect(
             page.getByRole(
                 'heading',
@@ -966,6 +1489,152 @@ test(
                         },
                     ),
                 ).toBeVisible();
+
+                /*
+                * FEI-11 authenticated application chrome must be rebuilt
+                * from the restored canonical BrowserSession authority
+                * after a complete document reload.
+                *
+                * Nothing from the previous React component tree survives
+                * page.reload(), so these assertions prove actual shell
+                * reconstruction rather than retained in-memory UI.
+                */
+                const reloadedActiveUserContext =
+                    page.getByLabel(
+                        'Konteks pengguna aktif',
+                    );
+
+                await expect(
+                    reloadedActiveUserContext,
+                ).toBeVisible();
+
+                await expect(
+                    reloadedActiveUserContext.getByText(
+                        'EduCore Browser E2E User',
+                    ),
+                ).toBeVisible();
+
+                await expect(
+                    reloadedActiveUserContext.getByText(
+                        e2eEmail,
+                    ),
+                ).toBeVisible();
+
+                await expect(
+                    reloadedActiveUserContext.getByText(
+                        /^Workspace:\s+/u,
+                    ),
+                ).toBeVisible();
+
+                /*
+                * Navigation must be recomputed from the newly restored
+                * authority snapshot rather than surviving from the
+                * pre-reload React tree.
+                */
+                const reloadedPrimaryNavigation =
+                    page.getByRole(
+                        'navigation',
+                        {
+                            name:
+                                'Navigasi utama',
+                        },
+                    );
+
+                await expect(
+                    reloadedPrimaryNavigation,
+                ).toBeVisible();
+
+                const reloadedHomeLink =
+                    reloadedPrimaryNavigation.getByRole(
+                        'link',
+                        {
+                            name:
+                                'Beranda',
+                        },
+                    );
+
+                await expect(
+                    reloadedHomeLink,
+                ).toHaveAttribute(
+                    'href',
+                    '/',
+                );
+
+                await expect(
+                    reloadedHomeLink,
+                ).toHaveAttribute(
+                    'aria-current',
+                    'page',
+                );
+
+                await expect(
+                    reloadedPrimaryNavigation.getByRole(
+                        'link',
+                    ),
+                ).toHaveCount(
+                    1,
+                );
+
+                /*
+                * Page content must again live inside the canonical shell
+                * main landmark after the new document/runtime has been
+                * created.
+                */
+                const reloadedMainContent =
+                    page.getByRole(
+                        'main',
+                    );
+
+                await expect(
+                    reloadedMainContent,
+                ).toHaveAttribute(
+                    'id',
+                    'main-content',
+                );
+
+                await expect(
+                    reloadedMainContent,
+                ).toHaveAttribute(
+                    'tabindex',
+                    '-1',
+                );
+
+                await expect(
+                    reloadedMainContent.getByRole(
+                        'heading',
+                        {
+                            name:
+                                'Frontend Foundation',
+                        },
+                    ),
+                ).toBeVisible();
+
+                /*
+                * Global shell controls and accessibility navigation are
+                * also reconstructed from the new authenticated tree.
+                */
+                await expect(
+                    page.getByRole(
+                        'button',
+                        {
+                            name:
+                                'Keluar',
+                        },
+                    ),
+                ).toBeVisible();
+
+                await expect(
+                    page.getByRole(
+                        'link',
+                        {
+                            name:
+                                'Lewati ke konten utama',
+                        },
+                    ),
+                ).toHaveAttribute(
+                    'href',
+                    '#main-content',
+                );
 
                 await expect(
                     page.getByRole(
@@ -1876,6 +2545,117 @@ test(
             ),
         ).toBeVisible();
 
+        /*
+        * Establish FEI-11 authenticated presentation truth
+        * before exercising the real BrowserSession logout.
+        *
+        * These locators remain live after the click so the same
+        * browser objects can prove that the authenticated shell
+        * is actually removed from the DOM.
+        */
+        const authenticatedUserContext =
+            page.getByLabel(
+                'Konteks pengguna aktif',
+            );
+
+        const authenticatedNavigation =
+            page.getByRole(
+                'navigation',
+                {
+                    name:
+                        'Navigasi utama',
+                },
+            );
+
+        const authenticatedHomeLink =
+            authenticatedNavigation.getByRole(
+                'link',
+                {
+                    name:
+                        'Beranda',
+                },
+            );
+
+        const authenticatedSkipLink =
+            page.getByRole(
+                'link',
+                {
+                    name:
+                        'Lewati ke konten utama',
+                },
+            );
+
+        const authenticatedMainContent =
+            page.locator(
+                '#main-content',
+            );
+
+        const authenticatedPageHeading =
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            );
+
+        await expect(
+            authenticatedUserContext,
+        ).toBeVisible();
+
+        await expect(
+            authenticatedUserContext.getByText(
+                'EduCore Browser E2E User',
+            ),
+        ).toBeVisible();
+
+        await expect(
+            authenticatedUserContext.getByText(
+                e2eEmail,
+            ),
+        ).toBeVisible();
+
+        await expect(
+            authenticatedUserContext.getByText(
+                /^Workspace:\s+/u,
+            ),
+        ).toBeVisible();
+
+        await expect(
+            authenticatedNavigation,
+        ).toBeVisible();
+
+        await expect(
+            authenticatedHomeLink,
+        ).toHaveAttribute(
+            'href',
+            '/',
+        );
+
+        await expect(
+            authenticatedHomeLink,
+        ).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+
+        await expect(
+            authenticatedSkipLink,
+        ).toHaveAttribute(
+            'href',
+            '#main-content',
+        );
+
+        await expect(
+            authenticatedMainContent,
+        ).toHaveCount(
+            1,
+        );
+
+        await expect(
+            authenticatedPageHeading,
+        ).toBeVisible();
+
         await expect(
             page.getByRole(
                 'button',
@@ -2087,6 +2867,71 @@ test(
                 },
             ),
         ).toBeVisible();
+
+        /*
+        * Successful logout must remove the entire authenticated
+        * presentation tree, not merely hide protected page
+        * content.
+        *
+        * A stale Person, Workspace, or navigation projection
+        * remaining in the DOM would leak authenticated context
+        * after BrowserSession revocation.
+        */
+        await expect(
+            authenticatedUserContext,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            authenticatedNavigation,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            authenticatedHomeLink,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            authenticatedSkipLink,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            authenticatedMainContent,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            authenticatedPageHeading,
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'button',
+                {
+                    name:
+                        'Keluar',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        expect(
+            new URL(
+                page.url(),
+            ).pathname,
+        ).toBe(
+            '/login',
+        );
 
         await expect(
             page.getByRole(
@@ -2319,6 +3164,98 @@ test(
                 },
             ),
         ).toBeVisible();
+
+        /*
+        * A full reload after logout creates a fresh React runtime.
+        *
+        * Because the server-side BrowserSession was revoked, that
+        * new runtime must remain public and must not reconstruct
+        * any FEI-11 authenticated shell state from stale browser
+        * restoration hints.
+        */
+        await expect(
+            page.getByLabel(
+                'Konteks pengguna aktif',
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'navigation',
+                {
+                    name:
+                        'Navigasi utama',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'link',
+                {
+                    name:
+                        'Beranda',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'link',
+                {
+                    name:
+                        'Lewati ke konten utama',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.locator(
+                '#main-content',
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'button',
+                {
+                    name:
+                        'Keluar',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        expect(
+            new URL(
+                page.url(),
+            ).pathname,
+        ).toBe(
+            '/login',
+        );
 
         expect(
             new URL(
