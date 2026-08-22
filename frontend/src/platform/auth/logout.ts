@@ -7,33 +7,39 @@ import {
 import type {
     BrowserLogoutSuccess,
 } from '@/platform/auth/contract';
-import { createBrowserAuthAbortOptions } from '@/platform/auth/request-options';
+import {
+    createBrowserAuthAbortOptions,
+} from '@/platform/auth/request-options';
+import {
+    initializeBrowserSession,
+} from '@/platform/auth/session-bootstrap';
 
 export interface BrowserLogoutOptions {
-    readonly signal?: AbortSignal;
+    readonly signal?:
+        AbortSignal;
 }
 
 export async function logoutBrowserSession(
     client: BrowserApiClient,
     options: BrowserLogoutOptions = {},
 ): Promise<
-    BrowserApiResult<BrowserLogoutSuccess>
+    BrowserApiResult<
+        BrowserLogoutSuccess
+    >
 > {
     const abortOptions =
         createBrowserAuthAbortOptions(
             options.signal,
         );
 
-    const csrfResult =
-        await executeBrowserApiRequest(
-            client.GET(
-                '/api/v1/browser/session/csrf',
-                abortOptions,
-            ),
+    const sessionResult =
+        await initializeBrowserSession(
+            client,
+            abortOptions,
         );
 
-    if (! csrfResult.ok) {
-        return csrfResult;
+    if (! sessionResult.ok) {
+        return sessionResult;
     }
 
     return executeBrowserApiRequest(

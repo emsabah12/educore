@@ -43,6 +43,19 @@ vi.mock(
     }),
 );
 
+vi.mock(
+    '@/app/LoginPage',
+    () => ({
+        LoginPage() {
+            return (
+                <h1>
+                    Masuk ke EduCore
+                </h1>
+            );
+        },
+    }),
+);
+
 import {
     LoginRouteBoundary,
 } from '@/app/routing/LoginRouteBoundary';

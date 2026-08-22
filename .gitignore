@@ -2,6 +2,7 @@
 .DS_Store
 .env
 .env.testing
+.env.e2e
 .env.backup
 .env.production
 .phpactor.json

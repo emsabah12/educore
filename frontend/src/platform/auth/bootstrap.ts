@@ -9,13 +9,19 @@ import {
 import type {
     AuthenticatedBootstrapSuccess,
 } from '@/platform/auth/contract';
-import { createBrowserAuthAbortOptions } from '@/platform/auth/request-options';
+import {
+    createBrowserAuthAbortOptions,
+} from '@/platform/auth/request-options';
+import {
+    initializeBrowserSession,
+} from '@/platform/auth/session-bootstrap';
 
 export interface BrowserAuthBootstrapOptions {
     readonly membershipId?:
         BrowserMembershipLocator;
 
-    readonly signal?: AbortSignal;
+    readonly signal?:
+        AbortSignal;
 }
 
 export async function bootstrapBrowserAuthentication(
@@ -35,6 +41,24 @@ export async function bootstrapBrowserAuthentication(
         options.membershipId
             === undefined
     ) {
+        /*
+         * Initial BrowserAuth bootstrap has no Membership
+         * locator yet.
+         *
+         * Establish BrowserSession transport first so the
+         * dual-transport canonical endpoint cannot mistake
+         * the first-party SPA for a bearer-only client.
+         */
+        const sessionResult =
+            await initializeBrowserSession(
+                client,
+                abortOptions,
+            );
+
+        if (! sessionResult.ok) {
+            return sessionResult;
+        }
+
         return executeBrowserApiRequest(
             client.GET(
                 '/api/v1/auth/me',
@@ -43,6 +67,16 @@ export async function bootstrapBrowserAuthentication(
         );
     }
 
+    /*
+     * A Membership-specific bootstrap only occurs after an
+     * existing BrowserSession lifecycle:
+     *
+     * - successful Browser login, or
+     * - Browser Membership switching.
+     *
+     * Re-bootstrap of the session is therefore deliberately
+     * unnecessary here.
+     */
     return executeBrowserApiRequest(
         client.GET(
             '/api/v1/auth/me',

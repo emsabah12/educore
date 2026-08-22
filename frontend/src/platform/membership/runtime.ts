@@ -17,6 +17,11 @@ import type {
 } from '@/platform/membership/operations';
 import { createMembershipRequestAbortOptions } from '@/platform/membership/request-options';
 import {
+    clearBrowserMembershipRestorationHint,
+    persistBrowserMembershipRestorationHint,
+    readBrowserMembershipRestorationHint,
+} from '@/platform/membership/restoration';
+import {
     createInitialMembershipContextState,
     membershipContextReducer,
     type MembershipContextAction,
@@ -26,6 +31,16 @@ import {
 export interface MembershipContextRuntimeOptions {
     readonly signal?:
         AbortSignal;
+
+    /*
+     * A restoration hint may only be considered during an
+     * initial BrowserSession context-resolution lifecycle.
+     *
+     * The hint remains client-owned convenience state and
+     * never becomes canonical Membership authority.
+     */
+    readonly restoreHint?:
+        boolean;
 }
 
 export type MembershipAuthenticationRuntime =
@@ -212,6 +227,26 @@ export function createMembershipContextRuntime(
             ),
         );
 
+    const clearRestorationHint =
+        () => {
+            /*
+             * Membership restoration is UX convenience,
+             * never authentication or authorization
+             * authority.
+             */
+            clearBrowserMembershipRestorationHint();
+        };
+
+    const persistCurrentContext =
+        (
+            context:
+                CanonicalMembershipContext,
+        ) => {
+            persistBrowserMembershipRestorationHint(
+                context,
+            );
+        };
+
     const reset = () => {
         /*
          * Invalidate every outstanding asynchronous
@@ -220,6 +255,12 @@ export function createMembershipContextRuntime(
          */
         operationRevision +=
             1;
+
+        /*
+         * A reset means the previous Membership context
+         * must no longer be proposed during a later reload.
+         */
+        clearRestorationHint();
 
         return dispatch({
             type:
@@ -370,12 +411,206 @@ export function createMembershipContextRuntime(
                 });
             }
 
-            return dispatch({
+            const discoveredState =
+                dispatch({
+                    type:
+                        'DISCOVERY_READY',
+                    memberships:
+                        discoveredMemberships,
+                });
+
+            /*
+             * Normal authenticated bootstrap already owns a
+             * canonical Membership/Tenant context.
+             *
+             * Persist it only after discovery has validated
+             * that the pair is still available.
+             */
+            if (
+                discoveredState.status
+                    === 'ready'
+            ) {
+                persistCurrentContext(
+                    discoveredState.context,
+                );
+
+                return discoveredState;
+            }
+
+            /*
+             * Fresh authentication without canonical
+             * context must preserve explicit Membership
+             * selection semantics.
+             *
+             * Restoration is enabled only when the caller
+             * explicitly classifies this bootstrap as an
+             * initial BrowserSession reload lifecycle.
+             */
+            if (
+                options.restoreHint
+                    !== true
+                || discoveredState.status
+                    !== 'selection-required'
+            ) {
+                return discoveredState;
+            }
+
+            const restorationHint =
+                readBrowserMembershipRestorationHint();
+
+            if (
+                restorationHint
+                    === null
+            ) {
+                return discoveredState;
+            }
+
+            /*
+             * Client-owned storage cannot choose an
+             * arbitrary Membership.
+             *
+             * Discovery must first prove that the stored
+             * Membership/Tenant pair is still available to
+             * the authenticated Person.
+             */
+            const restorationTarget =
+                discoveredMemberships.find(
+                    (membership) =>
+                        membership.membership_id
+                            === restorationHint
+                                .membership_id
+                        && membership.tenant_id
+                            === restorationHint
+                                .tenant_id,
+                );
+
+            if (
+                restorationTarget
+                    === undefined
+            ) {
+                clearRestorationHint();
+
+                return discoveredState;
+            }
+
+            /*
+             * Reuse the existing reducer's guarded target
+             * transition.
+             *
+             * No browser membership-switch mutation is sent
+             * during reload: BrowserSession already owns the
+             * prepared credential from the prior canonical
+             * login/switch lifecycle.
+             */
+            dispatch({
                 type:
-                    'DISCOVERY_READY',
-                memberships:
-                    discoveredMemberships,
+                    'SWITCH_STARTED',
+                membershipId:
+                    restorationTarget
+                        .membership_id,
             });
+
+            const confirmedAuthentication =
+                await authentication.bootstrap({
+                    membershipId:
+                        restorationTarget
+                            .membership_id,
+
+                    ...createMembershipRequestAbortOptions(
+                        options.signal,
+                    ),
+                });
+
+            if (
+                revision
+                    !== operationRevision
+            ) {
+                return state;
+            }
+
+            /*
+             * An aborted React lifecycle is not evidence
+             * that the stored hint became invalid.
+             */
+            if (
+                options.signal
+                    ?.aborted
+                === true
+            ) {
+                return replaceState(
+                    discoveredState,
+                );
+            }
+
+            if (
+                confirmedAuthentication.status
+                    !== 'authenticated'
+            ) {
+                clearRestorationHint();
+
+                return replaceState(
+                    discoveredState,
+                );
+            }
+
+            const confirmedContext:
+                CanonicalMembershipContext = {
+                    membership:
+                        confirmedAuthentication
+                            .identity
+                            .membership,
+
+                    tenant:
+                        confirmedAuthentication
+                            .identity
+                            .tenant,
+                };
+
+            /*
+             * The browser hint and discovery result are
+             * still not authority.
+             *
+             * Canonical /auth/me must confirm exactly the
+             * same Membership/Tenant pair before local
+             * Membership state may become READY.
+             */
+            if (
+                confirmedContext
+                    .membership
+                    .id
+                    !== restorationTarget
+                        .membership_id
+                || confirmedContext
+                    .tenant
+                    .id
+                    !== restorationTarget
+                        .tenant_id
+            ) {
+                clearRestorationHint();
+
+                return replaceState(
+                    discoveredState,
+                );
+            }
+
+            const restoredState =
+                dispatch({
+                    type:
+                        'CONTEXT_CONFIRMED',
+                    context:
+                        confirmedContext,
+                });
+
+            if (
+                restoredState.status
+                    === 'ready'
+            ) {
+                persistCurrentContext(
+                    restoredState.context,
+                );
+            }
+
+            return restoredState;
         } catch (error) {
             /*
              * Discovery contradictions are invariant
@@ -504,12 +739,24 @@ export function createMembershipContextRuntime(
                     };
 
                 try {
-                    return dispatch({
-                        type:
-                            'CONTEXT_CONFIRMED',
-                        context:
-                            confirmedContext,
-                    });
+                    const confirmedState =
+                        dispatch({
+                            type:
+                                'CONTEXT_CONFIRMED',
+                            context:
+                                confirmedContext,
+                        });
+
+                    if (
+                        confirmedState.status
+                            === 'ready'
+                    ) {
+                        persistCurrentContext(
+                            confirmedState.context,
+                        );
+                    }
+
+                    return confirmedState;
                 } catch (error) {
                     /*
                      * Authentication confirmed a canonical

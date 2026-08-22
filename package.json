@@ -11,9 +11,11 @@
         "frontend:api:generate": "openapi-typescript docs/api/openapi.yaml --output frontend/src/platform/api/generated/schema.d.ts",
         "frontend:api:check": "openapi-typescript docs/api/openapi.yaml --output frontend/src/platform/api/generated/schema.d.ts --check",
         "frontend:test": "vitest run --config vitest.config.ts",
-        "frontend:test:watch": "vitest --config vitest.config.ts"
+        "frontend:test:watch": "vitest --config vitest.config.ts",
+        "frontend:e2e": "playwright test --config frontend/playwright.config.ts"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@tailwindcss/vite": "^4.0.0",
         "@testing-library/jest-dom": "^7.0.1",
         "@testing-library/react": "^16.3.2",

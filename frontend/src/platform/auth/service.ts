@@ -8,10 +8,16 @@ import type {
     BrowserLoginRequest,
     BrowserLoginSuccess,
 } from '@/platform/auth/contract';
-import { createBrowserAuthAbortOptions } from '@/platform/auth/request-options';
+import {
+    createBrowserAuthAbortOptions,
+} from '@/platform/auth/request-options';
+import {
+    initializeBrowserSession,
+} from '@/platform/auth/session-bootstrap';
 
 export interface BrowserLoginOptions {
-    readonly signal?: AbortSignal;
+    readonly signal?:
+        AbortSignal;
 }
 
 export async function loginWithBrowserSession(
@@ -19,23 +25,23 @@ export async function loginWithBrowserSession(
     request: BrowserLoginRequest,
     options: BrowserLoginOptions = {},
 ): Promise<
-    BrowserApiResult<BrowserLoginSuccess>
+    BrowserApiResult<
+        BrowserLoginSuccess
+    >
 > {
     const abortOptions =
         createBrowserAuthAbortOptions(
             options.signal,
         );
 
-    const csrfResult =
-        await executeBrowserApiRequest(
-            client.GET(
-                '/api/v1/browser/session/csrf',
-                abortOptions,
-            ),
+    const sessionResult =
+        await initializeBrowserSession(
+            client,
+            abortOptions,
         );
 
-    if (! csrfResult.ok) {
-        return csrfResult;
+    if (! sessionResult.ok) {
+        return sessionResult;
     }
 
     return executeBrowserApiRequest(
@@ -43,7 +49,9 @@ export async function loginWithBrowserSession(
             '/api/v1/browser/auth/login',
             {
                 ...abortOptions,
-                body: request,
+
+                body:
+                    request,
             },
         ),
     );

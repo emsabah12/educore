@@ -59,3 +59,14 @@ export {
 export type {
     SwitchBrowserMembershipOptions,
 } from './switch';
+
+export {
+    clearBrowserMembershipRestorationHint,
+    persistBrowserMembershipRestorationHint,
+    readBrowserMembershipRestorationHint,
+} from './restoration';
+
+export type {
+    MembershipRestorationHint,
+    MembershipRestorationHintStorage,
+} from './restoration';
