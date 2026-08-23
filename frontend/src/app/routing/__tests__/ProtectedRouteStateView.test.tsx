@@ -290,6 +290,162 @@ describe(
             ).toBeInTheDocument();
         });
 
+        it('renders Membership switching as an application-level institution transition', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'membership',
+
+                        phase:
+                            'membership-switch',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Mengganti institusi',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Sedang mengganti institusi aktif.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Sedang memuat konteks Membership Anda.',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders Workspace switching as its own context transition', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'workspace',
+
+                        phase:
+                            'workspace-switch',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Mengganti Workspace',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Sedang mengganti Workspace aktif.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Sedang menyiapkan Workspace aktif.',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders stale Workspace recovery distinctly from a normal Workspace switch', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'workspace',
+
+                        phase:
+                            'workspace-recovery',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Memulihkan Workspace',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Sedang memulihkan Workspace ke konteks yang aman.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Sedang mengganti Workspace aktif.',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders Capability loading as an unresolved authorization state', () => {
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'pending',
+
+                        source:
+                            'authorization',
+
+                        phase:
+                            'capability-load',
+                    }}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Memeriksa akses',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Sedang memuat informasi akses halaman.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    'Akses ditolak',
+                ),
+            ).not.toBeInTheDocument();
+        });
+
         it('uses source-specific pending copy without collapsing route lifecycle states', () => {
             const {
                 rerender,

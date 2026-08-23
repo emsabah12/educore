@@ -516,6 +516,9 @@ describe(
 
                 source:
                     'membership',
+
+                phase:
+                    'membership-switch',
             });
         });
 
@@ -585,6 +588,9 @@ describe(
 
                 source:
                     'workspace',
+
+                phase:
+                    'workspace-recovery',
             });
         });
 
@@ -687,6 +693,9 @@ describe(
 
                 source:
                     'authorization',
+
+                phase:
+                    'capability-load',
             });
         });
 
@@ -706,6 +715,9 @@ describe(
 
                 source:
                     'authorization',
+
+                phase:
+                    'capability-load',
             });
         });
 
@@ -756,6 +768,182 @@ describe(
             ).toEqual({
                 status:
                     'allowed',
+            });
+        });
+
+        it('preserves Membership discovery as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    membership: {
+                        status:
+                            'discovering',
+
+                        context:
+                            canonicalContext,
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'membership',
+
+                phase:
+                    'membership-discovery',
+            });
+        });
+
+        it('preserves Membership switching as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    membership: {
+                        status:
+                            'switching',
+
+                        memberships: [
+                            membershipSummary,
+                        ],
+
+                        context:
+                            canonicalContext,
+
+                        target:
+                            membershipSummary,
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'membership',
+
+                phase:
+                    'membership-switch',
+            });
+        });
+
+        it('preserves Workspace discovery as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    workspace: {
+                        status:
+                            'discovering',
+
+                        context:
+                            canonicalContext,
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'workspace',
+
+                phase:
+                    'workspace-discovery',
+            });
+        });
+
+        it('preserves Workspace switching as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    workspace: {
+                        status:
+                            'switching',
+
+                        context:
+                            canonicalContext,
+
+                        tenant: {
+                            id:
+                                tenantId,
+
+                            name:
+                                'EduCore School',
+                        },
+
+                        workspaces: [
+                            tenantWorkspace,
+                            organizationWorkspace,
+                        ],
+
+                        current:
+                            tenantWorkspace,
+
+                        target:
+                            organizationWorkspace,
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'workspace',
+
+                phase:
+                    'workspace-switch',
+            });
+        });
+
+        it('preserves stale Workspace recovery as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    workspace: {
+                        status:
+                            'recovering',
+
+                        context:
+                            canonicalContext,
+
+                        failure:
+                            networkFailure,
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'workspace',
+
+                phase:
+                    'workspace-recovery',
+            });
+        });
+
+        it('preserves Capability loading as a distinct pending phase', () => {
+            expect(
+                evaluateProtectedRouteAccess({
+                    ...baselineInput(),
+
+                    capability: {
+                        status:
+                            'loading',
+                    },
+                }),
+            ).toEqual({
+                status:
+                    'pending',
+
+                source:
+                    'authorization',
+
+                phase:
+                    'capability-load',
             });
         });
 

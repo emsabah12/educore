@@ -590,6 +590,9 @@ describe(
 
                 source:
                     'authorization',
+
+                phase:
+                    'capability-load',
             });
 
             mocks.capability = {

@@ -26,6 +26,14 @@ export type ProtectedRoutePendingSource =
     | 'workspace'
     | 'authorization';
 
+export type ProtectedRoutePendingPhase =
+    | 'membership-discovery'
+    | 'membership-switch'
+    | 'workspace-discovery'
+    | 'workspace-switch'
+    | 'workspace-recovery'
+    | 'capability-load';
+
 export type ProtectedRouteUnavailableSource =
     | 'authentication'
     | 'membership'
@@ -38,6 +46,9 @@ export interface PendingProtectedRouteAccessDecision {
 
     readonly source:
         ProtectedRoutePendingSource;
+
+    readonly phase?:
+        ProtectedRoutePendingPhase;
 }
 
 export interface UnauthenticatedProtectedRouteAccessDecision {
@@ -117,12 +128,22 @@ export interface ProtectedRouteAccessInput {
 function pending(
     source:
         ProtectedRoutePendingSource,
+    phase?:
+        ProtectedRoutePendingPhase,
 ): PendingProtectedRouteAccessDecision {
     return {
         status:
             'pending',
 
         source,
+
+        ...(
+            phase === undefined
+                ? {}
+                : {
+                    phase,
+                }
+        ),
     };
 }
 
@@ -245,9 +266,15 @@ export function evaluateProtectedRouteAccess(
     ) {
         case 'unresolved':
         case 'discovering':
+            return pending(
+                'membership',
+                'membership-discovery',
+            );
+
         case 'switching':
             return pending(
                 'membership',
+                'membership-switch',
             );
 
         case 'selection-required':
@@ -300,10 +327,21 @@ export function evaluateProtectedRouteAccess(
     ) {
         case 'unresolved':
         case 'discovering':
+            return pending(
+                'workspace',
+                'workspace-discovery',
+            );
+
         case 'switching':
+            return pending(
+                'workspace',
+                'workspace-switch',
+            );
+
         case 'recovering':
             return pending(
                 'workspace',
+                'workspace-recovery',
             );
 
         case 'unavailable':
@@ -383,6 +421,7 @@ export function evaluateProtectedRouteAccess(
         case 'loading':
             return pending(
                 'authorization',
+                'capability-load',
             );
 
         case 'unavailable':
@@ -415,6 +454,7 @@ export function evaluateProtectedRouteAccess(
         case 'pending':
             return pending(
                 'authorization',
+                'capability-load',
             );
 
         case 'unavailable':

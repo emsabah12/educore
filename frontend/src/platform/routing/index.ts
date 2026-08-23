@@ -11,6 +11,7 @@ export type {
     PendingProtectedRouteAccessDecision,
     ProtectedRouteAccessDecision,
     ProtectedRouteAccessInput,
+    ProtectedRoutePendingPhase,
     ProtectedRoutePendingSource,
     ProtectedRouteUnavailableSource,
     UnauthenticatedProtectedRouteAccessDecision,

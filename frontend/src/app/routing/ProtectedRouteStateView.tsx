@@ -1,5 +1,6 @@
 import type {
     ProtectedRouteAccessDecision,
+    ProtectedRoutePendingPhase,
     ProtectedRoutePendingSource,
     ProtectedRouteUnavailableSource,
 } from '@/platform/routing';
@@ -43,6 +44,74 @@ function pendingMessage(
 
         case 'authorization':
             return 'Sedang memeriksa akses halaman.';
+    }
+}
+
+interface PendingPresentation {
+    readonly title:
+        string;
+
+    readonly description:
+        string;
+}
+
+function pendingPresentation(
+    source:
+        ProtectedRoutePendingSource,
+    phase:
+        ProtectedRoutePendingPhase | undefined,
+): PendingPresentation {
+    switch (
+        phase
+    ) {
+        case 'membership-switch':
+            return {
+                title:
+                    'Mengganti institusi',
+
+                description:
+                    'Sedang mengganti institusi aktif.',
+            };
+
+        case 'workspace-switch':
+            return {
+                title:
+                    'Mengganti Workspace',
+
+                description:
+                    'Sedang mengganti Workspace aktif.',
+            };
+
+        case 'workspace-recovery':
+            return {
+                title:
+                    'Memulihkan Workspace',
+
+                description:
+                    'Sedang memulihkan Workspace ke konteks yang aman.',
+            };
+
+        case 'capability-load':
+            return {
+                title:
+                    'Memeriksa akses',
+
+                description:
+                    'Sedang memuat informasi akses halaman.',
+            };
+
+        case 'membership-discovery':
+        case 'workspace-discovery':
+        case undefined:
+            return {
+                title:
+                    'Menyiapkan halaman',
+
+                description:
+                    pendingMessage(
+                        source,
+                    ),
+            };
     }
 }
 
@@ -137,18 +206,25 @@ export function ProtectedRouteStateView({
     switch (
         decision.status
     ) {
-        case 'pending':
+        case 'pending': {
+            const presentation =
+                pendingPresentation(
+                    decision.source,
+                    decision.phase,
+                );
+
             return (
                 <StatePage
                     eyebrow="EduCore"
-                    title="Menyiapkan halaman"
+                    title={
+                        presentation.title
+                    }
                     description={
-                        pendingMessage(
-                            decision.source,
-                        )
+                        presentation.description
                     }
                 />
             );
+        }
 
         case 'membership-required':
             return (
