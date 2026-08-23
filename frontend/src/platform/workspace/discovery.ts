@@ -1,6 +1,6 @@
 import {
     createBrowserMembershipHeaderParams,
-    executeBrowserApiRequest,
+    executeBrowserApiReadRequest,
     type BrowserApiClient,
     type BrowserMembershipLocator,
 } from '@/platform/api';
@@ -35,8 +35,8 @@ export async function discoverBrowserWorkspaces(
         ),
     };
 
-    return executeBrowserApiRequest(
-        client.GET(
+    return executeBrowserApiReadRequest(
+        () => client.GET(
             '/api/v1/user/my-workspaces',
             requestOptions,
         ),

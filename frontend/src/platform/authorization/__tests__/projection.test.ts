@@ -147,6 +147,84 @@ describe(
             ).toBeNull();
         });
 
+        it('retries transient TENANT capability failure while preserving only the Membership locator', async () => {
+            let attempts =
+                0;
+
+            const observedMembershipIds:
+                Array<string | null> = [];
+
+            const observedOrganizationalAssignmentIds:
+                Array<string | null> = [];
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/core/authorization/capabilities`,
+                    ({
+                        request,
+                    }) => {
+                        attempts +=
+                            1;
+
+                        observedMembershipIds.push(
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            ),
+                        );
+
+                        observedOrganizationalAssignmentIds.push(
+                            request.headers.get(
+                                'X-EduCore-Organizational-Assignment-Id',
+                            ),
+                        );
+
+                        if (
+                            attempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            tenantCapabilitySuccess,
+                        );
+                    },
+                ),
+            );
+
+            const result =
+                await projectBrowserTenantCapabilities(
+                    createBrowserApiClient(),
+                    membershipId,
+                );
+
+            expect(attempts).toBe(2);
+
+            expect(
+                observedMembershipIds,
+            ).toEqual([
+                membershipId,
+                membershipId,
+            ]);
+
+            expect(
+                observedOrganizationalAssignmentIds,
+            ).toEqual([
+                null,
+                null,
+            ]);
+
+            expect(result).toEqual({
+                ok:
+                    true,
+                status:
+                    200,
+                data:
+                    tenantCapabilitySuccess,
+            });
+        });
+
         it('projects organizational Workspace capabilities with both explicit locators', async () => {
             let observedMembershipId:
                 string | null = null;
@@ -204,6 +282,85 @@ describe(
             ).toBe(
                 organizationalAssignmentId,
             );
+        });
+
+        it('retries transient Workspace capability failure while preserving both explicit locators', async () => {
+            let attempts =
+                0;
+
+            const observedMembershipIds:
+                Array<string | null> = [];
+
+            const observedOrganizationalAssignmentIds:
+                Array<string | null> = [];
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/core/authorization/workspace-capabilities`,
+                    ({
+                        request,
+                    }) => {
+                        attempts +=
+                            1;
+
+                        observedMembershipIds.push(
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            ),
+                        );
+
+                        observedOrganizationalAssignmentIds.push(
+                            request.headers.get(
+                                'X-EduCore-Organizational-Assignment-Id',
+                            ),
+                        );
+
+                        if (
+                            attempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            workspaceCapabilitySuccess,
+                        );
+                    },
+                ),
+            );
+
+            const result =
+                await projectBrowserWorkspaceCapabilities(
+                    createBrowserApiClient(),
+                    membershipId,
+                    organizationalAssignmentId,
+                );
+
+            expect(attempts).toBe(2);
+
+            expect(
+                observedMembershipIds,
+            ).toEqual([
+                membershipId,
+                membershipId,
+            ]);
+
+            expect(
+                observedOrganizationalAssignmentIds,
+            ).toEqual([
+                organizationalAssignmentId,
+                organizationalAssignmentId,
+            ]);
+
+            expect(result).toEqual({
+                ok:
+                    true,
+                status:
+                    200,
+                data:
+                    workspaceCapabilitySuccess,
+            });
         });
 
         it('preserves BrowserSession authentication-required failures', async () => {

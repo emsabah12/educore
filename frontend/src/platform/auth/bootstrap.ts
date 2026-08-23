@@ -1,6 +1,6 @@
 import {
     createBrowserMembershipHeaderParams,
-    executeBrowserApiRequest,
+    executeBrowserApiReadRequest,
     type BrowserApiClient,
     type BrowserApiResult,
     type BrowserMembershipLocator,
@@ -59,8 +59,8 @@ export async function bootstrapBrowserAuthentication(
             return sessionResult;
         }
 
-        return executeBrowserApiRequest(
-            client.GET(
+        return executeBrowserApiReadRequest(
+            () => client.GET(
                 '/api/v1/auth/me',
                 abortOptions,
             ),
@@ -77,8 +77,11 @@ export async function bootstrapBrowserAuthentication(
      * Re-bootstrap of the session is therefore deliberately
      * unnecessary here.
      */
-    return executeBrowserApiRequest(
-        client.GET(
+    const membershipId =
+        options.membershipId;
+
+    return executeBrowserApiReadRequest(
+        () => client.GET(
             '/api/v1/auth/me',
             {
                 ...abortOptions,
@@ -86,8 +89,7 @@ export async function bootstrapBrowserAuthentication(
                 params: {
                     header:
                         createBrowserMembershipHeaderParams({
-                            membershipId:
-                                options.membershipId,
+                            membershipId,
                         }),
                 },
             },

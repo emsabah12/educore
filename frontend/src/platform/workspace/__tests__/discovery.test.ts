@@ -151,6 +151,85 @@ describe(
             });
         });
 
+        it('retries transient network failure while preserving the Membership locator', async () => {
+            let attempts =
+                0;
+
+            const observedMembershipLocators:
+                Array<string | null> = [];
+
+            const observedOrganizationalLocators:
+                Array<string | null> = [];
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-workspaces`,
+                    ({
+                        request,
+                    }) => {
+                        attempts +=
+                            1;
+
+                        observedMembershipLocators.push(
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            ),
+                        );
+
+                        observedOrganizationalLocators.push(
+                            request.headers.get(
+                                'X-EduCore-Organizational-Assignment-Id',
+                            ),
+                        );
+
+                        if (
+                            attempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            workspaceDiscoveryResponse,
+                        );
+                    },
+                ),
+            );
+
+            const client =
+                createBrowserApiClient();
+
+            const result =
+                await discoverBrowserWorkspaces(
+                    client,
+                    membershipId,
+                );
+
+            expect(attempts).toBe(2);
+
+            expect(
+                observedMembershipLocators,
+            ).toEqual([
+                membershipId,
+                membershipId,
+            ]);
+
+            expect(
+                observedOrganizationalLocators,
+            ).toEqual([
+                null,
+                null,
+            ]);
+
+            expect(result).toEqual({
+                ok: true,
+                status: 200,
+                data:
+                    workspaceDiscoveryResponse,
+            });
+        });
+
         it('preserves BrowserSession authentication-required failures', async () => {
             apiMockServer.use(
                 http.get(

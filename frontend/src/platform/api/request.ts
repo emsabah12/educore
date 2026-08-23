@@ -3,6 +3,9 @@ import {
     normalizeBrowserApiThrownFailure,
     type BrowserApiFailure,
 } from '@/platform/api/error';
+import {
+    shouldRetryBrowserApiReadFailure,
+} from '@/platform/api/retry-policy';
 
 interface BrowserApiRawResult<TData> {
     readonly data?: TData;
@@ -47,5 +50,52 @@ export async function executeBrowserApiRequest<TData>(
         return normalizeBrowserApiThrownFailure(
             error,
         );
+    }
+}
+
+
+export async function executeBrowserApiReadRequest<TData>(
+    requestFactory:
+        () => Promise<
+            BrowserApiRawResult<TData>
+        >,
+): Promise<BrowserApiResult<TData>> {
+    let retryCount =
+        0;
+
+    while (true) {
+        /*
+         * Each iteration invokes the factory again so a retry
+         * always represents a fresh HTTP attempt rather than
+         * awaiting the same already-started Promise.
+         *
+         * Promise.resolve().then(...) also converts a
+         * synchronous factory exception into the existing
+         * normalized thrown-failure boundary.
+         */
+        const result =
+            await executeBrowserApiRequest(
+                Promise
+                    .resolve()
+                    .then(
+                        requestFactory,
+                    ),
+            );
+
+        if (result.ok) {
+            return result;
+        }
+
+        if (
+            ! shouldRetryBrowserApiReadFailure(
+                result,
+                retryCount,
+            )
+        ) {
+            return result;
+        }
+
+        retryCount +=
+            1;
     }
 }

@@ -169,6 +169,196 @@ describe(
             });
         });
 
+        it('retries transient initial authentication context failure without replaying BrowserSession bootstrap', async () => {
+            let sessionAttempts =
+                0;
+
+            let authenticationAttempts =
+                0;
+
+            const observedMembershipIds:
+                Array<string | null> = [];
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/browser/session/csrf`,
+                    () => {
+                        sessionAttempts +=
+                            1;
+
+                        return new HttpResponse(
+                            null,
+                            {
+                                status:
+                                    204,
+                            },
+                        );
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/auth/me`,
+                    ({
+                        request,
+                    }) => {
+                        authenticationAttempts +=
+                            1;
+
+                        observedMembershipIds.push(
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            ),
+                        );
+
+                        if (
+                            authenticationAttempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            {
+                                status:
+                                    'error',
+                                code:
+                                    'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
+                                message:
+                                    'Browser membership context is required.',
+                            },
+                            {
+                                status:
+                                    403,
+                            },
+                        );
+                    },
+                ),
+            );
+
+            const result =
+                await bootstrapBrowserAuthentication(
+                    createBrowserApiClient(),
+                );
+
+            expect(
+                sessionAttempts,
+            ).toBe(1);
+
+            expect(
+                authenticationAttempts,
+            ).toBe(2);
+
+            expect(
+                observedMembershipIds,
+            ).toEqual([
+                null,
+                null,
+            ]);
+
+            expect(result).toMatchObject({
+                ok:
+                    false,
+                kind:
+                    'response',
+                status:
+                    403,
+                error: {
+                    code:
+                        'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
+                },
+            });
+        });
+
+        it('retries transient Membership authentication context failure while preserving the Membership locator', async () => {
+            let authenticationAttempts =
+                0;
+
+            let sessionAttempts =
+                0;
+
+            const observedMembershipIds:
+                Array<string | null> = [];
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/browser/session/csrf`,
+                    () => {
+                        sessionAttempts +=
+                            1;
+
+                        return new HttpResponse(
+                            null,
+                            {
+                                status:
+                                    204,
+                            },
+                        );
+                    },
+                ),
+
+                http.get(
+                    `${window.location.origin}/api/v1/auth/me`,
+                    ({
+                        request,
+                    }) => {
+                        authenticationAttempts +=
+                            1;
+
+                        observedMembershipIds.push(
+                            request.headers.get(
+                                'X-EduCore-Membership-Id',
+                            ),
+                        );
+
+                        if (
+                            authenticationAttempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            authenticatedResponse,
+                        );
+                    },
+                ),
+            );
+
+            const result =
+                await bootstrapBrowserAuthentication(
+                    createBrowserApiClient(),
+                    {
+                        membershipId,
+                    },
+                );
+
+            expect(
+                sessionAttempts,
+            ).toBe(0);
+
+            expect(
+                authenticationAttempts,
+            ).toBe(2);
+
+            expect(
+                observedMembershipIds,
+            ).toEqual([
+                membershipId,
+                membershipId,
+            ]);
+
+            expect(result).toEqual({
+                ok:
+                    true,
+                status:
+                    200,
+                data:
+                    authenticatedResponse,
+            });
+        });
+
         it('preserves BrowserSession authentication-required failures', async () => {
             apiMockServer.use(
                 http.get(

@@ -106,6 +106,50 @@ describe(
             });
         });
 
+        it('retries transient network failure during membership discovery', async () => {
+            let attempts =
+                0;
+
+            apiMockServer.use(
+                http.get(
+                    `${window.location.origin}/api/v1/user/my-memberships`,
+                    () => {
+                        attempts +=
+                            1;
+
+                        if (
+                            attempts
+                                === 1
+                        ) {
+                            return HttpResponse
+                                .error();
+                        }
+
+                        return HttpResponse.json(
+                            membershipListResponse,
+                        );
+                    },
+                ),
+            );
+
+            const client =
+                createBrowserApiClient();
+
+            const result =
+                await discoverBrowserMemberships(
+                    client,
+                );
+
+            expect(attempts).toBe(2);
+
+            expect(result).toEqual({
+                ok: true,
+                status: 200,
+                data:
+                    membershipListResponse,
+            });
+        });
+
         it('supports an empty canonical membership discovery result', async () => {
             apiMockServer.use(
                 http.get(

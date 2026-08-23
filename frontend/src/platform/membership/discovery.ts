@@ -1,5 +1,5 @@
 import {
-    executeBrowserApiRequest,
+    executeBrowserApiReadRequest,
     type BrowserApiClient,
     type BrowserApiResult,
 } from '@/platform/api';
@@ -22,8 +22,8 @@ export async function discoverBrowserMemberships(
         MembershipListSuccess
     >
 > {
-    return executeBrowserApiRequest(
-        client.GET(
+    return executeBrowserApiReadRequest(
+        () => client.GET(
             '/api/v1/user/my-memberships',
             createMembershipRequestAbortOptions(
                 options.signal,

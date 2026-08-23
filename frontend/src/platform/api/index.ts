@@ -31,8 +31,13 @@ export type {
 } from './error';
 
 export {
+    executeBrowserApiReadRequest,
     executeBrowserApiRequest,
 } from './request';
+
+export {
+    shouldRetryBrowserApiReadFailure,
+} from './retry-policy';
 
 export type {
     BrowserApiResult,

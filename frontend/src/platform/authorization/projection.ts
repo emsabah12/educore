@@ -1,7 +1,7 @@
 import {
     createBrowserMembershipHeaderParams,
     createBrowserWorkspaceHeaderParams,
-    executeBrowserApiRequest,
+    executeBrowserApiReadRequest,
     type BrowserApiClient,
     type BrowserMembershipLocator,
     type OrganizationalAssignmentLocator,
@@ -39,8 +39,8 @@ export async function projectBrowserTenantCapabilities(
         ),
     };
 
-    return executeBrowserApiRequest(
-        client.GET(
+    return executeBrowserApiReadRequest(
+        () => client.GET(
             '/api/v1/core/authorization/capabilities',
             requestOptions,
         ),
@@ -77,8 +77,8 @@ export async function projectBrowserWorkspaceCapabilities(
         ),
     };
 
-    return executeBrowserApiRequest(
-        client.GET(
+    return executeBrowserApiReadRequest(
+        () => client.GET(
             '/api/v1/core/authorization/workspace-capabilities',
             requestOptions,
         ),
