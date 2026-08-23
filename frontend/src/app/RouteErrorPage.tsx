@@ -1,4 +1,14 @@
+import {
+    useLocation,
+} from 'react-router';
+
 export function RouteErrorPage() {
+    const location =
+        useLocation();
+
+    const recoveryDestination =
+        `${location.pathname}${location.search}${location.hash}`;
+
     return (
         <main className="min-h-screen bg-slate-950 text-slate-100">
             <section className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-16">
@@ -15,6 +25,15 @@ export function RouteErrorPage() {
                         Terjadi kegagalan saat memproses halaman ini.
                         Silakan muat ulang aplikasi.
                     </p>
+
+                    <a
+                        href={
+                            recoveryDestination
+                        }
+                        className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                    >
+                        Muat ulang aplikasi
+                    </a>
                 </div>
             </section>
         </main>

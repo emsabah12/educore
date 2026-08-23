@@ -25,74 +25,204 @@ import {
     AuthenticatedApplicationShell,
 } from '@/app/shell/AuthenticatedApplicationShell';
 
-export const appRoutes = [
-    {
-        id:
-            'protected-application',
+export interface BusinessModuleRouteContribution {
+    /*
+     * Stable module route identity owned by the module's
+     * public contract.
+     */
+    readonly routeId:
+        string;
 
-        Component:
-            ProtectedApplicationLifecycleBoundary,
+    /*
+     * Static application path contributed by the module.
+     *
+     * The application composes this path but does not own
+     * the module implementation behind it.
+     */
+    readonly path:
+        string;
 
-        children: [
-            {
-                id:
-                    'protected-application-access',
+    /*
+     * Heavy route implementation remains deferred.
+     *
+     * Composition must preserve this function reference
+     * without invoking it during application bootstrap.
+     */
+    readonly lazy:
+        NonNullable<
+            RouteObject['lazy']
+        >;
+}
 
-                Component:
-                    ProtectedApplicationAccessBoundary,
+export function composeBusinessModuleRoutes(
+    contributions:
+        readonly BusinessModuleRouteContribution[],
+): readonly RouteObject[] {
+    return contributions.map(
+        ({
+            routeId,
+            path,
+            lazy,
+        }) => ({
+            id:
+                routeId,
 
-                children: [
-                    {
-                        id:
-                            'authenticated-application-shell',
+            path,
 
-                        Component:
-                            AuthenticatedApplicationShell,
+            ErrorBoundary:
+                RouteErrorPage,
 
-                        children: [
-                            {
-                                id:
-                                    'root',
+            children: [
+                {
+                    index:
+                        true,
 
-                                path:
-                                    '/',
+                    lazy,
+                },
+            ],
+        }),
+    );
+}
 
-                                Component:
-                                    App,
+function assertUniqueApplicationRouteIds(
+    routes:
+        readonly RouteObject[],
+): void {
+    const routeIds =
+        new Set<string>();
 
-                                ErrorBoundary:
-                                    RouteErrorPage,
-                            },
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        id:
-            'auth.login',
+    const visitRoute = (
+        route:
+            RouteObject,
+    ): void => {
+        if (
+            route.id
+                !== undefined
+        ) {
+            if (
+                routeIds.has(
+                    route.id,
+                )
+            ) {
+                throw new Error(
+                    `Duplicate application route ID: ${route.id}`,
+                );
+            }
 
-        path:
-            '/login',
+            routeIds.add(
+                route.id,
+            );
+        }
 
-        Component:
-            LoginRouteBoundary,
+        for (
+            const child
+            of route.children ?? []
+        ) {
+            visitRoute(
+                child,
+            );
+        }
+    };
 
-        ErrorBoundary:
-            RouteErrorPage,
-    },
-    {
-        id:
-            'not-found',
+    for (
+        const route
+        of routes
+    ) {
+        visitRoute(
+            route,
+        );
+    }
+}
 
-        path:
-            '*',
+export function createApplicationRoutes(
+    contributions:
+        readonly BusinessModuleRouteContribution[],
+): RouteObject[] {
+    const businessModuleRoutes =
+        composeBusinessModuleRoutes(
+            contributions,
+        );
 
-        Component:
-            NotFoundPage,
-    },
-] satisfies RouteObject[];
+    const routes: RouteObject[] = [
+        {
+            id:
+                'protected-application',
+
+            Component:
+                ProtectedApplicationLifecycleBoundary,
+
+            children: [
+                {
+                    id:
+                        'protected-application-access',
+
+                    Component:
+                        ProtectedApplicationAccessBoundary,
+
+                    children: [
+                        {
+                            id:
+                                'authenticated-application-shell',
+
+                            Component:
+                                AuthenticatedApplicationShell,
+
+                            children: [
+                                {
+                                    id:
+                                        'root',
+
+                                    path:
+                                        '/',
+
+                                    Component:
+                                        App,
+
+                                    ErrorBoundary:
+                                        RouteErrorPage,
+                                },
+
+                                ...businessModuleRoutes,
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            id:
+                'auth.login',
+
+            path:
+                '/login',
+
+            Component:
+                LoginRouteBoundary,
+
+            ErrorBoundary:
+                RouteErrorPage,
+        },
+        {
+            id:
+                'not-found',
+
+            path:
+                '*',
+
+            Component:
+                NotFoundPage,
+        },
+    ];
+
+    assertUniqueApplicationRouteIds(
+        routes,
+    );
+
+    return routes;
+}
+
+export const appRoutes =
+    createApplicationRoutes([]);
 
 export function createAppRouter() {
     return createBrowserRouter(
