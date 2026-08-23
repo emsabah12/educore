@@ -20,6 +20,9 @@ export type ControlledProtectedRouteStateDecision =
 export interface ProtectedRouteStateViewProps {
     readonly decision:
         ControlledProtectedRouteStateDecision;
+
+    readonly onRetryUnavailable?:
+        () => void;
 }
 
 function pendingMessage(
@@ -73,12 +76,22 @@ interface StatePageProps {
 
     readonly description:
         string;
+
+    readonly action?:
+        {
+            readonly label:
+                string;
+
+            readonly onClick:
+                () => void;
+        };
 }
 
 function StatePage({
     eyebrow,
     title,
     description,
+    action,
 }: StatePageProps) {
     return (
         <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -95,6 +108,22 @@ function StatePage({
                     <p className="max-w-xl leading-7 text-slate-300">
                         {description}
                     </p>
+
+                    {
+                        action === undefined
+                            ? null
+                            : (
+                                <button
+                                    className="rounded-lg bg-slate-100 px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-white"
+                                    onClick={
+                                        action.onClick
+                                    }
+                                    type="button"
+                                >
+                                    {action.label}
+                                </button>
+                            )
+                    }
                 </div>
             </section>
         </main>
@@ -103,6 +132,7 @@ function StatePage({
 
 export function ProtectedRouteStateView({
     decision,
+    onRetryUnavailable,
 }: ProtectedRouteStateViewProps) {
     switch (
         decision.status
@@ -148,6 +178,20 @@ export function ProtectedRouteStateView({
                             decision.source,
                         )
                     }
+                    {...(
+                        onRetryUnavailable
+                            === undefined
+                            ? {}
+                            : {
+                                action: {
+                                    label:
+                                        'Coba lagi',
+
+                                    onClick:
+                                        onRetryUnavailable,
+                                },
+                            }
+                    )}
                 />
             );
 

@@ -14,6 +14,17 @@ export function isBrowserSessionAuthenticationRequiredFailure(
     );
 }
 
+export function isAuthenticationContextDeniedFailure(
+    failure: BrowserApiFailure,
+): failure is BrowserApiResponseFailure {
+    return (
+        failure.kind === 'response'
+        && failure.status === 403
+        && failure.error.code
+            === 'AUTHENTICATION_CONTEXT_DENIED'
+    );
+}
+
 export function isBrowserMembershipContextRequiredFailure(
     failure: BrowserApiFailure,
 ): failure is BrowserApiResponseFailure {

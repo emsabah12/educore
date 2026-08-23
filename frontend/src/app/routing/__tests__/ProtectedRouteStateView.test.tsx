@@ -1,4 +1,5 @@
 import {
+    fireEvent,
     render,
     screen,
 } from '@testing-library/react';
@@ -6,6 +7,7 @@ import {
     describe,
     expect,
     it,
+    vi,
 } from 'vitest';
 
 import {
@@ -153,6 +155,52 @@ describe(
                     'sensitive transport detail',
                 ),
             ).not.toBeInTheDocument();
+        });
+
+        it('offers controlled retry for unavailable route authority without exposing failure internals', () => {
+            const retryUnavailable =
+                vi.fn();
+
+            render(
+                <ProtectedRouteStateView
+                    decision={{
+                        status:
+                            'unavailable',
+
+                        source:
+                            'authorization',
+
+                        failure:
+                            networkFailure,
+                    }}
+                    onRetryUnavailable={
+                        retryUnavailable
+                    }
+                />,
+            );
+
+            const retryButton =
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Coba lagi',
+                    },
+                );
+
+            expect(
+                screen.queryByText(
+                    'sensitive transport detail',
+                ),
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(
+                retryButton,
+            );
+
+            expect(
+                retryUnavailable,
+            ).toHaveBeenCalledTimes(1);
         });
 
         it('renders organizational context requirement distinctly from permission denial', () => {

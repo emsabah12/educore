@@ -8,6 +8,7 @@ import type {
     BrowserApiFailure,
 } from '@/platform/api';
 import {
+    isAuthenticationContextDeniedFailure,
     isBrowserMembershipContextRequiredFailure,
     isBrowserSessionAuthenticationRequiredFailure,
 } from '@/platform/auth';
@@ -68,6 +69,43 @@ describe(
 
             expect(
                 isBrowserSessionAuthenticationRequiredFailure(
+                    failure,
+                ),
+            ).toBe(false);
+        });
+
+        it('classifies canonical authentication context denial separately from membership context requirement', () => {
+            const failure:
+                BrowserApiFailure = {
+                    ok: false,
+                    kind:
+                        'response',
+                    status:
+                        403,
+                    error: {
+                        status:
+                            'error',
+                        code:
+                            'AUTHENTICATION_CONTEXT_DENIED',
+                        message:
+                            'Authentication context missing or invalid.',
+                    },
+                };
+
+            expect(
+                isAuthenticationContextDeniedFailure(
+                    failure,
+                ),
+            ).toBe(true);
+
+            expect(
+                isBrowserSessionAuthenticationRequiredFailure(
+                    failure,
+                ),
+            ).toBe(false);
+
+            expect(
+                isBrowserMembershipContextRequiredFailure(
                     failure,
                 ),
             ).toBe(false);

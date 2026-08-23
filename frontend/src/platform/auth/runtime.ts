@@ -14,6 +14,7 @@ import type {
     BrowserLogoutSuccess,
 } from '@/platform/auth/contract';
 import {
+    isAuthenticationContextDeniedFailure,
     isBrowserMembershipContextRequiredFailure,
     isBrowserSessionAuthenticationRequiredFailure,
 } from '@/platform/auth/failure';
@@ -138,6 +139,30 @@ export function createBrowserAuthRuntime(
                     failure,
                 });
             }
+
+            return true;
+        }
+
+        if (
+            isAuthenticationContextDeniedFailure(
+                failure,
+            )
+        ) {
+            /*
+             * The server has authoritatively rejected the
+             * current authenticated application context.
+             *
+             * This is not transport unavailability and it is
+             * not merely a missing Membership selection.
+             * Clear local authenticated authority so normal
+             * application lifecycle can rebuild from
+             * anonymous truth.
+             */
+            dispatch({
+                type:
+                    'BECAME_ANONYMOUS',
+                failure,
+            });
 
             return true;
         }

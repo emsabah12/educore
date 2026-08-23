@@ -1,4 +1,5 @@
 import {
+    fireEvent,
     render,
     screen,
     waitFor,
@@ -20,6 +21,95 @@ import {
 import {
     defineProtectedRoutePolicy,
 } from '@/platform/routing';
+
+const recoveryMocks =
+    vi.hoisted(
+        () => ({
+            authentication: {
+                bootstrap:
+                    vi.fn(),
+            },
+
+            authenticationState: {
+                status:
+                    'authenticated' as const,
+            },
+
+            membership: {
+                bootstrap:
+                    vi.fn(),
+            },
+
+            workspace: {
+                bootstrap:
+                    vi.fn(),
+            },
+
+            capabilities: {
+                refresh:
+                    vi.fn(),
+            },
+
+            recover:
+                vi.fn(
+                    async () => undefined,
+                ),
+        }),
+    );
+
+vi.mock(
+    '@/app/auth/BrowserAuthProvider',
+    () => ({
+        useBrowserAuthRuntime:
+            () =>
+                recoveryMocks
+                    .authentication,
+
+        useBrowserAuthState:
+            () =>
+                recoveryMocks
+                    .authenticationState,
+    }),
+);
+
+vi.mock(
+    '@/app/membership/MembershipContextProvider',
+    () => ({
+        useMembershipContextRuntime:
+            () =>
+                recoveryMocks
+                    .membership,
+    }),
+);
+
+vi.mock(
+    '@/app/workspace/WorkspaceContextProvider',
+    () => ({
+        useWorkspaceContextRuntime:
+            () =>
+                recoveryMocks
+                    .workspace,
+    }),
+);
+
+vi.mock(
+    '@/app/authorization/CapabilityContextProvider',
+    () => ({
+        useCapabilityRuntime:
+            () =>
+                recoveryMocks
+                    .capabilities,
+    }),
+);
+
+vi.mock(
+    '@/app/routing/protected-route-recovery',
+    () => ({
+        recoverProtectedRouteUnavailableSource:
+            recoveryMocks
+                .recover,
+    }),
+);
 
 vi.mock(
     '@/app/routing/useProtectedRouteAccess',
@@ -102,6 +192,30 @@ describe(
             () => {
                 mockedUseProtectedRouteAccess
                     .mockReset();
+
+                recoveryMocks
+                    .recover
+                    .mockClear();
+
+                recoveryMocks
+                    .authentication
+                    .bootstrap
+                    .mockClear();
+
+                recoveryMocks
+                    .membership
+                    .bootstrap
+                    .mockClear();
+
+                recoveryMocks
+                    .workspace
+                    .bootstrap
+                    .mockClear();
+
+                recoveryMocks
+                    .capabilities
+                    .refresh
+                    .mockClear();
             },
         );
 
@@ -214,6 +328,110 @@ describe(
                 ),
             ).not.toBeInTheDocument();
         });
+
+        it.each([
+            'authentication',
+            'membership',
+            'workspace',
+            'authorization',
+        ] as const)(
+            'wires %s unavailability to controlled provider-owned recovery',
+            async (source) => {
+                mockedUseProtectedRouteAccess
+                    .mockReturnValue({
+                        status:
+                            'unavailable',
+
+                        source,
+
+                        failure: {
+                            ok:
+                                false,
+
+                            kind:
+                                'network',
+
+                            cause:
+                                new Error(
+                                    'sensitive transport detail',
+                                ),
+                        },
+                    });
+
+                const router =
+                    createTestRouter(
+                        '/protected',
+                    );
+
+                render(
+                    <RouterProvider
+                        router={router}
+                    />,
+                );
+
+                const retryButton =
+                    screen.getByRole(
+                        'button',
+                        {
+                            name:
+                                'Coba lagi',
+                        },
+                    );
+
+                fireEvent.click(
+                    retryButton,
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            recoveryMocks
+                                .recover,
+                        ).toHaveBeenCalledTimes(
+                            1,
+                        );
+                    },
+                );
+
+                expect(
+                    recoveryMocks
+                        .recover,
+                ).toHaveBeenCalledWith(
+                    source,
+                    {
+                        authenticationStatus:
+                            'authenticated',
+
+                        authentication:
+                            recoveryMocks
+                                .authentication,
+
+                        membership:
+                            recoveryMocks
+                                .membership,
+
+                        workspace:
+                            recoveryMocks
+                                .workspace,
+
+                        capabilities:
+                            recoveryMocks
+                                .capabilities,
+
+                        reportFailure:
+                            expect.any(
+                                Function,
+                            ),
+                    },
+                );
+
+                expect(
+                    screen.queryByText(
+                        'sensitive transport detail',
+                    ),
+                ).not.toBeInTheDocument();
+            },
+        );
 
         it('navigates authoritative unauthenticated access to login with a validated internal return destination', async () => {
             mockedUseProtectedRouteAccess

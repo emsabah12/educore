@@ -139,6 +139,23 @@ const membershipContextRequiredFailure:
         },
     };
 
+const authenticationContextDeniedFailure:
+    BrowserApiFailure = {
+        ok: false,
+        kind:
+            'response',
+        status:
+            403,
+        error: {
+            status:
+                'error',
+            code:
+                'AUTHENTICATION_CONTEXT_DENIED',
+            message:
+                'Authentication context missing or invalid.',
+        },
+    };
+
 const unavailableFailure:
     BrowserApiFailure = {
         ok: false,
@@ -454,6 +471,72 @@ describe(
                     'anonymous',
                 failure:
                     sessionRequiredFailure,
+            });
+        });
+
+        it('invalidates authenticated application context for canonical authentication context denial', async () => {
+            const runtime =
+                createBrowserAuthRuntime(
+                    createOperations(),
+                );
+
+            await runtime.bootstrap();
+
+            const state =
+                runtime.observeFailure(
+                    authenticationContextDeniedFailure,
+                );
+
+            expect(state).toEqual({
+                status:
+                    'anonymous',
+                failure:
+                    authenticationContextDeniedFailure,
+            });
+        });
+
+        it('invalidates authenticated application context when bootstrap receives canonical context denial', async () => {
+            let bootstrapAttempt =
+                0;
+
+            const runtime =
+                createBrowserAuthRuntime(
+                    createOperations({
+                        async bootstrap() {
+                            bootstrapAttempt +=
+                                1;
+
+                            if (
+                                bootstrapAttempt
+                                    === 1
+                            ) {
+                                return bootstrapSuccess;
+                            }
+
+                            return authenticationContextDeniedFailure;
+                        },
+                    }),
+                );
+
+            const authenticatedState =
+                await runtime.bootstrap();
+
+            expect(
+                authenticatedState.status,
+            ).toBe(
+                'authenticated',
+            );
+
+            const invalidatedState =
+                await runtime.bootstrap();
+
+            expect(
+                invalidatedState,
+            ).toEqual({
+                status:
+                    'anonymous',
+                failure:
+                    authenticationContextDeniedFailure,
             });
         });
 

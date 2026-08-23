@@ -1,4 +1,7 @@
 import {
+    createCapabilityAuthFailurePropagationCoordinator,
+} from '@/app/authorization/capability-auth-failure-propagation';
+import {
     createCapabilityWorkspaceRecoveryCoordinator,
 } from '@/app/authorization/capability-workspace-recovery';
 import { createAppQueryClient } from '@/app/query-client';
@@ -136,6 +139,22 @@ export function createApplicationRuntime():
         );
 
     /*
+     * CapabilityRuntime owns authorization projection
+     * state while BrowserAuthRuntime remains the sole
+     * semantic owner of authentication truth.
+     *
+     * Application composition therefore observes
+     * Capability Browser API failures and forwards them
+     * to the canonical Auth runtime without coupling the
+     * platform runtimes directly.
+     */
+    const authenticationFailurePropagationCoordinator =
+        createCapabilityAuthFailurePropagationCoordinator(
+            capabilities,
+            auth,
+        );
+
+    /*
      * CapabilityRuntime owns capability authority while
      * WorkspaceRuntime owns organizational recovery.
      *
@@ -171,6 +190,9 @@ export function createApplicationRuntime():
 
             disposed =
                 true;
+
+            authenticationFailurePropagationCoordinator
+                .dispose();
 
             recoveryCoordinator
                 .dispose();

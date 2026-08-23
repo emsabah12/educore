@@ -16,6 +16,7 @@ export type {
 } from './contract';
 
 export {
+    isAuthenticationContextDeniedFailure,
     isBrowserMembershipContextRequiredFailure,
     isBrowserSessionAuthenticationRequiredFailure,
 } from './failure';
