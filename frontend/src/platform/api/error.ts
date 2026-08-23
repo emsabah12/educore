@@ -3,8 +3,27 @@ import type { ApiComponents } from '@/platform/api/contract';
 export type CanonicalApiError =
     ApiComponents['schemas']['ApiError'];
 
-export type CanonicalValidationError =
+type GeneratedCanonicalValidationError =
     ApiComponents['schemas']['ValidationError'];
+
+/*
+ * OpenAPI currently describes the validation message with
+ * its present human-readable literal.
+ *
+ * Frontend runtime normalization must not treat that copy
+ * as stable branching authority, so only the message field
+ * is widened to the canonical API message type. Stable
+ * status, code, and validation-error structure remain
+ * generated-contract derived.
+ */
+export type CanonicalValidationError =
+    Omit<
+        GeneratedCanonicalValidationError,
+        'message'
+    > & {
+        readonly message:
+            CanonicalApiError['message'];
+    };
 
 export type CanonicalValidationErrors =
     ApiComponents['schemas']['ValidationErrors'];
@@ -100,12 +119,15 @@ export function isCanonicalApiErrorBody(
         return true;
     }
 
-    return (
-        value.message
-            === 'The submitted data is invalid.'
-        && isValidationErrors(
-            value.errors,
-        )
+    /*
+     * Human-readable backend messages are presentation
+     * metadata, not stable frontend branching authority.
+     *
+     * VALIDATION_FAILED is recognized from its canonical
+     * code and validation error structure.
+     */
+    return isValidationErrors(
+        value.errors,
     );
 }
 

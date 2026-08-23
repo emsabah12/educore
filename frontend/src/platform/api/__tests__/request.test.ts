@@ -95,6 +95,49 @@ describe('executeBrowserApiRequest', () => {
         });
     });
 
+    it('preserves unknown stable API error codes for forward compatibility', async () => {
+        apiMockServer.use(
+            http.get(
+                `${window.location.origin}/api/v1/user/my-memberships`,
+                () => HttpResponse.json(
+                    {
+                        status: 'error',
+                        code:
+                            'NEW_DOMAIN_CONFLICT',
+                        message:
+                            'The request conflicts with newer server state.',
+                    },
+                    {
+                        status: 409,
+                    },
+                ),
+            ),
+        );
+
+        const client =
+            createBrowserApiClient();
+
+        const result =
+            await executeBrowserApiRequest(
+                client.GET(
+                    '/api/v1/user/my-memberships',
+                ),
+            );
+
+        expect(result).toEqual({
+            ok: false,
+            kind: 'response',
+            status: 409,
+            error: {
+                status: 'error',
+                code:
+                    'NEW_DOMAIN_CONFLICT',
+                message:
+                    'The request conflicts with newer server state.',
+            },
+        });
+    });
+
     it('preserves canonical validation errors', async () => {
         apiMockServer.use(
             http.post(
@@ -103,8 +146,16 @@ describe('executeBrowserApiRequest', () => {
                     {
                         status: 'error',
                         code: 'VALIDATION_FAILED',
+                        /*
+                         * Human-readable backend copy is not
+                         * frontend branching authority.
+                         *
+                         * Recognition of VALIDATION_FAILED must
+                         * rely on stable contract fields and the
+                         * validation error shape instead.
+                         */
                         message:
-                            'The submitted data is invalid.',
+                            'Some submitted values are invalid.',
                         errors: {
                             email: [
                                 'The email field is required.',
@@ -144,7 +195,7 @@ describe('executeBrowserApiRequest', () => {
                 status: 'error',
                 code: 'VALIDATION_FAILED',
                 message:
-                    'The submitted data is invalid.',
+                    'Some submitted values are invalid.',
                 errors: {
                     email: [
                         'The email field is required.',
