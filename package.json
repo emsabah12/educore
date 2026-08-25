@@ -14,7 +14,8 @@
         "frontend:test:watch": "vitest --config vitest.config.ts",
         "frontend:e2e": "playwright test --config frontend/playwright.config.ts",
         "frontend:lint": "eslint \"frontend/src/**/*.{ts,tsx}\" --max-warnings=0",
-        "frontend:format:check": "node scripts/frontend-format-check.mjs"
+        "frontend:format:check": "node scripts/frontend-format-check.mjs",
+        "frontend:dependencies:audit": "npm audit --audit-level=high"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",
