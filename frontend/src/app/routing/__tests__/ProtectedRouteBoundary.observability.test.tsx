@@ -141,7 +141,6 @@ vi.mock(
 
 import {
     ProtectedRouteBoundary,
-    type ProtectedRouteBoundaryProps,
 } from '@/app/routing/ProtectedRouteBoundary';
 import {
     useProtectedRouteAccess,

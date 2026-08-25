@@ -3,7 +3,7 @@ import {
     type PropsWithChildren,
     useContext,
     useEffect,
-    useRef,
+    useState,
     useSyncExternalStore,
 } from 'react';
 
@@ -46,21 +46,14 @@ export interface WorkspaceContextProviderProps
 
 function useWorkspaceBootstrapLifecycleClassifier():
     WorkspaceBootstrapLifecycleClassifier {
-    const classifierRef =
-        useRef<
-            WorkspaceBootstrapLifecycleClassifier
-            | null
-        >(null);
+    const [
+        lifecycleClassifier,
+    ] = useState(
+        () =>
+            createWorkspaceBootstrapLifecycleClassifier(),
+    );
 
-    if (
-        classifierRef.current
-            === null
-    ) {
-        classifierRef.current =
-            createWorkspaceBootstrapLifecycleClassifier();
-    }
-
-    return classifierRef.current;
+    return lifecycleClassifier;
 }
 
 export function WorkspaceContextLifecycle() {

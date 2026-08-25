@@ -12,9 +12,12 @@
         "frontend:api:check": "openapi-typescript docs/api/openapi.yaml --output frontend/src/platform/api/generated/schema.d.ts --check",
         "frontend:test": "vitest run --config vitest.config.ts",
         "frontend:test:watch": "vitest --config vitest.config.ts",
-        "frontend:e2e": "playwright test --config frontend/playwright.config.ts"
+        "frontend:e2e": "playwright test --config frontend/playwright.config.ts",
+        "frontend:lint": "eslint \"frontend/src/**/*.{ts,tsx}\" --max-warnings=0",
+        "frontend:format:check": "node scripts/frontend-format-check.mjs"
     },
     "devDependencies": {
+        "@eslint/js": "10.0.1",
         "@playwright/test": "^1.62.1",
         "@tailwindcss/vite": "^4.0.0",
         "@testing-library/jest-dom": "^7.0.1",
@@ -23,12 +26,16 @@
         "@types/react-dom": "^19.2.4",
         "@vitejs/plugin-react": "^6.0.5",
         "concurrently": "^9.0.1",
+        "eslint": "10.8.1",
+        "eslint-plugin-react-hooks": "7.1.1",
+        "globals": "16.4.0",
         "jsdom": "^29.1.1",
         "laravel-vite-plugin": "^3.1",
         "msw": "2.15.0",
         "openapi-typescript": "7.13.0",
         "tailwindcss": "^4.0.0",
         "typescript": "^5.9.3",
+        "typescript-eslint": "8.67.0",
         "vite": "^8.0.0",
         "vitest": "^4.1.11"
     },
