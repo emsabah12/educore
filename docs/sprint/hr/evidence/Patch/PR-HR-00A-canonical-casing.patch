@@ -1,0 +1,12 @@
+diff --git a/Modules/HR/Database/Migrations/2026_07_17_000005_create_Employees_table.php b/Modules/HR/Database/Migrations/2026_07_17_000005_create_employees_table.php
+similarity index 100%
+rename from Modules/HR/Database/Migrations/2026_07_17_000005_create_Employees_table.php
+rename to Modules/HR/Database/Migrations/2026_07_17_000005_create_employees_table.php
+diff --git a/docs/architecture/adr/adr-011-multi-tenancy-strategy.md b/docs/architecture/adr/ADR-011-multi-tenancy-strategy.md
+similarity index 100%
+rename from docs/architecture/adr/adr-011-multi-tenancy-strategy.md
+rename to docs/architecture/adr/ADR-011-multi-tenancy-strategy.md
+diff --git a/docs/architecture/adr/adr-012-tenant-aware-auth-guard.md b/docs/architecture/adr/ADR-012-tenant-aware-auth-guard.md
+similarity index 100%
+rename from docs/architecture/adr/adr-012-tenant-aware-auth-guard.md
+rename to docs/architecture/adr/ADR-012-tenant-aware-auth-guard.md

@@ -1,21 +1,46 @@
 # PRD Documentation
 
-- **Collection Status**: Current + historical documents; use each document header as lifecycle authority
-- **Updated**: 2026-08-18
+- **Collection Status**: Current + historical documents; use each document header and collection README as lifecycle authority
+- **Updated**: 2026-08-25
 
-Folder ini menyimpan Product/Engineering Requirement Documents EduCore. Dokumen lama tidak otomatis menjadi current implementation contract setelah arsitektur berevolusi.
+Folder ini menyimpan Product/Engineering Requirement Documents EduCore.
+
+Dokumen lama tidak otomatis menjadi current implementation contract setelah
+arsitektur atau requirement berevolusi.
+
+Untuk collection yang memiliki subfolder sendiri, gunakan `README.md` pada
+collection tersebut sebagai entry point, reading order, dan lifecycle authority.
+
+---
 
 ## Current Frontend Foundation
 
-- [`PRD-001-frontend-foundation.md`](PRD-001-frontend-foundation.md) — canonical consolidated Frontend Foundation PRD; **Accepted / FE-0 sampai FE-9 locked**.
-- [`FE-000-frontend-contract-baseline_Scope-verification.md`](FE-000-frontend-contract-baseline_Scope-verification.md) sampai [`FE-008-frontend-non-functional-requirements.md`](FE-008-frontend-non-functional-requirements.md) — detailed phase records supporting the consolidated Frontend Foundation PRD.
+- [`PRD-001-frontend-foundation.md`](PRD-001-frontend-foundation.md)
+  — canonical consolidated Frontend Foundation PRD;
+  **Accepted / FE-0 sampai FE-9 locked**.
 
-Frontend architectural decisions yang menjadi authority untuk implementation tersedia di [`../architecture/adr/README.md`](../architecture/adr/README.md), khususnya ADR-020 sampai ADR-031.
+- [`FE-000-frontend-contract-baseline_Scope-verification.md`](FE-000-frontend-contract-baseline_Scope-verification.md)
+  sampai
+  [`FE-008-frontend-non-functional-requirements.md`](FE-008-frontend-non-functional-requirements.md)
+  — detailed phase records supporting the consolidated Frontend Foundation PRD.
 
-## Historical Documents
+Frontend architectural decisions yang menjadi authority untuk implementation
+tersedia di:
 
-- [`CORE-001.md`](CORE-001.md) — original Platform Kernel Engineering PRD/proposal; **HISTORICAL**.
+[`../architecture/adr/README.md`](../architecture/adr/README.md)
 
-Untuk implemented backend architecture baseline saat ini gunakan [`../architecture/README.md`](../architecture/README.md).
+khususnya ADR-020 sampai ADR-031.
 
-Jika PRD baru dibuat, status dan target baseline harus ditulis eksplisit pada header dokumen.
+---
+
+## Current Human Resources
+
+Canonical Human Resources specification tersedia di:
+
+[`hr/README.md`](hr/README.md)
+
+Current HR specification terdiri dari:
+
+```text
+HR-001 → HR-016
+```
