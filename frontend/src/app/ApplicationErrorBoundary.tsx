@@ -1,11 +1,18 @@
 import {
     Component,
-    type ErrorInfo,
     type ReactNode,
 } from 'react';
 
+import type {
+    ObservabilityPort,
+} from '@/platform/observability/port';
+
 interface ApplicationErrorBoundaryProps {
-    children: ReactNode;
+    children:
+        ReactNode;
+
+    observability:
+        ObservabilityPort;
 }
 
 interface ApplicationErrorBoundaryState {
@@ -27,15 +34,19 @@ export class ApplicationErrorBoundary extends Component<
     }
 
     public override componentDidCatch(
-        _error: unknown,
-        errorInfo: ErrorInfo,
+        error:
+            unknown,
     ): void {
-        console.error(
-            'EduCore application render failed.',
-            {
-                componentStack: errorInfo.componentStack,
-            },
-        );
+        this.props
+            .observability
+            .captureException(
+                'application_render_failed',
+                error,
+                {
+                    module:
+                        'application',
+                },
+            );
     }
 
     public override render(): ReactNode {

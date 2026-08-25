@@ -9,35 +9,111 @@ import {
     vi,
 } from 'vitest';
 
-import { ApplicationErrorBoundary } from '@/app/ApplicationErrorBoundary';
+import {
+    ApplicationErrorBoundary,
+} from '@/app/ApplicationErrorBoundary';
+import type {
+    ObservabilityPort,
+} from '@/platform/observability/port';
 
-function BrokenComponent(): never {
-    throw new Error('Synthetic render failure');
+const renderFailure =
+    new Error(
+        'Synthetic render failure',
+    );
+
+function BrokenComponent():
+    never {
+    throw renderFailure;
 }
 
-describe('ApplicationErrorBoundary', () => {
-    it('fails closed to controlled recovery UI', () => {
-        const consoleError = vi
-            .spyOn(console, 'error')
-            .mockImplementation(() => undefined);
+describe(
+    'ApplicationErrorBoundary',
+    () => {
+        it('fails closed and reports the render exception through observability without component-stack telemetry', () => {
+            const observability:
+                ObservabilityPort = {
+                    captureEvent:
+                        vi.fn(),
 
-        render(
-            <ApplicationErrorBoundary>
-                <BrokenComponent />
-            </ApplicationErrorBoundary>,
-        );
+                    captureException:
+                        vi.fn(),
+                };
 
-        expect(
-            screen.getByRole(
-                'heading',
+            const consoleError =
+                vi.spyOn(
+                    console,
+                    'error',
+                )
+                    .mockImplementation(
+                        () => undefined,
+                    );
+
+            render(
+                <ApplicationErrorBoundary
+                    observability={
+                        observability
+                    }
+                >
+                    <BrokenComponent />
+                </ApplicationErrorBoundary>,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Aplikasi tidak dapat dimuat',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                observability
+                    .captureException,
+            ).toHaveBeenCalledTimes(
+                1,
+            );
+
+            expect(
+                observability
+                    .captureException,
+            ).toHaveBeenCalledWith(
+                'application_render_failed',
+                renderFailure,
                 {
-                    name: 'Aplikasi tidak dapat dimuat',
+                    module:
+                        'application',
                 },
-            ),
-        ).toBeInTheDocument();
+            );
 
-        expect(consoleError).toHaveBeenCalled();
+            expect(
+                observability
+                    .captureEvent,
+            ).not.toHaveBeenCalled();
 
-        consoleError.mockRestore();
-    });
-});
+            /*
+             * React itself may write development diagnostics
+             * for a render exception. Reject only EduCore's
+             * legacy production console reporter.
+             */
+            expect(
+                consoleError.mock.calls
+                    .some(
+                        (
+                            [
+                                firstArgument,
+                            ],
+                        ) =>
+                            firstArgument
+                                === 'EduCore application render failed.',
+                    ),
+            ).toBe(
+                false,
+            );
+
+            consoleError
+                .mockRestore();
+        });
+    },
+);

@@ -27,6 +27,12 @@ import {
     type MembershipContextRuntime,
 } from '@/platform/membership';
 import {
+    createNoopObservabilityPort,
+} from '@/platform/observability/runtime';
+import type {
+    ObservabilityPort,
+} from '@/platform/observability/port';
+import {
     createWorkspaceContextOperations,
     createWorkspaceContextRuntime,
     type WorkspaceContextRuntime,
@@ -48,6 +54,9 @@ export interface ApplicationRuntime {
     capabilities:
         CapabilityRuntime;
 
+    observability:
+        ObservabilityPort;
+
     queryClient:
         ReturnType<
             typeof createAppQueryClient
@@ -59,27 +68,38 @@ export interface ApplicationRuntime {
         >;
 }
 
-function reportApplicationRuntimeCoordinationFailure(
-    error:
-        unknown,
-): void {
-    /*
-     * Cross-runtime recovery happens outside React render
-     * and Effect execution, therefore an ErrorBoundary
-     * cannot catch an asynchronous coordination failure.
-     *
-     * Do not include authentication credentials,
-     * membership payloads, or capability projections in
-     * this diagnostic.
-     */
-    console.error(
-        'EduCore application runtime coordination failed.',
-        error,
-    );
-}
-
 export function createApplicationRuntime():
     ApplicationRuntime {
+    const observability =
+        createNoopObservabilityPort();
+
+    const reportApplicationRuntimeCoordinationFailure =
+        (
+            error:
+                unknown,
+        ): void => {
+            /*
+             * Cross-runtime recovery happens outside React
+             * render and Effect execution, therefore an
+             * ErrorBoundary cannot catch an asynchronous
+             * coordination failure.
+             *
+             * Route the throwable through the canonical
+             * observability port owned by this Application
+             * runtime. Exception normalization, privacy
+             * filtering, and provider failure isolation
+             * remain platform responsibilities.
+             */
+            observability.captureException(
+                'application_runtime_coordination_failed',
+                error,
+                {
+                    module:
+                        'application',
+                },
+            );
+        };
+
     const apiClient =
         createBrowserApiClient();
 
@@ -210,6 +230,7 @@ export function createApplicationRuntime():
         membership,
         workspace,
         capabilities,
+        observability,
 
         queryClient:
             createAppQueryClient(),

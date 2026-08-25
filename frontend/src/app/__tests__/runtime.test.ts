@@ -129,5 +129,36 @@ describe(
                 1,
             );
         });
+
+        it('owns an isolated observability port per application runtime instance', () => {
+            const firstRuntime =
+                createApplicationRuntime();
+
+            const secondRuntime =
+                createApplicationRuntime();
+
+            expect(
+                firstRuntime.observability,
+            ).not.toBe(
+                secondRuntime.observability,
+            );
+
+            expect(
+                firstRuntime.observability
+                    .captureEvent,
+            ).toBeTypeOf(
+                'function',
+            );
+
+            expect(
+                firstRuntime.observability
+                    .captureException,
+            ).toBeTypeOf(
+                'function',
+            );
+
+            firstRuntime.dispose();
+            secondRuntime.dispose();
+        });
     },
 );

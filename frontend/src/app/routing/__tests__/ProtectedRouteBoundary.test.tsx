@@ -19,6 +19,12 @@ import {
 } from 'vitest';
 
 import {
+    ObservabilityContextProvider,
+} from '@/app/observability/ObservabilityContextProvider';
+import {
+    createNoopObservabilityPort,
+} from '@/platform/observability/runtime';
+import {
     defineProtectedRoutePolicy,
 } from '@/platform/routing';
 
@@ -131,6 +137,9 @@ const mockedUseProtectedRouteAccess =
         useProtectedRouteAccess,
     );
 
+const observability =
+    createNoopObservabilityPort();
+
 const policy =
     defineProtectedRoutePolicy({
         routeId:
@@ -157,13 +166,21 @@ function createTestRouter(
                     '/protected',
 
                 element: (
-                    <ProtectedRouteBoundary
-                        policy={policy}
+                    <ObservabilityContextProvider
+                        observability={
+                            observability
+                        }
                     >
-                        <h1>
-                            Protected content
-                        </h1>
-                    </ProtectedRouteBoundary>
+                        <ProtectedRouteBoundary
+                            policy={
+                                policy
+                            }
+                        >
+                            <h1>
+                                Protected content
+                            </h1>
+                        </ProtectedRouteBoundary>
+                    </ObservabilityContextProvider>
                 ),
             },
             {

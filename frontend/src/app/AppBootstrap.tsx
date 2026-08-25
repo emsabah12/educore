@@ -9,6 +9,9 @@ import {
     ApplicationErrorBoundary,
 } from '@/app/ApplicationErrorBoundary';
 import {
+    ObservabilityContextProvider,
+} from '@/app/observability/ObservabilityContextProvider';
+import {
     CapabilityContextProvider,
 } from '@/app/authorization/CapabilityContextProvider';
 import {
@@ -33,43 +36,53 @@ export function AppBootstrap({
     runtime,
 }: AppBootstrapProps) {
     return (
-        <ApplicationErrorBoundary>
-            <BrowserAuthProvider
-                runtime={runtime.auth}
+        <ApplicationErrorBoundary
+            observability={
+                runtime.observability
+            }
+        >
+            <ObservabilityContextProvider
+                observability={
+                    runtime.observability
+                }
             >
-                <MembershipContextProvider
-                    runtime={
-                        runtime.membership
-                    }
+                <BrowserAuthProvider
+                    runtime={runtime.auth}
                 >
-                    <WorkspaceContextProvider
+                    <MembershipContextProvider
                         runtime={
-                            runtime.workspace
-                        }
-                        activateLifecycle={
-                            false
+                            runtime.membership
                         }
                     >
-                        <CapabilityContextProvider
+                        <WorkspaceContextProvider
                             runtime={
-                                runtime.capabilities
+                                runtime.workspace
+                            }
+                            activateLifecycle={
+                                false
                             }
                         >
-                            <QueryClientProvider
-                                client={
-                                    runtime.queryClient
+                            <CapabilityContextProvider
+                                runtime={
+                                    runtime.capabilities
                                 }
                             >
-                                <RouterProvider
-                                    router={
-                                        runtime.router
+                                <QueryClientProvider
+                                    client={
+                                        runtime.queryClient
                                     }
-                                />
-                            </QueryClientProvider>
-                        </CapabilityContextProvider>
-                    </WorkspaceContextProvider>
-                </MembershipContextProvider>
-            </BrowserAuthProvider>
+                                >
+                                    <RouterProvider
+                                        router={
+                                            runtime.router
+                                        }
+                                    />
+                                </QueryClientProvider>
+                            </CapabilityContextProvider>
+                        </WorkspaceContextProvider>
+                    </MembershipContextProvider>
+                </BrowserAuthProvider>
+            </ObservabilityContextProvider>
         </ApplicationErrorBoundary>
     );
 }

@@ -17,6 +17,9 @@ import {
     useMembershipContextRuntime,
 } from '@/app/membership/MembershipContextProvider';
 import {
+    useObservabilityPort,
+} from '@/app/observability/ObservabilityContextProvider';
+import {
     recoverProtectedRouteUnavailableSource,
 } from '@/app/routing/protected-route-recovery';
 import {
@@ -50,28 +53,13 @@ function createCurrentInternalLocation(
     return `${pathname}${search}${hash}`;
 }
 
-function reportProtectedRouteRecoveryFailure(
-    _error:
-        unknown,
-): void {
-    /*
-     * Async recovery failures cannot be caught by a React
-     * ErrorBoundary when they originate from an interaction
-     * handler.
-     *
-     * Keep this diagnostic deliberately free of the raw
-     * error object. Sensitive request, authentication, or
-     * context detail must not be emitted from route UX.
-     */
-    console.error(
-        'EduCore protected route recovery failed.',
-    );
-}
-
 export function ProtectedRouteBoundary({
     policy,
     children,
 }: ProtectedRouteBoundaryProps) {
+    const observability =
+        useObservabilityPort();
+
     const decision =
         useProtectedRouteAccess(
             policy,
@@ -101,6 +89,33 @@ export function ProtectedRouteBoundary({
 
     const location =
         useLocation();
+
+    function reportProtectedRouteRecoveryFailure(
+        error:
+            unknown,
+    ): void {
+        /*
+         * Async recovery failures cannot be caught by a
+         * React ErrorBoundary when they originate from an
+         * interaction handler.
+         *
+         * The routing layer classifies the failure and
+         * supplies only stable, allowlisted context.
+         * Throwable normalization and privacy filtering
+         * remain observability-platform responsibilities.
+         */
+        observability.captureException(
+            'protected_route_recovery_failed',
+            error,
+            {
+                module:
+                    'routing',
+
+                routeId:
+                    policy.routeId,
+            },
+        );
+    }
 
     function retryUnavailableRoute(): void {
         if (
