@@ -35,6 +35,7 @@ const inspectionTargets = [
     'package.json',
     'eslint.config.js',
     'scripts/frontend-artifact-security-check.mjs',
+    'scripts/frontend-bundle-regression-check.mjs',
     'scripts/frontend-format-check.mjs',
     'vitest.config.ts',
     'frontend/index.html',
