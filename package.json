@@ -17,7 +17,8 @@
         "frontend:format:check": "node scripts/frontend-format-check.mjs",
         "frontend:dependencies:audit": "npm audit --audit-level=high",
         "frontend:artifact:security": "node scripts/frontend-artifact-security-check.mjs",
-        "frontend:bundle:check": "node scripts/frontend-bundle-regression-check.mjs"
+        "frontend:bundle:check": "node scripts/frontend-bundle-regression-check.mjs",
+        "frontend:csp:check": "node scripts/frontend-csp-compatibility-check.mjs"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",
