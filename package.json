@@ -19,7 +19,8 @@
         "frontend:artifact:security": "node scripts/frontend-artifact-security-check.mjs",
         "frontend:bundle:check": "node scripts/frontend-bundle-regression-check.mjs",
         "frontend:csp:check": "node scripts/frontend-csp-compatibility-check.mjs",
-        "frontend:verify": "npm run frontend:format:check && npm run frontend:lint && npm run frontend:typecheck && npm run frontend:api:check && npm run frontend:dependencies:audit && npm run frontend:test && npm run frontend:build && npm run frontend:artifact:security && npm run frontend:bundle:check && npm run frontend:csp:check"
+        "frontend:verify": "npm run frontend:format:check && npm run frontend:lint && npm run frontend:typecheck && npm run frontend:api:check && npm run frontend:dependencies:audit && npm run frontend:test && npm run frontend:build && npm run frontend:artifact:security && npm run frontend:bundle:check && npm run frontend:csp:check",
+        "frontend:ci:check": "node scripts/frontend-ci-enforcement-check.mjs"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",

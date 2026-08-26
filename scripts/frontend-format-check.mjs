@@ -22,6 +22,7 @@ const allowedExtensions =
         '.mjs',
         '.ts',
         '.tsx',
+        '.yml',
     ]);
 
 const ignoredDirectoryNames =
@@ -32,10 +33,12 @@ const ignoredDirectoryNames =
     ]);
 
 const inspectionTargets = [
+    '.github/workflows/frontend-verification.yml',
     'package.json',
     'eslint.config.js',
     'scripts/frontend-artifact-security-check.mjs',
     'scripts/frontend-bundle-regression-check.mjs',
+    'scripts/frontend-ci-enforcement-check.mjs',
     'scripts/frontend-csp-compatibility-check.mjs',
     'scripts/frontend-format-check.mjs',
     'vitest.config.ts',
