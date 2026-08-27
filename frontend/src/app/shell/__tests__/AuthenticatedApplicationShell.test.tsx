@@ -90,6 +90,15 @@ vi.mock(
 );
 
 vi.mock(
+    '@/app/membership/MembershipSwitcher',
+    () => ({
+        MembershipSwitcher() {
+            return null;
+        },
+    }),
+);
+
+vi.mock(
     '@/app/navigation/ApplicationNavigation',
     () => ({
         ApplicationNavigation() {

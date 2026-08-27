@@ -24,6 +24,12 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
     public const MEMBERSHIP_ID =
         '019c8f4a-7b10-7000-8000-000000000004';
 
+    public const SECOND_TENANT_ID =
+        '019c8f4a-7b10-7000-8000-000000000005';
+
+    public const SECOND_MEMBERSHIP_ID =
+        '019c8f4a-7b10-7000-8000-000000000006';
+
     public const EMAIL =
         'browser-e2e@educore.test';
 
@@ -32,6 +38,9 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
 
     public const TENANT_SUBDOMAIN =
         'browser-e2e';
+
+    public const SECOND_TENANT_SUBDOMAIN =
+        'browser-e2e-secondary';
 
     public function run(): void
     {
@@ -124,6 +133,31 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                 );
 
                 DB::table(
+                    'tenants',
+                )->updateOrInsert(
+                    [
+                        'id' =>
+                            self::SECOND_TENANT_ID,
+                    ],
+                    [
+                        'name' =>
+                            'EduCore Browser E2E Tenant Secondary',
+
+                        'subdomain' =>
+                            self::SECOND_TENANT_SUBDOMAIN,
+
+                        'is_active' =>
+                            true,
+
+                        'created_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ],
+                );
+
+                DB::table(
                     'memberships',
                 )->updateOrInsert(
                     [
@@ -136,6 +170,31 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
 
                         'tenant_id' =>
                             self::TENANT_ID,
+
+                        'status' =>
+                            'ACTIVE',
+
+                        'created_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ],
+                );
+
+                DB::table(
+                    'memberships',
+                )->updateOrInsert(
+                    [
+                        'id' =>
+                            self::SECOND_MEMBERSHIP_ID,
+                    ],
+                    [
+                        'person_id' =>
+                            self::PERSON_ID,
+
+                        'tenant_id' =>
+                            self::SECOND_TENANT_ID,
 
                         'status' =>
                             'ACTIVE',
@@ -212,6 +271,8 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                 self::USER_ID,
                 self::TENANT_ID,
                 self::MEMBERSHIP_ID,
+                self::SECOND_TENANT_ID,
+                self::SECOND_MEMBERSHIP_ID,
             ]
             as $identifier
         ) {

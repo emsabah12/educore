@@ -9,6 +9,15 @@ const e2eMembershipId =
 const e2eTenantId =
     '019c8f4a-7b10-7000-8000-000000000003';
 
+const e2eSecondTenantId =
+    '019c8f4a-7b10-7000-8000-000000000005';
+
+const e2eSecondMembershipId =
+    '019c8f4a-7b10-7000-8000-000000000006';
+
+const e2eSecondTenantName =
+    'EduCore Browser E2E Tenant Secondary';
+
 const e2eEmail =
     'browser-e2e@educore.test';
 
@@ -3326,5 +3335,484 @@ test(
         ).not.toMatch(
             /Bearer\s+/iu,
         );
+    },
+);
+
+test(
+    'real browser switches canonical Membership context through server-held BrowserSession credentials',
+    async ({
+        page,
+    }) => {
+        /*
+         * Establish Membership A through the real production
+         * login flow.
+         */
+        await page.goto(
+            '/login',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await page
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await page
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await page
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        const initialAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const initialMembershipDiscoveryPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const initialWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await page
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            initialAuthentication,
+            initialMembershipDiscovery,
+            initialWorkspace,
+        ] =
+            await Promise.all([
+                initialAuthenticationPromise,
+                initialMembershipDiscoveryPromise,
+                initialWorkspacePromise,
+            ]);
+
+        expect(
+            initialAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialMembershipDiscovery.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        /*
+         * The production Membership selector must project
+         * canonical discovery truth. The selected value is
+         * Membership A, while Membership B is available.
+         */
+        const membershipSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            membershipSwitcher,
+        ).toBeVisible();
+
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            membershipSwitcher
+                .locator(
+                    `option[value="${e2eSecondMembershipId}"]`,
+                ),
+        ).toHaveText(
+            e2eSecondTenantName,
+        );
+
+        /*
+         * Register all transition observers before the user
+         * changes the production selector.
+         */
+        const csrfResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/session/csrf',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'GET',
+            );
+
+        const membershipSwitchResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        `/api/v1/browser/user/memberships/${e2eSecondMembershipId}/switch`,
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'POST',
+            );
+
+        const switchedAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        const switchedWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        const switchedCapabilityPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/core/authorization/capabilities',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        /*
+         * Exercise the production switcher.
+         *
+         * No API request is issued directly by Playwright.
+         */
+        await membershipSwitcher
+            .selectOption(
+                e2eSecondMembershipId,
+            );
+
+        const [
+            csrfResponse,
+            membershipSwitchResponse,
+            switchedAuthentication,
+            switchedWorkspace,
+            switchedCapability,
+        ] =
+            await Promise.all([
+                csrfResponsePromise,
+                membershipSwitchResponsePromise,
+                switchedAuthenticationPromise,
+                switchedWorkspacePromise,
+                switchedCapabilityPromise,
+            ]);
+
+        expect(
+            csrfResponse.status(),
+        ).toBe(
+            204,
+        );
+
+        /*
+         * Browser membership switch prepares the credential
+         * in server-side custody and returns only safe context.
+         */
+        expect(
+            membershipSwitchResponse.status(),
+        ).toBe(
+            200,
+        );
+
+        const switchBody:
+            unknown =
+            await membershipSwitchResponse
+                .json();
+
+        expect(
+            switchBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                membership_id:
+                    e2eSecondMembershipId,
+
+                tenant_id:
+                    e2eSecondTenantId,
+
+                tenant_name:
+                    e2eSecondTenantName,
+            },
+        });
+
+        expect(
+            JSON.stringify(
+                switchBody,
+            ),
+        ).not.toContain(
+            'access_token',
+        );
+
+        const switchRequestHeaders =
+            await membershipSwitchResponse
+                .request()
+                .allHeaders();
+
+        expect(
+            switchRequestHeaders[
+                'authorization'
+            ],
+        ).toBeUndefined();
+
+        expect(
+            switchRequestHeaders[
+                'x-xsrf-token'
+            ],
+        ).toBeDefined();
+
+        /*
+         * Switch success is not canonical authority yet.
+         * /auth/me must independently confirm Membership B.
+         */
+        expect(
+            switchedAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        const switchedAuthenticationBody:
+            unknown =
+            await switchedAuthentication
+                .json();
+
+        expect(
+            switchedAuthenticationBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                membership: {
+                    id:
+                        e2eSecondMembershipId,
+
+                    status:
+                        'ACTIVE',
+                },
+
+                tenant: {
+                    id:
+                        e2eSecondTenantId,
+
+                    name:
+                        e2eSecondTenantName,
+                },
+            },
+        });
+
+        expect(
+            switchedWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        const switchedWorkspaceBody:
+            unknown =
+            await switchedWorkspace
+                .json();
+
+        expect(
+            switchedWorkspaceBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                tenant: {
+                    id:
+                        e2eSecondTenantId,
+                },
+            },
+        });
+
+        expect(
+            switchedCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        const switchedCapabilityBody:
+            unknown =
+            await switchedCapability
+                .json();
+
+        expect(
+            switchedCapabilityBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                scope: {
+                    type:
+                        'tenant',
+
+                    tenant_id:
+                        e2eSecondTenantId,
+
+                    membership_id:
+                        e2eSecondMembershipId,
+                },
+            },
+        });
+
+        /*
+         * Canonical API requests remain BrowserSession-owned.
+         * No browser JavaScript Bearer authority is introduced
+         * by Membership switching.
+         */
+        for (
+            const response
+            of [
+                csrfResponse,
+                membershipSwitchResponse,
+                switchedAuthentication,
+                switchedWorkspace,
+                switchedCapability,
+            ]
+        ) {
+            const headers =
+                await response
+                    .request()
+                    .allHeaders();
+
+            expect(
+                headers[
+                    'authorization'
+                ],
+            ).toBeUndefined();
+        }
+
+        /*
+         * Only after canonical confirmation may the production
+         * selector and shell project Membership/Tenant B as
+         * current authority.
+         */
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eSecondMembershipId,
+        );
+
+        await expect(
+            page.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eSecondTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
     },
 );

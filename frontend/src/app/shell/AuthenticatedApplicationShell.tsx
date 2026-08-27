@@ -9,6 +9,9 @@ import {
     LogoutButton,
 } from '@/app/auth/LogoutButton';
 import {
+    MembershipSwitcher,
+} from '@/app/membership/MembershipSwitcher';
+import {
     ApplicationNavigation,
 } from '@/app/navigation/ApplicationNavigation';
 import {
@@ -68,6 +71,8 @@ export function AuthenticatedApplicationShell() {
                         <p className="mt-1 truncate text-sm text-slate-300">
                             {tenant.name}
                         </p>
+
+                        <MembershipSwitcher />
                     </div>
 
                     <div
