@@ -17,6 +17,18 @@ import type {
     BrowserApiFailure,
 } from '@/platform/api';
 
+vi.mock(
+    '@/app/membership/MembershipSwitcher',
+    () => ({
+        MembershipSwitcher:
+            () => (
+                <select
+                    aria-label="Choose institution"
+                />
+            ),
+    }),
+);
+
 const networkFailure:
     BrowserApiFailure = {
         ok:
@@ -86,6 +98,16 @@ describe(
                     {
                         name:
                             'Pilih Membership',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Choose institution',
                     },
                 ),
             ).toBeInTheDocument();

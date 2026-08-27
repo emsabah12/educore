@@ -18,6 +18,8 @@ export function MembershipSwitcher() {
         membership.status
             !== 'ready'
         && membership.status
+            !== 'selection-required'
+        && membership.status
             !== 'switching'
     ) {
         return null;
@@ -31,7 +33,9 @@ export function MembershipSwitcher() {
      * Tenant identity visible.
      */
     if (
-        membership.memberships.length
+        membership.status
+            !== 'selection-required'
+        && membership.memberships.length
             <= 1
     ) {
         return null;
@@ -41,6 +45,21 @@ export function MembershipSwitcher() {
         membership.status
             === 'switching';
 
+    const selecting =
+        membership.status
+            === 'selection-required'
+        || (
+            membership.status
+                === 'switching'
+            && membership.context
+                === null
+        );
+
+    const accessibleLabel =
+        selecting
+            ? 'Choose institution'
+            : 'Switch institution';
+
     /*
      * Keep the last canonically confirmed Membership selected
      * while a target credential is being prepared.
@@ -49,10 +68,15 @@ export function MembershipSwitcher() {
      * merely because the user selected it.
      */
     const currentMembershipId =
-        membership.context
-            ?.membership
-            .id
-        ?? '';
+        membership.status
+            === 'selection-required'
+            ? ''
+            : (
+                membership.context
+                    ?.membership
+                    .id
+                ?? ''
+            );
 
     const handleChange = (
         event:
@@ -97,7 +121,7 @@ export function MembershipSwitcher() {
                 className="sr-only"
                 htmlFor="membership-context-switcher"
             >
-                Switch institution
+                {accessibleLabel}
             </label>
 
             <select
@@ -117,7 +141,11 @@ export function MembershipSwitcher() {
                         value=""
                         disabled
                     >
-                        Switching institution...
+                        {
+                            switching
+                                ? 'Choosing institution...'
+                                : 'Choose institution'
+                        }
                     </option>
                 ) : null}
 

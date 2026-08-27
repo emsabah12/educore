@@ -672,6 +672,146 @@ describe(
             ).toBe(2);
         });
 
+        it('keeps fresh-tab Membership selection non-authoritative until canonical authentication confirms the target', async () => {
+            let releaseSwitch:
+                () => void =
+                    () => {
+                        throw new Error(
+                            'Membership switch gate was released before initialization.',
+                        );
+                    };
+
+            const switchGate =
+                new Promise<void>(
+                    (resolve) => {
+                        releaseSwitch =
+                            resolve;
+                    },
+                );
+
+            const authentication =
+                createAuthenticationHarness(
+                    {
+                        status:
+                            'membership-context-required',
+
+                        failure:
+                            membershipRequiredFailure,
+                    },
+                    async (
+                        options,
+                    ) => {
+                        expect(
+                            options
+                                ?.membershipId,
+                        ).toBe(
+                            membershipBId,
+                        );
+
+                        return authenticatedB;
+                    },
+                );
+
+            const runtime =
+                createMembershipContextRuntime(
+                    createOperations({
+                        async switchMembership(
+                            membershipId,
+                        ) {
+                            expect(
+                                membershipId,
+                            ).toBe(
+                                membershipBId,
+                            );
+
+                            await switchGate;
+
+                            return switchSuccess;
+                        },
+                    }),
+                    authentication.runtime,
+                );
+
+            const discovered =
+                await runtime.bootstrap();
+
+            expect(discovered).toEqual({
+                status:
+                    'selection-required',
+
+                memberships,
+
+                failure:
+                    null,
+            });
+
+            const pendingSelection =
+                runtime.switchMembership(
+                    membershipBId,
+                );
+
+            /*
+             * User selection is not canonical authority.
+             *
+             * Before server credential preparation and
+             * /auth/me confirmation complete, no Membership
+             * context may be projected as current.
+             */
+            expect(
+                runtime.getState(),
+            ).toEqual({
+                status:
+                    'switching',
+
+                memberships,
+
+                context:
+                    null,
+
+                target:
+                    membershipB,
+            });
+
+            expect(
+                authentication
+                    .bootstrapMembershipIds,
+            ).toEqual([]);
+
+            releaseSwitch();
+
+            const confirmed =
+                await pendingSelection;
+
+            expect(
+                authentication
+                    .bootstrapMembershipIds,
+            ).toEqual([
+                membershipBId,
+            ]);
+
+            expect(confirmed).toEqual({
+                status:
+                    'ready',
+
+                memberships,
+
+                context: {
+                    membership:
+                        authenticatedB
+                            .identity
+                            .membership,
+
+                    tenant:
+                        authenticatedB
+                            .identity
+                            .tenant,
+                },
+
+                failure:
+                    null,
+            });
+        });
+
         it('commits a Membership switch only after canonical authentication confirms the target context', async () => {
             let switchTarget:
                 string | null = null;

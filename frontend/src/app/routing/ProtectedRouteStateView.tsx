@@ -1,4 +1,11 @@
 import type {
+    ReactNode,
+} from 'react';
+
+import {
+    MembershipSwitcher,
+} from '@/app/membership/MembershipSwitcher';
+import type {
     ProtectedRouteAccessDecision,
     ProtectedRoutePendingPhase,
     ProtectedRoutePendingSource,
@@ -146,6 +153,9 @@ interface StatePageProps {
     readonly description:
         string;
 
+    readonly children?:
+        ReactNode;
+
     readonly action?:
         {
             readonly label:
@@ -160,6 +170,7 @@ function StatePage({
     eyebrow,
     title,
     description,
+    children,
     action,
 }: StatePageProps) {
     return (
@@ -177,6 +188,8 @@ function StatePage({
                     <p className="max-w-xl leading-7 text-slate-300">
                         {description}
                     </p>
+
+                    {children}
 
                     {
                         action === undefined
@@ -232,7 +245,9 @@ export function ProtectedRouteStateView({
                     eyebrow="Membership"
                     title="Pilih Membership"
                     description="Pilih Membership yang akan digunakan sebelum melanjutkan ke aplikasi."
-                />
+                >
+                    <MembershipSwitcher />
+                </StatePage>
             );
 
         case 'membership-empty':

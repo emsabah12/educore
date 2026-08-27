@@ -44,6 +44,12 @@ const recoveryMocks =
             membership: {
                 bootstrap:
                     vi.fn(),
+
+                switchMembership:
+                    vi.fn(
+                        async () =>
+                            undefined,
+                    ),
             },
 
             workspace: {
@@ -62,6 +68,12 @@ const recoveryMocks =
                 ),
         }),
     );
+
+const membershipAId =
+    '018f3b6a-7c20-7000-8000-000000000201';
+
+const membershipBId =
+    '018f3b6a-7c20-7000-8000-000000000202';
 
 vi.mock(
     '@/app/auth/BrowserAuthProvider',
@@ -85,6 +97,51 @@ vi.mock(
             () =>
                 recoveryMocks
                     .membership,
+
+        useMembershipContextState:
+            () => ({
+                status:
+                    'selection-required',
+
+                memberships: [
+                    {
+                        membership_id:
+                            membershipAId,
+
+                        membership_status:
+                            'ACTIVE',
+
+                        tenant_id:
+                            '018f3b6a-7c20-7000-8000-000000000203',
+
+                        tenant_name:
+                            'EduCore School A',
+
+                        tenant_subdomain:
+                            'educore-school-a',
+                    },
+
+                    {
+                        membership_id:
+                            membershipBId,
+
+                        membership_status:
+                            'ACTIVE',
+
+                        tenant_id:
+                            '018f3b6a-7c20-7000-8000-000000000204',
+
+                        tenant_name:
+                            'EduCore School B',
+
+                        tenant_subdomain:
+                            'educore-school-b',
+                    },
+                ],
+
+                failure:
+                    null,
+            }),
     }),
 );
 
@@ -222,6 +279,11 @@ describe(
                 recoveryMocks
                     .membership
                     .bootstrap
+                    .mockClear();
+
+                recoveryMocks
+                    .membership
+                    .switchMembership
                     .mockClear();
 
                 recoveryMocks
@@ -449,6 +511,127 @@ describe(
                 ).not.toBeInTheDocument();
             },
         );
+
+        it('exposes an interactive institution selector when a fresh browser tab requires explicit Membership selection', () => {
+            mockedUseProtectedRouteAccess
+                .mockReturnValue({
+                    status:
+                        'membership-required',
+                });
+
+            const router =
+                createTestRouter(
+                    '/protected',
+                );
+
+            render(
+                <RouterProvider
+                    router={router}
+                />,
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Pilih Membership',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Choose institution',
+                    },
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByRole(
+                    'heading',
+                    {
+                        name:
+                            'Protected content',
+                    },
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('delegates fresh-tab Membership selection to the canonical Membership runtime without exposing protected content', () => {
+            mockedUseProtectedRouteAccess
+                .mockReturnValue({
+                    status:
+                        'membership-required',
+                });
+
+            const router =
+                createTestRouter(
+                    '/protected',
+                );
+
+            render(
+                <RouterProvider
+                    router={router}
+                />,
+            );
+
+            const selector =
+                screen.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Choose institution',
+                    },
+                );
+
+            fireEvent.change(
+                selector,
+                {
+                    target: {
+                        value:
+                            membershipBId,
+                    },
+                },
+            );
+
+            expect(
+                recoveryMocks
+                    .membership
+                    .switchMembership,
+            ).toHaveBeenCalledTimes(
+                1,
+            );
+
+            expect(
+                recoveryMocks
+                    .membership
+                    .switchMembership,
+            ).toHaveBeenCalledWith(
+                membershipBId,
+            );
+
+            /*
+             * Explicit selection is only a request to the
+             * canonical Membership runtime.
+             *
+             * Protected application content must not become
+             * visible merely because the browser selected a
+             * target Membership.
+             */
+            expect(
+                screen.queryByRole(
+                    'heading',
+                    {
+                        name:
+                            'Protected content',
+                    },
+                ),
+            ).not.toBeInTheDocument();
+        });
 
         it('navigates authoritative unauthenticated access to login with a validated internal return destination', async () => {
             mockedUseProtectedRouteAccess

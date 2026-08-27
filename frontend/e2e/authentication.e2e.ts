@@ -9,6 +9,9 @@ const e2eMembershipId =
 const e2eTenantId =
     '019c8f4a-7b10-7000-8000-000000000003';
 
+const e2eTenantName =
+    'EduCore Browser E2E Tenant';
+
 const e2eSecondTenantId =
     '019c8f4a-7b10-7000-8000-000000000005';
 
@@ -17,6 +20,9 @@ const e2eSecondMembershipId =
 
 const e2eSecondTenantName =
     'EduCore Browser E2E Tenant Secondary';
+
+const membershipRestorationStorageKey =
+    'educore.membership-restoration.v1';
 
 const e2eEmail =
     'browser-e2e@educore.test';
@@ -3813,6 +3819,799 @@ test(
                         'Frontend Foundation',
                 },
             ),
+        ).toBeVisible();
+    },
+);
+
+test(
+    'real BrowserSession keeps canonical Tenant authority isolated between two browser tabs',
+    async ({
+        context,
+        page,
+    }) => {
+        /*
+         * This real-backend scenario deliberately exercises
+         * two browser tabs, two canonical context lifecycles,
+         * and independent reload restoration.
+         *
+         * Mark the scenario as slow instead of introducing
+         * fixed sleeps or weakening individual assertions.
+         */
+        test.slow();
+
+        const tabA =
+            page;
+
+        /*
+         * Tab A establishes Membership/Tenant A through the
+         * real production login flow.
+         */
+        await tabA.goto(
+            '/login',
+        );
+
+        await expect(
+            tabA.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await tabA
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await tabA
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await tabA
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        const tabAAuthenticationPromise =
+            tabA.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const tabAMembershipDiscoveryPromise =
+            tabA.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const tabAWorkspacePromise =
+            tabA.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await tabA
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            tabAAuthentication,
+            tabAMembershipDiscovery,
+            tabAWorkspace,
+        ] =
+            await Promise.all([
+                tabAAuthenticationPromise,
+                tabAMembershipDiscoveryPromise,
+                tabAWorkspacePromise,
+            ]);
+
+        expect(
+            tabAAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabAMembershipDiscovery.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabAWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        const tabASwitcher =
+            tabA.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            tabASwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            tabA.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        /*
+         * Membership restoration is advisory tab-local state.
+         *
+         * Tab A must persist only its own canonical
+         * Membership/Tenant pair.
+         */
+        const tabAInitialRestoration =
+            await tabA.evaluate(
+                (storageKey) =>
+                    window
+                        .sessionStorage
+                        .getItem(
+                            storageKey,
+                        ),
+                membershipRestorationStorageKey,
+            );
+
+        expect(
+            tabAInitialRestoration,
+        ).toContain(
+            e2eMembershipId,
+        );
+
+        expect(
+            tabAInitialRestoration,
+        ).toContain(
+            e2eTenantId,
+        );
+
+        expect(
+            tabAInitialRestoration,
+        ).not.toContain(
+            e2eSecondMembershipId,
+        );
+
+        /*
+         * Create another Page inside the SAME BrowserContext.
+         *
+         * BrowserSession cookies are shared, while
+         * sessionStorage remains page/tab-local.
+         */
+        const tabB =
+            await context.newPage();
+
+        const tabBMissingContextPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response.status()
+                        === 403
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === undefined,
+            );
+
+        const tabBMembershipDiscoveryPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        await tabB.goto(
+            '/',
+        );
+
+        const [
+            tabBMissingContext,
+            tabBMembershipDiscovery,
+        ] =
+            await Promise.all([
+                tabBMissingContextPromise,
+                tabBMembershipDiscoveryPromise,
+            ]);
+
+        /*
+         * The shared BrowserSession is authenticated enough
+         * for User-scope Membership discovery, but this fresh
+         * tab owns no Membership locator yet.
+         */
+        const missingContextBody:
+            unknown =
+            await tabBMissingContext
+                .json();
+
+        expect(
+            missingContextBody,
+        ).toMatchObject({
+            status:
+                'error',
+
+            code:
+                'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
+        });
+
+        expect(
+            tabBMembershipDiscovery.status(),
+        ).toBe(
+            200,
+        );
+
+        const tabBInitialRestoration =
+            await tabB.evaluate(
+                (storageKey) =>
+                    window
+                        .sessionStorage
+                        .getItem(
+                            storageKey,
+                        ),
+                membershipRestorationStorageKey,
+            );
+
+        expect(
+            tabBInitialRestoration,
+        ).toBeNull();
+
+        await expect(
+            tabB.getByRole(
+                'heading',
+                {
+                    name:
+                        'Pilih Membership',
+                },
+            ),
+        ).toBeVisible();
+
+        const tabBChooser =
+            tabB.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Choose institution',
+                },
+            );
+
+        await expect(
+            tabBChooser,
+        ).toBeVisible();
+
+        await expect(
+            tabBChooser,
+        ).toHaveValue(
+            '',
+        );
+
+        await expect(
+            tabBChooser.locator(
+                `option[value="${e2eMembershipId}"]`,
+            ),
+        ).toHaveText(
+            e2eTenantName,
+        );
+
+        await expect(
+            tabBChooser.locator(
+                `option[value="${e2eSecondMembershipId}"]`,
+            ),
+        ).toHaveText(
+            e2eSecondTenantName,
+        );
+
+        /*
+         * Selecting B prepares another credential in the
+         * SAME BrowserSession vault, but current authority is
+         * still tab-local and requires canonical confirmation.
+         */
+        const tabBCsrfPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/session/csrf',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'GET',
+            );
+
+        const tabBSwitchPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        `/api/v1/browser/user/memberships/${e2eSecondMembershipId}/switch`,
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'POST',
+            );
+
+        const tabBAuthenticationPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        const tabBWorkspacePromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        const tabBCapabilityPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/core/authorization/capabilities',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        await tabBChooser
+            .selectOption(
+                e2eSecondMembershipId,
+            );
+
+        const [
+            tabBCsrf,
+            tabBSwitch,
+            tabBAuthentication,
+            tabBWorkspace,
+            tabBCapability,
+        ] =
+            await Promise.all([
+                tabBCsrfPromise,
+                tabBSwitchPromise,
+                tabBAuthenticationPromise,
+                tabBWorkspacePromise,
+                tabBCapabilityPromise,
+            ]);
+
+        expect(
+            tabBCsrf.status(),
+        ).toBe(
+            204,
+        );
+
+        expect(
+            tabBSwitch.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabBAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabBWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabBCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        const tabBAuthenticationBody:
+            unknown =
+            await tabBAuthentication
+                .json();
+
+        expect(
+            tabBAuthenticationBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                membership: {
+                    id:
+                        e2eSecondMembershipId,
+                },
+
+                tenant: {
+                    id:
+                        e2eSecondTenantId,
+
+                    name:
+                        e2eSecondTenantName,
+                },
+            },
+        });
+
+        const tabBSwitcher =
+            tabB.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            tabBSwitcher,
+        ).toHaveValue(
+            e2eSecondMembershipId,
+        );
+
+        await expect(
+            tabB.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eSecondTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        /*
+         * Tab B now owns only Membership/Tenant B as its
+         * restoration hint.
+         */
+        const tabBRestoration =
+            await tabB.evaluate(
+                (storageKey) =>
+                    window
+                        .sessionStorage
+                        .getItem(
+                            storageKey,
+                        ),
+                membershipRestorationStorageKey,
+            );
+
+        expect(
+            tabBRestoration,
+        ).toContain(
+            e2eSecondMembershipId,
+        );
+
+        expect(
+            tabBRestoration,
+        ).toContain(
+            e2eSecondTenantId,
+        );
+
+        expect(
+            tabBRestoration,
+        ).not.toContain(
+            e2eMembershipId,
+        );
+
+        /*
+         * Switching Tab B must not mutate Tab A's advisory
+         * locator or visible canonical authority.
+         */
+        const tabARestorationAfterTabBSwitch =
+            await tabA.evaluate(
+                (storageKey) =>
+                    window
+                        .sessionStorage
+                        .getItem(
+                            storageKey,
+                        ),
+                membershipRestorationStorageKey,
+            );
+
+        expect(
+            tabARestorationAfterTabBSwitch,
+        ).toContain(
+            e2eMembershipId,
+        );
+
+        expect(
+            tabARestorationAfterTabBSwitch,
+        ).not.toContain(
+            e2eSecondMembershipId,
+        );
+
+        await expect(
+            tabASwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        /*
+         * Reload Tab A after credential B exists in the
+         * shared BrowserSession vault.
+         *
+         * Canonical restoration must still resolve A.
+         */
+        const tabAReloadAuthenticationPromise =
+            tabA.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const tabAReloadWorkspacePromise =
+            tabA.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await tabA.reload();
+
+        const [
+            tabAReloadAuthentication,
+            tabAReloadWorkspace,
+        ] =
+            await Promise.all([
+                tabAReloadAuthenticationPromise,
+                tabAReloadWorkspacePromise,
+            ]);
+
+        expect(
+            tabAReloadAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabAReloadWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        const tabAReloadBody:
+            unknown =
+            await tabAReloadAuthentication
+                .json();
+
+        expect(
+            tabAReloadBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                membership: {
+                    id:
+                        e2eMembershipId,
+                },
+
+                tenant: {
+                    id:
+                        e2eTenantId,
+
+                    name:
+                        e2eTenantName,
+                },
+            },
+        });
+
+        await expect(
+            tabA.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            ),
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            tabA.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        /*
+         * Reload Tab B independently.
+         *
+         * Its own tab-local restoration hint must resolve B,
+         * not inherit A from the other page.
+         */
+        const tabBReloadAuthenticationPromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        const tabBReloadWorkspacePromise =
+            tabB.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eSecondMembershipId,
+            );
+
+        await tabB.reload();
+
+        const [
+            tabBReloadAuthentication,
+            tabBReloadWorkspace,
+        ] =
+            await Promise.all([
+                tabBReloadAuthenticationPromise,
+                tabBReloadWorkspacePromise,
+            ]);
+
+        expect(
+            tabBReloadAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tabBReloadWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        await expect(
+            tabB.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            ),
+        ).toHaveValue(
+            e2eSecondMembershipId,
+        );
+
+        await expect(
+            tabB.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eSecondTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        /*
+         * Tab B restoration/reload must likewise leave the
+         * still-open Tab A canonical projection unchanged.
+         */
+        await expect(
+            tabA.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            ),
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            tabA.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
         ).toBeVisible();
     },
 );
