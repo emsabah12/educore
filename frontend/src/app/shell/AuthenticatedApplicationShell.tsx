@@ -17,6 +17,9 @@ import {
 import {
     useWorkspaceContextState,
 } from '@/app/workspace/WorkspaceContextProvider';
+import {
+    WorkspaceSwitcher,
+} from '@/app/workspace/WorkspaceSwitcher';
 
 export function AuthenticatedApplicationShell() {
     const authentication =
@@ -89,9 +92,13 @@ export function AuthenticatedApplicationShell() {
                             </p>
                         </div>
 
-                        <p className="mt-1 truncate text-xs text-slate-500 sm:mt-0">
-                            Workspace: {workspace.current.label}
-                        </p>
+                        <div className="mt-1 sm:mt-0">
+                            <p className="truncate text-xs text-slate-500">
+                                Workspace: {workspace.current.label}
+                            </p>
+
+                            <WorkspaceSwitcher />
+                        </div>
                     </div>
 
                     <div className="col-start-2 row-start-1 lg:col-start-3 lg:row-start-auto">

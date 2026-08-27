@@ -30,6 +30,18 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
     public const SECOND_MEMBERSHIP_ID =
         '019c8f4a-7b10-7000-8000-000000000006';
 
+    public const ORGANIZATION_ID =
+        '019c8f4a-7b10-7000-8000-000000000007';
+
+    public const ORGANIZATIONAL_ASSIGNMENT_ID =
+        '019c8f4a-7b10-7000-8000-000000000008';
+
+    public const ORGANIZATION_NAME =
+        'EduCore Browser E2E Organization';
+
+    public const ORGANIZATION_CODE =
+        'E2E-ORG';
+
     public const EMAIL =
         'browser-e2e@educore.test';
 
@@ -206,6 +218,76 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                             $now,
                     ],
                 );
+
+                /*
+                 * Membership A owns one deterministic
+                 * organizational Workspace inside Tenant A.
+                 *
+                 * The fixture deliberately starts at
+                 * Organization scope. Organization Unit
+                 * coverage belongs to a later scenario.
+                 */
+                DB::table(
+                    'organizations',
+                )->updateOrInsert(
+                    [
+                        'id' =>
+                            self::ORGANIZATION_ID,
+                    ],
+                    [
+                        'tenant_id' =>
+                            self::TENANT_ID,
+
+                        'name' =>
+                            self::ORGANIZATION_NAME,
+
+                        'code' =>
+                            self::ORGANIZATION_CODE,
+
+                        'is_active' =>
+                            true,
+
+                        'deleted_at' =>
+                            null,
+
+                        'created_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ],
+                );
+
+                DB::table(
+                    'organizational_assignments',
+                )->updateOrInsert(
+                    [
+                        'id' =>
+                            self::ORGANIZATIONAL_ASSIGNMENT_ID,
+                    ],
+                    [
+                        'tenant_id' =>
+                            self::TENANT_ID,
+
+                        'membership_id' =>
+                            self::MEMBERSHIP_ID,
+
+                        'organization_id' =>
+                            self::ORGANIZATION_ID,
+
+                        'organization_unit_id' =>
+                            null,
+
+                        'status' =>
+                            'ACTIVE',
+
+                        'created_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ],
+                );
             },
         );
     }
@@ -273,6 +355,8 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                 self::MEMBERSHIP_ID,
                 self::SECOND_TENANT_ID,
                 self::SECOND_MEMBERSHIP_ID,
+                self::ORGANIZATION_ID,
+                self::ORGANIZATIONAL_ASSIGNMENT_ID,
             ]
             as $identifier
         ) {

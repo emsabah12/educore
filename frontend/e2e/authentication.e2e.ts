@@ -21,6 +21,18 @@ const e2eSecondMembershipId =
 const e2eSecondTenantName =
     'EduCore Browser E2E Tenant Secondary';
 
+const e2eOrganizationId =
+    '019c8f4a-7b10-7000-8000-000000000007';
+
+const e2eOrganizationalAssignmentId =
+    '019c8f4a-7b10-7000-8000-000000000008';
+
+const e2eOrganizationName =
+    'EduCore Browser E2E Organization';
+
+const workspaceRestorationStorageKey =
+    'educore.workspace-restoration.v1';
+
 const membershipRestorationStorageKey =
     'educore.membership-restoration.v1';
 
@@ -4613,5 +4625,542 @@ test(
                     e2eTenantName,
             }).first(),
         ).toBeVisible();
+    },
+);
+
+test(
+    'real browser switches Workspace context without changing canonical Membership authentication',
+    async ({
+        page,
+    }) => {
+        /*
+         * Establish canonical Membership A / Tenant A through
+         * the real production login flow.
+         */
+        await page.goto(
+            '/login',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await page
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await page
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await page
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        const initialAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const initialMembershipDiscoveryPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const initialWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const initialCapabilityPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/core/authorization/capabilities',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await page
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            initialAuthentication,
+            initialMembershipDiscovery,
+            initialWorkspace,
+            initialCapability,
+        ] =
+            await Promise.all([
+                initialAuthenticationPromise,
+                initialMembershipDiscoveryPromise,
+                initialWorkspacePromise,
+                initialCapabilityPromise,
+            ]);
+
+        expect(
+            initialAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialMembershipDiscovery.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        /*
+         * Real backend discovery must expose both the safe
+         * TENANT baseline and the deterministic Organization
+         * Workspace owned by Membership A.
+         */
+        const initialWorkspaceBody:
+            unknown =
+            await initialWorkspace.json();
+
+        expect(
+            initialWorkspaceBody,
+        ).toEqual(
+            expect.objectContaining({
+                status:
+                    'success',
+
+                data:
+                    expect.objectContaining({
+                        tenant:
+                            expect.objectContaining({
+                                id:
+                                    e2eTenantId,
+                            }),
+
+                        workspaces:
+                            expect.arrayContaining([
+                                expect.objectContaining({
+                                    type:
+                                        'TENANT',
+
+                                    organizational_assignment_id:
+                                        null,
+                                }),
+
+                                expect.objectContaining({
+                                    type:
+                                        'ORGANIZATION',
+
+                                    organizational_assignment_id:
+                                        e2eOrganizationalAssignmentId,
+
+                                    organization_id:
+                                        e2eOrganizationId,
+
+                                    organization_unit_id:
+                                        null,
+
+                                    label:
+                                        e2eOrganizationName,
+                                }),
+                            ]),
+                    }),
+            }),
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        const membershipSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        const workspaceSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch Workspace',
+                },
+            );
+
+        await expect(
+            workspaceSwitcher,
+        ).toBeVisible();
+
+        await expect(
+            workspaceSwitcher,
+        ).toHaveValue(
+            'TENANT',
+        );
+
+        const organizationalOptionValue =
+            `ORGANIZATION:${e2eOrganizationalAssignmentId}`;
+
+        await expect(
+            workspaceSwitcher.locator(
+                `option[value="${organizationalOptionValue}"]`,
+            ),
+        ).toHaveText(
+            e2eOrganizationName,
+        );
+
+        /*
+         * Observe transition traffic only after login has
+         * completely reached stable TENANT authority.
+         */
+        const transitionRequests:
+            {
+                readonly method:
+                    string;
+
+                readonly pathname:
+                    string;
+            }[] = [];
+
+        page.on(
+            'request',
+            (request) => {
+                const requestUrl =
+                    new URL(
+                        request.url(),
+                    );
+
+                if (
+                    requestUrl.origin
+                        !== applicationOrigin
+                ) {
+                    return;
+                }
+
+                transitionRequests.push({
+                    method:
+                        request.method(),
+
+                    pathname:
+                        requestUrl.pathname,
+                });
+            },
+        );
+
+        /*
+         * Workspace verification must use the same canonical
+         * Membership locator plus the selected organizational
+         * assignment locator.
+         */
+        const workspaceVerificationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/core/authorization/workspace-capabilities',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-organizational-assignment-id'
+                        ]
+                        === e2eOrganizationalAssignmentId,
+            );
+
+        /*
+         * Exercise only the production Workspace selector.
+         * Playwright does not issue the capability request.
+         */
+        await workspaceSwitcher
+            .selectOption(
+                organizationalOptionValue,
+            );
+
+        const workspaceVerification =
+            await workspaceVerificationPromise;
+
+        expect(
+            workspaceVerification.status(),
+        ).toBe(
+            200,
+        );
+
+        const verificationHeaders =
+            await workspaceVerification
+                .request()
+                .allHeaders();
+
+        expect(
+            verificationHeaders[
+                'x-educore-membership-id'
+            ],
+        ).toBe(
+            e2eMembershipId,
+        );
+
+        expect(
+            verificationHeaders[
+                'x-educore-organizational-assignment-id'
+            ],
+        ).toBe(
+            e2eOrganizationalAssignmentId,
+        );
+
+        expect(
+            verificationHeaders[
+                'authorization'
+            ],
+        ).toBeUndefined();
+
+        const workspaceCapabilityBody:
+            unknown =
+            await workspaceVerification
+                .json();
+
+        expect(
+            workspaceCapabilityBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                scope: {
+                    type:
+                        'organization',
+
+                    tenant_id:
+                        e2eTenantId,
+
+                    membership_id:
+                        e2eMembershipId,
+
+                    organizational_assignment_id:
+                        e2eOrganizationalAssignmentId,
+
+                    organization_id:
+                        e2eOrganizationId,
+
+                    organization_unit_id:
+                        null,
+                },
+
+                is_global_superadmin:
+                    false,
+
+                permissions:
+                    [],
+            },
+        });
+
+        expect(
+            JSON.stringify(
+                workspaceCapabilityBody,
+            ),
+        ).not.toContain(
+            'access_token',
+        );
+
+        /*
+         * Only verified runtime state may now project the
+         * Organization Workspace as current authority.
+         */
+        await expect(
+            workspaceSwitcher,
+        ).toHaveValue(
+            organizationalOptionValue,
+        );
+
+        await expect(
+            page.getByText(
+                `Workspace: ${e2eOrganizationName}`,
+            ),
+        ).toBeVisible();
+
+        /*
+         * Workspace narrowing must not alter Membership/Tenant
+         * authentication authority.
+         */
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            page.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        /*
+         * No Membership credential transition may have been
+         * triggered by Workspace selection.
+         */
+        expect(
+            transitionRequests.some(
+                (request) =>
+                    request.method
+                        === 'POST'
+                    && /^\/api\/v1\/browser\/user\/memberships\/[^/]+\/switch$/u
+                        .test(
+                            request.pathname,
+                        ),
+            ),
+        ).toBe(
+            false,
+        );
+
+        expect(
+            transitionRequests.some(
+                (request) =>
+                    request.method
+                        === 'POST'
+                    && request.pathname
+                        === '/api/v1/browser/auth/login',
+            ),
+        ).toBe(
+            false,
+        );
+
+        /*
+         * Organizational restoration is advisory, tab-local,
+         * and bound to the same Membership/Tenant context.
+         */
+        const workspaceRestorationHint =
+            await page.evaluate(
+                (storageKey) => {
+                    const serialized =
+                        window.sessionStorage
+                            .getItem(
+                                storageKey,
+                            );
+
+                    if (
+                        serialized
+                            === null
+                    ) {
+                        return null;
+                    }
+
+                    return JSON.parse(
+                        serialized,
+                    ) as unknown;
+                },
+                workspaceRestorationStorageKey,
+            );
+
+        expect(
+            workspaceRestorationHint,
+        ).toEqual({
+            version:
+                1,
+
+            membershipId:
+                e2eMembershipId,
+
+            tenantId:
+                e2eTenantId,
+
+            organizationalAssignmentId:
+                e2eOrganizationalAssignmentId,
+        });
     },
 );
