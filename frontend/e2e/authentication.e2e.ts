@@ -1,4 +1,8 @@
 import {
+    execFile,
+} from 'node:child_process';
+
+import {
     expect,
     test,
 } from '@playwright/test';
@@ -33,6 +37,12 @@ const e2eOrganizationName =
 const workspaceRestorationStorageKey =
     'educore.workspace-restoration.v1';
 
+const canonicalE2ESeeder =
+    'Database\\Seeders\\E2EBrowserAuthenticationSeeder';
+
+const staleWorkspaceE2ESeeder =
+    'Database\\Seeders\\E2EStaleWorkspaceSeeder';
+
 const membershipRestorationStorageKey =
     'educore.membership-restoration.v1';
 
@@ -44,6 +54,71 @@ const e2ePassword =
 
 const applicationOrigin =
     'http://127.0.0.1:5173';
+
+function runE2ESeeder(
+    seederClass:
+        string,
+): Promise<void> {
+    return new Promise(
+        (
+            resolve,
+            reject,
+        ) => {
+            execFile(
+                'php',
+                [
+                    'artisan',
+                    'db:seed',
+                    '--env=e2e',
+                    `--class=${seederClass}`,
+                ],
+                {
+                    cwd:
+                        process.cwd(),
+                },
+                (
+                    error,
+                    stdout,
+                    stderr,
+                ) => {
+                    if (
+                        error
+                            === null
+                    ) {
+                        resolve();
+
+                        return;
+                    }
+
+                    reject(
+                        new Error(
+                            [
+                                `E2E seeder failed: ${seederClass}`,
+                                `exit: ${error.code ?? 'unknown'}`,
+                                stdout.trim(),
+                                stderr.trim(),
+                            ]
+                                .filter(
+                                    (
+                                        part,
+                                    ) =>
+                                        part
+                                            !== '',
+                                )
+                                .join(
+                                    '\n',
+                                ),
+                            {
+                                cause:
+                                    error,
+                            },
+                        ),
+                    );
+                },
+            );
+        },
+    );
+}
 
 function matchesApplicationApiPath(
     responseUrl: string,
@@ -5162,5 +5237,506 @@ test(
             organizationalAssignmentId:
                 e2eOrganizationalAssignmentId,
         });
+    },
+);
+
+test(
+    'real browser discards a stale organizational Workspace on reload and recovers to verified Tenant authority',
+    async ({
+        page,
+    }) => {
+        /*
+         * Canonical fixture restoration belongs to the test
+         * runner, not browser JavaScript.
+         *
+         * Always restore the E2E Assignment even when an
+         * assertion fails after the stale mutation.
+         */
+        try {
+            await page.goto(
+                '/login',
+            );
+
+            await expect(
+                page.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Masuk ke EduCore',
+                    },
+                ),
+            ).toBeVisible();
+
+            await page
+                .getByLabel(
+                    'Email',
+                )
+                .fill(
+                    e2eEmail,
+                );
+
+            await page
+                .getByLabel(
+                    'Password',
+                )
+                .fill(
+                    e2ePassword,
+                );
+
+            await page
+                .getByLabel(
+                    'Tenant UUID',
+                )
+                .fill(
+                    e2eTenantId,
+                );
+
+            const initialAuthenticationPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/auth/me',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            const initialWorkspaceDiscoveryPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-workspaces',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            await page
+                .getByRole(
+                    'button',
+                    {
+                        name:
+                            'Masuk',
+                    },
+                )
+                .click();
+
+            const [
+                initialAuthentication,
+                initialWorkspaceDiscovery,
+            ] =
+                await Promise.all([
+                    initialAuthenticationPromise,
+                    initialWorkspaceDiscoveryPromise,
+                ]);
+
+            expect(
+                initialAuthentication.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                initialWorkspaceDiscovery.status(),
+            ).toBe(
+                200,
+            );
+
+            const membershipSwitcher =
+                page.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Switch institution',
+                    },
+                );
+
+            await expect(
+                membershipSwitcher,
+            ).toHaveValue(
+                e2eMembershipId,
+            );
+
+            const workspaceSwitcher =
+                page.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Switch Workspace',
+                    },
+                );
+
+            await expect(
+                workspaceSwitcher,
+            ).toHaveValue(
+                'TENANT',
+            );
+
+            const organizationalOptionValue =
+                `ORGANIZATION:${e2eOrganizationalAssignmentId}`;
+
+            const workspaceVerificationPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/workspace-capabilities',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-organizational-assignment-id'
+                            ]
+                            === e2eOrganizationalAssignmentId,
+                );
+
+            await workspaceSwitcher
+                .selectOption(
+                    organizationalOptionValue,
+                );
+
+            const workspaceVerification =
+                await workspaceVerificationPromise;
+
+            expect(
+                workspaceVerification.status(),
+            ).toBe(
+                200,
+            );
+
+            await expect(
+                workspaceSwitcher,
+            ).toHaveValue(
+                organizationalOptionValue,
+            );
+
+            await expect(
+                page.getByText(
+                    `Workspace: ${e2eOrganizationName}`,
+                ),
+            ).toBeVisible();
+
+            /*
+             * Prove the browser has only advisory restoration
+             * state before the backend fixture becomes stale.
+             */
+            const organizationalHint =
+                await page.evaluate(
+                    (
+                        storageKey,
+                    ) =>
+                        window.sessionStorage
+                            .getItem(
+                                storageKey,
+                            ),
+                    workspaceRestorationStorageKey,
+                );
+
+            expect(
+                organizationalHint,
+            ).not.toBeNull();
+
+            expect(
+                organizationalHint,
+            ).toContain(
+                e2eOrganizationalAssignmentId,
+            );
+
+            /*
+             * Mutate canonical backend truth outside the
+             * browser. The page still displays the previously
+             * verified Organization until the next lifecycle
+             * resolves fresh authority.
+             */
+            await runE2ESeeder(
+                staleWorkspaceE2ESeeder,
+            );
+
+            await expect(
+                page.getByText(
+                    `Workspace: ${e2eOrganizationName}`,
+                ),
+            ).toBeVisible();
+
+            /*
+             * Register reload observers before navigation.
+             *
+             * BrowserSession must remain authenticated and
+             * Membership A must remain the canonical Tenant
+             * locator while Workspace discovery refreshes.
+             */
+            const reloadedAuthenticationPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/auth/me',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            const reloadedWorkspaceDiscoveryPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-workspaces',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            const recoveredTenantCapabilityPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            await page.reload();
+
+            const [
+                reloadedAuthentication,
+                reloadedWorkspaceDiscovery,
+                recoveredTenantCapability,
+            ] =
+                await Promise.all([
+                    reloadedAuthenticationPromise,
+                    reloadedWorkspaceDiscoveryPromise,
+                    recoveredTenantCapabilityPromise,
+                ]);
+
+            expect(
+                reloadedAuthentication.status(),
+            ).toBe(
+                200,
+            );
+
+            const authenticationBody:
+                unknown =
+                await reloadedAuthentication
+                    .json();
+
+            expect(
+                authenticationBody,
+            ).toMatchObject({
+                status:
+                    'success',
+
+                data: {
+                    membership: {
+                        id:
+                            e2eMembershipId,
+
+                        status:
+                            'ACTIVE',
+                    },
+
+                    tenant: {
+                        id:
+                            e2eTenantId,
+                    },
+                },
+            });
+
+            expect(
+                reloadedWorkspaceDiscovery.status(),
+            ).toBe(
+                200,
+            );
+
+            const workspaceDiscoveryBody:
+                unknown =
+                await reloadedWorkspaceDiscovery
+                    .json();
+
+            expect(
+                workspaceDiscoveryBody,
+            ).toEqual(
+                expect.objectContaining({
+                    status:
+                        'success',
+
+                    data:
+                        expect.objectContaining({
+                            tenant:
+                                expect.objectContaining({
+                                    id:
+                                        e2eTenantId,
+                                }),
+
+                            workspaces:
+                                expect.arrayContaining([
+                                    expect.objectContaining({
+                                        type:
+                                            'TENANT',
+                                    }),
+                                ]),
+                        }),
+                }),
+            );
+
+            /*
+             * The inactive Assignment must no longer appear in
+             * fresh canonical Workspace discovery.
+             */
+            expect(
+                JSON.stringify(
+                    workspaceDiscoveryBody,
+                ),
+            ).not.toContain(
+                e2eOrganizationalAssignmentId,
+            );
+
+            expect(
+                recoveredTenantCapability.status(),
+            ).toBe(
+                200,
+            );
+
+            const recoveredCapabilityBody:
+                unknown =
+                await recoveredTenantCapability
+                    .json();
+
+            expect(
+                recoveredCapabilityBody,
+            ).toMatchObject({
+                status:
+                    'success',
+
+                data: {
+                    scope: {
+                        type:
+                            'tenant',
+
+                        tenant_id:
+                            e2eTenantId,
+
+                        membership_id:
+                            e2eMembershipId,
+                    },
+                },
+            });
+
+            /*
+             * The stale organizational restoration locator
+             * must never become authoritative after reload.
+             */
+            await expect(
+                page.getByText(
+                    `Workspace: ${e2eTenantName}`,
+                ),
+            ).toBeVisible();
+
+            await expect(
+                page.getByText(
+                    `Workspace: ${e2eOrganizationName}`,
+                ),
+            ).toHaveCount(
+                0,
+            );
+
+            /*
+             * Authentication and Membership authority are
+             * unaffected by stale Workspace recovery.
+             */
+            await expect(
+                membershipSwitcher,
+            ).toHaveValue(
+                e2eMembershipId,
+            );
+
+            await expect(
+                page.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Frontend Foundation',
+                    },
+                ),
+            ).toBeVisible();
+
+            const restoredHint =
+                await page.evaluate(
+                    (
+                        storageKey,
+                    ) =>
+                        window.sessionStorage
+                            .getItem(
+                                storageKey,
+                            ),
+                    workspaceRestorationStorageKey,
+                );
+
+            expect(
+                restoredHint,
+            ).toBeNull();
+
+            /*
+             * No JavaScript-owned Bearer credential may appear
+             * during stale Workspace recovery.
+             */
+            for (
+                const response
+                of [
+                    reloadedAuthentication,
+                    reloadedWorkspaceDiscovery,
+                    recoveredTenantCapability,
+                ]
+            ) {
+                const headers =
+                    await response
+                        .request()
+                        .allHeaders();
+
+                expect(
+                    headers[
+                        'authorization'
+                    ],
+                ).toBeUndefined();
+            }
+        } finally {
+            /*
+             * Restore canonical fixture state even when the
+             * browser assertion path fails after mutation.
+             */
+            await runE2ESeeder(
+                canonicalE2ESeeder,
+            );
+        }
     },
 );

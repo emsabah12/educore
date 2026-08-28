@@ -56,7 +56,7 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
 
     public function run(): void
     {
-        $this->assertSafeEnvironment();
+        self::assertSafeEnvironment();
         $this->assertFixtureIdentifiers();
 
         DB::transaction(
@@ -292,7 +292,7 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
         );
     }
 
-    private function assertSafeEnvironment(): void
+    public static function assertSafeEnvironment(): void
     {
         $environment =
             app()->environment();
