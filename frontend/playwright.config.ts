@@ -105,6 +105,11 @@ export default defineConfig({
             command:
                 'npm run frontend:dev -- --host 127.0.0.1 --port 5173 --strictPort',
 
+            env: {
+                EDUCORE_E2E_CONTEXT_RACE_RESPONSE_GATE:
+                    '1',
+            },
+
             url:
                 'http://127.0.0.1:5173/login',
 

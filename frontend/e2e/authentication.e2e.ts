@@ -7,6 +7,14 @@ import {
     test,
 } from '@playwright/test';
 
+import {
+    armContextRaceResponseGate,
+    releaseContextRaceResponseGate,
+    resetContextRaceResponseGate,
+    waitForContextRaceResponseCapture,
+    waitForContextRaceResponseReleaseAcknowledgement,
+} from './support/context-race-response-gate.ts';
+
 const e2eMembershipId =
     '019c8f4a-7b10-7000-8000-000000000004';
 
@@ -7042,5 +7050,813 @@ test(
         ).toHaveCount(
             0,
         );
+    },
+);
+
+test(
+    'real browser fences a superseded Tenant capability response after canonical Membership context changes',
+    async ({
+        page,
+    }) => {
+        /*
+         * The business fixture must begin from its canonical
+         * ACTIVE state regardless of which focused/full E2E
+         * scenario ran before this one.
+         */
+        await runE2ESeeder(
+            canonicalE2ESeeder,
+        );
+
+        resetContextRaceResponseGate();
+
+        let gateCaptured =
+            false;
+
+        let gateReleased =
+            false;
+
+        let gateCleaned =
+            false;
+
+        try {
+            await page.goto(
+                '/login',
+            );
+
+            await expect(
+                page.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Masuk ke EduCore',
+                    },
+                ),
+            ).toBeVisible();
+
+            await page
+                .getByLabel(
+                    'Email',
+                )
+                .fill(
+                    e2eEmail,
+                );
+
+            await page
+                .getByLabel(
+                    'Password',
+                )
+                .fill(
+                    e2ePassword,
+                );
+
+            await page
+                .getByLabel(
+                    'Tenant UUID',
+                )
+                .fill(
+                    e2eTenantId,
+                );
+
+            let tenantACapabilityRequests =
+                0;
+
+            let tenantACapabilityResponses =
+                0;
+
+            let resolveSupersededSettlement:
+                (
+                    value:
+                        | {
+                            readonly kind:
+                                'response';
+
+                            readonly status:
+                                number;
+                        }
+                        | {
+                            readonly kind:
+                                'failed';
+
+                            readonly errorText:
+                                string
+                                | null;
+                        },
+                ) => void =
+                    () => {
+                        throw new Error(
+                            'Superseded Tenant capability settlement resolved before initialization.',
+                        );
+                    };
+
+            const supersededSettlementPromise =
+                new Promise<
+                    | {
+                        readonly kind:
+                            'response';
+
+                        readonly status:
+                            number;
+                    }
+                    | {
+                        readonly kind:
+                            'failed';
+
+                        readonly errorText:
+                            string
+                            | null;
+                    }
+                >(
+                    (
+                        resolve,
+                    ) => {
+                        resolveSupersededSettlement =
+                            resolve;
+                    },
+                );
+
+            page.on(
+                'request',
+                (request) => {
+                    if (
+                        matchesApplicationApiPath(
+                            request.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        && request
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId
+                    ) {
+                        tenantACapabilityRequests +=
+                            1;
+                    }
+                },
+            );
+
+            page.on(
+                'response',
+                (response) => {
+                    if (
+                        ! matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        || response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            !== e2eMembershipId
+                    ) {
+                        return;
+                    }
+
+                    tenantACapabilityResponses +=
+                        1;
+
+                    /*
+                     * Response #1 is the TENANT Workspace
+                     * verifier and must pass normally.
+                     *
+                     * Any later A response observed after the
+                     * gate has captured #2 is the superseded
+                     * active Capability completion.
+                     */
+                    if (
+                        gateCaptured
+                        && tenantACapabilityResponses
+                            >= 2
+                    ) {
+                        resolveSupersededSettlement({
+                            kind:
+                                'response',
+
+                            status:
+                                response.status(),
+                        });
+                    }
+                },
+            );
+
+            page.on(
+                'requestfailed',
+                (request) => {
+                    if (
+                        ! gateCaptured
+                        || ! matchesApplicationApiPath(
+                            request.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        || request
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            !== e2eMembershipId
+                    ) {
+                        return;
+                    }
+
+                    resolveSupersededSettlement({
+                        kind:
+                            'failed',
+
+                        errorText:
+                            request
+                                .failure()
+                                ?.errorText
+                            ?? null,
+                    });
+                },
+            );
+
+            /*
+             * The first matching Tenant-A capability response
+             * verifies the safe TENANT Workspace.
+             *
+             * Hold only the second response: the active
+             * Capability projection which must never become
+             * authoritative after Membership B wins.
+             */
+            armContextRaceResponseGate({
+                method:
+                    'GET',
+
+                pathname:
+                    '/api/v1/core/authorization/capabilities',
+
+                membershipId:
+                    e2eMembershipId,
+
+                matchOrdinal:
+                    2,
+            });
+
+            const initialAuthenticationPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/auth/me',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            const initialMembershipDiscoveryPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-memberships',
+                        )
+                        && response.status()
+                            === 200,
+                );
+
+            const initialWorkspacePromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-workspaces',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eMembershipId,
+                );
+
+            const capturedTenantAResponsePromise =
+                waitForContextRaceResponseCapture();
+
+            await page
+                .getByRole(
+                    'button',
+                    {
+                        name:
+                            'Masuk',
+                    },
+                )
+                .click();
+
+            const [
+                initialAuthentication,
+                initialMembershipDiscovery,
+                initialWorkspace,
+                capturedTenantAResponse,
+            ] =
+                await Promise.all([
+                    initialAuthenticationPromise,
+                    initialMembershipDiscoveryPromise,
+                    initialWorkspacePromise,
+                    capturedTenantAResponsePromise,
+                ]);
+
+            gateCaptured =
+                true;
+
+            expect(
+                initialAuthentication.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                initialMembershipDiscovery.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                initialWorkspace.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                capturedTenantAResponse,
+            ).toEqual({
+                method:
+                    'GET',
+
+                pathname:
+                    '/api/v1/core/authorization/capabilities',
+
+                status:
+                    200,
+            });
+
+            /*
+             * Exactly two Tenant-A capability requests have
+             * reached the real backend, while only the first
+             * has reached browser JavaScript.
+             */
+            expect(
+                tenantACapabilityRequests,
+            ).toBe(
+                2,
+            );
+
+            expect(
+                tenantACapabilityResponses,
+            ).toBe(
+                1,
+            );
+
+            await expect(
+                page.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Frontend Foundation',
+                    },
+                ),
+            ).toBeVisible();
+
+            const membershipSwitcher =
+                page.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Switch institution',
+                    },
+                );
+
+            await expect(
+                membershipSwitcher,
+            ).toHaveValue(
+                e2eMembershipId,
+            );
+
+            /*
+             * Register every Membership-B observer before
+             * exercising the production selector.
+             */
+            const csrfResponsePromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/browser/session/csrf',
+                        )
+                        && response
+                            .request()
+                            .method()
+                            === 'GET',
+                );
+
+            const membershipSwitchResponsePromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            `/api/v1/browser/user/memberships/${e2eSecondMembershipId}/switch`,
+                        )
+                        && response
+                            .request()
+                            .method()
+                            === 'POST',
+                );
+
+            const switchedAuthenticationPromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/auth/me',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eSecondMembershipId,
+                );
+
+            const switchedWorkspacePromise =
+                page.waitForResponse(
+                    (response) =>
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-workspaces',
+                        )
+                        && response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            === e2eSecondMembershipId,
+                );
+
+            const tenantBCapabilityStatuses:
+                number[] = [];
+
+            const secondTenantBCapabilityPromise =
+                page.waitForResponse(
+                    (response) => {
+                        if (
+                            ! matchesApplicationApiPath(
+                                response.url(),
+                                '/api/v1/core/authorization/capabilities',
+                            )
+                            || response
+                                .request()
+                                .headers()[
+                                    'x-educore-membership-id'
+                                ]
+                                !== e2eSecondMembershipId
+                        ) {
+                            return false;
+                        }
+
+                        tenantBCapabilityStatuses.push(
+                            response.status(),
+                        );
+
+                        return (
+                            tenantBCapabilityStatuses
+                                .length
+                                === 2
+                        );
+                    },
+                );
+
+            await membershipSwitcher
+                .selectOption(
+                    e2eSecondMembershipId,
+                );
+
+            const [
+                csrfResponse,
+                membershipSwitchResponse,
+                switchedAuthentication,
+                switchedWorkspace,
+                secondTenantBCapability,
+            ] =
+                await Promise.all([
+                    csrfResponsePromise,
+                    membershipSwitchResponsePromise,
+                    switchedAuthenticationPromise,
+                    switchedWorkspacePromise,
+                    secondTenantBCapabilityPromise,
+                ]);
+
+            expect(
+                csrfResponse.status(),
+            ).toBe(
+                204,
+            );
+
+            expect(
+                membershipSwitchResponse.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                switchedAuthentication.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                switchedWorkspace.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                secondTenantBCapability.status(),
+            ).toBe(
+                200,
+            );
+
+            expect(
+                tenantBCapabilityStatuses,
+            ).toEqual([
+                200,
+                200,
+            ]);
+
+            const switchedAuthenticationBody:
+                unknown =
+                await switchedAuthentication
+                    .json();
+
+            expect(
+                switchedAuthenticationBody,
+            ).toMatchObject({
+                status:
+                    'success',
+
+                data: {
+                    membership: {
+                        id:
+                            e2eSecondMembershipId,
+                    },
+
+                    tenant: {
+                        id:
+                            e2eSecondTenantId,
+
+                        name:
+                            e2eSecondTenantName,
+                    },
+                },
+            });
+
+            const switchedWorkspaceBody:
+                unknown =
+                await switchedWorkspace
+                    .json();
+
+            expect(
+                switchedWorkspaceBody,
+            ).toMatchObject({
+                status:
+                    'success',
+
+                data: {
+                    tenant: {
+                        id:
+                            e2eSecondTenantId,
+                    },
+                },
+            });
+
+            const tenantBCapabilityBody:
+                unknown =
+                await secondTenantBCapability
+                    .json();
+
+            expect(
+                tenantBCapabilityBody,
+            ).toMatchObject({
+                status:
+                    'success',
+
+                data: {
+                    scope: {
+                        type:
+                            'tenant',
+
+                        tenant_id:
+                            e2eSecondTenantId,
+
+                        membership_id:
+                            e2eSecondMembershipId,
+                    },
+                },
+            });
+
+            /*
+             * Membership/Tenant B is now canonically visible
+             * before the held Tenant-A response is released.
+             */
+            const switchedMembershipSwitcher =
+                page.getByRole(
+                    'combobox',
+                    {
+                        name:
+                            'Switch institution',
+                    },
+                );
+
+            await expect(
+                switchedMembershipSwitcher,
+            ).toHaveValue(
+                e2eSecondMembershipId,
+            );
+
+            await expect(
+                page.locator(
+                    'header p',
+                ).filter({
+                    hasText:
+                        e2eSecondTenantName,
+                }).first(),
+            ).toBeVisible();
+
+            /*
+             * The old Tenant-A capability request may already
+             * have been cancelled by production lifecycle
+             * teardown. That is allowed, but the Vite gate
+             * still owns the upstream real-Laravel response
+             * until we explicitly release it.
+             */
+            releaseContextRaceResponseGate();
+
+            gateReleased =
+                true;
+
+            const releaseAcknowledgement =
+                await waitForContextRaceResponseReleaseAcknowledgement();
+
+            expect(
+                releaseAcknowledgement,
+            ).toEqual(
+                capturedTenantAResponse,
+            );
+
+            /*
+             * Wait until the browser-side stale request is
+             * settled either by:
+             *
+             * - observing the released real response, or
+             * - production cancellation after B superseded A.
+             *
+             * Cancellation-independent stale-completion
+             * correctness is separately locked by lower-level
+             * generation/revision tests.
+             */
+            const supersededSettlement =
+                await supersededSettlementPromise;
+
+            if (
+                supersededSettlement.kind
+                    === 'response'
+            ) {
+                expect(
+                    supersededSettlement.status,
+                ).toBe(
+                    200,
+                );
+            } else {
+                expect(
+                    supersededSettlement.errorText,
+                ).not.toBe(
+                    '',
+                );
+            }
+
+            /*
+             * Releasing/settling superseded A must never
+             * restore A into current interactive authority.
+             */
+            await expect(
+                switchedMembershipSwitcher,
+            ).toHaveValue(
+                e2eSecondMembershipId,
+            );
+
+            await expect(
+                page.locator(
+                    'header p',
+                ).filter({
+                    hasText:
+                        e2eSecondTenantName,
+                }).first(),
+            ).toBeVisible();
+
+            await expect(
+                page.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Frontend Foundation',
+                    },
+                ),
+            ).toBeVisible();
+
+            expect(
+                tenantACapabilityRequests,
+            ).toBe(
+                2,
+            );
+
+            /*
+             * BrowserSession authority remains server-held.
+             * The real race scenario must not introduce a
+             * browser Bearer credential.
+             */
+            for (
+                const response
+                of [
+                    membershipSwitchResponse,
+                    switchedAuthentication,
+                    switchedWorkspace,
+                    secondTenantBCapability,
+                ]
+            ) {
+                const headers =
+                    await response
+                        .request()
+                        .allHeaders();
+
+                expect(
+                    headers[
+                        'authorization'
+                    ],
+                ).toBeUndefined();
+            }
+
+            /*
+             * Advisory restoration state must also remain B
+             * after stale A settles.
+             */
+            const membershipRestoration =
+                await page.evaluate(
+                    (storageKey) =>
+                        window
+                            .sessionStorage
+                            .getItem(
+                                storageKey,
+                            ),
+                    membershipRestorationStorageKey,
+                );
+
+            expect(
+                membershipRestoration,
+            ).toContain(
+                e2eSecondMembershipId,
+            );
+
+            expect(
+                membershipRestoration,
+            ).toContain(
+                e2eSecondTenantId,
+            );
+
+            expect(
+                membershipRestoration,
+            ).not.toContain(
+                e2eMembershipId,
+            );
+
+            resetContextRaceResponseGate();
+
+            gateCleaned =
+                true;
+        } finally {
+            /*
+             * Never leave a paused upstream response behind if
+             * an assertion fails after capture.
+             *
+             * A later Playwright run also resets on Vite
+             * startup, but this keeps the current server
+             * usable for the rest of a full serial suite.
+             */
+            if (
+                ! gateCleaned
+            ) {
+                if (
+                    gateCaptured
+                    && ! gateReleased
+                ) {
+                    releaseContextRaceResponseGate();
+                } else if (
+                    ! gateCaptured
+                ) {
+                    resetContextRaceResponseGate();
+                }
+            }
+        }
     },
 );

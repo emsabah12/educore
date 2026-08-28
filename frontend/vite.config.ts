@@ -9,6 +9,12 @@ import {
     defineConfig,
 } from 'vite';
 
+import {
+    configureContextRaceResponseGate,
+    contextRaceResponseGateEnabledValue,
+    contextRaceResponseGateEnvironmentVariable,
+} from './e2e/support/context-race-response-gate.ts';
+
 const frontendRoot =
     fileURLToPath(
         new URL(
@@ -31,6 +37,12 @@ const browserBffOrigin =
     process.env
         .EDUCORE_BFF_ORIGIN
     ?? 'http://127.0.0.1:8000';
+
+const contextRaceResponseGateEnabled =
+    process.env[
+        contextRaceResponseGateEnvironmentVariable
+    ]
+    === contextRaceResponseGateEnabledValue;
 
 export default defineConfig({
     root:
@@ -78,6 +90,15 @@ export default defineConfig({
 
                 changeOrigin:
                     true,
+
+                ...(
+                    contextRaceResponseGateEnabled
+                        ? {
+                            configure:
+                                configureContextRaceResponseGate,
+                        }
+                        : {}
+                ),
             },
         },
     },
