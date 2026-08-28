@@ -1,5 +1,9 @@
-import type {
-    RouteObject,
+import {
+    isValidElement,
+} from 'react';
+import {
+    Outlet,
+    type RouteObject,
 } from 'react-router';
 import {
     describe,
@@ -12,6 +16,13 @@ import {
     RouteErrorPage,
 } from '@/app/RouteErrorPage';
 import * as applicationRouter from '@/app/router';
+import {
+    ProtectedRouteBoundary,
+} from '@/app/routing/ProtectedRouteBoundary';
+import {
+    defineProtectedRoutePolicy,
+    type ProtectedRoutePolicy,
+} from '@/platform/routing';
 
 type LazyRouteFunction =
     NonNullable<
@@ -24,6 +35,16 @@ interface TestBusinessModuleRouteContribution {
 
     readonly path:
         string;
+
+    /*
+     * Every business route contributes its canonical access
+     * policy together with its static route definition.
+     *
+     * Permission authority remains runtime-owned; this is only
+     * immutable route metadata.
+     */
+    readonly accessPolicy:
+        ProtectedRoutePolicy;
 
     readonly lazy:
         LazyRouteFunction;
@@ -42,6 +63,30 @@ interface ApplicationRouterModuleComposition {
 
 function LazyTestPage() {
     return null;
+}
+
+function createTestAccessPolicy(
+    routeId:
+        string,
+    permission =
+        'test.module.view',
+): ProtectedRoutePolicy {
+    return defineProtectedRoutePolicy({
+        routeId,
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission,
+        },
+    });
 }
 
 describe(
@@ -85,6 +130,11 @@ describe(
 
                         path:
                             'test-module',
+
+                        accessPolicy:
+                            createTestAccessPolicy(
+                                'test.module',
+                            ),
 
                         lazy:
                             lazyModule,
@@ -197,6 +247,11 @@ describe(
                         path:
                             'test-module',
 
+                        accessPolicy:
+                            createTestAccessPolicy(
+                                'test.module',
+                            ),
+
                         lazy:
                             lazyModule,
                     },
@@ -283,6 +338,245 @@ describe(
             ).not.toHaveBeenCalled();
         });
 
+        it('composes canonical per-route access policy around the lazy business module implementation', () => {
+            const lazyModule =
+                vi.fn(
+                    async () => ({
+                        Component:
+                            LazyTestPage,
+                    }),
+                );
+
+            const accessPolicy =
+                createTestAccessPolicy(
+                    'academic.students.index',
+                    'academic.students.view',
+                );
+
+            const routerContract =
+                applicationRouter as
+                    typeof applicationRouter
+                    & ApplicationRouterModuleComposition;
+
+            const compose =
+                routerContract
+                    .composeBusinessModuleRoutes;
+
+            expect(
+                compose,
+            ).toBeTypeOf(
+                'function',
+            );
+
+            if (
+                compose === undefined
+            ) {
+                return;
+            }
+
+            const routes =
+                compose([
+                    {
+                        routeId:
+                            'academic.students.index',
+
+                        path:
+                            'academic/students',
+
+                        accessPolicy,
+
+                        lazy:
+                            lazyModule,
+                    },
+                ]);
+
+            expect(
+                lazyModule,
+            ).not.toHaveBeenCalled();
+
+            expect(
+                routes,
+            ).toHaveLength(
+                1,
+            );
+
+            const moduleRoute =
+                routes[0];
+
+            expect(
+                moduleRoute?.id,
+            ).toBe(
+                'academic.students.index',
+            );
+
+            expect(
+                moduleRoute?.path,
+            ).toBe(
+                'academic/students',
+            );
+
+            /*
+             * The static route itself owns the access boundary.
+             *
+             * Route existence therefore remains independent of
+             * the current permission projection while runtime
+             * access remains fail-closed.
+             */
+            const accessBoundary =
+                moduleRoute?.element;
+
+            expect(
+                isValidElement(
+                    accessBoundary,
+                ),
+            ).toBe(
+                true,
+            );
+
+            if (
+                ! isValidElement<{
+                    readonly policy:
+                        ProtectedRoutePolicy;
+
+                    readonly children?:
+                        unknown;
+                }>(
+                    accessBoundary,
+                )
+            ) {
+                return;
+            }
+
+            expect(
+                accessBoundary.type,
+            ).toBe(
+                ProtectedRouteBoundary,
+            );
+
+            expect(
+                accessBoundary.props
+                    .policy,
+            ).toEqual(
+                accessPolicy,
+            );
+
+            const outlet =
+                accessBoundary.props
+                    .children;
+
+            expect(
+                isValidElement(
+                    outlet,
+                ),
+            ).toBe(
+                true,
+            );
+
+            if (
+                ! isValidElement(
+                    outlet,
+                )
+            ) {
+                return;
+            }
+
+            expect(
+                outlet.type,
+            ).toBe(
+                Outlet,
+            );
+
+            expect(
+                moduleRoute?.children,
+            ).toHaveLength(
+                1,
+            );
+
+            expect(
+                moduleRoute
+                    ?.children
+                    ?.[0]
+                    ?.index,
+            ).toBe(
+                true,
+            );
+
+            expect(
+                moduleRoute
+                    ?.children
+                    ?.[0]
+                    ?.lazy,
+            ).toBe(
+                lazyModule,
+            );
+
+            expect(
+                lazyModule,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('rejects a business module access policy whose stable routeId differs from the contributed routeId', () => {
+            const lazyModule =
+                vi.fn(
+                    async () => ({
+                        Component:
+                            LazyTestPage,
+                    }),
+                );
+
+            const routerContract =
+                applicationRouter as
+                    typeof applicationRouter
+                    & ApplicationRouterModuleComposition;
+
+            const compose =
+                routerContract
+                    .composeBusinessModuleRoutes;
+
+            expect(
+                compose,
+            ).toBeTypeOf(
+                'function',
+            );
+
+            if (
+                compose === undefined
+            ) {
+                return;
+            }
+
+            const mismatchedPolicy =
+                createTestAccessPolicy(
+                    'academic.students.show',
+                    'academic.students.view',
+                );
+
+            expect(
+                () =>
+                    compose([
+                        {
+                            routeId:
+                                'academic.students.index',
+
+                            path:
+                                'academic/students',
+
+                            accessPolicy:
+                                mismatchedPolicy,
+
+                            lazy:
+                                lazyModule,
+                        },
+                    ]),
+            ).toThrow(
+                /routeId.*match/iu,
+            );
+
+            expect(
+                lazyModule,
+            ).not.toHaveBeenCalled();
+        });
+
         it('rejects a business module route ID that collides with the canonical application route tree', () => {
             const lazyModule =
                 vi.fn(
@@ -292,21 +586,52 @@ describe(
                     }),
                 );
 
+            /*
+             * This RED test file intentionally describes the
+             * prospective business-route contract before the
+             * production interface implements it.
+             *
+             * Use the same test-side structural contract as
+             * the composition tests above so TypeScript can
+             * validate the RED harness independently from the
+             * missing production property.
+             */
+            interface ApplicationRouteComposition {
+                readonly createApplicationRoutes:
+                    (
+                        contributions:
+                            readonly TestBusinessModuleRouteContribution[],
+                    ) => readonly RouteObject[];
+            }
+
+            const routerContract =
+                applicationRouter as
+                    typeof applicationRouter
+                    & ApplicationRouteComposition;
+
+            const createRoutes =
+                routerContract
+                    .createApplicationRoutes;
+
             expect(
                 () =>
-                    applicationRouter
-                        .createApplicationRoutes([
-                            {
-                                routeId:
+                    createRoutes([
+                        {
+                            routeId:
+                                'root',
+
+                            path:
+                                'conflicting-root',
+
+                            accessPolicy:
+                                createTestAccessPolicy(
                                     'root',
+                                ),
 
-                                path:
-                                    'conflicting-root',
-
-                                lazy:
-                                    lazyModule,
-                            },
-                        ]),
+                            lazy:
+                                lazyModule,
+                        },
+                    ]),
             ).toThrow(
                 'Duplicate application route ID: root',
             );

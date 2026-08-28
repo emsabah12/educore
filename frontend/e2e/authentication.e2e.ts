@@ -5740,3 +5740,392 @@ test(
         }
     },
 );
+
+test(
+    'real browser denies Academic Students when canonical Tenant capabilities omit the required permission',
+    async ({
+        page,
+    }) => {
+        /*
+         * Establish real BrowserSession authority through the
+         * production login flow before exercising the
+         * permission-protected Academic route.
+         */
+        await page.goto(
+            '/login',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await page
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await page
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await page
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        const initialAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const initialWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await page
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            initialAuthentication,
+            initialWorkspace,
+        ] =
+            await Promise.all([
+                initialAuthenticationPromise,
+                initialWorkspacePromise,
+            ]);
+
+        expect(
+            initialAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        /*
+         * Root has no additional permission requirement.
+         *
+         * Reaching it first proves Auth/Membership/Workspace
+         * bootstrap is valid independently from the later
+         * Academic permission denial.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        const membershipSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        /*
+         * A full authenticated navigation exercises a fresh
+         * application lifecycle without mixing this scenario
+         * with the later anonymous direct-protected-route
+         * acceptance test.
+         */
+        const deniedAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const deniedWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const deniedCapabilityPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/core/authorization/capabilities',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await page.goto(
+            '/academic/students',
+        );
+
+        const [
+            deniedAuthentication,
+            deniedWorkspace,
+            deniedCapability,
+        ] =
+            await Promise.all([
+                deniedAuthenticationPromise,
+                deniedWorkspacePromise,
+                deniedCapabilityPromise,
+            ]);
+
+        expect(
+            deniedAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            deniedWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        /*
+         * Authorization denial comes from canonical Laravel
+         * capability truth, not a Playwright mock or a
+         * browser-local permission override.
+         */
+        expect(
+            deniedCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        const deniedCapabilityBody:
+            unknown =
+            await deniedCapability
+                .json();
+
+        expect(
+            deniedCapabilityBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                scope: {
+                    type:
+                        'tenant',
+
+                    tenant_id:
+                        e2eTenantId,
+
+                    membership_id:
+                        e2eMembershipId,
+                },
+
+                is_global_superadmin:
+                    false,
+
+                permissions:
+                    [],
+            },
+        });
+
+        expect(
+            JSON.stringify(
+                deniedCapabilityBody,
+            ),
+        ).not.toContain(
+            'academic.students.view',
+        );
+
+        /*
+         * BrowserSession remains the only browser credential
+         * mechanism. Membership is an untrusted locator, never
+         * a replacement authorization credential.
+         */
+        for (
+            const response
+            of [
+                deniedAuthentication,
+                deniedWorkspace,
+                deniedCapability,
+            ]
+        ) {
+            const headers =
+                await response
+                    .request()
+                    .allHeaders();
+
+            expect(
+                headers[
+                    'authorization'
+                ],
+            ).toBeUndefined();
+        }
+
+        const capabilityHeaders =
+            await deniedCapability
+                .request()
+                .allHeaders();
+
+        expect(
+            capabilityHeaders[
+                'x-educore-membership-id'
+            ],
+        ).toBe(
+            e2eMembershipId,
+        );
+
+        expect(
+            capabilityHeaders[
+                'x-educore-organizational-assignment-id'
+            ],
+        ).toBeUndefined();
+
+        /*
+         * Permission absence produces controlled route denial.
+         *
+         * Authentication is not revoked and the URL is not
+         * rewritten into a fake "authorized" destination.
+         */
+        const finalUrl =
+            new URL(
+                page.url(),
+            );
+
+        expect(
+            finalUrl.origin,
+        ).toBe(
+            applicationOrigin,
+        );
+
+        expect(
+            finalUrl.pathname,
+        ).toBe(
+            '/academic/students',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Akses ditolak',
+                },
+            ),
+        ).toBeVisible();
+
+        await expect(
+            page.getByText(
+                'Anda tidak mempunyai permission yang diperlukan untuk membuka halaman ini.',
+            ),
+        ).toBeVisible();
+
+        /*
+         * The business page itself must not render through a
+         * denied route boundary.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Academic Students',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        /*
+         * Denial is authorization-only. Canonical
+         * Membership/Tenant authority remains intact.
+         */
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            page.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
+        ).toBeVisible();
+    },
+);

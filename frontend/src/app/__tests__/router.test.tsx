@@ -1,4 +1,7 @@
 import {
+    isValidElement,
+} from 'react';
+import {
     matchRoutes,
 } from 'react-router';
 import {
@@ -10,6 +13,12 @@ import {
 import {
     appRoutes,
 } from '@/app/router';
+import {
+    ProtectedRouteBoundary,
+} from '@/app/routing/ProtectedRouteBoundary';
+import type {
+    ProtectedRoutePolicy,
+} from '@/platform/routing';
 
 function matchedRouteIds(
     location:
@@ -87,6 +96,106 @@ describe(
             ).toBe(
                 'root',
             );
+        });
+
+        it('registers Academic Students as a static permission-protected business route', () => {
+            const location =
+                '/academic/students';
+
+            const matches =
+                matchRoutes(
+                    appRoutes,
+                    location,
+                );
+
+            const academicStudentsMatch =
+                matches?.find(
+                    (match) =>
+                        match.route.id
+                            === 'academic.students.index',
+                );
+
+            /*
+             * RED:
+             *
+             * Infrastructure now understands canonical
+             * per-route access policies, but the real
+             * Academic Students contribution is not yet
+             * registered in appRoutes.
+             */
+            expect(
+                academicStudentsMatch,
+            ).toBeDefined();
+
+            if (
+                academicStudentsMatch
+                    === undefined
+            ) {
+                return;
+            }
+
+            expect(
+                matchedRouteIds(
+                    location,
+                ),
+            ).toEqual([
+                'protected-application',
+                'protected-application-access',
+                'authenticated-application-shell',
+                'academic.students.index',
+            ]);
+
+            const accessBoundary =
+                academicStudentsMatch
+                    .route
+                    .element;
+
+            expect(
+                isValidElement(
+                    accessBoundary,
+                ),
+            ).toBe(
+                true,
+            );
+
+            if (
+                ! isValidElement<{
+                    readonly policy:
+                        ProtectedRoutePolicy;
+                }>(
+                    accessBoundary,
+                )
+            ) {
+                return;
+            }
+
+            expect(
+                accessBoundary.type,
+            ).toBe(
+                ProtectedRouteBoundary,
+            );
+
+            expect(
+                accessBoundary.props
+                    .policy,
+            ).toEqual({
+                routeId:
+                    'academic.students.index',
+
+                contextRequirement:
+                    'tenant',
+
+                authorizationScope:
+                    'tenant',
+
+                requiredPermissions: {
+                    mode:
+                        'single',
+
+                    permission:
+                        'academic.students.view',
+                },
+            });
         });
 
         it('keeps the public login route outside the authenticated application shell', () => {

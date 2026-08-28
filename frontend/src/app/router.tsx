@@ -1,5 +1,6 @@
 import {
     createBrowserRouter,
+    Outlet,
     type RouteObject,
 } from 'react-router';
 
@@ -19,11 +20,20 @@ import {
     ProtectedApplicationAccessBoundary,
 } from '@/app/routing/ProtectedApplicationAccessBoundary';
 import {
+    ProtectedRouteBoundary,
+} from '@/app/routing/ProtectedRouteBoundary';
+import {
     ProtectedApplicationLifecycleBoundary,
 } from '@/app/routing/ProtectedApplicationLifecycleBoundary';
 import {
     AuthenticatedApplicationShell,
 } from '@/app/shell/AuthenticatedApplicationShell';
+import {
+    academicRouteContributions,
+} from '@/modules/academic/routes';
+import type {
+    ProtectedRoutePolicy,
+} from '@/platform/routing';
 
 export interface BusinessModuleRouteContribution {
     /*
@@ -41,6 +51,17 @@ export interface BusinessModuleRouteContribution {
      */
     readonly path:
         string;
+
+    /*
+     * Canonical static access metadata owned by the
+     * contributed business route.
+     *
+     * Route existence remains independent from the current
+     * Capability projection. Runtime authorization is
+     * evaluated by ProtectedRouteBoundary.
+     */
+    readonly accessPolicy:
+        ProtectedRoutePolicy;
 
     /*
      * Heavy route implementation remains deferred.
@@ -62,25 +83,59 @@ export function composeBusinessModuleRoutes(
         ({
             routeId,
             path,
+            accessPolicy,
             lazy,
-        }) => ({
-            id:
-                routeId,
+        }) => {
+            /*
+             * Router identity, authorization diagnostics,
+             * navigation projection, and observability must
+             * describe the same stable route.
+             */
+            if (
+                accessPolicy.routeId
+                    !== routeId
+            ) {
+                throw new Error(
+                    `Business module route access policy routeId must match contributed routeId: expected ${routeId}, received ${accessPolicy.routeId}.`,
+                );
+            }
 
-            path,
+            return {
+                id:
+                    routeId,
 
-            ErrorBoundary:
-                RouteErrorPage,
+                path,
 
-            children: [
-                {
-                    index:
-                        true,
+                /*
+                 * Keep the route permanently registered.
+                 *
+                 * Runtime authority determines whether its
+                 * child Outlet may render; permission state
+                 * never mutates the router topology.
+                 */
+                element: (
+                    <ProtectedRouteBoundary
+                        policy={
+                            accessPolicy
+                        }
+                    >
+                        <Outlet />
+                    </ProtectedRouteBoundary>
+                ),
 
-                    lazy,
-                },
-            ],
-        }),
+                ErrorBoundary:
+                    RouteErrorPage,
+
+                children: [
+                    {
+                        index:
+                            true,
+
+                        lazy,
+                    },
+                ],
+            };
+        },
     );
 }
 
@@ -222,7 +277,9 @@ export function createApplicationRoutes(
 }
 
 export const appRoutes =
-    createApplicationRoutes([]);
+    createApplicationRoutes(
+        academicRouteContributions,
+    );
 
 export function createAppRouter() {
     return createBrowserRouter(
