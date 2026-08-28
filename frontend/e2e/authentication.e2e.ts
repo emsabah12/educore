@@ -6129,3 +6129,291 @@ test(
         ).toBeVisible();
     },
 );
+
+test(
+    'real anonymous direct protected route redirects to login without activating protected downstream context',
+    async ({
+        page,
+    }) => {
+        let workspaceRequestCount =
+            0;
+
+        let capabilityRequestCount =
+            0;
+
+        /*
+         * Observe downstream protected-context transport without
+         * intercepting or mocking any request.
+         */
+        page.on(
+            'request',
+            (request) => {
+                const url =
+                    new URL(
+                        request.url(),
+                    );
+
+                if (
+                    url.origin
+                        !== applicationOrigin
+                ) {
+                    return;
+                }
+
+                if (
+                    url.pathname
+                        === '/api/v1/user/my-workspaces'
+                ) {
+                    workspaceRequestCount +=
+                        1;
+                }
+
+                if (
+                    url.pathname
+                        === '/api/v1/core/authorization/capabilities'
+                    || url.pathname
+                        === '/api/v1/core/authorization/workspace-capabilities'
+                ) {
+                    capabilityRequestCount +=
+                        1;
+                }
+            },
+        );
+
+        /*
+         * Fresh BrowserAuth bootstrap establishes the
+         * first-party BrowserSession before asking canonical
+         * authentication truth.
+         */
+        const csrfResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/session/csrf',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'GET',
+            );
+
+        const authenticationResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    ),
+            );
+
+        /*
+         * Without a tab-local Membership locator the canonical
+         * auth endpoint first reports missing Membership context.
+         *
+         * User-scope discovery then determines whether an
+         * authenticated BrowserSession exists at all.
+         */
+        const membershipDiscoveryPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    ),
+            );
+
+        /*
+         * This is the scenario under test:
+         *
+         * navigate directly to a protected route from a fresh
+         * anonymous BrowserContext rather than visiting /login
+         * first.
+         */
+        await page.goto(
+            '/',
+        );
+
+        const [
+            csrfResponse,
+            authenticationResponse,
+            membershipDiscovery,
+        ] =
+            await Promise.all([
+                csrfResponsePromise,
+                authenticationResponsePromise,
+                membershipDiscoveryPromise,
+            ]);
+
+        expect(
+            csrfResponse.status(),
+        ).toBe(
+            204,
+        );
+
+        expect(
+            authenticationResponse.status(),
+        ).toBe(
+            403,
+        );
+
+        const authenticationBody:
+            unknown =
+            await authenticationResponse
+                .json();
+
+        expect(
+            authenticationBody,
+        ).toMatchObject({
+            status:
+                'error',
+
+            code:
+                'BROWSER_MEMBERSHIP_CONTEXT_REQUIRED',
+        });
+
+        expect(
+            membershipDiscovery.status(),
+        ).toBe(
+            401,
+        );
+
+        const discoveryBody:
+            unknown =
+            await membershipDiscovery
+                .json();
+
+        expect(
+            discoveryBody,
+        ).toMatchObject({
+            status:
+                'error',
+
+            code:
+                'BROWSER_SESSION_AUTHENTICATION_REQUIRED',
+        });
+
+        /*
+         * BrowserSession remains cookie/CSRF-owned. No canonical
+         * bearer credential is exposed to JavaScript requests.
+         */
+        for (
+            const response
+            of [
+                csrfResponse,
+                authenticationResponse,
+                membershipDiscovery,
+            ]
+        ) {
+            const headers =
+                await response
+                    .request()
+                    .allHeaders();
+
+            expect(
+                headers[
+                    'authorization'
+                ],
+            ).toBeUndefined();
+        }
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        const finalUrl =
+            new URL(
+                page.url(),
+            );
+
+        expect(
+            finalUrl.origin,
+        ).toBe(
+            applicationOrigin,
+        );
+
+        expect(
+            finalUrl.pathname,
+        ).toBe(
+            '/login',
+        );
+
+        expect(
+            finalUrl.searchParams.get(
+                'returnTo',
+            ),
+        ).toBe(
+            '/',
+        );
+
+        /*
+         * Authentication denial occurs before protected
+         * Workspace/Capability authority can become active.
+         */
+        expect(
+            workspaceRequestCount,
+        ).toBe(
+            0,
+        );
+
+        expect(
+            capabilityRequestCount,
+        ).toBe(
+            0,
+        );
+
+        /*
+         * Nothing from the authenticated application shell may
+         * leak through while the direct route is denied.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'navigation',
+                {
+                    name:
+                        'Navigasi utama',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByLabel(
+                'Konteks pengguna aktif',
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'button',
+                {
+                    name:
+                        'Keluar',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+    },
+);
