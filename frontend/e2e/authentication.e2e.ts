@@ -7860,3 +7860,732 @@ test(
         }
     },
 );
+
+test(
+    'real authenticated nested deep-link survives full document refresh without credential replay',
+    async ({
+        page,
+    }) => {
+        /*
+         * Restore deterministic canonical business state.
+         *
+         * This fixture intentionally owns no permission grant
+         * for academic.students.view. The nested Academic route
+         * must therefore resolve into the canonical controlled
+         * authorization-denial state.
+         */
+        await runE2ESeeder(
+            canonicalE2ESeeder,
+        );
+
+        const deepLinkPath =
+            '/academic/students?page=2#results';
+
+        let loginRequestCount =
+            0;
+
+        page.on(
+            'request',
+            (request) => {
+                if (
+                    matchesApplicationApiPath(
+                        request.url(),
+                        '/api/v1/browser/auth/login',
+                    )
+                    && request.method()
+                        === 'POST'
+                ) {
+                    loginRequestCount +=
+                        1;
+                }
+            },
+        );
+
+        /*
+         * Establish BrowserSession authority exclusively
+         * through the production login flow.
+         */
+        await page.goto(
+            '/login',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await page
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await page
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await page
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        const loginResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/auth/login',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'POST',
+            );
+
+        const initialAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const initialWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        await page
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            loginResponse,
+            initialAuthentication,
+            initialWorkspace,
+        ] =
+            await Promise.all([
+                loginResponsePromise,
+                initialAuthenticationPromise,
+                initialWorkspacePromise,
+            ]);
+
+        expect(
+            loginResponse.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            initialWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            loginRequestCount,
+        ).toBe(
+            1,
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        /*
+         * Navigate by document URL rather than a client-side
+         * Link. This proves the development/static SPA document
+         * boundary can serve a nested browser-history route.
+         */
+        const deepAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const deepMembershipPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const deepWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const deepCapabilityStatuses:
+            number[] = [];
+
+        const secondDeepCapabilityPromise =
+            page.waitForResponse(
+                (response) => {
+                    if (
+                        ! matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        || response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            !== e2eMembershipId
+                    ) {
+                        return false;
+                    }
+
+                    deepCapabilityStatuses.push(
+                        response.status(),
+                    );
+
+                    return (
+                        deepCapabilityStatuses.length
+                            === 2
+                    );
+                },
+            );
+
+        await page.goto(
+            deepLinkPath,
+        );
+
+        const [
+            deepAuthentication,
+            deepMembership,
+            deepWorkspace,
+            secondDeepCapability,
+        ] =
+            await Promise.all([
+                deepAuthenticationPromise,
+                deepMembershipPromise,
+                deepWorkspacePromise,
+                secondDeepCapabilityPromise,
+            ]);
+
+        expect(
+            deepAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            deepMembership.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            deepWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            secondDeepCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            deepCapabilityStatuses,
+        ).toEqual([
+            200,
+            200,
+        ]);
+
+        const deepCapabilityBody:
+            unknown =
+            await secondDeepCapability
+                .json();
+
+        expect(
+            deepCapabilityBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                scope: {
+                    type:
+                        'tenant',
+
+                    tenant_id:
+                        e2eTenantId,
+
+                    membership_id:
+                        e2eMembershipId,
+                },
+
+                is_global_superadmin:
+                    false,
+
+                permissions:
+                    [],
+            },
+        });
+
+        /*
+         * The nested route itself is valid.
+         *
+         * Canonical authorization denies rendering because the
+         * E2E Membership has no academic.students.view grant.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Akses ditolak',
+                },
+            ),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Academic Students',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        const preReloadUrl =
+            new URL(
+                page.url(),
+            );
+
+        expect(
+            preReloadUrl.origin,
+        ).toBe(
+            applicationOrigin,
+        );
+
+        expect(
+            preReloadUrl.pathname,
+        ).toBe(
+            '/academic/students',
+        );
+
+        expect(
+            preReloadUrl.search,
+        ).toBe(
+            '?page=2',
+        );
+
+        expect(
+            preReloadUrl.hash,
+        ).toBe(
+            '#results',
+        );
+
+        /*
+         * Register every reconstruction observer before the
+         * full document refresh.
+         *
+         * page.reload() destroys the existing React tree and
+         * application runtime. The same deep URL must then be
+         * resolved from a newly bootstrapped SPA instance.
+         */
+        const reloadAuthenticationPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const reloadMembershipPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const reloadWorkspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const reloadCapabilityStatuses:
+            number[] = [];
+
+        const secondReloadCapabilityPromise =
+            page.waitForResponse(
+                (response) => {
+                    if (
+                        ! matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        || response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            !== e2eMembershipId
+                    ) {
+                        return false;
+                    }
+
+                    reloadCapabilityStatuses.push(
+                        response.status(),
+                    );
+
+                    return (
+                        reloadCapabilityStatuses.length
+                            === 2
+                    );
+                },
+            );
+
+        await page.reload();
+
+        const [
+            reloadAuthentication,
+            reloadMembership,
+            reloadWorkspace,
+            secondReloadCapability,
+        ] =
+            await Promise.all([
+                reloadAuthenticationPromise,
+                reloadMembershipPromise,
+                reloadWorkspacePromise,
+                secondReloadCapabilityPromise,
+            ]);
+
+        expect(
+            reloadAuthentication.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            reloadMembership.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            reloadWorkspace.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            secondReloadCapability.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            reloadCapabilityStatuses,
+        ).toEqual([
+            200,
+            200,
+        ]);
+
+        const reloadCapabilityBody:
+            unknown =
+            await secondReloadCapability
+                .json();
+
+        expect(
+            reloadCapabilityBody,
+        ).toMatchObject({
+            status:
+                'success',
+
+            data: {
+                scope: {
+                    type:
+                        'tenant',
+
+                    tenant_id:
+                        e2eTenantId,
+
+                    membership_id:
+                        e2eMembershipId,
+                },
+
+                is_global_superadmin:
+                    false,
+
+                permissions:
+                    [],
+            },
+        });
+
+        /*
+         * Full document reconstruction must never replay the
+         * login mutation or synthesize bearer authentication.
+         */
+        expect(
+            loginRequestCount,
+        ).toBe(
+            1,
+        );
+
+        for (
+            const response
+            of [
+                reloadAuthentication,
+                reloadMembership,
+                reloadWorkspace,
+                secondReloadCapability,
+            ]
+        ) {
+            const headers =
+                await response
+                    .request()
+                    .allHeaders();
+
+            expect(
+                headers[
+                    'authorization'
+                ],
+            ).toBeUndefined();
+        }
+
+        /*
+         * Authentication, Membership, Workspace and route
+         * authorization are all reconstructed, but the exact
+         * browser location remains authoritative.
+         */
+        const finalUrl =
+            new URL(
+                page.url(),
+            );
+
+        expect(
+            finalUrl.origin,
+        ).toBe(
+            applicationOrigin,
+        );
+
+        expect(
+            finalUrl.pathname,
+        ).toBe(
+            '/academic/students',
+        );
+
+        expect(
+            finalUrl.search,
+        ).toBe(
+            '?page=2',
+        );
+
+        expect(
+            finalUrl.hash,
+        ).toBe(
+            '#results',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Akses ditolak',
+                },
+            ),
+        ).toBeVisible();
+
+        await expect(
+            page.getByText(
+                'Anda tidak mempunyai permission yang diperlukan untuk membuka halaman ini.',
+            ),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Academic Students',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        const membershipSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        await expect(
+            page.locator(
+                'header p',
+            ).filter({
+                hasText:
+                    e2eTenantName,
+            }).first(),
+        ).toBeVisible();
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        /*
+         * A reconstructed document still must not expose the
+         * credential originally supplied to the login form.
+         */
+        const browserStorage =
+            await page.evaluate(
+                () => ({
+                    localStorage:
+                        Object.fromEntries(
+                            Object.entries(
+                                window.localStorage,
+                            ),
+                        ),
+
+                    sessionStorage:
+                        Object.fromEntries(
+                            Object.entries(
+                                window.sessionStorage,
+                            ),
+                        ),
+                }),
+            );
+
+        const serializedStorage =
+            JSON.stringify(
+                browserStorage,
+            );
+
+        expect(
+            serializedStorage,
+        ).not.toContain(
+            e2ePassword,
+        );
+
+        expect(
+            serializedStorage,
+        ).not.toContain(
+            'access_token',
+        );
+
+        expect(
+            serializedStorage,
+        ).not.toMatch(
+            /Bearer\s+/iu,
+        );
+    },
+);
