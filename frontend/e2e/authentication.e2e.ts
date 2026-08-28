@@ -43,6 +43,9 @@ const canonicalE2ESeeder =
 const staleWorkspaceE2ESeeder =
     'Database\\Seeders\\E2EStaleWorkspaceSeeder';
 
+const browserSessionInvalidationE2ESeeder =
+    'Database\\Seeders\\E2EBrowserSessionInvalidationSeeder';
+
 const membershipRestorationStorageKey =
     'educore.membership-restoration.v1';
 
@@ -6399,6 +6402,630 @@ test(
         await expect(
             page.getByLabel(
                 'Konteks pengguna aktif',
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'button',
+                {
+                    name:
+                        'Keluar',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+    },
+);
+
+test(
+    'real browser becomes anonymous after authoritative server-side BrowserSession invalidation',
+    async ({
+        page,
+    }) => {
+        /*
+         * Ensure the business fixture itself starts from the
+         * canonical ACTIVE state. This seeder does not create
+         * or preserve browser session authority.
+         */
+        await runE2ESeeder(
+            canonicalE2ESeeder,
+        );
+
+        await page.goto(
+            '/login',
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        await page
+            .getByLabel(
+                'Email',
+            )
+            .fill(
+                e2eEmail,
+            );
+
+        await page
+            .getByLabel(
+                'Password',
+            )
+            .fill(
+                e2ePassword,
+            );
+
+        await page
+            .getByLabel(
+                'Tenant UUID',
+            )
+            .fill(
+                e2eTenantId,
+            );
+
+        let loginRequestCount =
+            0;
+
+        page.on(
+            'request',
+            (request) => {
+                if (
+                    matchesApplicationApiPath(
+                        request.url(),
+                        '/api/v1/browser/auth/login',
+                    )
+                    && request.method()
+                        === 'POST'
+                ) {
+                    loginRequestCount +=
+                        1;
+                }
+            },
+        );
+
+        const loginResponsePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/auth/login',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'POST',
+            );
+
+        const authenticatedContextPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/auth/me',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        const membershipDiscoveryPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-memberships',
+                    )
+                    && response.status()
+                        === 200,
+            );
+
+        const workspacePromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/user/my-workspaces',
+                    )
+                    && response
+                        .request()
+                        .headers()[
+                            'x-educore-membership-id'
+                        ]
+                        === e2eMembershipId,
+            );
+
+        /*
+         * Tenant bootstrap has two distinct Capability
+         * projections:
+         *
+         * 1. Workspace verifier proves TENANT is a safe
+         *    Workspace baseline.
+         * 2. Active CapabilityRuntime projects authority
+         *    after Workspace becomes canonical.
+         *
+         * Wait for the second projection so server-session
+         * invalidation cannot race a still-in-flight response.
+         */
+        const tenantCapabilityStatuses:
+            number[] = [];
+
+        const secondTenantCapabilityPromise =
+            page.waitForResponse(
+                (response) => {
+                    if (
+                        ! matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/core/authorization/capabilities',
+                        )
+                        || response
+                            .request()
+                            .headers()[
+                                'x-educore-membership-id'
+                            ]
+                            !== e2eMembershipId
+                    ) {
+                        return false;
+                    }
+
+                    tenantCapabilityStatuses.push(
+                        response.status(),
+                    );
+
+                    return (
+                        tenantCapabilityStatuses
+                            .length
+                            === 2
+                    );
+                },
+            );
+
+        await page
+            .getByRole(
+                'button',
+                {
+                    name:
+                        'Masuk',
+                },
+            )
+            .click();
+
+        const [
+            loginResponse,
+            authenticatedContext,
+            membershipDiscoveryResponse,
+            workspaceResponse,
+            secondTenantCapabilityResponse,
+        ] =
+            await Promise.all([
+                loginResponsePromise,
+                authenticatedContextPromise,
+                membershipDiscoveryPromise,
+                workspacePromise,
+                secondTenantCapabilityPromise,
+            ]);
+
+        expect(
+            loginResponse.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            authenticatedContext.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            membershipDiscoveryResponse.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            workspaceResponse.status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            secondTenantCapabilityResponse
+                .status(),
+        ).toBe(
+            200,
+        );
+
+        expect(
+            tenantCapabilityStatuses,
+        ).toEqual([
+            200,
+            200,
+        ]);
+
+        expect(
+            loginRequestCount,
+        ).toBe(
+            1,
+        );
+
+        /*
+         * Prove protected Tenant authority is genuinely ready
+         * before invalidating anything on the server.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toBeVisible();
+
+        const membershipSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            );
+
+        await expect(
+            membershipSwitcher,
+        ).toHaveValue(
+            e2eMembershipId,
+        );
+
+        const workspaceSwitcher =
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch Workspace',
+                },
+            );
+
+        await expect(
+            workspaceSwitcher,
+        ).toHaveValue(
+            'TENANT',
+        );
+
+        /*
+         * The browser must actually own a secure server-session
+         * cookie before this scenario can claim to invalidate a
+         * BrowserSession.
+         *
+         * Do not depend on the configurable Laravel cookie name.
+         * The XSRF cookie is browser-readable, while the session
+         * cookie is expected to remain HttpOnly.
+         */
+        const authenticatedCookies =
+            await page
+                .context()
+                .cookies(
+                    applicationOrigin,
+                );
+
+        const authenticatedSessionCookie =
+            authenticatedCookies.find(
+                (cookie) =>
+                    cookie.httpOnly,
+            );
+
+        expect(
+            authenticatedSessionCookie,
+        ).toBeDefined();
+
+        if (
+            authenticatedSessionCookie
+                === undefined
+        ) {
+            throw new Error(
+                'Authenticated E2E browser did not expose an HttpOnly BrowserSession cookie.',
+            );
+        }
+
+        /*
+         * Destroy only authoritative server-side session
+         * persistence. Playwright does not log out, clear
+         * cookies, mutate storage, or issue a synthetic API
+         * request.
+         */
+        await runE2ESeeder(
+            browserSessionInvalidationE2ESeeder,
+        );
+
+        /*
+         * Server-side invalidation cannot itself alter the
+         * browser cookie jar.
+         *
+         * This proves the upcoming anonymous transition is
+         * caused by Laravel rejecting stale server authority,
+         * not by the test deleting browser credentials.
+         */
+        const cookiesAfterInvalidation =
+            await page
+                .context()
+                .cookies(
+                    applicationOrigin,
+                );
+
+        const retainedSessionCookie =
+            cookiesAfterInvalidation.find(
+                (cookie) =>
+                    cookie.name
+                        === authenticatedSessionCookie.name,
+            );
+
+        expect(
+            retainedSessionCookie,
+        ).toBeDefined();
+
+        if (
+            retainedSessionCookie
+                === undefined
+        ) {
+            throw new Error(
+                'BrowserSession cookie disappeared before the browser exercised invalidated server authority.',
+            );
+        }
+
+        expect(
+            retainedSessionCookie.value,
+        ).toBe(
+            authenticatedSessionCookie.value,
+        );
+
+        let protectedContextRequestCount =
+            0;
+
+        page.on(
+            'request',
+            (request) => {
+                const url =
+                    new URL(
+                        request.url(),
+                    );
+
+                if (
+                    url.origin
+                        !== applicationOrigin
+                ) {
+                    return;
+                }
+
+                if (
+                    url.pathname
+                        === '/api/v1/user/my-workspaces'
+                    || url.pathname
+                        === '/api/v1/core/authorization/capabilities'
+                    || url.pathname
+                        === '/api/v1/core/authorization/workspace-capabilities'
+                ) {
+                    protectedContextRequestCount +=
+                        1;
+                }
+            },
+        );
+
+        /*
+         * A reload re-enters the canonical BrowserSession
+         * bootstrap just like the already-covered successful
+         * reload path.
+         *
+         * After database invalidation, at least one canonical
+         * authentication/discovery endpoint must reject the
+         * stale BrowserSession with the session-required error.
+         */
+        const csrfBootstrapPromise =
+            page.waitForResponse(
+                (response) =>
+                    matchesApplicationApiPath(
+                        response.url(),
+                        '/api/v1/browser/session/csrf',
+                    )
+                    && response
+                        .request()
+                        .method()
+                        === 'GET',
+            );
+
+        const sessionRequiredPromise =
+            page.waitForResponse(
+                (response) => {
+                    if (
+                        response.status()
+                            !== 401
+                    ) {
+                        return false;
+                    }
+
+                    return (
+                        matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/auth/me',
+                        )
+                        || matchesApplicationApiPath(
+                            response.url(),
+                            '/api/v1/user/my-memberships',
+                        )
+                    );
+                },
+            );
+
+        await page.reload();
+
+        const [
+            csrfBootstrap,
+            sessionRequiredResponse,
+        ] =
+            await Promise.all([
+                csrfBootstrapPromise,
+                sessionRequiredPromise,
+            ]);
+
+        expect(
+            csrfBootstrap.status(),
+        ).toBe(
+            204,
+        );
+
+        expect(
+            sessionRequiredResponse.status(),
+        ).toBe(
+            401,
+        );
+
+        const sessionRequiredBody:
+            unknown =
+            await sessionRequiredResponse
+                .json();
+
+        expect(
+            sessionRequiredBody,
+        ).toMatchObject({
+            status:
+                'error',
+
+            code:
+                'BROWSER_SESSION_AUTHENTICATION_REQUIRED',
+        });
+
+        const rejectedHeaders =
+            await sessionRequiredResponse
+                .request()
+                .allHeaders();
+
+        expect(
+            rejectedHeaders[
+                'authorization'
+            ],
+        ).toBeUndefined();
+
+        /*
+         * Session invalidation must never replay credentials or
+         * silently perform another login.
+         */
+        expect(
+            loginRequestCount,
+        ).toBe(
+            1,
+        );
+
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Masuk ke EduCore',
+                },
+            ),
+        ).toBeVisible();
+
+        const finalUrl =
+            new URL(
+                page.url(),
+            );
+
+        expect(
+            finalUrl.origin,
+        ).toBe(
+            applicationOrigin,
+        );
+
+        expect(
+            finalUrl.pathname,
+        ).toBe(
+            '/login',
+        );
+
+        expect(
+            finalUrl.searchParams.get(
+                'returnTo',
+            ),
+        ).toBe(
+            '/',
+        );
+
+        /*
+         * Once authentication has failed, no protected
+         * Workspace or Capability authority may bootstrap.
+         */
+        expect(
+            protectedContextRequestCount,
+        ).toBe(
+            0,
+        );
+
+        /*
+         * The authenticated presentation tree must be gone.
+         */
+        await expect(
+            page.getByRole(
+                'heading',
+                {
+                    name:
+                        'Frontend Foundation',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'navigation',
+                {
+                    name:
+                        'Navigasi utama',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByLabel(
+                'Konteks pengguna aktif',
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch institution',
+                },
+            ),
+        ).toHaveCount(
+            0,
+        );
+
+        await expect(
+            page.getByRole(
+                'combobox',
+                {
+                    name:
+                        'Switch Workspace',
+                },
             ),
         ).toHaveCount(
             0,
