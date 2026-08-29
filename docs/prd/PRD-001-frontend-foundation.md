@@ -1,12 +1,45 @@
 # EduCore Frontend Foundation PRD
 
 **Document Stage:** FE-9 — Consolidation & Final Review
-**Status:** Accepted
+**Status:** 🔒 LOCKED
 **Product:** EduCore
 **Scope:** Frontend Platform Foundation
-**Backend Baseline:** `48f21a1`
+**Authoring Backend Baseline:** `48f21a1`
 **Backend Contract:** 🔒 FROZEN
-**Frontend Implementation:** NOT STARTED
+**Frontend Implementation:** ✅ COMPLETE / LOCKED
+**Frontend Implementation Checkpoint:** `1094dad05ec4589a9e83a40fae249eef01591b94`
+**Lifecycle Alignment:** 2026-08-29
+
+---
+
+# 0. Lifecycle & Implementation Resolution
+
+Dokumen ini tetap merupakan **canonical locked product-requirement record** untuk Frontend Foundation.
+
+Wording seperti `deferred`, `candidate`, `belum memiliki implementation answer`, dan requirement dalam future tense merekam state pada saat PRD dikunci sebelum ADR/TDD/implementation selesai. Wording historis tersebut tidak boleh dibaca sebagai current implementation status.
+
+Current lifecycle resolution:
+
+```text
+PRD FE-0 → FE-9
+🔒 LOCKED
+
+ADR-020 → ADR-031
+✅ ACCEPTED
+
+TDD-001
+✅ IMPLEMENTED / LOCKED
+
+FEI-1 → FEI-12
+✅ COMPLETE / LOCKED
+
+Final frontend implementation checkpoint
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
+
+Current implementation authority untuk detail yang dahulu didefer adalah accepted ADR-020 → ADR-031, TDD-001, `docs/api/openapi.yaml`, dan `docs/architecture/current-architecture.md`.
+
+Alignment ini **tidak membuka ulang product semantics**. Ia hanya mencatat resolution dari implementation choices yang sejak awal didelegasikan PRD ke ADR/TDD.
 
 ---
 
@@ -480,6 +513,8 @@ Exact credential-storage mechanism belum ditentukan oleh PRD.
 
 Keputusan implementation harus dibuat dalam ADR.
 
+**Implementation resolution:** ADR-022 dan TDD-001 memilih first-party BrowserSession/BFF dengan HttpOnly browser session. Canonical Membership-scoped bearer credential tetap berada pada server-side session broker dan tidak dimiliki React runtime.
+
 ---
 
 # 13. Browser Session Requirement
@@ -566,6 +601,8 @@ new authentication credential
 
 Previous token tidak boleh diasumsikan direvoke otomatis.
 
+**Implementation resolution:** Untuk first-party SPA, browser menggunakan `POST /api/v1/browser/user/memberships/{membership_id}/switch`. Canonical bearer-switch contract tetap tersedia bagi supported non-browser clients; bearer credential tidak dikembalikan ke React runtime.
+
 ---
 
 # 17. Tenant Switch Transaction
@@ -611,6 +648,8 @@ MUST preserve current valid context
 ```
 
 apabila switch belum berhasil menghasilkan authoritative new context.
+
+**Implementation resolution:** First-party SPA tidak menerima atau melakukan atomic replacement terhadap bearer credential. Flow final adalah browser-safe switch → authoritative `GET /api/v1/auth/me` verification untuk target Membership/Tenant → atomic tab-local context commit. Failed verification mempertahankan context sebelumnya.
 
 ---
 
@@ -1793,6 +1832,8 @@ harus menjadi bagian solution.
 
 Exact mechanism deferred ke ADR authentication/security.
 
+**Implementation resolution:** BrowserSession/BFF memakai browser CSRF bootstrap melalui `GET /api/v1/browser/session/csrf` dalam same-origin browser-authentication flow. Exact security behavior mengikuti ADR-022, ADR-030, TDD-001, dan executable OpenAPI contract.
+
 ---
 
 # 61. Browser Secrets
@@ -2278,6 +2319,8 @@ Semua itu memiliki PRD/TDD module masing-masing.
 
 # 77. Deferred Architectural Decisions
 
+> **Lifecycle note:** Daftar pada section ini adalah authoring-time decision inventory sebelum ADR phase. Pada current locked implementation, item-item tersebut tidak lagi unresolved; resolution canonical berada pada ADR-020 sampai ADR-031, TDD-001, OpenAPI, dan current architecture baseline.
+
 Requirement sudah cukup jelas tetapi implementation mechanism berikut sengaja belum dikunci:
 
 ```text
@@ -2349,7 +2392,7 @@ Jika dibutuhkan kemudian, harus melalui new requirement review.
 
 # 79. Required ADR Workstream
 
-Current candidate sequence:
+Authoring-time candidate sequence yang kemudian direalisasikan sebagai accepted ADR workstream:
 
 ```text
 ADR-020
@@ -2395,9 +2438,13 @@ Frontend Observability
 
 ADR numbering wajib diverifikasi terhadap repository sebelum ADR pertama dikunci.
 
+**Lifecycle resolution:** Numbering telah diverifikasi dan ADR-020 sampai ADR-031 telah diterima sebagai Frontend Foundation architecture record.
+
 ---
 
 # 80. Mandatory ADR
+
+**Lifecycle resolution:** Requirement ini telah dipenuhi oleh ADR-022 sebelum authentication implementation dikunci.
 
 Satu ADR dianggap mandatory sebelum implementation authentication:
 
@@ -2554,7 +2601,7 @@ Ini adalah architectural trade-off yang memang sengaja didelegasikan kepada ADR-
 
 Tidak ditemukan requirement gap yang menghalangi ADR phase.
 
-Area berikut belum memiliki implementation answer:
+Pada saat PRD Lock, area berikut belum memiliki implementation answer:
 
 ```text
 credential storage
@@ -2568,6 +2615,8 @@ monitoring vendor
 
 namun semuanya mempunyai sufficient product constraints untuk diputuskan melalui ADR.
 
+**Lifecycle resolution:** Implementation answers untuk area tersebut sekarang telah dikunci melalui ADR-020 sampai ADR-031 dan TDD-001. Vendor-specific monitoring tetap merupakan adapter/configuration concern selama tidak mengubah locked product semantics.
+
 Status:
 
 ```text
@@ -2578,7 +2627,7 @@ NO PRD BLOCKER
 
 # 84. Product Acceptance Criteria
 
-Frontend Foundation dianggap memenuhi PRD jika implementation nantinya membuktikan:
+Acceptance criteria berikut ditetapkan sebelum implementation dan sekarang menjadi locked verification contract untuk Frontend Foundation:
 
 ```text
 1. Authenticated user dapat bootstrap melalui /auth/me.
@@ -2721,42 +2770,41 @@ Deployment requirements
 ✅ COMPLETE
 
 Architectural implementation choices
-⏭️ ADR PHASE
+✅ RESOLVED BY ADR-020 → ADR-031 + TDD-001
+
+Frontend implementation
+✅ COMPLETE / LOCKED
 ```
 
-No product-level blocker has been identified.
+No product-level blocker has been identified. Product requirements tetap frozen; implementation resolution tidak mengubah semantics FE-0 sampai FE-9.
 
 ---
 
-# 87. Proposed PRD Decision
+# 87. PRD Decision & Implementation Resolution
 
 ```text
 EduCore Frontend Foundation PRD
 
-FE-0 → FE-8
-🔒 COMPLETE
+FE-0 → FE-9
+🔒 LOCKED
 
-FE-9 Consolidation
-🟡 PROPOSED
-
-Recommendation:
-LOCK PRD
-```
-
-Once locked:
-
-```text
-Frontend Foundation PRD
+Product semantics
 🔒 FROZEN
-        ↓
-ADR Identification / Verification
-        ↓
-ADR-020...
-        ↓
-Frontend TDD
-        ↓
-Implementation
+
+ADR-020 → ADR-031
+✅ ACCEPTED
+
+TDD-001
+✅ IMPLEMENTED / LOCKED
+
+FEI-1 → FEI-12
+✅ COMPLETE / LOCKED
+
+Final implementation checkpoint
+1094dad05ec4589a9e83a40fae249eef01591b94
 ```
+
+Future changes must follow the governance rules below rather than silently rewriting the locked historical requirement record.
 
 ---
 
