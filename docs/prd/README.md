@@ -1,7 +1,7 @@
 # PRD Documentation
 
 - **Collection Status**: Current + historical documents; use each document header and collection README as lifecycle authority
-- **Updated**: 2026-08-25
+- **Updated**: 2026-08-29
 
 Folder ini menyimpan Product/Engineering Requirement Documents EduCore.
 
@@ -17,7 +17,7 @@ collection tersebut sebagai entry point, reading order, dan lifecycle authority.
 
 - [`PRD-001-frontend-foundation.md`](PRD-001-frontend-foundation.md)
   — canonical consolidated Frontend Foundation PRD;
-  **Accepted / FE-0 sampai FE-9 locked**.
+  **🔒 LOCKED / FE-0 sampai FE-9; frontend implementation ✅ COMPLETE / LOCKED at `1094dad05ec4589a9e83a40fae249eef01591b94`**.
 
 - [`FE-000-frontend-contract-baseline_Scope-verification.md`](FE-000-frontend-contract-baseline_Scope-verification.md)
   sampai
@@ -30,6 +30,13 @@ tersedia di:
 [`../architecture/adr/README.md`](../architecture/adr/README.md)
 
 khususnya ADR-020 sampai ADR-031.
+
+Canonical implementation verification tersedia di:
+
+[`../tdd/TDD-001-frontend-foundation.md`](../tdd/TDD-001-frontend-foundation.md)
+
+dengan FEI-1 sampai FEI-12 **COMPLETE / LOCKED** pada checkpoint
+`1094dad05ec4589a9e83a40fae249eef01591b94`.
 
 ---
 

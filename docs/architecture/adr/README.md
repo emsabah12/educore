@@ -1,8 +1,8 @@
 # Architecture Decision Records (ADR)
 
-**Version**: 4.2
+**Version**: 4.3
 **Status**: Current Index
-**Updated**: 2026-08-25
+**Updated**: 2026-08-29
 
 ---
 
@@ -133,7 +133,9 @@ ADR-030 — Frontend Security Baseline
 ADR-031 — Frontend Observability & Performance Strategy
 ```
 
-These decisions implement the accepted Frontend Foundation PRD in [`../../prd/PRD-001-frontend-foundation.md`](../../prd/PRD-001-frontend-foundation.md). The Browser Session/BFF work required by ADR-022, ADR-025, and ADR-030 is additive backend follow-up and does not reopen Core identity, tenancy, membership, or RBAC semantics.
+These decisions implement the locked Frontend Foundation PRD in [`../../prd/PRD-001-frontend-foundation.md`](../../prd/PRD-001-frontend-foundation.md) and are realized by [`../../tdd/TDD-001-frontend-foundation.md`](../../tdd/TDD-001-frontend-foundation.md). FEI-1 sampai FEI-12 are complete/locked at `1094dad05ec4589a9e83a40fae249eef01591b94`.
+
+The BrowserSession/BFF foundation required by ADR-022, ADR-025, and ADR-030 is implemented. First-party React uses BrowserSessionAuth with server-side canonical bearer custody; this does not reopen Core identity, tenancy, Membership, or RBAC semantics.
 
 ---
 
@@ -162,16 +164,18 @@ For a new developer:
 7. ADR-019
    (Dormitory integration boundary)
 8. ../../prd/PRD-001-frontend-foundation.md
-   (accepted Frontend Foundation product contract)
+   (locked Frontend Foundation product contract)
 9. ADR-020 → ADR-031
    (current Frontend Foundation architecture decisions)
-10. ../../prd/hr/HR-001-human-resources-management.md
+10. ../../tdd/TDD-001-frontend-foundation.md
+    (implemented/locked FEI-1 → FEI-12 verification contract)
+11. ../../prd/hr/HR-001-human-resources-management.md
     (approved HR product/business requirements)
-11. ADR-032
+12. ADR-032
     (current HR Domain Boundary & Workforce Architecture)
-12. ../../prd/hr/README.md
+13. ../../prd/hr/README.md
     (current consolidated HR specification index)
-13. ADR-006 / ADR-007 / ADR-011 / ADR-012
+14. ADR-006 / ADR-007 / ADR-011 / ADR-012
     only as superseded historical context
 
 ---

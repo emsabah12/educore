@@ -1,10 +1,10 @@
 # EduCore Architecture Documentation
 
-**Version**: 4.2
+**Version**: 4.3
 **Status**: Current Baseline
-**Updated**: 2026-08-17
+**Updated**: 2026-08-29
 
-Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, **Phase 4A Module Kernel Runtime Hardening**, **Phase 4B Organizational Topology Foundation**, dan **Foundation 6D HTTP/OpenAPI Contract**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
+Dokumentasi ini adalah entry point arsitektur EduCore setelah penyelesaian **Core Canonical Foundation (2G)**, **Downstream Human/Profile Canonicalization (3A)**, **Phase 4A Module Kernel Runtime Hardening**, **Phase 4B Organizational Topology Foundation**, **Foundation 6D HTTP/OpenAPI Contract**, dan **Frontend Foundation FEI-1 sampai FEI-12**. Lifecycle seluruh koleksi dokumentasi dijelaskan di [`../README.md`](../README.md).
 
 Dokumen lama dari Sprint `CORE-001` tetap dipertahankan sebagai histori keputusan, tetapi tidak semuanya lagi menjadi current implementation contract. Gunakan status setiap dokumen/ADR sebelum menjadikannya acuan implementasi.
 
@@ -19,7 +19,9 @@ Urutan baca untuk memahami arsitektur yang berlaku saat ini:
 3. [`architecture-principles.md`](architecture-principles.md) — current architecture principles dan guardrails untuk evolusi platform.
 4. [`adr/README.md`](adr/README.md) — indeks dan lifecycle Architecture Decision Records.
 5. [`../api/openapi.yaml`](../api/openapi.yaml) — executable public HTTP transport contract untuk foundation routes; Academic/HR coverage yang belum hardened tetap explicit deferred.
-6. Dokumentasi subsystem module kernel:
+6. [`../prd/PRD-001-frontend-foundation.md`](../prd/PRD-001-frontend-foundation.md) — locked Frontend Foundation product contract dan implementation-resolution record.
+7. [`../tdd/TDD-001-frontend-foundation.md`](../tdd/TDD-001-frontend-foundation.md) — implemented/locked Frontend Foundation FEI-1 sampai FEI-12 verification contract.
+8. Dokumentasi subsystem module kernel:
    - [`kernel.md`](kernel.md)
    - [`discovery-flow.md`](discovery-flow.md)
    - [`module-manager.md`](module-manager.md) — historical compatibility note; `ModuleManager` retired
@@ -116,6 +118,12 @@ The following contracts are considered stable and must not be reopened for legac
 - Organization-level scoped roles inherit downward to exact units; unit roles never inherit upward or to siblings.
 - Dormitory is a downstream business module boundary, not a Core topology level.
 - Foundation public HTTP transport uses the canonical `/api/v1` namespace and OpenAPI-backed route discoverability; Academic/HR operations that are not yet hardened remain explicitly deferred rather than implicitly treated as covered.
+- Trusted/non-browser API clients may use canonical BearerAuth; the first-party SPA uses BrowserSessionAuth through the same-origin Laravel BFF/session broker.
+- Canonical Membership-scoped bearer credentials remain server-side for the first-party browser flow and are never owned by React runtime.
+- `GET /api/v1/auth/me` remains the canonical protected bootstrap resource; `/api/v1/browser/auth/me` is retired.
+- `X-EduCore-Membership-Id` and `X-EduCore-Organizational-Assignment-Id` are untrusted locators, never authentication or authorization authority.
+- `frontend/` is the singular production React SPA boundary with `app`, `platform`, `shared`, and `modules` ownership.
+- Frontend context-sensitive responses must be fenced so superseded Membership/Tenant/Workspace responses cannot mutate the current interactive context.
 
 See [`current-architecture.md`](current-architecture.md) for the detailed baseline.
 
@@ -123,35 +131,58 @@ See [`current-architecture.md`](current-architecture.md) for the detailed baseli
 
 ## 4. Authentication & Authorization Flow
 
-Canonical request security flow:
+EduCore memiliki dua authentication transports yang bertemu pada canonical identity/Tenant/authorization boundary yang sama.
+
+Trusted/non-browser API flow:
 
 ```text
-Bearer Token
-    │
-    ▼
+BearerAuth
+    ↓
+canonical bearer credential
+    ↓
 Authenticated User
-    │
-    ▼
+    ↓
 User.person_id
-    │
-    ▼
-Membership
-    │
-    ├── verify membership ownership
-    ├── verify tenant ownership
-    ├── verify ACTIVE state
-    │
-    ▼
-Tenant Context
-    │
-    ▼
+    ↓
+Membership / Tenant verification
+    ↓
 AuthorizationService
-    │
-    ├── membership role
-    └── role permission
 ```
 
-Role/permission claims are intentionally not trusted from bearer tokens.
+First-party SPA flow:
+
+```text
+BrowserSessionAuth
+    ↓
+HttpOnly BrowserSession cookie
+    ↓
+same-origin Laravel BFF / session broker
+    ↓
+server-held Membership-scoped canonical bearer
+    ↓
+canonical /api/v1 protected resources
+    ↓
+Membership / Tenant verification
+    ↓
+AuthorizationService
+```
+
+Browser control-plane operations are:
+
+```text
+GET  /api/v1/browser/session/csrf
+POST /api/v1/browser/auth/login
+POST /api/v1/browser/auth/logout
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+Canonical authenticated bootstrap remains:
+
+```text
+GET /api/v1/auth/me
+```
+
+Role/permission claims are intentionally not trusted from bearer tokens, BrowserSession state, or client-provided locators. Capability projection is UX/read-model input only; protected backend operations authorize again from current persistence state.
 
 ---
 
@@ -208,6 +239,19 @@ Current canonical foundation decisions include:
 - ADR-017 — Module Runtime & Bootstrap Contract.
 - ADR-018 — Organizational Topology & Scoped Authorization.
 - ADR-019 — Dormitory Integration Boundary.
+- ADR-020 — Frontend Framework & Rendering Strategy.
+- ADR-021 — Frontend Modular Application Architecture.
+- ADR-022 — Authentication Credential Storage & Browser Session Isolation.
+- ADR-023 — Tenant / Membership Context Switching.
+- ADR-024 — Workspace / Organizational Context Management.
+- ADR-025 — API Client, OpenAPI & Canonical Error Handling.
+- ADR-026 — Server-State & Client-State Ownership.
+- ADR-027 — Capability-Aware Navigation & Authorization UX.
+- ADR-028 — Routing & Code-Splitting Strategy.
+- ADR-029 — Frontend Testing Strategy.
+- ADR-030 — Frontend Security Baseline.
+- ADR-031 — Frontend Observability & Performance Strategy.
+- ADR-032 — HR Domain Boundary & Workforce Architecture.
 
 See [`adr/README.md`](adr/README.md) for the current index.
 
@@ -226,7 +270,7 @@ Each document now carries an explicit historical notice. They remain useful for 
 
 ## 8. Current Documentation Alignment
 
-Core/Phase-3A, Phase 4A, dan Phase 4B documentation alignment merupakan historical locked baselines. Foundation 6D menambahkan canonical `/api/v1` transport namespace serta OpenAPI-backed foundation HTTP contract/discoverability.
+Core/Phase-3A, Phase 4A, dan Phase 4B documentation alignment merupakan historical locked baselines. Foundation 6D menambahkan canonical `/api/v1` transport namespace serta OpenAPI-backed foundation HTTP contract/discoverability. Frontend Foundation FEI-1 sampai FEI-12 sekarang juga merupakan implemented/locked current baseline dengan BrowserSession/BFF transport, context-safe SPA runtime, capability-aware authorization UX, static routing/code splitting, security/build gates, observability, dan browser E2E verification.
 
 Current-state documentation harus direvalidasi ketika locked implementation atau architectural contract berubah. Completion label dari alignment phase sebelumnya adalah historical evidence, bukan jaminan bahwa current documentation tidak akan memerlukan alignment lagi.
 
@@ -248,6 +292,10 @@ Repository-wide documentation audit harus memverifikasi bahwa:
 - documentation tidak menjanjikan hot module enable/disable atau disabled-module isolation;
 - documentation mencatat manifest-driven, dependency-ordered provider activation sebagai current runtime guarantee;
 - documentation tidak menghidupkan kembali `ModuleStateRepository`, `ModuleManager`, provider guessing, atau global event auto-discovery sebagai current contract;
-- current mixed-case manifest keys dibedakan jelas dari lowercase canonical technical-key target.
+- current mixed-case manifest keys dibedakan jelas dari lowercase canonical technical-key target;
+- current frontend documentation membedakan BearerAuth untuk supported API clients dari BrowserSessionAuth/BFF untuk first-party SPA;
+- `/api/v1/auth/me` tetap canonical protected bootstrap dan `/api/v1/browser/auth/me` tidak boleh dihidupkan kembali;
+- Membership/organizational-assignment browser headers tetap diperlakukan sebagai locator, bukan authority;
+- current frontend documentation mempertahankan `frontend/` sebagai single production SPA source of truth dan FEI-1 sampai FEI-12 sebagai locked implementation baseline.
 
 Dengan guardrails ini, `docs/README.md` dan dokumen pada bagian **Current Source of Truth** di atas menjadi baseline dokumentasi resmi sampai ada ADR atau workstream baru yang secara eksplisit mengubahnya.

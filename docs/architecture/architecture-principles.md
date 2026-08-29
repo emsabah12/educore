@@ -1,9 +1,9 @@
 # EduCore Architecture Principles
 
-- **Version**: 3.2
+- **Version**: 3.3
 - **Status**: Current Architecture Principle Baseline
-- **Updated**: 2026-08-17
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
+- **Updated**: 2026-08-29
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Foundation 6B-6D + Frontend Foundation FEI-1 through FEI-12
 
 Dokumen ini mendefinisikan prinsip arsitektur yang berlaku untuk pengembangan EduCore setelah canonical identity, tenancy, authentication, RBAC, downstream human/profile foundation, frontend-facing transport, canonical API error, capability projection, dan executable OpenAPI contract di-lock.
 
@@ -14,6 +14,8 @@ Untuk contract implementasi yang berlaku saat ini, baca juga:
 - [`current-architecture.md`](current-architecture.md)
 - [`folder-structure.md`](folder-structure.md)
 - [`adr/README.md`](adr/README.md)
+- [`../prd/PRD-001-frontend-foundation.md`](../prd/PRD-001-frontend-foundation.md)
+- [`../tdd/TDD-001-frontend-foundation.md`](../tdd/TDD-001-frontend-foundation.md)
 - [`../api/openapi.yaml`](../api/openapi.yaml) — executable public foundation HTTP transport contract; explicitly deferred domain operations tetap bukan hardened foundation contract
 
 ---
@@ -244,9 +246,9 @@ Current Tenant
 
 ---
 
-# 9. Authentication Context Is Minimal and Verifiable
+# 9. Authentication Context Is Minimal, Transport-Aware, and Verifiable
 
-Bearer token membawa identity context minimum yang diperlukan:
+Canonical backend bearer credential membawa identity context minimum yang diperlukan:
 
 ```text
 user_id
@@ -255,7 +257,7 @@ tenant_id
 expires_at
 ```
 
-Token tidak menjadi source of truth untuk role atau permission.
+Bearer credential tidak menjadi source of truth untuk role atau permission.
 
 Tidak ada canonical authorization claim:
 
@@ -265,6 +267,28 @@ permission
 ```
 
 karena authorization state harus dibaca dari database-backed RBAC agar tidak menjadi stale authority.
+
+Untuk trusted/non-browser API clients, BearerAuth tetap canonical supported transport.
+
+Untuk first-party SPA:
+
+```text
+Browser
+  ↓
+HttpOnly BrowserSession
+  ↓
+Laravel BFF / session broker
+  ↓
+server-side Membership-scoped bearer
+  ↓
+canonical /api/v1 protected resources
+```
+
+React runtime tidak boleh menerima, menyimpan, merekonstruksi, atau mengirim canonical bearer credential secara manual.
+
+`X-EduCore-Membership-Id` dan `X-EduCore-Organizational-Assignment-Id` hanya locator yang wajib diverifikasi server-side. Keduanya bukan authentication credential, Tenant authority, atau authorization claim.
+
+Transport berbeda tidak boleh menghasilkan identity/authorization semantics yang berbeda: BearerAuth dan BrowserSessionAuth tetap bertemu pada canonical User → Person → Membership → Tenant verification dan database-backed authorization boundary.
 
 ---
 

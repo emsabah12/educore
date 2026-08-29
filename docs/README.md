@@ -1,7 +1,7 @@
 # EduCore Documentation Index
 
 - **Status**: Current Documentation Entry Point
-- **Updated**: 2026-08-17
+- **Updated**: 2026-08-29
 
 Dokumentasi EduCore menggunakan lifecycle eksplisit agar dokumen current tidak tercampur dengan planning atau keputusan lama.
 
@@ -14,6 +14,24 @@ Mulai dari:
 3. [`architecture/folder-structure.md`](architecture/folder-structure.md) — repository/ownership map.
 4. [`architecture/architecture-principles.md`](architecture/architecture-principles.md) — current guardrails.
 5. [`architecture/adr/README.md`](architecture/adr/README.md) — ADR lifecycle dan index.
+
+## 1A. Current Frontend Foundation Authority
+
+Frontend Foundation telah melewati PRD → ADR → TDD → implementation → final gate dan sekarang merupakan bagian dari current locked foundation.
+
+Canonical reading set:
+
+1. [`prd/PRD-001-frontend-foundation.md`](prd/PRD-001-frontend-foundation.md) — locked product semantics dan implementation-resolution record.
+2. [`architecture/adr/README.md`](architecture/adr/README.md) — accepted ADR-020 sampai ADR-031.
+3. [`tdd/TDD-001-frontend-foundation.md`](tdd/TDD-001-frontend-foundation.md) — implemented/locked FEI-1 sampai FEI-12 verification contract.
+4. [`api/openapi.yaml`](api/openapi.yaml) — executable HTTP transport contract.
+5. [`architecture/current-architecture.md`](architecture/current-architecture.md) — current implemented architecture baseline.
+
+Final Frontend Foundation implementation checkpoint:
+
+```text
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
 
 ## 2. Documentation Lifecycle
 
@@ -50,7 +68,12 @@ Current foundation coverage mencakup:
 - authenticated organizational context;
 - scoped authorization persistence dan evaluation;
 - Dormitory integration boundary;
-- OpenAPI-backed HTTP API contract dan discoverability.
+- OpenAPI-backed HTTP API contract dan discoverability;
+- Frontend Foundation FEI-1 sampai FEI-12;
+- first-party BrowserSession/BFF authentication with server-side bearer custody;
+- tab-local Membership/Tenant context and verified Workspace context;
+- capability-aware frontend authorization UX with backend authority;
+- canonical `frontend/` SPA source boundary, static routing, code splitting, security/build gates, observability, dan browser E2E coverage.
 
 Detail schema, ownership boundary, authorization semantics, dan integration contract tidak diduplikasi di documentation index ini. Gunakan current architecture documentation dan Accepted ADR sebagai canonical reference.
 
