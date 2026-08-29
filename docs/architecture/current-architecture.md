@@ -1,8 +1,8 @@
 # EduCore Current Architecture Baseline
 
 **Status**: Locked Baseline
-**Updated**: 2026-08-19
-**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D + Dormitory Check-In Foundation through 3.8.3
+**Updated**: 2026-08-29
+**Scope**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Foundation 6B-6D + Frontend Foundation FEI-1 through FEI-12 + Dormitory Check-In Foundation through 3.8.3
 
 ---
 
@@ -12,7 +12,7 @@ This document consolidates the architecture that is already implemented, tested,
 
 It is not a proposal for new architecture. It exists so developers can distinguish the current canonical contract from historical documents written before the identity, tenancy, authentication, RBAC, and downstream-profile refactors.
 
-When historical documentation conflicts with this baseline, this baseline, the current accepted canonical ADRs—especially ADR-013 through ADR-019—and the executable public HTTP contract describe the current implementation contract.
+When historical documentation conflicts with this baseline, this baseline, the current accepted canonical ADRs—especially ADR-013 through ADR-031—the accepted Frontend Foundation TDD, and the executable public HTTP contract describe the current implementation contract.
 
 ---
 
@@ -273,9 +273,9 @@ A request does not become authorized for a Tenant merely because a tenant identi
 
 ## 5. Authentication Contract
 
-Current authentication uses encrypted deterministic bearer tokens.
+EduCore supports two authentication transports over the same canonical backend identity, tenancy, and authorization model.
 
-Canonical claims:
+Canonical backend bearer credentials remain encrypted deterministic tokens with claims:
 
 ```text
 user_id
@@ -284,7 +284,7 @@ membership_id
 expires_at
 ```
 
-Not included as trusted authorization claims:
+They do not contain trusted authorization claims such as:
 
 ```text
 role
@@ -292,7 +292,7 @@ permission
 person_id
 ```
 
-Canonical flow:
+For trusted API clients, canonical Bearer authentication remains:
 
 ```text
 Login
@@ -306,7 +306,35 @@ Authenticated User
 Tenant/Membership Context Verification
 ```
 
-Authentication and tenant authorization are separate responsibilities.
+The first-party React SPA uses a separate browser transport:
+
+```text
+Browser
+  ↓
+HttpOnly BrowserSession cookie
+  ↓
+Laravel Browser Authentication BFF / Session Broker
+  ↓
+server-side canonical Membership-scoped bearer credential
+  ↓
+canonical /api/v1 resource processing
+```
+
+The React runtime never receives, persists, reconstructs, or manually sends the canonical bearer credential.
+
+The BrowserSession cookie represents the authenticated browser session. It does not represent one globally active Membership or Tenant. Active Membership selection remains tab-local and is revalidated against server-side credential custody.
+
+Therefore:
+
+```text
+BearerAuth
+≠
+BrowserSessionAuth
+```
+
+Both transports converge on the same canonical backend identity, Tenant/Membership verification, and authorization boundaries.
+
+Authentication and tenant authorization remain separate responsibilities.
 
 ---
 
@@ -346,39 +374,88 @@ Membership-context resolution must read the **current request instance** rather 
 
 ## 6A. Frontend Bootstrap, Tenant Switching & Workspace Transport
 
-Public JSON APIs use the canonical `/api/v1` namespace.
+Public JSON resources continue to use the canonical `/api/v1` namespace.
 
-Frontend bootstrap uses:
+The first-party browser authentication control plane is:
+
+```text
+GET  /api/v1/browser/session/csrf
+POST /api/v1/browser/auth/login
+POST /api/v1/browser/auth/logout
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+These browser-safe operations never expose the canonical bearer credential to React.
+
+Authenticated frontend bootstrap remains:
 
 ```text
 GET /api/v1/auth/me
 ```
 
-The bootstrap response projects the already-verified current `User`, canonical `Person`, current `Membership`, and current `Tenant`. It does not make role/permission or organizational identifiers trusted authentication claims.
+The transitional `/api/v1/browser/auth/me` endpoint is retired and is not part of the current contract.
 
-Tenant switching is a stateless authentication-context exchange:
+`/api/v1/auth/me` supports the canonical protected-resource contract for both Bearer clients and the first-party BrowserSession transport.
+
+For BrowserSession requests, tab-local Membership context is identified using:
+
+```text
+X-EduCore-Membership-Id
+```
+
+This header is an untrusted locator only. It is not an authentication credential, Tenant authority, or authorization claim.
+
+Browser Tenant switching uses:
+
+```text
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+The browser switch follows prepare → verify → commit semantics. The target bearer remains in server-side Browser Session custody, `/api/v1/auth/me` verifies the target Membership/Tenant context, and only then may the frontend atomically commit the new tab-local context. A failed switch preserves the previously authoritative context.
+
+The canonical bearer Membership-switch endpoint remains valid for supported non-browser clients:
 
 ```text
 POST /api/v1/user/memberships/{membership_id}/switch
 ```
 
-The target Membership must belong to the same canonical Person, remain ACTIVE, and belong to an ACTIVE Tenant. A successful switch issues a new bearer token for the target Membership/Tenant. The previous token is not automatically revoked, so independent browser tabs may retain independent tenant contexts until normal expiry/revocation.
+Its bearer-returning response is not consumed directly by the first-party React SPA.
 
-Workspace discovery is a read projection:
+Workspace discovery remains:
 
 ```text
 GET /api/v1/user/my-workspaces
 ```
 
-It derives Tenant/Organization/OrganizationUnit workspace choices from the verified current Membership/Tenant and active `OrganizationalAssignment` records. There is no canonical `Workspace` persistence entity or `workspaces` table.
+Workspace-scoped requests additionally use `X-EduCore-Organizational-Assignment-Id`. Membership and organizational-assignment headers are locators only; backend context resolution and authorization remain authoritative.
 
-Organization-scoped HTTP operations use the canonical locator header:
+Frontend context-sensitive requests are fenced by session/Membership/Workspace context identity or generation. Cancellation alone is not a correctness boundary; superseded responses must not mutate the current interactive context.
+
+---
+
+## 6B. Frontend Application Runtime Boundary
+
+The canonical production frontend application lives under:
 
 ```text
-X-EduCore-Organizational-Assignment-Id
+frontend/
 ```
 
-The header is never authority by itself. `InjectOrganizationalContext` validates UUID format, current Membership/Tenant ownership, active assignment, active Organization, and active OrganizationUnit consistency. Organizational runtime state is cleared before resolution and after the request so it cannot leak across request lifecycles.
+Its source boundary is:
+
+```text
+frontend/src/
+├── app/
+├── platform/
+├── shared/
+└── modules/
+```
+
+`app` owns application composition, providers, shell, and router composition. `platform` owns shared API/browser transport, authentication/session runtime, Membership/Tenant context, Workspace context, authorization projection, routing/navigation support, and observability. `shared` remains domain-neutral. Business code belongs under `modules` and consumes platform/shared/public contracts instead of duplicating platform infrastructure.
+
+There is one `QueryClient` per running SPA/tab, authenticated query cache is not persisted to browser storage, and server state remains owned by TanStack Query.
+
+The Laravel `resources/js` scaffold is not a second production React application source of truth.
 
 ---
 
@@ -700,7 +777,12 @@ The following contracts are frozen unless a new concrete requirement justifies a
 - organization/unit scoped role grants through OrganizationalAssignment;
 - dedicated OrganizationalAuthorizationService semantics;
 - canonical `/api/v1` public JSON namespace;
-- canonical frontend bootstrap and stateless Membership/Tenant token exchange;
+- canonical `/api/v1/auth/me` protected frontend bootstrap;
+- first-party SPA authentication through BrowserSession/BFF with server-side bearer custody;
+- browser-safe Membership switching through `/api/v1/browser/user/memberships/{membership_id}/switch`;
+- `X-EduCore-Membership-Id` as an untrusted tab-local Membership locator;
+- BearerAuth remaining available for supported non-browser API clients;
+- frontend context generation/fencing preventing superseded Tenant or Workspace responses from mutating current UI;
 - workspace discovery as a read projection rather than a Core persistence entity;
 - request-scoped organizational context transport through `X-EduCore-Organizational-Assignment-Id`;
 - canonical API error envelope with stable machine-readable codes;
@@ -855,6 +937,20 @@ ADR-016 — Database-Backed Tenant RBAC
 ADR-017 — Module Runtime & Bootstrap Contract
 ADR-018 — Organizational Topology & Scoped Authorization
 ADR-019 — Dormitory Integration Boundary
+
+Frontend Foundation:
+ADR-020 — Frontend Framework & Rendering Strategy
+ADR-021 — Frontend Modular Application Architecture
+ADR-022 — Authentication Credential Storage & Browser Session Isolation
+ADR-023 — Tenant / Membership Context Switching
+ADR-024 — Workspace / Organizational Context Management
+ADR-025 — API Client, OpenAPI & Canonical Error Handling
+ADR-026 — Server-State & Client-State Ownership
+ADR-027 — Capability-Aware Navigation & Authorization UX
+ADR-028 — Routing & Code-Splitting Strategy
+ADR-029 — Frontend Testing Strategy
+ADR-030 — Frontend Security Baseline
+ADR-031 — Frontend Observability & Performance Strategy
 ```
 
 Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as superseded context.
@@ -863,7 +959,7 @@ Historical ADR-006, ADR-007, ADR-011, and ADR-012 remain available only as super
 
 ## 20. Next Architectural Work
 
-The Core/domain foundation, frontend-facing transport contract, canonical API error boundary, capability projection, and Foundation OpenAPI contract are current locked baselines. Documentation/regression closure must align to those contracts rather than reopen them implicitly.
+The Core/domain foundation, canonical API/OpenAPI boundary, and Frontend Foundation FEI-1 through FEI-12 are current locked baselines. The first-party SPA has an implemented React application boundary, BrowserSession/BFF authentication transport, context-safe Membership/Workspace runtime, capability-aware authorization UX, static routing/module isolation, centralized error handling, security/build gates, observability foundation, and browser E2E coverage. Documentation/regression closure must align to those contracts rather than reopen them implicitly.
 
 Dormitory Check-In through concurrency milestone 3.8.3 is a locked downstream baseline under ADR-019. Remaining Dormitory lifecycle/API work—especially Check-Out, Transfer/Reassignment, authenticated HTTP exposure, and multi-Room concurrency—requires explicit downstream design and regression work rather than being inferred from the current Check-In contract. Academic/HR operations that are still listed as explicit OpenAPI deferred routes remain separate domain API-hardening work and must not be silently promoted into the foundation contract.
 

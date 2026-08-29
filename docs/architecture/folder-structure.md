@@ -1,13 +1,13 @@
 # EduCore Current Repository Structure
 
-- **Version**: 3.2
+- **Version**: 3.3
 - **Status**: Current Architecture Baseline
-- **Updated**: 2026-08-17
-- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Frontend Transport 1-6A + Foundation 6B-6D
+- **Updated**: 2026-08-29
+- **Baseline**: Core Canonical Foundation 2G + Phase 3A + Phase 4A Module Kernel Runtime Hardening + Phase 4B Organizational Topology Foundation + Foundation 6B-6D + Frontend Foundation FEI-1 through FEI-12
 
 ## Purpose
 
-Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G, Phase 3A, Phase 4A, Phase 4B Organizational Topology Foundation, Frontend Transport 1-6A, dan Foundation 6B-6D selesai.
+Dokumen ini menjelaskan struktur repository EduCore **yang berlaku saat ini** setelah Core 2G, Phase 3A, Phase 4A, Phase 4B Organizational Topology Foundation, Foundation 6B-6D, dan Frontend Foundation FEI-1 sampai FEI-12 selesai.
 
 Dokumen ini menggantikan `folder-structure.md` versi lama yang masih menggambarkan Sprint `CORE-001`, `MockStudent`, dan struktur Core sebelum canonical identity/tenancy/RBAC selesai.
 
@@ -17,6 +17,9 @@ Dokumen ini harus dibaca bersama:
 2. `docs/architecture/current-architecture.md`
 3. `docs/architecture/adr/README.md`
 4. ADR-013 sampai ADR-019
+5. ADR-020 sampai ADR-031
+6. `docs/tdd/TDD-001-frontend-foundation.md`
+7. `docs/api/openapi.yaml`
 
 > Struktur di bawah mencatat direktori/file yang memiliki arti runtime atau architectural ownership. Direktori kosong yang mungkin masih ada pada working copy lokal tidak dianggap sebagai contract dan sengaja tidak dimasukkan.
 > Nama migration pada tree disingkat tanpa timestamp prefix ketika hal itu membuat struktur lebih mudah dibaca; ownership dan nama tabel/file capability tetap mengikuti repository.
@@ -36,7 +39,6 @@ educore/
 │   └── providers.php
 │
 ├── config/
-│
 ├── database/
 │   ├── factories/
 │   ├── migrations/
@@ -47,8 +49,15 @@ educore/
 │   │   └── openapi.yaml
 │   ├── architecture/
 │   ├── prd/
-│   └── sprint/
-│
+│   ├── sprint/
+│   └── tdd/
+├── frontend/
+│   ├── e2e/
+│   ├── index.html
+│   ├── playwright.config.ts
+│   ├── src/
+│   ├── tsconfig.json
+│   └── vite.config.ts
 ├── Modules/
 │   ├── Core/
 │   ├── Auth/
@@ -57,9 +66,13 @@ educore/
 │   ├── HR/
 │   ├── Dormitory/
 │   └── PPDB/
-│
 ├── routes/
+├── scripts/
 ├── tests/
+├── eslint.config.js
+├── package.json
+├── package-lock.json
+├── vitest.config.ts
 ├── composer.json
 ├── phpunit.xml
 └── artisan
@@ -85,6 +98,52 @@ Dormitory residential domain → Modules/Dormitory
 ```
 
 `app/` tetap dipertahankan untuk Laravel application shell dan komponen global yang benar-benar bukan milik satu module.
+
+---
+
+# 1A. `frontend/` — Canonical Frontend Application Boundary
+
+The canonical production React application lives under `frontend/` and is the single frontend application source of truth for the authenticated EduCore SPA.
+
+```text
+frontend/
+├── e2e/
+├── index.html
+├── playwright.config.ts
+├── src/
+│   ├── __tests__/
+│   ├── app/
+│   ├── modules/
+│   │   └── academic/
+│   ├── platform/
+│   │   ├── api/
+│   │   ├── auth/
+│   │   ├── authorization/
+│   │   ├── membership/
+│   │   ├── navigation/
+│   │   ├── observability/
+│   │   ├── routing/
+│   │   └── workspace/
+│   ├── shared/
+│   ├── test/
+│   ├── main.tsx
+│   └── styles.css
+├── tsconfig.json
+└── vite.config.ts
+```
+
+Ownership:
+
+```text
+app      → application composition and providers
+platform → shared browser/platform runtime
+shared   → domain-neutral reusable code
+modules  → business-module frontend contributions
+```
+
+Dependency direction follows ADR-021: app may compose platform/shared/module public contracts; modules consume platform/shared and their own internals; platform may depend only on domain-neutral shared code; shared must not depend on platform or business internals.
+
+`resources/js/app.js`, `resources/css/app.css`, and Blade scaffolding must not evolve into a second production React application architecture.
 
 ---
 
