@@ -1,8 +1,9 @@
 # ADR-030 — Frontend Security Baseline
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-08-18
+**Implementation Resolution** : 2026-08-29
 **Scope** : Frontend Foundation — Browser Security, Session Cookie, CSRF, XSS/CSP, Origin Policy, Secrets & Supply Chain
 
 ---
@@ -83,6 +84,47 @@
 - ADR-029 — Frontend Testing Strategy
 
 ---
+
+# Implementation Resolution — 2026-08-29
+
+ADR-030 remains the accepted frontend/browser security baseline.
+
+Repository observations in sections such as **Current Repository Security State** describe the repository when this ADR was authored. They are retained as historical design evidence and must not be interpreted as the current implementation inventory.
+
+The Frontend Foundation implementation now includes the security/build mechanisms needed to enforce this ADR's selected direction, including:
+
+```text
+first-party BrowserSession/BFF credential custody
+browser bearer exclusion
+centralized CSRF integration for browser state changes
+CSP-compatible production build/security gate
+dangerous browser sink / secret handling guardrails
+dependency lockfile governance
+dependency security audit gate
+artifact/security checks
+critical browser E2E security scenarios
+```
+
+The current browser control plane is:
+
+```text
+GET  /api/v1/browser/session/csrf
+POST /api/v1/browser/auth/login
+POST /api/v1/browser/auth/logout
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+Canonical bearer credentials remain server-side for first-party browser use.
+
+This resolution records implementation completion; it does not convert environment-sensitive deployment requirements into claims about every deployment environment. Production HTTPS, cookie attributes, CSP delivery, origin policy, and infrastructure configuration must continue to satisfy the normative requirements of this ADR.
+
+Frontend Foundation implementation completed through FEI-12 at:
+
+```text
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
+
+The original threat model, rejected alternatives, and security rationale remain authoritative.
 
 # 1. Context
 

@@ -1,8 +1,9 @@
 # ADR-022 — Authentication Credential Storage & Browser Session Isolation
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-08-18
+**Implementation Resolution** : 2026-08-29
 **Scope** : Frontend Foundation — Browser Authentication, Credential Custody & Multi-Tab Isolation
 
 ---
@@ -63,6 +64,62 @@
 - ADR-021 — Frontend Modular Application Architecture
 
 ---
+
+# Implementation Resolution — 2026-08-29
+
+The Decision Summary and alternatives above remain the accepted architectural record. Prospective wording such as:
+
+```text
+requires an explicit backend browser-authentication workstream
+before frontend authentication implementation begins
+```
+
+describes the repository state when ADR-022 was accepted.
+
+That workstream is now implemented and locked.
+
+Current first-party browser credential custody is:
+
+```text
+React SPA
+    ↓
+HttpOnly BrowserSession
+    ↓
+same-origin Laravel Browser Authentication BFF / Session Broker
+    ↓
+server-held Membership-scoped canonical bearer
+    ↓
+canonical /api/v1 protected resources
+```
+
+The React runtime does not receive, persist, reconstruct, or manually send the canonical bearer credential.
+
+Current browser authentication control-plane operations are:
+
+```text
+GET  /api/v1/browser/session/csrf
+POST /api/v1/browser/auth/login
+POST /api/v1/browser/auth/logout
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+Canonical authenticated bootstrap remains:
+
+```text
+GET /api/v1/auth/me
+```
+
+and is available through the supported authentication transports defined by the executable OpenAPI contract.
+
+The browser session still does **not** represent one global active Membership/Tenant. Active Membership selection remains tab-local and server-revalidated, preserving the multi-tab isolation decision in this ADR.
+
+Frontend Foundation implementation completed through FEI-12 at:
+
+```text
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
+
+This implementation resolution does not supersede ADR-022 and does not change canonical Person/User/Membership/Tenant or backend authorization semantics.
 
 # 1. Context
 

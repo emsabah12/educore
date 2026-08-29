@@ -1,8 +1,9 @@
 # ADR-025 — API Client, OpenAPI & Canonical Error Handling
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-08-18
+**Implementation Resolution** : 2026-08-29
 **Scope** : Frontend Foundation — HTTP Contract, Browser Transport, Generated Client, Context Propagation & Error Normalization
 
 ---
@@ -95,6 +96,63 @@
 - ADR-024 — Workspace / Organizational Context Management
 
 ---
+
+# Implementation Resolution — 2026-08-29
+
+The OpenAPI/platform-adapter/error-normalization decisions remain accepted and are now implemented.
+
+Prospective sections in this ADR that say BrowserSessionAuth, browser-safe authentication operations, or exact Laravel route names "must be added", are "required before implementation", or are "finalized by backend TDD" record the authoring-time state.
+
+The finalized browser authentication control plane in the canonical OpenAPI contract is:
+
+```text
+GET  /api/v1/browser/session/csrf
+POST /api/v1/browser/auth/login
+POST /api/v1/browser/auth/logout
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+The canonical protected bootstrap is:
+
+```text
+GET /api/v1/auth/me
+```
+
+and `/api/v1/browser/auth/me` is retired and must not be treated as a parallel bootstrap contract.
+
+Protected canonical `/api/v1` resource operations support the applicable authentication transports without creating a mirrored browser business API:
+
+```text
+BearerAuth
+→ supported non-browser/API clients
+
+BrowserSessionAuth
+→ first-party SPA
+```
+
+Both converge on shared canonical controller/application/authorization semantics.
+
+For browser protected requests:
+
+```text
+X-EduCore-Membership-Id
+→ untrusted tab-local Membership locator
+
+X-EduCore-Organizational-Assignment-Id
+→ untrusted Workspace/organizational locator
+```
+
+Neither header is authentication or authorization authority.
+
+Generated TypeScript contracts remain machine-owned under the frontend platform API boundary and must not be manually edited.
+
+Frontend Foundation implementation completed through FEI-12 at:
+
+```text
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
+
+This implementation resolution records completion of ADR-025; it does not replace the original design rationale or alternatives.
 
 # 1. Context
 

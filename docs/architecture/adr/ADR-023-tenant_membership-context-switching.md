@@ -1,8 +1,9 @@
 # ADR-023 — Tenant / Membership Context Switching
 
-**Version** : 1.0
+**Version** : 1.1
 **Status** : Accepted
 **Date** : 2026-08-18
+**Implementation Resolution** : 2026-08-29
 **Scope** : Frontend Foundation — Tenant/Membership Runtime Context, Switching Transaction & Isolation
 
 ---
@@ -70,6 +71,72 @@
 - ADR-022 — Authentication Credential Storage & Browser Session Isolation
 
 ---
+
+# Implementation Resolution — 2026-08-29
+
+The prepare → verify → commit decision remains unchanged.
+
+References throughout the original ADR to the bearer-returning route:
+
+```text
+POST /api/v1/user/memberships/{membership_id}/switch
+```
+
+are the canonical Membership-scoped bearer-switch contract for supported non-browser/API clients and the server-side domain semantics used by the browser mediation layer. Those historical references are **not** the route called directly by the first-party React SPA.
+
+The finalized first-party browser contract is:
+
+```text
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+```
+
+The browser-safe switch:
+
+```text
+does not expose access_token
+does not transfer canonical bearer custody to React
+does not make the target Membership authoritative merely from client selection
+```
+
+The effective browser transition is:
+
+```text
+PREPARE
+POST /api/v1/browser/user/memberships/{membership_id}/switch
+        ↓
+server establishes/updates target Membership credential
+        ↓
+VERIFY
+GET /api/v1/auth/me
+using BrowserSessionAuth
+and X-EduCore-Membership-Id target locator
+        ↓
+authoritative target Membership / Tenant verified
+        ↓
+COMMIT
+tab-local active context changes atomically
+```
+
+`X-EduCore-Membership-Id` remains:
+
+```text
+untrusted locator only
+≠ authentication
+≠ Tenant authority
+≠ authorization
+```
+
+Failed preparation or verification preserves the previously valid tab context.
+
+Superseded responses remain fenced by context identity/generation; cancellation alone is not sufficient correctness evidence.
+
+Frontend Foundation implementation completed through FEI-12 at:
+
+```text
+1094dad05ec4589a9e83a40fae249eef01591b94
+```
+
+This clarification records the finalized HTTP transport and does not supersede the Tenant/Membership switching decision.
 
 # 1. Context
 
