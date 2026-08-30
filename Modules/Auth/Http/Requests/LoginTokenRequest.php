@@ -9,10 +9,11 @@ use Illuminate\Foundation\Http\FormRequest;
 final class LoginTokenRequest extends FormRequest
 {
     /**
-     * Endpoint login bersifat publik.
+     * Global login endpoint is public.
      *
-     * Authorization pada method ini hanya menentukan apakah request
-     * boleh melewati Form Request, bukan memverifikasi credential.
+     * Authorization here only controls whether the request may enter
+     * validation. Credential verification happens inside the canonical
+     * authentication application boundary.
      */
     public function authorize(): bool
     {
@@ -20,28 +21,28 @@ final class LoginTokenRequest extends FormRequest
     }
 
     /**
-     * Normalisasi input dilakukan sebelum rule validation dijalankan.
+     * Normalize the global login identifier before validation.
      *
-     * Email dibuat lowercase dan dibersihkan dari whitespace agar
-     * repository menerima bentuk canonical yang konsisten.
+     * Both canonical email and username identifiers are case-insensitive:
+     *
+     * - email is stored/compared in lowercase canonical form;
+     * - username is stored/compared in lowercase canonical form.
+     *
+     * Password input is intentionally left untouched.
      */
     protected function prepareForValidation(): void
     {
-        $email = $this->input('email');
+        $identifier = $this->input('identifier');
 
-        if (is_string($email)) {
-            $this->merge([
-                'email' => strtolower(trim($email)),
-            ]);
+        if (! is_string($identifier)) {
+            return;
         }
 
-        $tenantUuid = $this->input('tenant_uuid');
-
-        if (is_string($tenantUuid)) {
-            $this->merge([
-                'tenant_uuid' => trim($tenantUuid),
-            ]);
-        }
+        $this->merge([
+            'identifier' => strtolower(
+                trim($identifier),
+            ),
+        ]);
     }
 
     /**
@@ -50,21 +51,15 @@ final class LoginTokenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => [
+            'identifier' => [
                 'required',
                 'string',
-                'email',
                 'max:255',
             ],
             'password' => [
                 'required',
                 'string',
                 'min:6',
-            ],
-            'tenant_uuid' => [
-                'required',
-                'string',
-                'uuid',
             ],
         ];
     }
