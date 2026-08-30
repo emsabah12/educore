@@ -11,12 +11,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Modules\Core\Identity\ValueObjects\CanonicalUsername;
 use Modules\Core\Person\Models\PersonModel;
 use Modules\Core\Support\Uuid\HasUuidV7;
 
 #[Fillable([
     'person_id',
     'email',
+    'username',
     'password',
 ])]
 #[Hidden([
@@ -34,6 +36,7 @@ final class User extends Authenticatable
     protected $fillable = [
         'person_id',
         'email',
+        'username',
         'password',
     ];
 
@@ -56,6 +59,18 @@ final class User extends Authenticatable
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * Enforce the canonical global username invariant for every Eloquent
+     * assignment path, including direct assignment and mass assignment.
+     */
+    public function setUsernameAttribute(
+        mixed $value,
+    ): void {
+        $this->attributes['username'] = CanonicalUsername::normalizeNullable(
+            $value,
+        );
     }
 
     /**
