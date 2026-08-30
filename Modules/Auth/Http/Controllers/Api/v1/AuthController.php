@@ -9,7 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Modules\Auth\Application\AuthenticationChannel;
-use Modules\Auth\Application\Services\AuthenticationCredentialIssuer;
+use Modules\Auth\Application\Services\GlobalAuthenticationService;
+use Modules\Auth\Application\Services\IdentityCredentialIssuer;
 use Modules\Auth\Http\Requests\LoginTokenRequest;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
@@ -21,42 +22,37 @@ use Throwable;
 final class AuthController extends Controller
 {
     public function __construct(
-        private readonly AuthenticationCredentialIssuer $credentialIssuer,
         private readonly TokenManagerInterface $tokenManager,
         private readonly TokenRevocationStoreInterface $tokenRevocationStore,
         private readonly AuditTrailServiceInterface $auditTrail,
     ) {}
 
     /**
-     * Login stateless untuk Mobile/API.
+     * Authenticate a global User and issue an identity-scoped bearer.
      *
-     * Authentication hanya menerbitkan token berdasarkan:
-     * - User identity
-     * - Tenant context
-     * - Membership context
-     *
-     * Authorization role tidak dimasukkan ke token.
+     * Tenant, Membership, role, and permission context are deliberately not
+     * established during global login.
      */
     public function loginToken(
         LoginTokenRequest $request,
+        GlobalAuthenticationService $authenticationService,
+        IdentityCredentialIssuer $identityCredentialIssuer,
     ): JsonResponse {
         /**
          * @var array{
-         *     email: string,
-         *     password: string,
-         *     tenant_uuid: string
+         *     identifier: string,
+         *     password: string
          * } $credentials
          */
         $credentials = $request->validated();
 
-        $issuedCredential = $this->credentialIssuer->issue(
-            email: $credentials['email'],
+        $identity = $authenticationService->authenticate(
+            identifier: $credentials['identifier'],
             password: $credentials['password'],
-            tenantUuid: $credentials['tenant_uuid'],
             channel: AuthenticationChannel::MOBILE_API,
         );
 
-        if ($issuedCredential === null) {
+        if ($identity === null) {
             return ApiErrorResponse::make(
                 code: 'AUTHENTICATION_FAILED',
                 message: 'Invalid authentication credentials.',
@@ -64,17 +60,25 @@ final class AuthController extends Controller
             );
         }
 
+        $issuedCredential = $identityCredentialIssuer->issue(
+            $identity->userId,
+        );
+
+        /*
+         * Successful global login audit deliberately has no Tenant or
+         * Membership scope.
+         *
+         * Do not include raw password, bearer credential, or password hash.
+         */
         $this->auditTrail->log(
             'auth.login_token_success',
-            sprintf(
-                'User %s sukses login via Mobile Token.',
-                $issuedCredential->name,
-            ),
-            $issuedCredential->tenantId,
-            $issuedCredential->userId,
+            'Global identity login succeeded via Mobile/API.',
+            null,
+            $identity->userId,
             [
-                'channel' => AuthenticationChannel::MOBILE_API->value,
-                'membership_id' => $issuedCredential->membershipId,
+                'channel' =>
+                    AuthenticationChannel::MOBILE_API->value,
+                'context_type' => 'identity',
             ],
         );
 
@@ -82,15 +86,21 @@ final class AuthController extends Controller
             [
                 'status' => 'success',
                 'data' => [
-                    'access_token' => $issuedCredential->bearerCredential,
+                    'access_token' =>
+                        $issuedCredential->bearerCredential,
                     'token_type' => 'Bearer',
-                    'expires_in' => $issuedCredential->expiresInSeconds,
-                    'context' => [
-                        'user_id' => $issuedCredential->userId,
-                        'name' => $issuedCredential->name,
-                        'email' => $issuedCredential->email,
-                        'membership_id' => $issuedCredential->membershipId,
-                        'tenant_id' => $issuedCredential->tenantId,
+                    'expires_in' =>
+                        $issuedCredential->expiresInSeconds,
+                    'context_type' => 'identity',
+                    'user' => [
+                        'id' => $identity->userId,
+                        'name' => $identity->name,
+                        'email' => $identity->email,
+                        'username' => $identity->username,
+                    ],
+                    'platform' => [
+                        'is_superadmin' =>
+                            $identity->isSuperadmin,
                     ],
                 ],
             ],
@@ -101,9 +111,8 @@ final class AuthController extends Controller
     /**
      * Mencabut bearer token yang sedang digunakan.
      *
-     * Endpoint berada di belakang InjectTenantContext sehingga request
-     * harus sudah memiliki canonical authenticated user, tenant, dan
-     * membership context sebelum revocation dijalankan.
+     * Logout middleware/context migration is a separate controlled step.
+     * Existing verified Tenant/Membership logout behavior is preserved here.
      */
     public function logout(
         Request $request,
@@ -132,11 +141,10 @@ final class AuthController extends Controller
         }
 
         /*
-         * Token sudah divalidasi oleh InjectTenantContext sebelum
-         * controller berjalan.
+         * Token sudah divalidasi oleh middleware sebelum controller berjalan.
          *
-         * Validasi ulang diperlukan untuk memperoleh canonical
-         * expires_at yang menentukan retention revocation row.
+         * Validasi ulang diperlukan untuk memperoleh canonical expires_at
+         * yang menentukan retention revocation row.
          *
          * Raw bearer token tidak dicatat ke log atau audit.
          */

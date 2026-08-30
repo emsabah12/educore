@@ -114,4 +114,25 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Global Authentication
+    |--------------------------------------------------------------------------
+    |
+    | Dummy hash digunakan hanya untuk menjaga password-verification path
+    | ketika identifier global tidak dapat di-resolve.
+    |
+    | Nilai ini bukan credential User dan bukan secret. Jika password hashing
+    | algorithm/cost deployment berubah, override AUTH_DUMMY_PASSWORD_HASH
+    | dengan hash valid yang menggunakan algorithm/cost canonical yang sama.
+    |
+    */
+
+    'global_authentication' => [
+        'dummy_password_hash' => env(
+            'AUTH_DUMMY_PASSWORD_HASH',
+            '$2y$12$EYyBBDaIxlDG7BLkDb/2Aens2A4UJ/JIWFukARo4jsNw1SIJ3kqdy',
+        ),
+    ],
+
 ];

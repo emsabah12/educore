@@ -114,12 +114,10 @@ final readonly class SwitchMembership
          * authorization tetap berasal dari database saat request berjalan.
          */
         $accessToken = $this->tokenManager
-            ->issueToken(
+            ->issueMembershipToken(
                 $authenticatedUserId,
                 $tenantId,
-                [
-                    'membership_id' => $membershipId,
-                ],
+                $membershipId,
             );
 
         return new MembershipSwitchResult(

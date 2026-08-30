@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Modules\Auth\Tests\Feature;
 
 use Illuminate\Http\Request;
-use Modules\Auth\Application\Services\AuthenticationCredentialIssuer;
-use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Auth\Token\Contracts\TokenRevocationStoreInterface;
@@ -49,14 +47,6 @@ final class AuthControllerErrorContractTest extends TestCase
 
     public function test_logout_revocation_failure_uses_canonical_operational_error(): void
     {
-        $authenticationRepository = $this->createMock(
-            AuthenticationRepositoryInterface::class,
-        );
-
-        $authenticationRepository
-            ->expects($this->never())
-            ->method('findByEmailForTenant');
-
         $expiresAt = time() + 3600;
 
         $tokenManager = $this->createMock(
@@ -96,14 +86,7 @@ final class AuthControllerErrorContractTest extends TestCase
             ->expects($this->once())
             ->method('log');
 
-        $credentialIssuer = new AuthenticationCredentialIssuer(
-            authRepository: $authenticationRepository,
-            tokenManager: $tokenManager,
-            auditTrail: $auditTrail,
-        );
-
         $controller = new AuthController(
-            credentialIssuer: $credentialIssuer,
             tokenManager: $tokenManager,
             tokenRevocationStore: $revocationStore,
             auditTrail: $auditTrail,

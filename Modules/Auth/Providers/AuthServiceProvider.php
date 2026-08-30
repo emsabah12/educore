@@ -6,7 +6,11 @@ namespace Modules\Auth\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use LogicException;
+use Modules\Auth\Application\Services\GlobalAuthenticationService;
 use Modules\Auth\Authentication\Contracts\AuthenticationRepositoryInterface;
+use Modules\Auth\Authentication\Contracts\PasswordVerifierInterface;
+use Modules\Auth\Authentication\Services\HashPasswordVerifier;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionAuthenticationCredentialProviderInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialInventoryInterface;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
@@ -29,6 +33,33 @@ final class AuthServiceProvider extends ServiceProvider
             AuthenticationRepositoryInterface::class,
             AuthenticationRepository::class,
         );
+
+        $this->app->singleton(
+            PasswordVerifierInterface::class,
+            HashPasswordVerifier::class,
+        );
+
+        $this->app
+            ->when(GlobalAuthenticationService::class)
+            ->needs('$dummyPasswordHash')
+            ->give(
+                static function (): string {
+                    $dummyPasswordHash = config(
+                        'auth.global_authentication.dummy_password_hash',
+                    );
+
+                    if (
+                        ! is_string($dummyPasswordHash)
+                        || trim($dummyPasswordHash) === ''
+                    ) {
+                        throw new LogicException(
+                            'Global authentication dummy password hash is not configured.',
+                        );
+                    }
+
+                    return $dummyPasswordHash;
+                },
+            );
 
         $this->app->singleton(
             TokenRevocationStoreInterface::class,
