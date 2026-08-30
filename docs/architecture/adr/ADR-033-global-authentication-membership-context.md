@@ -1,6 +1,6 @@
 # ADR-033 — Global Authentication & Membership Context Establishment
 
-**Version**: 1.0
+**Version**: 1.1
 **Status**: ACCEPTED / LOCKED
 **Date**: 2026-08-26
 **Scope**: Core/Auth/User Platform Foundation
@@ -238,7 +238,20 @@ Authenticated BrowserSession
 ≠ requires Membership credential
 ```
 
-`SessionCredentialVault::establishForUser()` semantics are retained.
+Credential-vault custody and independent per-Membership credential storage semantics are retained.
+
+A **fresh successful browser login** establishes a new Identity Context boundary. After session-fixation protection is applied, the resulting BrowserSession MUST contain:
+
+```text
+user_id = authenticated User
+membership_credentials = []
+```
+
+Membership credentials from any pre-login BrowserSession state MUST NOT survive the fresh-login boundary, including when the authenticated `user_id` is the same User. Existing server-held Membership credentials SHOULD be revoked where applicable before their inventory is discarded.
+
+A reload of an already authenticated BrowserSession is different from fresh login. Reload MUST NOT invoke fresh-login establishment semantics merely to prove identity. It revalidates the existing server-side `user_id`; existing Membership credentials may remain available for tab-local restoration, but any restored Membership/Tenant context remains an untrusted candidate until canonically reverified.
+
+Therefore, preservation behavior of the historical `SessionCredentialVault::establishForUser()` operation is not authoritative for fresh login. Implementation may introduce an explicit fresh-identity establishment operation or otherwise provide equivalent atomic reset semantics.
 
 Browser identity middleware must verify the stored User against canonical active-User persistence rather than requiring a membership-scoped bearer credential solely to prove session ownership.
 

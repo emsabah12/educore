@@ -1,6 +1,6 @@
 # TDD-002 — Platform Authentication & Membership Context Technical Design
 
-**Version**: 1.0
+**Version**: 1.1
 **Status**: ACCEPTED / LOCKED
 **Date**: 2026-08-26
 **Scope**: Controlled Refactor — Auth, BrowserSession, User Membership Context, OpenAPI & Frontend Platform Runtime
@@ -298,8 +298,10 @@ For BrowserSession:
 
 ```text
 BrowserLoginController
-→ session regenerate
-→ credentialVault.establishForUser(user_id)
+→ global credentials verified
+→ revoke pre-login Membership credentials where applicable
+→ session fixation protection / session regeneration
+→ credentialVault.establishFreshIdentity(user_id)
 ```
 
 No Membership credential is created during global login itself.
@@ -474,14 +476,34 @@ educore.browser_auth
     └── membership B → bearer B
 ```
 
-Locked valid state:
+Locked valid identity-only state:
 
 ```text
 user_id = <authenticated user>
 membership_credentials = []
 ```
 
-`establishForUser()` remains canonical login ownership operation.
+Fresh browser login requires an explicit identity-establishment operation with **reset semantics**:
+
+```text
+successful password verification
+→ revoke pre-login server-held Membership credentials where applicable
+→ apply session-fixation protection / session regeneration
+→ establish authenticated user_id
+→ membership_credentials = []
+```
+
+The implementation MAY introduce a dedicated operation such as conceptually:
+
+```text
+establishFreshIdentity(user_id)
+```
+
+or an equivalent atomic API.
+
+Fresh login MUST NOT rely on historical same-User `establishForUser()` preservation behavior. Membership credentials from the pre-login BrowserSession MUST NOT survive the fresh-login boundary, including when the authenticated User is unchanged.
+
+Reload of an already authenticated BrowserSession does not perform fresh-login establishment. Reload reads and revalidates the existing `user_id`; the existing Membership credential inventory may remain available for ADR-023 tab-local restoration and must still pass canonical Membership/Tenant verification before context commit.
 
 `credentialForAuthentication()` is no longer required for identity proof after middleware refactor and may be deprecated after dependency cleanup.
 
@@ -880,7 +902,7 @@ No implicit Tenant data access is granted by this flow.
 | `Modules/Auth/Application/Services/AuthenticatedIdentityResolver.php` | EXTEND | Accept typed identity + membership tokens. |
 | `Modules/Auth/Http/Middleware/InjectAuthenticatedUser.php` | KEEP/EXTEND | Identity resolution remains canonical. |
 | `Modules/Auth/Http/Middleware/InjectTenantContext.php` | EXTEND | Require membership credential type. |
-| `Modules/Auth/BrowserSession/Infrastructure/SessionCredentialVault.php` | KEEP/EXTEND | Identity-only state already structurally supported. |
+| `Modules/Auth/BrowserSession/Infrastructure/SessionCredentialVault.php` | KEEP/EXTEND | Identity-only state remains supported; add explicit fresh-login reset/revocation semantics. |
 | `Modules/Auth/Http/Middleware/InjectBrowserAuthenticatedUser.php` | REFACTOR | Validate server-side session User directly; no membership bearer required. |
 | `Modules/Auth/Http/Controllers/Api/v1/AuthController.php` | REFACTOR | Global login + global logout semantics. |
 | `Modules/Auth/Http/Controllers/Browser/v1/BrowserLoginController.php` | REFACTOR | Establish only User identity at login. |
@@ -934,7 +956,10 @@ Mandatory tests:
 
 ## 19.3 BrowserSession
 
-- login establishes `user_id` with empty membership credential map;
+- fresh login establishes `user_id` with empty membership credential map;
+- fresh login by the same User does not preserve pre-login Membership credentials;
+- pre-existing server-held Membership credentials are revoked where applicable before fresh-login inventory reset;
+- reload of an already authenticated BrowserSession does not clear its credential inventory merely to revalidate identity;
 - identity-protected browser endpoint works with empty map;
 - browser Tenant endpoint still requires Membership locator/credential;
 - browser Membership switch stores new server-side credential;
@@ -1171,6 +1196,8 @@ TDD-002 implementation is complete only when:
 - canonical login no longer requires Tenant input;
 - email and optional username login are covered;
 - identity-only User context works on browser and bearer clients;
+- fresh browser login starts with an empty Membership credential inventory even when the same User authenticates again;
+- reload of an already authenticated BrowserSession does not perform fresh-login reset semantics;
 - identity credentials cannot enter Tenant endpoints;
 - 0/1/>1 Membership behavior passes product acceptance tests;
 - fresh multi-Membership login always requires selection;
