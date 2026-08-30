@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Modules\Auth\Application\DTO\ResolvedAuthenticatedIdentity;
 use Modules\Auth\Application\Services\AuthenticatedIdentityResolver;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
 use Modules\Core\Http\Responses\ApiErrorResponse;
@@ -18,6 +19,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class InjectTenantContext
 {
+    private const CREDENTIAL_TYPE_MEMBERSHIP = 'membership';
+
     public function __construct(
         private readonly AuthenticatedIdentityResolver $identityResolver,
         private readonly AuthFactory $auth,
@@ -27,9 +30,11 @@ final class InjectTenantContext
     ) {}
 
     /**
-     * Build the canonical request authentication + tenant context.
+     * Build the canonical request authentication + Membership/Tenant context.
      *
-     * Bearer token
+     * Bearer credential
+     *   ↓
+     * valid Membership-compatible credential
      *   ↓
      * Active User account
      *   ↓
@@ -40,6 +45,13 @@ final class InjectTenantContext
      * Active Tenant
      *   ↓
      * request-local Auth Guard + TenantContext
+     *
+     * Typed Identity Credentials must never establish Membership/Tenant
+     * context, even if malformed upstream data contains Tenant/Membership
+     * claims.
+     *
+     * Untyped legacy Tenant credentials remain temporarily accepted while
+     * existing callers are migrated to typed Membership Credentials.
      */
     public function handle(
         Request $request,
@@ -56,6 +68,10 @@ final class InjectTenantContext
         );
 
         if ($identity === null) {
+            return $this->contextErrorResponse();
+        }
+
+        if (! $this->isMembershipCompatibleCredential($identity)) {
             return $this->contextErrorResponse();
         }
 
@@ -157,6 +173,28 @@ final class InjectTenantContext
                 'authenticated_membership_id',
             );
         }
+    }
+
+    /**
+     * Typed credentials must explicitly declare Membership context.
+     *
+     * Credential type absence is accepted only as a temporary compatibility
+     * path for pre-typed Tenant credentials. The existing Tenant and
+     * Membership claim validation below still applies to that legacy path.
+     */
+    private function isMembershipCompatibleCredential(
+        ResolvedAuthenticatedIdentity $identity,
+    ): bool {
+        $credentialType = $identity->stringClaim(
+            'credential_type',
+        );
+
+        if ($credentialType === null) {
+            return true;
+        }
+
+        return $credentialType
+            === self::CREDENTIAL_TYPE_MEMBERSHIP;
     }
 
     private function contextErrorResponse(): JsonResponse
