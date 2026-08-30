@@ -40,6 +40,22 @@ final class SessionCredentialVault implements BrowserSessionAuthenticationCreden
         $this->writeState($state);
     }
 
+    public function establishFreshIdentity(string $userId): void
+    {
+        $this->assertUuidV7($userId, 'userId');
+
+        /*
+         * Fresh authentication must never inherit Membership/Tenant
+         * credentials from an earlier authenticated browser state,
+         * including an earlier session owned by this same User.
+         */
+        $state = $this->emptyState();
+
+        $state[self::USER_ID_KEY] = $userId;
+
+        $this->writeState($state);
+    }
+
     public function userId(): ?string
     {
         return $this->readState()[self::USER_ID_KEY];

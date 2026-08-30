@@ -23,6 +23,15 @@ interface BrowserSessionCredentialVaultInterface
     public function establishForUser(string $userId): void;
 
     /**
+     * Establish a fresh authenticated browser identity.
+     *
+     * Unlike establishForUser(), this boundary always discards any
+     * previously cached Membership credentials, including credentials
+     * owned by the same User.
+     */
+    public function establishFreshIdentity(string $userId): void;
+
+    /**
      * Return the browser-session user that currently owns the vault.
      */
     public function userId(): ?string;
