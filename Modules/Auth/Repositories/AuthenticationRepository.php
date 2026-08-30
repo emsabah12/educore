@@ -21,12 +21,14 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
      * Resolve an active global User identity without Tenant/Membership
      * participation.
      *
-     * The repository normalizes the identifier again even though HTTP request
-     * validation already performs normalization. This protects the application
-     * boundary from callers outside the HTTP transport.
+     * Identifier classification is deterministic:
      *
-     * Username resolution intentionally remains unavailable until the
-     * users.username persistence contract is introduced.
+     * - identifiers containing "@" are resolved by canonical email;
+     * - all other identifiers are resolved by canonical username.
+     *
+     * The identifier is normalized again at this repository boundary so
+     * callers outside the HTTP transport cannot bypass canonical lookup
+     * normalization.
      *
      * @return array<string, mixed>|null
      */
@@ -41,15 +43,12 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
             return null;
         }
 
-        /*
-         * PRD-002 classifies identifiers containing "@" as email.
-         *
-         * The username branch is deliberately not guessed or emulated before
-         * the canonical users.username column exists.
-         */
-        if (! str_contains($normalizedIdentifier, '@')) {
-            return null;
-        }
+        $loginColumn = str_contains(
+            $normalizedIdentifier,
+            '@',
+        )
+            ? 'email'
+            : 'username';
 
         $user = DB::table(self::USERS_TABLE)
             ->join(
@@ -63,12 +62,13 @@ final class AuthenticationRepository implements AuthenticationRepositoryInterfac
                 self::USERS_TABLE.'.person_id',
                 self::PERSONS_TABLE.'.name as person_name',
                 self::USERS_TABLE.'.email',
+                self::USERS_TABLE.'.username',
                 self::USERS_TABLE.'.password as password_hash',
                 self::USERS_TABLE.'.is_superadmin',
                 self::USERS_TABLE.'.status as user_status',
             ])
             ->where(
-                self::USERS_TABLE.'.email',
+                self::USERS_TABLE.'.'.$loginColumn,
                 $normalizedIdentifier,
             )
             ->where(
