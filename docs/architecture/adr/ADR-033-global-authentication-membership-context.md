@@ -1,6 +1,6 @@
 # ADR-033 — Global Authentication & Membership Context Establishment
 
-**Version**: 1.1
+**Version**: 1.2
 **Status**: ACCEPTED / LOCKED
 **Date**: 2026-08-26
 **Scope**: Core/Auth/User Platform Foundation
@@ -374,6 +374,59 @@ business module APIs
 `/api/v1/auth/me` remains the canonical verified **Membership/Tenant** context bootstrap and is intentionally not weakened into an ambiguous nullable Tenant response.
 
 This separation reduces regression risk and preserves existing tenant-runtime semantics.
+
+
+## Canonical authentication/context error semantics
+
+Global identity failure and Tenant-context failure are distinct security states and MUST retain distinct canonical recovery semantics.
+
+For stateless API/mobile transport:
+
+```text
+missing / invalid / expired global identity credential
+→ HTTP 401
+→ AUTHENTICATION_REQUIRED
+```
+
+A credential that successfully proves global User identity but does not establish Membership Context cannot satisfy a Tenant-scoped endpoint:
+
+```text
+valid Identity Context
++ Tenant-scoped endpoint
++ no valid Membership Context
+→ HTTP 403
+→ AUTHENTICATION_CONTEXT_DENIED
+```
+
+Malformed, inactive, cross-Person, mismatched, or otherwise invalid Membership/Tenant context continues to use:
+
+```text
+HTTP 403
+AUTHENTICATION_CONTEXT_DENIED
+```
+
+ADR-033 does not introduce a new stateless `MEMBERSHIP_CONTEXT_REQUIRED` machine code. `AUTHENTICATION_CONTEXT_DENIED` remains the canonical stateless Tenant-context rejection vocabulary.
+
+Browser transport retains its existing BrowserSession-specific vocabulary:
+
+```text
+no authenticated BrowserSession
+→ HTTP 401
+→ BROWSER_SESSION_AUTHENTICATION_REQUIRED
+
+authenticated BrowserSession
++ Membership locator absent
+→ HTTP 403
+→ BROWSER_MEMBERSHIP_CONTEXT_REQUIRED
+
+authenticated BrowserSession
++ Membership locator present
++ no corresponding usable server-held Membership credential
+→ HTTP 403
+→ BROWSER_MEMBERSHIP_CONTEXT_DENIED
+```
+
+These codes are transport/context recovery signals only. They do not weaken canonical Membership ownership, Tenant activity, or authorization verification.
 
 ---
 

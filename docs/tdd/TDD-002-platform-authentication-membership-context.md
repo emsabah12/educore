@@ -1,6 +1,6 @@
 # TDD-002 — Platform Authentication & Membership Context Technical Design
 
-**Version**: 1.1
+**Version**: 1.2
 **Status**: ACCEPTED / LOCKED
 **Date**: 2026-08-26
 **Scope**: Controlled Refactor — Auth, BrowserSession, User Membership Context, OpenAPI & Frontend Platform Runtime
@@ -855,9 +855,9 @@ No implicit Tenant data access is granted by this flow.
 | Failure | Result |
 | --- | --- |
 | Invalid identifier/password | 401 generic authentication failure. |
-| Suspended User | Authentication denied. |
-| Identity token sent to Tenant endpoint | Fail closed; 403/401 according to canonical context error contract. |
-| BrowserSession user no longer active | Authentication required; session may be cleared. |
+| Suspended User | Stateless identity resolution returns 401 `AUTHENTICATION_REQUIRED`; browser identity resolution returns 401 `BROWSER_SESSION_AUTHENTICATION_REQUIRED` and may clear the session. |
+| Valid identity-scoped token sent to Tenant endpoint | 403 `AUTHENTICATION_CONTEXT_DENIED`; global identity is valid but Membership/Tenant context is absent. |
+| BrowserSession user no longer active | 401 `BROWSER_SESSION_AUTHENTICATION_REQUIRED`; session may be cleared. |
 | 0 active Membership | Identity remains authenticated; no Tenant access. |
 | Membership switch target not owned by Person | Denied; no context change. |
 | Membership inactive | Denied; refresh discovery. |
@@ -865,6 +865,57 @@ No implicit Tenant data access is granted by this flow.
 | `/auth/me` verification after switch fails | Do not commit target context. |
 | Browser logout with zero membership credentials | Clear BrowserSession successfully. |
 | Token revocation storage failure | Fail secure; do not claim successful revocation. |
+
+
+## 16.1 Canonical authentication/context error classification
+
+The refactor MUST preserve the existing stable API error vocabulary rather than introducing a new stateless Membership-required code.
+
+### Stateless identity boundary
+
+When global User identity cannot be established because the credential is missing, invalid, expired, or resolves to an inactive/suspended User:
+
+```text
+HTTP 401
+code = AUTHENTICATION_REQUIRED
+```
+
+This is the canonical authentication-recovery signal.
+
+### Stateless Tenant boundary
+
+A valid identity-scoped credential proves User identity but is intentionally insufficient for Tenant-scoped runtime.
+
+Therefore:
+
+```text
+credential_type = identity
++ Tenant-scoped endpoint
+→ HTTP 403
+→ AUTHENTICATION_CONTEXT_DENIED
+```
+
+The same canonical Tenant-context error remains applicable when Membership/Tenant context cannot be safely established because claims are malformed, mismatched, inactive, cross-Person, or otherwise invalid.
+
+No stateless `MEMBERSHIP_CONTEXT_REQUIRED` code is introduced by TDD-002.
+
+### Browser boundary
+
+Existing BrowserSession error contracts remain:
+
+```text
+no authenticated BrowserSession
+→ 401 BROWSER_SESSION_AUTHENTICATION_REQUIRED
+
+authenticated BrowserSession
+without Membership locator
+→ 403 BROWSER_MEMBERSHIP_CONTEXT_REQUIRED
+
+Membership locator has no usable server-held Membership credential
+→ 403 BROWSER_MEMBERSHIP_CONTEXT_DENIED
+```
+
+Browser-specific codes remain distinct because browser transport uses server-side BrowserSession identity and an untrusted tab-local Membership locator rather than exposing bearer credentials to React.
 
 ---
 
@@ -948,7 +999,9 @@ Mandatory tests:
 
 - identity token accepted by `InjectAuthenticatedUser`;
 - membership token accepted by `InjectAuthenticatedUser`;
-- identity token rejected by `InjectTenantContext`;
+- identity token rejected by `InjectTenantContext` with exact HTTP 403 + `AUTHENTICATION_CONTEXT_DENIED`;
+- missing/invalid identity credential on identity middleware retains exact HTTP 401 + `AUTHENTICATION_REQUIRED`;
+- malformed or invalid Membership/Tenant context retains exact HTTP 403 + `AUTHENTICATION_CONTEXT_DENIED`;
 - membership token retains existing Tenant verification;
 - suspended User rejects both token types;
 - malformed credential type fails closed;
@@ -961,7 +1014,9 @@ Mandatory tests:
 - pre-existing server-held Membership credentials are revoked where applicable before fresh-login inventory reset;
 - reload of an already authenticated BrowserSession does not clear its credential inventory merely to revalidate identity;
 - identity-protected browser endpoint works with empty map;
-- browser Tenant endpoint still requires Membership locator/credential;
+- browser Tenant endpoint without an authenticated BrowserSession returns exact HTTP 401 + `BROWSER_SESSION_AUTHENTICATION_REQUIRED`;
+- authenticated BrowserSession without a Membership locator returns exact HTTP 403 + `BROWSER_MEMBERSHIP_CONTEXT_REQUIRED`;
+- Membership locator without a usable server-held Membership credential returns exact HTTP 403 + `BROWSER_MEMBERSHIP_CONTEXT_DENIED`;
 - browser Membership switch stores new server-side credential;
 - browser bearer never serialized in response;
 - logout with empty map clears identity;
@@ -1199,6 +1254,8 @@ TDD-002 implementation is complete only when:
 - fresh browser login starts with an empty Membership credential inventory even when the same User authenticates again;
 - reload of an already authenticated BrowserSession does not perform fresh-login reset semantics;
 - identity credentials cannot enter Tenant endpoints;
+- valid identity-scoped credential on a Tenant endpoint returns exact HTTP 403 + `AUTHENTICATION_CONTEXT_DENIED`;
+- browser missing-session / missing-Membership-context failures retain their existing stable BrowserSession machine codes;
 - 0/1/>1 Membership behavior passes product acceptance tests;
 - fresh multi-Membership login always requires selection;
 - reload restoration semantics remain safe;
