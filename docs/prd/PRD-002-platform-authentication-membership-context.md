@@ -1,12 +1,12 @@
 # PRD-002 — Platform Authentication & Membership Context
 
-**Version**: 1.0  
-**Status**: ACCEPTED / LOCKED  
-**Date**: 2026-08-26  
-**Scope**: Platform Foundation — Global Authentication, Membership Discovery, Tenant Context Establishment & Switching  
-**Implementation State**: NOT STARTED — controlled refactor required  
-**Supersedes Product Contract**: conflicting login clauses in `FE-003-authentication_session-prd.md`; conflicting fresh-login assumptions in `FE-004-tenant_membership-context-prd.md`  
-**Architecture Dependency**: ADR-013, ADR-014, ADR-016, ADR-018, ADR-022, ADR-023  
+**Version**: 1.0
+**Status**: ACCEPTED / LOCKED
+**Date**: 2026-08-26
+**Scope**: Platform Foundation — Global Authentication, Membership Discovery, Tenant Context Establishment & Switching
+**Implementation State**: NOT STARTED — controlled refactor required
+**Supersedes Product Contract**: conflicting login clauses in `FE-003-authentication_session-prd.md`; conflicting fresh-login assumptions in `FE-004-tenant_membership-context-prd.md`
+**Architecture Dependency**: ADR-013, ADR-014, ADR-016, ADR-018, ADR-022, ADR-023
 
 ---
 
@@ -622,13 +622,13 @@ BO-005
 
 # 18. Reviewer Mode
 
-**Quality Score:** 9.6/10  
+**Quality Score:** 9.6/10
 
-**Gaps:** No critical product gap remains for this scope. Account-management/invitation and MFA are intentionally outside scope.  
+**Gaps:** No critical product gap remains for this scope. Account-management/invitation and MFA are intentionally outside scope.
 
-**Risks:** Authentication migration must be coordinated across backend, OpenAPI, frontend, and tests. Browser identity-only state must remain canonically revalidated and must not become a shortcut around User status.  
+**Risks:** Authentication migration must be coordinated across backend, OpenAPI, frontend, and tests. Browser identity-only state must remain canonically revalidated and must not become a shortcut around User status.
 
-**Recommendations:** Implement through ADR-033 and TDD-002; retain existing membership-scoped runtime after selection; do not redesign downstream modules.  
+**Recommendations:** Implement through ADR-033 and TDD-002; retain existing membership-scoped runtime after selection; do not redesign downstream modules.
 
 **Status:** **READY FOR APPROVAL — APPROVED / LOCKED**
 

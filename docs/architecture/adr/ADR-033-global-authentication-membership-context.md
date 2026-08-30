@@ -1,13 +1,13 @@
 # ADR-033 — Global Authentication & Membership Context Establishment
 
-**Version**: 1.0  
-**Status**: ACCEPTED / LOCKED  
-**Date**: 2026-08-26  
-**Scope**: Core/Auth/User Platform Foundation  
-**Supersedes**: ADR-015 — Authentication Token & Request Context  
-**Extends / Aligns**: ADR-013, ADR-014, ADR-016, ADR-018, ADR-030  
-**Amends**: ADR-022 browser login/bootstrap assumptions; ADR-023 pre-switch source-context assumptions  
-**Product Authority**: PRD-002 — Platform Authentication & Membership Context  
+**Version**: 1.0
+**Status**: ACCEPTED / LOCKED
+**Date**: 2026-08-26
+**Scope**: Core/Auth/User Platform Foundation
+**Supersedes**: ADR-015 — Authentication Token & Request Context
+**Extends / Aligns**: ADR-013, ADR-014, ADR-016, ADR-018, ADR-030
+**Amends**: ADR-022 browser login/bootstrap assumptions; ADR-023 pre-switch source-context assumptions
+**Product Authority**: PRD-002 — Platform Authentication & Membership Context
 
 ---
 
@@ -540,12 +540,12 @@ Compatibility behavior is transitional implementation detail and must be removed
 
 # 18. Reviewer Mode
 
-**Quality Score:** 9.7/10  
+**Quality Score:** 9.7/10
 
-**Gaps:** No critical architecture gap remains. Refresh token, SSO, MFA, and account management are intentionally separate decisions.  
+**Gaps:** No critical architecture gap remains. Refresh token, SSO, MFA, and account management are intentionally separate decisions.
 
-**Risks:** The highest risk is accidental acceptance of identity credentials by Tenant middleware; this is mitigated by explicit credential typing and mandatory regression tests. Coordinated rollout is required because the login request contract changes.  
+**Risks:** The highest risk is accidental acceptance of identity credentials by Tenant middleware; this is mitigated by explicit credential typing and mandatory regression tests. Coordinated rollout is required because the login request contract changes.
 
-**Recommendations:** Keep `/auth/me` tenant-scoped; add separate identity introspection; preserve current `SwitchMembership` and post-selection context shape; use explicit token-issuance methods.  
+**Recommendations:** Keep `/auth/me` tenant-scoped; add separate identity introspection; preserve current `SwitchMembership` and post-selection context shape; use explicit token-issuance methods.
 
 **Status:** **ACCEPTED / LOCKED**

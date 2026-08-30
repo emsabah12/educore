@@ -1,13 +1,13 @@
 # TDD-002 — Platform Authentication & Membership Context Technical Design
 
-**Version**: 1.0  
-**Status**: ACCEPTED / LOCKED  
-**Date**: 2026-08-26  
-**Scope**: Controlled Refactor — Auth, BrowserSession, User Membership Context, OpenAPI & Frontend Platform Runtime  
-**Product Authority**: PRD-002 — Platform Authentication & Membership Context  
-**Architecture Authority**: ADR-033 — Global Authentication & Membership Context Establishment  
-**Implementation State**: NOT STARTED  
-**Change Size**: MEDIUM / LOCALISED PLATFORM REFACTOR  
+**Version**: 1.0
+**Status**: ACCEPTED / LOCKED
+**Date**: 2026-08-26
+**Scope**: Controlled Refactor — Auth, BrowserSession, User Membership Context, OpenAPI & Frontend Platform Runtime
+**Product Authority**: PRD-002 — Platform Authentication & Membership Context
+**Architecture Authority**: ADR-033 — Global Authentication & Membership Context Establishment
+**Implementation State**: NOT STARTED
+**Change Size**: MEDIUM / LOCALISED PLATFORM REFACTOR
 
 ---
 
@@ -251,7 +251,7 @@ Membership presence must not affect whether credentials are valid.
 
 ### Change Classification
 
-`AuthenticationRepositoryInterface` — **REFACTOR**  
+`AuthenticationRepositoryInterface` — **REFACTOR**
 `AuthenticationRepository` — **REFACTOR**
 
 ---
@@ -1187,12 +1187,12 @@ TDD-002 implementation is complete only when:
 
 # 27. Reviewer Mode
 
-**Quality Score:** 9.6/10  
+**Quality Score:** 9.6/10
 
-**Gaps:** No critical technical design gap remains for the locked scope. Exact class names for newly split authentication DTO/services may be chosen during implementation as long as boundaries in this TDD are preserved.  
+**Gaps:** No critical technical design gap remains for the locked scope. Exact class names for newly split authentication DTO/services may be chosen during implementation as long as boundaries in this TDD are preserved.
 
-**Risks:** Coordinated contract migration and token-type enforcement are the principal risks. Browser logout/revocation behavior must be tested for both empty and populated credential inventories.  
+**Risks:** Coordinated contract migration and token-type enforcement are the principal risks. Browser logout/revocation behavior must be tested for both empty and populated credential inventories.
 
-**Recommendations:** Implement incrementally behind regression tests; preserve `/auth/me` as tenant-scoped; add `/auth/identity`; do not alter downstream business-module contracts.  
+**Recommendations:** Implement incrementally behind regression tests; preserve `/auth/me` as tenant-scoped; add `/auth/identity`; do not alter downstream business-module contracts.
 
 **Status:** **READY FOR IMPLEMENTATION — ACCEPTED / LOCKED**
