@@ -24,6 +24,8 @@ final class DeterministicTokenManager implements TokenManagerInterface
 
     private const CREDENTIAL_TYPE_IDENTITY = 'identity';
 
+    private const CREDENTIAL_TYPE_MEMBERSHIP = 'membership';
+
     public function __construct(
         private readonly TokenRevocationStoreInterface $revocationStore,
     ) {}
@@ -36,36 +38,66 @@ final class DeterministicTokenManager implements TokenManagerInterface
     /**
      * Issue a Tenant-independent canonical Identity Credential.
      *
-     * No arbitrary claims are accepted here intentionally. This prevents
-     * Tenant, Membership, role, or permission context from leaking into the
-     * global Identity Credential.
-     *
      * @throws JsonException
      */
     public function issueIdentityToken(
         string $userUuid,
     ): string {
-        $canonicalUserUuid = trim($userUuid);
-
-        if ($canonicalUserUuid === '') {
-            throw new InvalidArgumentException(
-                'Identity Credential requires a non-empty User identifier.',
-            );
-        }
+        $canonicalUserUuid = $this->requireIdentifier(
+            $userUuid,
+            'User',
+        );
 
         return $this->encryptPayload([
             'credential_type' => self::CREDENTIAL_TYPE_IDENTITY,
             'user_id' => $canonicalUserUuid,
-            'expires_at' => $this->currentTimestamp()
-                + $this->lifetimeInSeconds(),
+            'expires_at' => $this->expirationTimestamp(),
         ]);
     }
 
     /**
-     * Issue the existing Tenant-aware authentication credential.
+     * Issue an explicit canonical Membership Credential.
      *
-     * This method intentionally preserves the existing payload contract during
-     * the transition to explicit typed Membership Credentials.
+     * No arbitrary claims are accepted. In particular, role and permission
+     * state must remain backend-authoritative and must not be embedded into
+     * the bearer credential.
+     *
+     * @throws JsonException
+     */
+    public function issueMembershipToken(
+        string $userUuid,
+        string $tenantUuid,
+        string $membershipUuid,
+    ): string {
+        $canonicalUserUuid = $this->requireIdentifier(
+            $userUuid,
+            'User',
+        );
+
+        $canonicalTenantUuid = $this->requireIdentifier(
+            $tenantUuid,
+            'Tenant',
+        );
+
+        $canonicalMembershipUuid = $this->requireIdentifier(
+            $membershipUuid,
+            'Membership',
+        );
+
+        return $this->encryptPayload([
+            'credential_type' => self::CREDENTIAL_TYPE_MEMBERSHIP,
+            'user_id' => $canonicalUserUuid,
+            'tenant_id' => $canonicalTenantUuid,
+            'membership_id' => $canonicalMembershipUuid,
+            'expires_at' => $this->expirationTimestamp(),
+        ]);
+    }
+
+    /**
+     * Issue the existing legacy Tenant-aware credential.
+     *
+     * This method intentionally preserves the old payload contract while
+     * existing callers are migrated to issueMembershipToken().
      *
      * @param  array<string, mixed>  $customClaims
      *
@@ -78,15 +110,14 @@ final class DeterministicTokenManager implements TokenManagerInterface
     ): string {
         /*
          * Core claims are placed last so callers cannot override canonical
-         * identity/Tenant/expiration values through custom claims.
+         * User/Tenant/expiration values through custom claims.
          */
         $payload = array_merge(
             $customClaims,
             [
                 'user_id' => $userUuid,
                 'tenant_id' => $tenantUuid,
-                'expires_at' => $this->currentTimestamp()
-                    + $this->lifetimeInSeconds(),
+                'expires_at' => $this->expirationTimestamp(),
             ],
         );
 
@@ -109,12 +140,10 @@ final class DeterministicTokenManager implements TokenManagerInterface
             return null;
         }
 
-        $expiresAt = $payload['expires_at'];
-
-        /*
-         * A credential is invalid exactly at expires_at.
-         */
-        if ($this->currentTimestamp() >= $expiresAt) {
+        if (
+            $this->currentTimestamp()
+            >= $payload['expires_at']
+        ) {
             Log::warning(
                 'Expired authentication credential blocked.',
                 $this->safeLogContext($payload),
@@ -124,13 +153,7 @@ final class DeterministicTokenManager implements TokenManagerInterface
         }
 
         /*
-         * Revocation is checked only after the credential is:
-         *
-         * - decryptable
-         * - structurally valid
-         * - unexpired
-         *
-         * Revocation storage failure must fail closed.
+         * Revocation persistence failure must fail closed.
          */
         try {
             if (
@@ -175,16 +198,13 @@ final class DeterministicTokenManager implements TokenManagerInterface
     }
 
     /**
-     * Validate only the encrypted envelope and canonical structural claims.
+     * Validate encrypted envelope and canonical structural claims only.
      *
-     * This intentionally does not enforce credential lifetime or revocation so
-     * logout can still persist revocation metadata for structurally valid
-     * credentials without using this method as an authentication decision.
+     * During migration three credential shapes are accepted:
      *
-     * During the migration this accepts:
-     *
-     * 1. canonical typed Identity Credentials; and
-     * 2. existing untyped Tenant-aware credentials.
+     * 1. typed Identity Credential;
+     * 2. typed Membership Credential;
+     * 3. legacy untyped Tenant-aware credential.
      *
      * @return array<string, mixed>|null
      */
@@ -222,14 +242,12 @@ final class DeterministicTokenManager implements TokenManagerInterface
                 return null;
             }
 
-            $credentialType = $payload['credential_type'] ?? null;
+            $credentialType = $payload['credential_type']
+                ?? null;
 
             /*
-             * Existing credentials predate credential_type.
-             *
-             * Preserve their structural contract temporarily so current
-             * Membership/Tenant authentication continues working while the
-             * explicit Membership Credential contract is introduced later.
+             * Compatibility path for credentials issued before typed
+             * credential contracts existed.
              */
             if ($credentialType === null) {
                 return $this->validateLegacyTenantPayload(
@@ -237,41 +255,66 @@ final class DeterministicTokenManager implements TokenManagerInterface
                 );
             }
 
-            /*
-             * B2 introduces only canonical Identity Credentials.
-             *
-             * Other explicit credential types remain fail-closed until their
-             * own contract is implemented in a subsequent TDD phase.
-             */
+            if (! is_string($credentialType)) {
+                $this->logUnsupportedCredential(
+                    $userId,
+                );
+
+                return null;
+            }
+
             if (
-                ! is_string($credentialType)
-                || $credentialType !== self::CREDENTIAL_TYPE_IDENTITY
+                $credentialType
+                === self::CREDENTIAL_TYPE_IDENTITY
             ) {
-                Log::warning(
-                    'Unsupported authentication credential type blocked.',
-                    [
-                        'user_id' => $userId,
-                    ],
-                );
+                if (
+                    ! $this->isCanonicalIdentityPayload(
+                        $payload,
+                    )
+                ) {
+                    Log::warning(
+                        'Malformed Identity Credential payload blocked.',
+                        [
+                            'user_id' => $userId,
+                        ],
+                    );
 
-                return null;
+                    return null;
+                }
+
+                return $payload;
             }
 
-            if (! $this->isCanonicalIdentityPayload($payload)) {
-                Log::warning(
-                    'Malformed Identity Credential payload blocked.',
-                    [
-                        'user_id' => $userId,
-                    ],
-                );
+            if (
+                $credentialType
+                === self::CREDENTIAL_TYPE_MEMBERSHIP
+            ) {
+                if (
+                    ! $this->isCanonicalMembershipPayload(
+                        $payload,
+                    )
+                ) {
+                    Log::warning(
+                        'Malformed Membership Credential payload blocked.',
+                        [
+                            'user_id' => $userId,
+                        ],
+                    );
 
-                return null;
+                    return null;
+                }
+
+                return $payload;
             }
 
-            return $payload;
+            $this->logUnsupportedCredential(
+                $userId,
+            );
+
+            return null;
         } catch (Throwable $exception) {
             /*
-             * Never log the raw token or decrypted payload.
+             * Never log raw bearer material or decrypted payloads.
              */
             Log::warning(
                 'Tampered or invalid authentication credential blocked.',
@@ -285,7 +328,7 @@ final class DeterministicTokenManager implements TokenManagerInterface
     }
 
     /**
-     * Preserve the current Tenant-aware payload contract during migration.
+     * Preserve the existing Tenant-aware payload contract during migration.
      *
      * @param  array<string, mixed>  $payload
      *
@@ -309,10 +352,7 @@ final class DeterministicTokenManager implements TokenManagerInterface
     }
 
     /**
-     * Identity Credentials deliberately have an exact claim surface.
-     *
-     * Extra claims are rejected because Tenant/Membership/authorization state
-     * must never be smuggled into global Identity Context.
+     * Identity Credentials have an exact claim surface.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -338,6 +378,52 @@ final class DeterministicTokenManager implements TokenManagerInterface
     }
 
     /**
+     * Membership Credentials have an exact claim surface.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function isCanonicalMembershipPayload(
+        array $payload,
+    ): bool {
+        if (count($payload) !== 5) {
+            return false;
+        }
+
+        if (
+            ! array_key_exists(
+                'credential_type',
+                $payload,
+            )
+            || ! array_key_exists(
+                'user_id',
+                $payload,
+            )
+            || ! array_key_exists(
+                'tenant_id',
+                $payload,
+            )
+            || ! array_key_exists(
+                'membership_id',
+                $payload,
+            )
+            || ! array_key_exists(
+                'expires_at',
+                $payload,
+            )
+        ) {
+            return false;
+        }
+
+        $tenantId = $payload['tenant_id'];
+        $membershipId = $payload['membership_id'];
+
+        return is_string($tenantId)
+            && trim($tenantId) !== ''
+            && is_string($membershipId)
+            && trim($membershipId) !== '';
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      *
      * @return array<string, mixed>
@@ -360,6 +446,16 @@ final class DeterministicTokenManager implements TokenManagerInterface
             $context['tenant_id'] = $tenantId;
         }
 
+        $membershipId = $payload['membership_id']
+            ?? null;
+
+        if (
+            is_string($membershipId)
+            && trim($membershipId) !== ''
+        ) {
+            $context['membership_id'] = $membershipId;
+        }
+
         return $context;
     }
 
@@ -370,6 +466,43 @@ final class DeterministicTokenManager implements TokenManagerInterface
         );
     }
 
+    private function logUnsupportedCredential(
+        string $userId,
+    ): void {
+        Log::warning(
+            'Unsupported authentication credential type blocked.',
+            [
+                'user_id' => $userId,
+            ],
+        );
+    }
+
+    private function requireIdentifier(
+        string $identifier,
+        string $label,
+    ): string {
+        $canonicalIdentifier = trim(
+            $identifier,
+        );
+
+        if ($canonicalIdentifier === '') {
+            throw new InvalidArgumentException(
+                sprintf(
+                    '%s identifier must not be empty.',
+                    $label,
+                ),
+            );
+        }
+
+        return $canonicalIdentifier;
+    }
+
+    private function expirationTimestamp(): int
+    {
+        return $this->currentTimestamp()
+            + $this->lifetimeInSeconds();
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      *
@@ -378,13 +511,11 @@ final class DeterministicTokenManager implements TokenManagerInterface
     private function encryptPayload(
         array $payload,
     ): string {
-        $encodedPayload = json_encode(
-            $payload,
-            JSON_THROW_ON_ERROR,
-        );
-
         return Crypt::encryptString(
-            $encodedPayload,
+            json_encode(
+                $payload,
+                JSON_THROW_ON_ERROR,
+            ),
         );
     }
 
