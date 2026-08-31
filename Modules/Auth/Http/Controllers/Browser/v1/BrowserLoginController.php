@@ -7,7 +7,7 @@ namespace Modules\Auth\Http\Controllers\Browser\v1;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Modules\Auth\Application\AuthenticationChannel;
-use Modules\Auth\Application\Services\AuthenticationCredentialIssuer;
+use Modules\Auth\Application\Services\GlobalAuthenticationService;
 use Modules\Auth\BrowserSession\Contracts\BrowserSessionCredentialVaultInterface;
 use Modules\Auth\Http\Requests\LoginTokenRequest;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
@@ -18,30 +18,30 @@ use Throwable;
 final readonly class BrowserLoginController
 {
     public function __construct(
-        private AuthenticationCredentialIssuer $credentialIssuer,
+        private GlobalAuthenticationService $authenticationService,
         private BrowserSessionCredentialVaultInterface $credentialVault,
         private AuditTrailServiceInterface $auditTrail,
     ) {}
 
-    public function __invoke(LoginTokenRequest $request): JsonResponse
-    {
+    public function __invoke(
+        LoginTokenRequest $request,
+    ): JsonResponse {
         /**
          * @var array{
-         *     email: string,
-         *     password: string,
-         *     tenant_uuid: string
+         *     identifier: string,
+         *     password: string
          * } $credentials
          */
         $credentials = $request->validated();
 
-        $issuedCredential = $this->credentialIssuer->issue(
-            email: $credentials['email'],
-            password: $credentials['password'],
-            tenantUuid: $credentials['tenant_uuid'],
-            channel: AuthenticationChannel::BROWSER_SESSION,
-        );
+        $identity = $this->authenticationService
+            ->authenticate(
+                identifier: $credentials['identifier'],
+                password: $credentials['password'],
+                channel: AuthenticationChannel::BROWSER_SESSION,
+            );
 
-        if ($issuedCredential === null) {
+        if ($identity === null) {
             return ApiErrorResponse::make(
                 code: 'AUTHENTICATION_FAILED',
                 message: 'Invalid authentication credentials.',
@@ -51,41 +51,50 @@ final readonly class BrowserLoginController
 
         try {
             /*
-             * Destroy the pre-authentication session identifier before the
-             * canonical bearer is moved into BrowserSession custody.
+             * Prevent session fixation before authenticated BrowserSession
+             * identity is established.
+             *
+             * Regeneration intentionally preserves unrelated session data
+             * while replacing the pre-authentication session identifier.
              */
-            $request->session()->regenerate(true);
-
-            $this->credentialVault->establishForUser(
-                $issuedCredential->userId,
+            $request->session()->regenerate(
+                true,
             );
 
-            $this->credentialVault->storeMembershipCredential(
-                $issuedCredential->membershipId,
-                $issuedCredential->bearerCredential,
-            );
+            /*
+             * Fresh login is identity-only.
+             *
+             * This operation deliberately clears any Membership credentials
+             * left from an earlier browser authentication, including state
+             * owned by this same User.
+             */
+            $this->credentialVault
+                ->establishFreshIdentity(
+                    $identity->userId,
+                );
         } catch (Throwable $exception) {
             $this->clearCredentialVaultAfterFailedLogin();
 
             Log::error(
-                'Browser session establishment failed after credential verification.',
+                'Browser session establishment failed after global credential verification.',
                 [
-                    'user_id' => $issuedCredential->userId,
-                    'tenant_id' => $issuedCredential->tenantId,
-                    'membership_id' => $issuedCredential->membershipId,
+                    'user_id' => $identity->userId,
                     'exception' => $exception::class,
                 ],
             );
 
             $this->auditTrail->log(
                 'auth.login_browser_failed',
-                'Browser login gagal saat membentuk secure server session.',
-                $issuedCredential->tenantId,
-                $issuedCredential->userId,
+                'Browser login failed while establishing secure global identity session.',
+                null,
+                $identity->userId,
                 [
-                    'channel' => AuthenticationChannel::BROWSER_SESSION->value,
-                    'status' => 'session_establishment_failed',
-                    'membership_id' => $issuedCredential->membershipId,
+                    'channel' =>
+                        AuthenticationChannel::BROWSER_SESSION->value,
+                    'status' =>
+                        'session_establishment_failed',
+                    'context_type' =>
+                        'identity',
                 ],
             );
 
@@ -96,26 +105,46 @@ final readonly class BrowserLoginController
             );
         }
 
+        /*
+         * Successful Browser authentication is global Identity Context.
+         *
+         * Tenant and Membership selection happen later through canonical
+         * Membership discovery/switch boundaries.
+         */
         $this->auditTrail->log(
             'auth.login_browser_success',
-            sprintf(
-                'User %s sukses login via Browser Session.',
-                $issuedCredential->name,
-            ),
-            $issuedCredential->tenantId,
-            $issuedCredential->userId,
+            'Global browser identity login succeeded.',
+            null,
+            $identity->userId,
             [
-                'channel' => AuthenticationChannel::BROWSER_SESSION->value,
-                'membership_id' => $issuedCredential->membershipId,
+                'channel' =>
+                    AuthenticationChannel::BROWSER_SESSION->value,
+                'context_type' =>
+                    'identity',
             ],
         );
 
+        /*
+         * No bearer credential is returned to browser JavaScript.
+         *
+         * Browser authentication authority lives in the hardened
+         * server-side BrowserSession.
+         */
         return response()->json(
             [
                 'status' => 'success',
                 'data' => [
-                    'membership_id' => $issuedCredential->membershipId,
-                    'tenant_id' => $issuedCredential->tenantId,
+                    'context_type' => 'identity',
+                    'user' => [
+                        'id' => $identity->userId,
+                        'name' => $identity->name,
+                        'email' => $identity->email,
+                        'username' => $identity->username,
+                    ],
+                    'platform' => [
+                        'is_superadmin' =>
+                            $identity->isSuperadmin,
+                    ],
                 ],
             ],
             Response::HTTP_OK,
@@ -130,7 +159,8 @@ final readonly class BrowserLoginController
             Log::critical(
                 'Browser credential vault cleanup failed after login failure.',
                 [
-                    'exception' => $cleanupException::class,
+                    'exception' =>
+                        $cleanupException::class,
                 ],
             );
         }

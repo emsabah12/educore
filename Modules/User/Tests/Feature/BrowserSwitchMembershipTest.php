@@ -89,7 +89,13 @@ final class BrowserSwitchMembershipTest extends TestCase
 
     public function test_browser_switch_prepares_target_credential_without_exposing_bearer_or_replacing_existing_context(): void
     {
-        $this->loginBrowserSession();
+        $this->loginBrowserIdentitySession();
+
+        $this->prepareBrowserMembershipCredential(
+            $this->membershipAId,
+            $this->tenantAId,
+            'Browser Switch Tenant A',
+        );
 
         $beforeState = $this->browserAuthState();
         $sourceBearer = $beforeState['membership_credentials'][$this->membershipAId] ?? null;
@@ -143,6 +149,10 @@ final class BrowserSwitchMembershipTest extends TestCase
 
         $this->assertIsArray($claims);
         $this->assertSame(
+            'membership',
+            $claims['credential_type'] ?? null,
+        );
+        $this->assertSame(
             $this->userAId,
             $claims['user_id'] ?? null,
         );
@@ -186,7 +196,7 @@ final class BrowserSwitchMembershipTest extends TestCase
 
     public function test_browser_switch_rejects_invalid_target_membership_identifier(): void
     {
-        $this->loginBrowserSession();
+        $this->loginBrowserIdentitySession();
 
         $this->postJson(
             '/api/v1/browser/user/memberships/not-a-uuid/switch',
@@ -201,16 +211,14 @@ final class BrowserSwitchMembershipTest extends TestCase
 
     public function test_browser_authorization_header_cannot_switch_as_another_user(): void
     {
-        $this->loginBrowserSession();
+        $this->loginBrowserIdentitySession();
 
         $otherUserBearer = $this->app
             ->make(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueMembershipToken(
                 $this->userBId,
                 $this->otherUserTenantId,
-                [
-                    'membership_id' => $this->otherUserMembershipId,
-                ],
+                $this->otherUserMembershipId,
             );
 
         $this
@@ -243,7 +251,7 @@ final class BrowserSwitchMembershipTest extends TestCase
 
     public function test_browser_switch_rejects_inactive_membership_and_inactive_tenant(): void
     {
-        $this->loginBrowserSession();
+        $this->loginBrowserIdentitySession();
 
         foreach (
             [
@@ -337,16 +345,101 @@ final class BrowserSwitchMembershipTest extends TestCase
         $this->assertSame(10, $route->waitsFor());
     }
 
-    private function loginBrowserSession(): void
+    private function loginBrowserIdentitySession(): void
     {
-        $this->postJson(
-            '/api/v1/browser/auth/login',
-            [
-                'email' => $this->emailA,
-                'password' => 'secret123',
-                'tenant_uuid' => $this->tenantAId,
-            ],
-        )->assertOk();
+        $this
+            ->postJson(
+                '/api/v1/browser/auth/login',
+                [
+                    'identifier' => $this->emailA,
+                    'password' => 'secret123',
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath(
+                'status',
+                'success',
+            )
+            ->assertJsonPath(
+                'data.context_type',
+                'identity',
+            )
+            ->assertJsonPath(
+                'data.user.id',
+                $this->userAId,
+            );
+
+        $state = $this->browserAuthState();
+
+        $this->assertSame(
+            $this->userAId,
+            $state['user_id'] ?? null,
+        );
+
+        $this->assertSame(
+            [],
+            $state['membership_credentials'] ?? null,
+            'Fresh Browser login must begin without Membership credentials.',
+        );
+    }
+
+    private function prepareBrowserMembershipCredential(
+        string $membershipId,
+        string $tenantId,
+        string $tenantName,
+    ): void {
+        $response = $this->postJson(
+            sprintf(
+                '/api/v1/browser/user/memberships/%s/switch',
+                $membershipId,
+            ),
+        );
+
+        $response
+            ->assertOk()
+            ->assertExactJson([
+                'status' => 'success',
+                'data' => [
+                    'membership_id' => $membershipId,
+                    'tenant_id' => $tenantId,
+                    'tenant_name' => $tenantName,
+                ],
+            ]);
+
+        $state = $this->browserAuthState();
+
+        $credentials = $state[
+            'membership_credentials'
+        ] ?? null;
+
+        $this->assertIsArray(
+            $credentials,
+        );
+
+        $bearerCredential = $credentials[
+            $membershipId
+        ] ?? null;
+
+        $this->assertIsString(
+            $bearerCredential,
+        );
+
+        $this->assertNotSame(
+            '',
+            trim(
+                $bearerCredential,
+            ),
+        );
+
+        $this->assertStringNotContainsString(
+            'access_token',
+            $response->getContent(),
+        );
+
+        $this->assertStringNotContainsString(
+            $bearerCredential,
+            $response->getContent(),
+        );
     }
 
     /**

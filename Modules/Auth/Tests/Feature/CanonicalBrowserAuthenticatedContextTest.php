@@ -65,7 +65,7 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
 
     public function test_canonical_me_accepts_browser_session_without_exposing_bearer(): void
     {
-        $bearerCredential = $this->loginBrowserSessionAndAttachCookie();
+        $bearerCredential = $this->loginBrowserMembershipContextAndAttachCookie();
 
         $response = $this
             ->withHeader(
@@ -92,16 +92,14 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
 
     public function test_browser_session_transport_ignores_browser_supplied_authorization_header(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserMembershipContextAndAttachCookie();
 
         $forgedBearer = $this->app
             ->make(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueMembershipToken(
                 $this->userId,
                 $this->alternateTenantId,
-                [
-                    'membership_id' => $this->alternateMembershipId,
-                ],
+                $this->alternateMembershipId,
             );
 
         $this
@@ -123,7 +121,7 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
 
     public function test_canonical_browser_me_requires_membership_locator(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserMembershipContextAndAttachCookie();
 
         $this
             ->getJson('/api/v1/auth/me')
@@ -137,7 +135,7 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
 
     public function test_canonical_browser_me_does_not_create_unknown_membership_context(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserMembershipContextAndAttachCookie();
 
         $this
             ->withHeader(
@@ -155,7 +153,7 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
 
     public function test_canonical_browser_me_rejects_invalid_membership_locator(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserMembershipContextAndAttachCookie();
 
         $this
             ->withHeader(
@@ -175,12 +173,10 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
     {
         $mismatchedBearer = $this->app
             ->make(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueMembershipToken(
                 $this->userId,
                 $this->alternateTenantId,
-                [
-                    'membership_id' => $this->alternateMembershipId,
-                ],
+                $this->alternateMembershipId,
             );
 
         $this->withSession([
@@ -215,12 +211,10 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
     {
         $bearerCredential = $this->app
             ->make(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueMembershipToken(
                 $this->userId,
                 $this->tenantId,
-                [
-                    'membership_id' => $this->membershipId,
-                ],
+                $this->membershipId,
             );
 
         $this
@@ -246,12 +240,10 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
     {
         $bearerCredential = $this->app
             ->make(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueMembershipToken(
                 $this->userId,
                 $this->tenantId,
-                [
-                    'membership_id' => $this->membershipId,
-                ],
+                $this->membershipId,
             );
 
         $response = $this
@@ -318,41 +310,151 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
         );
     }
 
-    private function loginBrowserSessionAndAttachCookie(): string
+    private function loginBrowserMembershipContextAndAttachCookie(): string
     {
-        $this->postJson(
-            '/api/v1/browser/auth/login',
-            [
-                'email' => $this->email,
-                'password' => 'secret123',
-                'tenant_uuid' => $this->tenantId,
-            ],
-        )->assertOk();
+        /*
+         * Browser authentication establishes global Identity Context only.
+         */
+        $this
+            ->postJson(
+                '/api/v1/browser/auth/login',
+                [
+                    'identifier' => $this->email,
+                    'password' => 'secret123',
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath(
+                'data.context_type',
+                'identity',
+            )
+            ->assertJsonPath(
+                'data.user.id',
+                $this->userId,
+            );
 
-        $browserAuthState = $this->app['session']->get(
+        $browserAuthState = $this->app[
+            'session'
+        ]->get(
             'educore.browser_auth',
         );
 
-        $this->assertIsArray($browserAuthState);
+        $this->assertIsArray(
+            $browserAuthState,
+        );
+
+        $this->assertSame(
+            $this->userId,
+            $browserAuthState['user_id']
+                ?? null,
+        );
+
+        $this->assertSame(
+            [],
+            $browserAuthState[
+                'membership_credentials'
+            ] ?? null,
+            'Fresh Browser login must not establish Membership context.',
+        );
+
+        /*
+         * /auth/me is Membership/Tenant-scoped, so prepare the canonical
+         * Membership credential explicitly after global authentication.
+         */
+        $this
+            ->postJson(
+                sprintf(
+                    '/api/v1/browser/user/memberships/%s/switch',
+                    $this->membershipId,
+                ),
+            )
+            ->assertOk()
+            ->assertExactJson([
+                'status' => 'success',
+                'data' => [
+                    'membership_id' =>
+                        $this->membershipId,
+                    'tenant_id' =>
+                        $this->tenantId,
+                    'tenant_name' =>
+                        'Canonical Browser Context Tenant',
+                ],
+            ]);
+
+        $browserAuthState = $this->app[
+            'session'
+        ]->get(
+            'educore.browser_auth',
+        );
+
+        $this->assertIsArray(
+            $browserAuthState,
+        );
 
         $bearerCredential = $browserAuthState[
             'membership_credentials'
         ][$this->membershipId] ?? null;
 
-        $this->assertIsString($bearerCredential);
-        $this->assertNotSame('', trim($bearerCredential));
+        $this->assertIsString(
+            $bearerCredential,
+        );
+
+        $this->assertNotSame(
+            '',
+            trim(
+                $bearerCredential,
+            ),
+        );
+
+        $claims = $this->app
+            ->make(
+                TokenManagerInterface::class,
+            )
+            ->validateAndExtract(
+                $bearerCredential,
+            );
+
+        $this->assertIsArray(
+            $claims,
+        );
+
+        $this->assertSame(
+            'membership',
+            $claims['credential_type']
+                ?? null,
+        );
+
+        $this->assertSame(
+            $this->userId,
+            $claims['user_id']
+                ?? null,
+        );
+
+        $this->assertSame(
+            $this->tenantId,
+            $claims['tenant_id']
+                ?? null,
+        );
+
+        $this->assertSame(
+            $this->membershipId,
+            $claims['membership_id']
+                ?? null,
+        );
 
         /*
          * Laravel's feature client does not retain response cookies between
-         * JSON requests automatically. Attach the current session identifier as
-         * an encrypted request cookie to exercise the same canonical transport
-         * discriminator used by a real browser.
+         * JSON requests automatically. Attach the current session identifier
+         * to exercise the same canonical transport discriminator used by a
+         * real browser.
          */
         $this
             ->withCredentials()
             ->withCookie(
                 $this->sessionCookieName(),
-                $this->app['session']->getId(),
+                $this->app[
+                    'session'
+                ]->getId(),
             );
 
         return $bearerCredential;

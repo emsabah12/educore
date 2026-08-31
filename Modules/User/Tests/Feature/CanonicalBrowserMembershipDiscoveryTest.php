@@ -78,7 +78,7 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
 
     public function test_canonical_membership_discovery_accepts_browser_session_without_membership_locator_or_bearer_exposure(): void
     {
-        $bearerCredential = $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserIdentityAndAttachCookie();
 
         $response = $this->getJson(
             '/api/v1/user/my-memberships',
@@ -110,15 +110,11 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
             'access_token',
             $response->getContent(),
         );
-        $this->assertStringNotContainsString(
-            $bearerCredential,
-            $response->getContent(),
-        );
     }
 
     public function test_browser_membership_discovery_ignores_browser_supplied_authorization_header(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserIdentityAndAttachCookie();
 
         $forgedBearer = $this->app
             ->make(TokenManagerInterface::class)
@@ -182,26 +178,19 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
             ]);
     }
 
-    public function test_browser_membership_discovery_fails_closed_when_candidate_authenticates_different_user(): void
+    public function test_browser_membership_discovery_uses_browser_identity_without_authentication_credential_candidate(): void
     {
-        $this->loginBrowserSessionAndAttachCookie();
+        $this->loginBrowserIdentityAndAttachCookie();
 
-        $otherUserBearer = $this->app
-            ->make(TokenManagerInterface::class)
-            ->issueToken(
-                $this->userBId,
-                $this->tenantBForOtherUserId,
-                [
-                    'membership_id' => $this->otherUserMembershipId,
-                ],
-            );
-
-        $credentialProvider = $this->createStub(
+        $credentialProvider = $this->createMock(
             BrowserSessionAuthenticationCredentialProviderInterface::class,
         );
+
         $credentialProvider
-            ->method('credentialForAuthentication')
-            ->willReturn($otherUserBearer);
+            ->expects($this->never())
+            ->method(
+                'credentialForAuthentication',
+            );
 
         $this->app->instance(
             BrowserSessionAuthenticationCredentialProviderInterface::class,
@@ -210,11 +199,22 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
 
         $this
             ->getJson('/api/v1/user/my-memberships')
-            ->assertForbidden()
-            ->assertExactJson([
-                'status' => 'error',
-                'code' => 'BROWSER_SESSION_CONTEXT_MISMATCH',
-                'message' => 'Browser session context does not match canonical authentication context.',
+            ->assertOk()
+            ->assertJsonCount(
+                2,
+                'data',
+            )
+            ->assertJsonFragment([
+                'membership_id' => $this->membershipAId,
+                'tenant_id' => $this->tenantAId,
+            ])
+            ->assertJsonFragment([
+                'membership_id' => $this->membershipBId,
+                'tenant_id' => $this->tenantBId,
+            ])
+            ->assertJsonMissing([
+                'membership_id' =>
+                    $this->otherUserMembershipId,
             ]);
     }
 
@@ -282,38 +282,58 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
         );
     }
 
-    private function loginBrowserSessionAndAttachCookie(): string
+    private function loginBrowserIdentityAndAttachCookie(): void
     {
-        $this->postJson(
-            '/api/v1/browser/auth/login',
-            [
-                'email' => $this->emailA,
-                'password' => 'secret123',
-                'tenant_uuid' => $this->tenantAId,
-            ],
-        )->assertOk();
+        $this
+            ->postJson(
+                '/api/v1/browser/auth/login',
+                [
+                    'identifier' => $this->emailA,
+                    'password' => 'secret123',
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath(
+                'data.context_type',
+                'identity',
+            )
+            ->assertJsonPath(
+                'data.user.id',
+                $this->userAId,
+            );
 
-        $browserAuthState = $this->app['session']->get(
+        $browserAuthState = $this->app[
+            'session'
+        ]->get(
             'educore.browser_auth',
         );
 
-        $this->assertIsArray($browserAuthState);
+        $this->assertIsArray(
+            $browserAuthState,
+        );
 
-        $bearerCredential = $browserAuthState[
-            'membership_credentials'
-        ][$this->membershipAId] ?? null;
+        $this->assertSame(
+            $this->userAId,
+            $browserAuthState['user_id']
+                ?? null,
+        );
 
-        $this->assertIsString($bearerCredential);
-        $this->assertNotSame('', trim($bearerCredential));
+        $this->assertSame(
+            [],
+            $browserAuthState[
+                'membership_credentials'
+            ] ?? null,
+            'Membership discovery must begin from Browser Identity Context without Membership credentials.',
+        );
 
         $this
             ->withCredentials()
             ->withCookie(
                 $this->sessionCookieName(),
-                $this->app['session']->getId(),
+                $this->app[
+                    'session'
+                ]->getId(),
             );
-
-        return $bearerCredential;
     }
 
     private function sessionCookieName(): string
