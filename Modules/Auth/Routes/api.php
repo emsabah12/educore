@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
+use Modules\Auth\Http\Controllers\Api\v1\AuthIdentityController;
 use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\Auth\Http\Middleware\InjectTransportAwareAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
@@ -28,6 +30,21 @@ Route::prefix('v1/auth')->group(function (): void {
             'loginToken',
         ],
     )->name('api.v1.auth.login-token');
+
+    /*
+     * Canonical global identity introspection supports both authenticated
+     * bearer clients and the hardened BrowserSession transport.
+     *
+     * This boundary is intentionally User/Person-only and must never create
+     * Membership or Tenant context.
+     */
+    Route::get(
+        '/identity',
+        AuthIdentityController::class,
+    )->middleware([
+        UseBrowserSessionForCanonicalApi::class,
+        InjectTransportAwareAuthenticatedUser::class,
+    ])->name('api.v1.auth.identity');
 
     /*
      * Canonical bearer logout remains stateless. Browser logout has its own

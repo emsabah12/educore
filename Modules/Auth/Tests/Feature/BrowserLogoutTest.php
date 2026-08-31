@@ -122,6 +122,64 @@ final class BrowserLogoutTest extends TestCase
         );
     }
 
+    public function test_browser_logout_clears_authenticated_identity_only_session_without_membership_credentials(): void
+    {
+        $revocationStore = $this->createMock(
+            TokenRevocationStoreInterface::class,
+        );
+
+        $revocationStore
+            ->expects($this->never())
+            ->method('revoke');
+
+        $this->app->instance(
+            TokenRevocationStoreInterface::class,
+            $revocationStore,
+        );
+
+        $this->withSession([
+            'educore.browser_auth' => [
+                'user_id' => $this->userId,
+                'membership_credentials' => [],
+            ],
+            'protected_marker' => 'must-be-cleared',
+        ]);
+
+        $session = $this->app['session'];
+
+        $beforeSessionId = $session->getId();
+        $beforeCsrfToken = $session->token();
+
+        $response = $this->postJson(
+            '/api/v1/browser/auth/logout',
+        );
+
+        $response
+            ->assertOk()
+            ->assertExactJson([
+                'status' => 'success',
+                'message' => 'Logout completed successfully.',
+            ])
+            ->assertSessionMissing(
+                'educore.browser_auth',
+            )
+            ->assertSessionMissing(
+                'protected_marker',
+            );
+
+        $this->assertNotSame(
+            $beforeSessionId,
+            $session->getId(),
+            'Identity-only Browser logout must invalidate the authenticated session identifier.',
+        );
+
+        $this->assertNotSame(
+            $beforeCsrfToken,
+            $session->token(),
+            'Identity-only Browser logout must rotate the CSRF token.',
+        );
+    }
+
     public function test_browser_logout_is_idempotent_for_anonymous_browser_session(): void
     {
         $this->withSession([
