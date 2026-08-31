@@ -45,11 +45,7 @@ final class ListMyMembershipsTest extends TestCase
 
     public function test_authenticated_user_can_list_only_person_owned_active_memberships(): void
     {
-        $token = app(TokenManagerInterface::class)
-            ->issueToken(
-                (string) $this->user->getKey(),
-                $this->tenantAId,
-            );
+        $token = $this->identityTokenForUser();
 
         $response = $this
             ->withToken($token)
@@ -67,6 +63,131 @@ final class ListMyMembershipsTest extends TestCase
                 'membership_id' => $this->membershipBId,
                 'tenant_id' => $this->tenantBId,
             ]);
+
+        $this->assertStringNotContainsString(
+            'access_token',
+            $response->getContent(),
+            'Membership discovery must not implicitly switch context or issue a Membership credential.',
+        );
+
+        $this
+            ->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertJsonPath(
+                'code',
+                'AUTHENTICATION_CONTEXT_DENIED',
+            );
+    }
+
+    public function test_identity_user_with_zero_memberships_remains_authenticated_without_tenant_context(): void
+    {
+        DB::table('memberships')
+            ->where(
+                'person_id',
+                (string) $this->user->person_id,
+            )
+            ->delete();
+
+        $token = $this->identityTokenForUser();
+
+        $response = $this
+            ->withToken($token)
+            ->getJson('/api/v1/user/my-memberships');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath(
+                'status',
+                'success',
+            )
+            ->assertJsonCount(
+                0,
+                'data',
+            );
+
+        $this->assertStringNotContainsString(
+            'access_token',
+            $response->getContent(),
+        );
+
+        $this
+            ->withToken($token)
+            ->getJson('/api/v1/auth/identity')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.context_type',
+                'identity',
+            )
+            ->assertJsonPath(
+                'data.user.id',
+                (string) $this->user->getKey(),
+            );
+
+        $this
+            ->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertJsonPath(
+                'code',
+                'AUTHENTICATION_CONTEXT_DENIED',
+            );
+    }
+
+    public function test_exactly_one_membership_is_discovered_without_server_side_auto_selection(): void
+    {
+        DB::table('memberships')
+            ->where(
+                'id',
+                $this->membershipBId,
+            )
+            ->delete();
+
+        $token = $this->identityTokenForUser();
+
+        $response = $this
+            ->withToken($token)
+            ->getJson('/api/v1/user/my-memberships');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath(
+                'status',
+                'success',
+            )
+            ->assertJsonCount(
+                1,
+                'data',
+            )
+            ->assertJsonFragment([
+                'membership_id' =>
+                    $this->membershipAId,
+                'tenant_id' =>
+                    $this->tenantAId,
+            ]);
+
+        $this->assertStringNotContainsString(
+            'access_token',
+            $response->getContent(),
+            'Exactly one Membership must still require the canonical switch operation.',
+        );
+
+        $this
+            ->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden()
+            ->assertJsonPath(
+                'code',
+                'AUTHENTICATION_CONTEXT_DENIED',
+            );
+
+        $this->assertNull(
+            session('active_membership_id'),
+        );
+
+        $this->assertNull(
+            session('active_tenant_id'),
+        );
     }
 
     public function test_unauthenticated_user_cannot_list_memberships(): void
@@ -74,6 +195,14 @@ final class ListMyMembershipsTest extends TestCase
         $this
             ->getJson('/api/v1/user/my-memberships')
             ->assertUnauthorized();
+    }
+
+    private function identityTokenForUser(): string
+    {
+        return app(TokenManagerInterface::class)
+            ->issueIdentityToken(
+                (string) $this->user->getKey(),
+            );
     }
 
     private function createTenants(): void

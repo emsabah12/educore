@@ -62,7 +62,7 @@ final class SwitchMembershipTest extends TestCase
 
     public function test_authenticated_user_can_switch_to_owned_active_membership_and_receive_new_token(): void
     {
-        $oldToken = $this->tokenForUserA();
+        $oldToken = $this->membershipTokenForUserA();
 
         $response = $this
             ->withToken($oldToken)
@@ -189,10 +189,10 @@ final class SwitchMembershipTest extends TestCase
 
     public function test_authenticated_user_can_switch_between_person_owned_memberships(): void
     {
-        $oldToken = $this->tokenForUserA();
+        $identityToken = $this->identityTokenForUserA();
 
         $switchToA = $this
-            ->withToken($oldToken)
+            ->withToken($identityToken)
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -218,7 +218,7 @@ final class SwitchMembershipTest extends TestCase
         $this->assertIsString($tokenA);
 
         $switchToB = $this
-            ->withToken($oldToken)
+            ->withToken($identityToken)
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -267,7 +267,7 @@ final class SwitchMembershipTest extends TestCase
     public function test_user_cannot_select_another_persons_membership(): void
     {
         $response = $this
-            ->withToken($this->tokenForUserA())
+            ->withToken($this->identityTokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -290,7 +290,7 @@ final class SwitchMembershipTest extends TestCase
     public function test_user_cannot_select_inactive_membership(): void
     {
         $response = $this
-            ->withToken($this->tokenForUserA())
+            ->withToken($this->identityTokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -311,7 +311,7 @@ final class SwitchMembershipTest extends TestCase
     public function test_user_cannot_select_membership_of_inactive_tenant(): void
     {
         $response = $this
-            ->withToken($this->tokenForUserA())
+            ->withToken($this->identityTokenForUserA())
             ->postJson(
                 sprintf(
                     '/api/v1/user/memberships/%s/switch',
@@ -341,15 +341,21 @@ final class SwitchMembershipTest extends TestCase
             ->assertUnauthorized();
     }
 
-    private function tokenForUserA(): string
+    private function identityTokenForUserA(): string
     {
         return app(TokenManagerInterface::class)
-            ->issueToken(
+            ->issueIdentityToken(
+                (string) $this->userA->getKey(),
+            );
+    }
+
+    private function membershipTokenForUserA(): string
+    {
+        return app(TokenManagerInterface::class)
+            ->issueMembershipToken(
                 (string) $this->userA->getKey(),
                 $this->tenantAId,
-                [
-                    'membership_id' => $this->membershipAId,
-                ],
+                $this->membershipAId,
             );
     }
 
