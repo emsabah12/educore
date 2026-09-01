@@ -31,7 +31,7 @@ paths:
       x-laravel-route-name: api.v1.auth.login-token
       tags:
         - Authentication
-      summary: Authenticate into a tenant membership context
+      summary: Authenticate a global User identity
       security: []
       requestBody:
         required: true
@@ -143,13 +143,15 @@ paths:
       x-educore-request-forgery-protected: true
       tags:
         - Browser Session
-      summary: Authenticate into a server-side Browser Session
+      summary: Authenticate a global User into a server-side Browser Session
       description: |
-        Authenticates with the canonical credential issuer, regenerates the
-        pre-authentication session identifier, and stores the issued bearer
-        credential exclusively in server-side Browser Session custody.
+        Authenticates the global User identity, regenerates the
+        pre-authentication session identifier, and establishes identity-only
+        Browser Session state.
 
-        The browser response never includes access_token.
+        Fresh Browser login does not select a Membership or Tenant, does not
+        issue a browser-visible bearer credential, and never includes
+        access_token in the response.
       security: []
       requestBody:
         required: true
@@ -159,7 +161,7 @@ paths:
               $ref: "#/components/schemas/LoginTokenRequest"
       responses:
         "200":
-          description: Browser authentication succeeded and credential custody remains server-side.
+          description: Global Browser identity authentication succeeded.
           content:
             application/json:
               schema:
@@ -780,27 +782,30 @@ components:
 
     LoginTokenRequest:
       type: object
+      additionalProperties: false
       required:
-        - email
+        - identifier
         - password
-        - tenant_uuid
       properties:
-        email:
+        identifier:
           type: string
-          format: email
+          minLength: 1
           maxLength: 255
           description: |
-            Email is trimmed and lowercased before credential lookup.
+            Global User login identifier.
+
+            Values containing @ are resolved through the canonical email
+            identity path. Other values are resolved through the canonical
+            username identity path.
         password:
           type: string
           minLength: 6
-        tenant_uuid:
-          $ref: "#/components/schemas/Uuid"
       description: |
-        Login request for a specific Tenant.
+        Global authentication request.
 
-        tenant_uuid currently uses generic UUID validation rather than
-        UUIDv7-only validation.
+        Tenant, Membership, Workspace, Role, and Permission context are
+        intentionally absent. Authentication establishes User identity before
+        any Membership or Tenant selection occurs.
 
     AuthenticationTokenContext:
       type: object
@@ -881,13 +886,41 @@ components:
       type: object
       additionalProperties: false
       required:
-        - membership_id
-        - tenant_id
+        - context_type
+        - user
+        - platform
       properties:
-        membership_id:
-          $ref: "#/components/schemas/UuidV7"
-        tenant_id:
-          $ref: "#/components/schemas/UuidV7"
+        context_type:
+          type: string
+          const: identity
+        user:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - name
+            - email
+            - username
+          properties:
+            id:
+              $ref: "#/components/schemas/UuidV7"
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+            username:
+              type:
+                - string
+                - "null"
+        platform:
+          type: object
+          additionalProperties: false
+          required:
+            - is_superadmin
+          properties:
+            is_superadmin:
+              type: boolean
 
     BrowserLoginSuccess:
       type: object

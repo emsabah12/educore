@@ -9,48 +9,78 @@ import type {
 } from '@/platform/auth/contract';
 
 export interface UnknownBrowserAuthState {
-    readonly status: 'unknown';
+    readonly status:
+        'unknown';
 }
 
 export interface AnonymousBrowserAuthState {
-    readonly status: 'anonymous';
-    readonly failure: BrowserApiFailure | null;
+    readonly status:
+        'anonymous';
+
+    readonly failure:
+        BrowserApiFailure | null;
 }
 
 export interface AuthenticatingBrowserAuthState {
-    readonly status: 'authenticating';
+    readonly status:
+        'authenticating';
 }
 
-export interface ResolvingBrowserAuthContextState {
-    readonly status: 'resolving-context';
-    readonly login: BrowserLoginData;
+/*
+ * Global identity authentication is intentionally
+ * distinct from Membership/Tenant readiness.
+ *
+ * Fresh Browser login terminates in this state.
+ */
+export interface IdentityAuthenticatedBrowserAuthState {
+    readonly status:
+        'identity-authenticated';
+
+    readonly identity:
+        BrowserLoginData;
 }
 
 export interface MembershipContextRequiredBrowserAuthState {
-    readonly status: 'membership-context-required';
-    readonly failure: BrowserApiResponseFailure;
+    readonly status:
+        'membership-context-required';
+
+    readonly failure:
+        BrowserApiResponseFailure;
 }
 
 export interface AuthenticatedBrowserAuthState {
-    readonly status: 'authenticated';
-    readonly identity: AuthenticatedBootstrapData;
+    readonly status:
+        'authenticated';
+
+    readonly identity:
+        AuthenticatedBootstrapData;
 }
 
+export type BrowserAuthenticatedIdentity =
+    | BrowserLoginData
+    | AuthenticatedBootstrapData;
+
 export interface LoggingOutBrowserAuthState {
-    readonly status: 'logging-out';
-    readonly identity: AuthenticatedBootstrapData;
+    readonly status:
+        'logging-out';
+
+    readonly identity:
+        BrowserAuthenticatedIdentity;
 }
 
 export interface UnavailableBrowserAuthState {
-    readonly status: 'unavailable';
-    readonly failure: BrowserApiFailure;
+    readonly status:
+        'unavailable';
+
+    readonly failure:
+        BrowserApiFailure;
 }
 
 export type BrowserAuthState =
     | UnknownBrowserAuthState
     | AnonymousBrowserAuthState
     | AuthenticatingBrowserAuthState
-    | ResolvingBrowserAuthContextState
+    | IdentityAuthenticatedBrowserAuthState
     | MembershipContextRequiredBrowserAuthState
     | AuthenticatedBrowserAuthState
     | LoggingOutBrowserAuthState
@@ -58,50 +88,77 @@ export type BrowserAuthState =
 
 export type BrowserAuthAction =
     | {
-        readonly type: 'BECAME_ANONYMOUS';
-        readonly failure: BrowserApiFailure | null;
+        readonly type:
+            'BECAME_ANONYMOUS';
+
+        readonly failure:
+            BrowserApiFailure | null;
     }
     | {
-        readonly type: 'LOGIN_STARTED';
+        readonly type:
+            'LOGIN_STARTED';
     }
     | {
-        readonly type: 'LOGIN_ACCEPTED';
-        readonly login: BrowserLoginData;
+        readonly type:
+            'LOGIN_ACCEPTED';
+
+        readonly identity:
+            BrowserLoginData;
     }
     | {
-        readonly type: 'CONTEXT_REQUIRED';
-        readonly failure: BrowserApiResponseFailure;
+        readonly type:
+            'CONTEXT_REQUIRED';
+
+        readonly failure:
+            BrowserApiResponseFailure;
     }
     | {
-        readonly type: 'BECAME_AUTHENTICATED';
-        readonly identity: AuthenticatedBootstrapData;
+        readonly type:
+            'BECAME_AUTHENTICATED';
+
+        readonly identity:
+            AuthenticatedBootstrapData;
     }
     | {
-        readonly type: 'BECAME_UNAVAILABLE';
-        readonly failure: BrowserApiFailure;
+        readonly type:
+            'BECAME_UNAVAILABLE';
+
+        readonly failure:
+            BrowserApiFailure;
     }
     | {
-        readonly type: 'LOGOUT_STARTED';
+        readonly type:
+            'LOGOUT_STARTED';
     }
     | {
-        readonly type: 'LOGOUT_COMPLETED';
+        readonly type:
+            'LOGOUT_COMPLETED';
     }
     | {
-        readonly type: 'SESSION_EXPIRED';
-        readonly failure: BrowserApiResponseFailure;
+        readonly type:
+            'SESSION_EXPIRED';
+
+        readonly failure:
+            BrowserApiResponseFailure;
     };
 
 export function createInitialBrowserAuthState():
     UnknownBrowserAuthState {
     return {
-        status: 'unknown',
+        status:
+            'unknown',
     };
 }
 
 function assertTransition(
-    state: BrowserAuthState,
-    action: BrowserAuthAction,
-    allowedStatuses: readonly BrowserAuthState['status'][],
+    state:
+        BrowserAuthState,
+
+    action:
+        BrowserAuthAction,
+
+    allowedStatuses:
+        readonly BrowserAuthState['status'][],
 ): void {
     if (
         allowedStatuses.includes(
@@ -122,14 +179,20 @@ function assertTransition(
 }
 
 export function browserAuthReducer(
-    state: BrowserAuthState,
-    action: BrowserAuthAction,
+    state:
+        BrowserAuthState,
+
+    action:
+        BrowserAuthAction,
 ): BrowserAuthState {
     switch (action.type) {
         case 'BECAME_ANONYMOUS':
             return {
-                status: 'anonymous',
-                failure: action.failure,
+                status:
+                    'anonymous',
+
+                failure:
+                    action.failure,
             };
 
         case 'LOGIN_STARTED':
@@ -142,7 +205,8 @@ export function browserAuthReducer(
             );
 
             return {
-                status: 'authenticating',
+                status:
+                    'authenticating',
             };
 
         case 'LOGIN_ACCEPTED':
@@ -155,8 +219,11 @@ export function browserAuthReducer(
             );
 
             return {
-                status: 'resolving-context',
-                login: action.login,
+                status:
+                    'identity-authenticated',
+
+                identity:
+                    action.identity,
             };
 
         case 'CONTEXT_REQUIRED':
@@ -165,7 +232,7 @@ export function browserAuthReducer(
                 action,
                 [
                     'unknown',
-                    'resolving-context',
+                    'identity-authenticated',
                     'authenticated',
                     'unavailable',
                 ],
@@ -174,7 +241,9 @@ export function browserAuthReducer(
             return {
                 status:
                     'membership-context-required',
-                failure: action.failure,
+
+                failure:
+                    action.failure,
             };
 
         case 'BECAME_AUTHENTICATED':
@@ -183,7 +252,7 @@ export function browserAuthReducer(
                 action,
                 [
                     'unknown',
-                    'resolving-context',
+                    'identity-authenticated',
                     'membership-context-required',
                     'authenticated',
                     'unavailable',
@@ -191,19 +260,33 @@ export function browserAuthReducer(
             );
 
             return {
-                status: 'authenticated',
-                identity: action.identity,
+                status:
+                    'authenticated',
+
+                identity:
+                    action.identity,
             };
 
         case 'BECAME_UNAVAILABLE':
             return {
-                status: 'unavailable',
-                failure: action.failure,
+                status:
+                    'unavailable',
+
+                failure:
+                    action.failure,
             };
 
         case 'LOGOUT_STARTED':
+            /*
+             * Keep the runtime fail-closed transition guard
+             * explicit here so TypeScript can narrow the
+             * discriminated BrowserAuthState union before
+             * identity is accessed.
+             */
             if (
                 state.status
+                    !== 'identity-authenticated'
+                && state.status
                     !== 'authenticated'
             ) {
                 throw new Error(
@@ -217,8 +300,11 @@ export function browserAuthReducer(
             }
 
             return {
-                status: 'logging-out',
-                identity: state.identity,
+                status:
+                    'logging-out',
+
+                identity:
+                    state.identity,
             };
 
         case 'LOGOUT_COMPLETED':
@@ -231,8 +317,11 @@ export function browserAuthReducer(
             );
 
             return {
-                status: 'anonymous',
-                failure: null,
+                status:
+                    'anonymous',
+
+                failure:
+                    null,
             };
 
         case 'SESSION_EXPIRED':
@@ -240,6 +329,7 @@ export function browserAuthReducer(
                 state,
                 action,
                 [
+                    'identity-authenticated',
                     'authenticated',
                     'logging-out',
                     'membership-context-required',
@@ -247,8 +337,11 @@ export function browserAuthReducer(
             );
 
             return {
-                status: 'anonymous',
-                failure: action.failure,
+                status:
+                    'anonymous',
+
+                failure:
+                    action.failure,
             };
     }
 }

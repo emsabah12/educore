@@ -62,7 +62,7 @@ function isFreshAuthenticationTransition(
         status
             === 'authenticating'
         || status
-            === 'resolving-context'
+            === 'identity-authenticated'
     );
 }
 

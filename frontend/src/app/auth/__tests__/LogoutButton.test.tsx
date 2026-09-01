@@ -121,9 +121,193 @@ async function renderAuthenticatedLogoutButton(
     return runtime;
 }
 
+async function renderIdentityAuthenticatedLogoutButton(
+    logout:
+        BrowserAuthOperations['logout'],
+) {
+    const operations:
+        BrowserAuthOperations = {
+        async bootstrap() {
+            return {
+                ok:
+                    false,
+
+                kind:
+                    'response',
+
+                status:
+                    401,
+
+                error: {
+                    status:
+                        'error',
+
+                    code:
+                        'BROWSER_SESSION_AUTHENTICATION_REQUIRED',
+
+                    message:
+                        'Authenticated Browser Session is required.',
+                },
+            };
+        },
+
+        async login() {
+            return {
+                ok:
+                    true,
+
+                status:
+                    200,
+
+                data: {
+                    status:
+                        'success',
+
+                    data: {
+                        context_type:
+                            'identity',
+
+                        user: {
+                            id:
+                                '018f3b6a-7c20-7000-8000-000000000001',
+
+                            name:
+                                'EduCore Member',
+
+                            email:
+                                'member@example.com',
+
+                            username:
+                                'member',
+                        },
+
+                        platform: {
+                            is_superadmin:
+                                false,
+                        },
+                    },
+                },
+            };
+        },
+
+        logout,
+    };
+
+    const runtime =
+        createBrowserAuthRuntime(
+            operations,
+        );
+
+    await runtime.bootstrap();
+
+    await runtime.login({
+        identifier:
+            'member',
+
+        password:
+            'correct-horse-battery-staple',
+    });
+
+    render(
+        <BrowserAuthProvider
+            runtime={
+                runtime
+            }
+        >
+            <LogoutButton />
+        </BrowserAuthProvider>,
+    );
+
+    return runtime;
+}
+
 describe(
     'LogoutButton',
     () => {
+        it('allows a globally authenticated Identity session to logout without Membership context', async () => {
+            const logout =
+                vi.fn(
+                    async () => ({
+                        ok:
+                            true as const,
+
+                        status:
+                            200,
+
+                        data: {
+                            status:
+                                'success' as const,
+
+                            message:
+                                'Logout completed successfully.' as const,
+                        },
+                    }),
+                );
+
+            const runtime =
+                await renderIdentityAuthenticatedLogoutButton(
+                    logout,
+                );
+
+            expect(
+                runtime.getState()
+                    .status,
+            ).toBe(
+                'identity-authenticated',
+            );
+
+            /*
+             * Global logout belongs to authenticated User
+             * identity, not to Membership/Tenant authority.
+             *
+             * A User with zero Memberships or one awaiting
+             * explicit Membership selection must still be
+             * able to terminate the BrowserSession.
+             */
+            const button =
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Keluar',
+                    },
+                );
+
+            fireEvent.click(
+                button,
+            );
+
+            await waitFor(() => {
+                expect(
+                    logout,
+                ).toHaveBeenCalledTimes(
+                    1,
+                );
+            });
+
+            await waitFor(() => {
+                expect(
+                    runtime.getState(),
+                ).toEqual({
+                    status:
+                        'anonymous',
+
+                    failure:
+                        null,
+                });
+            });
+
+            expect(
+                screen.queryByRole(
+                    'button',
+                    {
+                        name:
+                            'Keluar',
+                    },
+                ),
+            ).not.toBeInTheDocument();
+        });
+
         it('delegates logout exactly once to BrowserAuthRuntime', async () => {
             const logout =
                 vi.fn(

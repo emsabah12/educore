@@ -22,9 +22,6 @@ import type {
     BrowserLoginRequest,
 } from '@/platform/auth';
 
-const tenantUuid =
-    '018f3b6a-7c20-7cde-8def-1234567890ab';
-
 interface RuntimeHarness {
     readonly runtime:
         BrowserAuthRuntime;
@@ -153,7 +150,7 @@ function renderLoginPage(
 function fillValidForm(): void {
     fireEvent.change(
         screen.getByLabelText(
-            'Email',
+            'Email atau username',
         ),
         {
             target: {
@@ -174,23 +171,38 @@ function fillValidForm(): void {
             },
         },
     );
-
-    fireEvent.change(
-        screen.getByLabelText(
-            'Tenant UUID',
-        ),
-        {
-            target: {
-                value:
-                    `  ${tenantUuid}  `,
-            },
-        },
-    );
 }
 
 describe(
     'LoginPage',
     () => {
+        it('describes global User login without requiring Tenant context', () => {
+            const harness =
+                createRuntimeHarness({
+                    status:
+                        'anonymous',
+
+                    failure:
+                        null,
+                });
+
+            renderLoginPage(
+                harness,
+            );
+
+            expect(
+                screen.getByText(
+                    'Gunakan email atau username akun EduCore Anda untuk memulai Browser Session yang aman.',
+                ),
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    /Tenant/i,
+                ),
+            ).not.toBeInTheDocument();
+        });
+
         it('dispatches only validated canonical login input through BrowserAuthRuntime', async () => {
             const harness =
                 createRuntimeHarness({
@@ -228,14 +240,11 @@ describe(
             expect(
                 harness.loginRequests[0],
             ).toEqual({
-                email:
-                    'member@example.com',
+                identifier:
+                    'MEMBER@EXAMPLE.COM',
 
                 password:
                     '  secret value  ',
-
-                tenant_uuid:
-                    tenantUuid,
             });
         });
 
@@ -265,7 +274,7 @@ describe(
 
             expect(
                 await screen.findByText(
-                    'Email wajib diisi.',
+                    'Identifier wajib diisi.',
                 ),
             ).toBeInTheDocument();
 
@@ -289,19 +298,13 @@ describe(
 
             expect(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
             ).toBeDisabled();
 
             expect(
                 screen.getByLabelText(
                     'Password',
-                ),
-            ).toBeDisabled();
-
-            expect(
-                screen.getByLabelText(
-                    'Tenant UUID',
                 ),
             ).toBeDisabled();
 
@@ -401,7 +404,7 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Email, password, atau Tenant UUID tidak cocok.',
+                    'Identifier atau password tidak cocok.',
                 ),
             ).toBeInTheDocument();
 
@@ -439,12 +442,12 @@ describe(
                                 'The submitted data is invalid.',
 
                             errors: {
-                                email: [
+                                identifier: [
                                     'Sensitive raw validation detail.',
                                 ],
 
-                                tenant_uuid: [
-                                    'Sensitive Tenant detail.',
+                                password: [
+                                    'Sensitive raw password validation detail.',
                                 ],
                             },
                         },
@@ -463,13 +466,13 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Email tidak dapat diterima. Periksa kembali email Anda.',
+                    'Identifier tidak dapat diterima. Periksa kembali email atau username Anda.',
                 ),
             ).toBeInTheDocument();
 
             expect(
                 screen.getByText(
-                    'Tenant UUID tidak dapat diterima. Periksa kembali Tenant UUID Anda.',
+                    'Password tidak dapat diterima. Periksa kembali password Anda.',
                 ),
             ).toBeInTheDocument();
 
@@ -515,13 +518,13 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Email, password, atau Tenant UUID tidak cocok.',
+                    'Identifier atau password tidak cocok.',
                 ),
             ).toBeInTheDocument();
 
             fireEvent.change(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
                 {
                     target: {
@@ -534,7 +537,7 @@ describe(
             await waitFor(() => {
                 expect(
                     screen.queryByText(
-                        'Email, password, atau Tenant UUID tidak cocok.',
+                        'Identifier atau password tidak cocok.',
                     ),
                 ).not.toBeInTheDocument();
             });

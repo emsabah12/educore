@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Authenticate into a tenant membership context */
+        /** Authenticate a global User identity */
         post: operations["authLoginToken"];
         delete?: never;
         options?: never;
@@ -94,12 +94,14 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Authenticate into a server-side Browser Session
-         * @description Authenticates with the canonical credential issuer, regenerates the
-         *     pre-authentication session identifier, and stores the issued bearer
-         *     credential exclusively in server-side Browser Session custody.
+         * Authenticate a global User into a server-side Browser Session
+         * @description Authenticates the global User identity, regenerates the
+         *     pre-authentication session identifier, and establishes identity-only
+         *     Browser Session state.
          *
-         *     The browser response never includes access_token.
+         *     Fresh Browser login does not select a Membership or Tenant, does not
+         *     issue a browser-visible bearer credential, and never includes
+         *     access_token in the response.
          */
         post: operations["browserAuthLogin"];
         delete?: never;
@@ -393,19 +395,22 @@ export interface components {
         /** @description Canonical machine-readable permission name. */
         PermissionName: string;
         /**
-         * @description Login request for a specific Tenant.
+         * @description Global authentication request.
          *
-         *     tenant_uuid currently uses generic UUID validation rather than
-         *     UUIDv7-only validation.
+         *     Tenant, Membership, Workspace, Role, and Permission context are
+         *     intentionally absent. Authentication establishes User identity before
+         *     any Membership or Tenant selection occurs.
          */
         LoginTokenRequest: {
             /**
-             * Format: email
-             * @description Email is trimmed and lowercased before credential lookup.
+             * @description Global User login identifier.
+             *
+             *     Values containing @ are resolved through the canonical email
+             *     identity path. Other values are resolved through the canonical
+             *     username identity path.
              */
-            email: string;
+            identifier: string;
             password: string;
-            tenant_uuid: components["schemas"]["Uuid"];
         };
         AuthenticationTokenContext: {
             user_id: components["schemas"]["UuidV7"];
@@ -438,8 +443,18 @@ export interface components {
             };
         };
         BrowserLoginData: {
-            membership_id: components["schemas"]["UuidV7"];
-            tenant_id: components["schemas"]["UuidV7"];
+            /** @constant */
+            context_type: "identity";
+            user: {
+                id: components["schemas"]["UuidV7"];
+                name: string;
+                /** Format: email */
+                email: string;
+                username: string | null;
+            };
+            platform: {
+                is_superadmin: boolean;
+            };
         };
         BrowserLoginSuccess: {
             /** @constant */
@@ -1143,7 +1158,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Browser authentication succeeded and credential custody remains server-side. */
+            /** @description Global Browser identity authentication succeeded. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -183,7 +183,7 @@ describe(
             );
 
             classifier.observe(
-                'resolving-context',
+                'identity-authenticated',
                 {
                     status:
                         'discovering',
@@ -326,7 +326,7 @@ describe(
 
             expect(
                 classifier.observe(
-                    'resolving-context',
+                    'identity-authenticated',
                     {
                         status:
                             'switching',

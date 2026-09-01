@@ -231,7 +231,6 @@ export function evaluateProtectedRouteAccess(
     ) {
         case 'unknown':
         case 'authenticating':
-        case 'resolving-context':
         case 'logging-out':
             return pending(
                 'authentication',
@@ -249,6 +248,7 @@ export function evaluateProtectedRouteAccess(
                 authentication.failure,
             );
 
+        case 'identity-authenticated':
         case 'membership-context-required':
         case 'authenticated':
             break;
@@ -257,7 +257,8 @@ export function evaluateProtectedRouteAccess(
     /*
      * 2. Membership/Tenant authority.
      *
-     * membership-context-required deliberately reaches this
+     * identity-authenticated and
+     * membership-context-required deliberately reach this
      * stage because Membership discovery/selection is the
      * required UX, not another login attempt.
      */

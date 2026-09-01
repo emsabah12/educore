@@ -21,19 +21,39 @@ import { apiMockServer } from '@/test/server';
 
 const loginRequest:
     BrowserLoginRequest = {
-        email:
+        identifier:
             'member@example.com',
+
         password:
             'correct-horse-battery-staple',
-        tenant_uuid:
-            '018f3b6a-7c20-7abc-8def-1234567890ab',
     };
 
-const membershipId =
-    '018f3b6a-7c20-7bcd-8def-1234567890ab';
-
-const tenantId =
+const userId =
     '018f3b6a-7c20-7cde-8def-1234567890ab';
+
+const identityData = {
+    context_type:
+        'identity' as const,
+
+    user: {
+        id:
+            userId,
+
+        name:
+            'EduCore Member',
+
+        email:
+            'member@example.com',
+
+        username:
+            'member',
+    },
+
+    platform: {
+        is_superadmin:
+            false,
+    },
+};
 
 function clearXsrfCookie(): void {
     document.cookie = [
@@ -100,12 +120,8 @@ describe('loginWithBrowserSession', () => {
 
                     return HttpResponse.json({
                         status: 'success',
-                        data: {
-                            membership_id:
-                                membershipId,
-                            tenant_id:
-                                tenantId,
-                        },
+                        data:
+                            identityData,
                     });
                 },
             ),
@@ -142,12 +158,8 @@ describe('loginWithBrowserSession', () => {
             status: 200,
             data: {
                 status: 'success',
-                data: {
-                    membership_id:
-                        membershipId,
-                    tenant_id:
-                        tenantId,
-                },
+                data:
+                    identityData,
             },
         });
 
@@ -188,12 +200,8 @@ describe('loginWithBrowserSession', () => {
 
                     return HttpResponse.json({
                         status: 'success',
-                        data: {
-                            membership_id:
-                                membershipId,
-                            tenant_id:
-                                tenantId,
-                        },
+                        data:
+                            identityData,
                     });
                 },
             ),
@@ -254,8 +262,8 @@ describe('loginWithBrowserSession', () => {
                         message:
                             'The submitted data is invalid.',
                         errors: {
-                            email: [
-                                'The email field is invalid.',
+                            identifier: [
+                                'The identifier field is invalid.',
                             ],
                         },
                     },
@@ -286,8 +294,8 @@ describe('loginWithBrowserSession', () => {
                 message:
                     'The submitted data is invalid.',
                 errors: {
-                    email: [
-                        'The email field is invalid.',
+                    identifier: [
+                        'The identifier field is invalid.',
                     ],
                 },
             },
@@ -323,12 +331,8 @@ describe('loginWithBrowserSession', () => {
 
                     return HttpResponse.json({
                         status: 'success',
-                        data: {
-                            membership_id:
-                                membershipId,
-                            tenant_id:
-                                tenantId,
-                        },
+                        data:
+                            identityData,
                     });
                 },
             ),

@@ -593,14 +593,30 @@ describe(
             act(() => {
                 harness.auth.publish({
                     status:
-                        'resolving-context',
+                        'identity-authenticated',
 
-                    login: {
-                        membership_id:
-                            membershipId,
+                    identity: {
+                        context_type:
+                            'identity',
 
-                        tenant_id:
-                            tenantId,
+                        user: {
+                            id:
+                                '018f3b6a-7c20-7eee-8def-1234567890ab',
+
+                            name:
+                                'EduCore Member',
+
+                            email:
+                                'member@example.com',
+
+                            username:
+                                'member',
+                        },
+
+                        platform: {
+                            is_superadmin:
+                                false,
+                        },
                     },
                 });
             });

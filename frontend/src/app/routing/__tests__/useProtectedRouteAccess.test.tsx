@@ -399,6 +399,37 @@ function configureReadyTenantContext(
     };
 }
 
+function configureIdentityAuthenticated(): void {
+    mocks.authentication = {
+        status:
+            'identity-authenticated',
+
+        identity: {
+            context_type:
+                'identity',
+
+            user: {
+                id:
+                    userId,
+
+                name:
+                    'EduCore User',
+
+                email:
+                    'user@example.test',
+
+                username:
+                    'user',
+            },
+
+            platform: {
+                is_superadmin:
+                    false,
+            },
+        },
+    };
+}
+
 describe(
     'useProtectedRouteAccess',
     () => {
@@ -487,6 +518,106 @@ describe(
                 status:
                     'unauthenticated',
             });
+        });
+
+        it('projects Identity-authenticated Membership selection as membership-required instead of returning to login', () => {
+            if (
+                mocks.membership
+                    === undefined
+                || mocks.membership.status
+                    !== 'ready'
+            ) {
+                throw new Error(
+                    'Expected ready Membership test fixture.',
+                );
+            }
+
+            const memberships =
+                mocks.membership
+                    .memberships;
+
+            configureIdentityAuthenticated();
+
+            mocks.membership = {
+                status:
+                    'selection-required',
+
+                memberships,
+
+                failure:
+                    null,
+            };
+
+            const {
+                result,
+            } =
+                renderHook(
+                    () =>
+                        useProtectedRouteAccess(
+                            tenantPolicy,
+                        ),
+                );
+
+            /*
+             * Global User authentication is authoritative.
+             *
+             * Missing active Membership/Tenant context must
+             * become explicit Membership-selection UX,
+             * never another credential-entry cycle.
+             */
+            expect(
+                result.current,
+            ).toEqual({
+                status:
+                    'membership-required',
+            });
+
+            expect(
+                result.current.status,
+            ).not.toBe(
+                'unauthenticated',
+            );
+        });
+
+        it('projects Identity-authenticated zero-Membership state as membership-empty instead of returning to login', () => {
+            configureIdentityAuthenticated();
+
+            mocks.membership = {
+                status:
+                    'empty',
+            };
+
+            const {
+                result,
+            } =
+                renderHook(
+                    () =>
+                        useProtectedRouteAccess(
+                            tenantPolicy,
+                        ),
+                );
+
+            /*
+             * A User with zero Memberships still has valid
+             * global Identity authority.
+             *
+             * The protected application must expose the
+             * canonical empty-Membership state rather than
+             * treating the User as anonymous or inventing
+             * Tenant authorization.
+             */
+            expect(
+                result.current,
+            ).toEqual({
+                status:
+                    'membership-empty',
+            });
+
+            expect(
+                result.current.status,
+            ).not.toBe(
+                'unauthenticated',
+            );
         });
 
         it('preserves Membership selection as membership-required instead of permission denial', () => {

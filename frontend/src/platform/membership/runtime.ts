@@ -100,8 +100,18 @@ function canonicalContextFromAuthentication(
 
     if (
         state.status
+            === 'identity-authenticated'
+        || state.status
             === 'membership-context-required'
     ) {
+        /*
+         * The User identity is canonical, but no
+         * Membership/Tenant context is currently active.
+         *
+         * null deliberately means Membership discovery is
+         * allowed and must start without claiming current
+         * Tenant authority.
+         */
         return null;
     }
 
@@ -112,7 +122,6 @@ function canonicalContextFromAuthentication(
      * unknown
      * anonymous
      * authenticating
-     * resolving-context
      * logging-out
      * unavailable
      */
@@ -438,13 +447,69 @@ export function createMembershipContextRuntime(
             }
 
             /*
-             * Fresh authentication without canonical
-             * context must preserve explicit Membership
-             * selection semantics.
+             * Fresh global authentication with exactly one
+             * available Membership may auto-select it.
+             *
+             * Auto-selection is orchestration convenience
+             * only. Discovery never becomes Tenant
+             * authority by itself.
+             *
+             * Reuse the same canonical switch path as an
+             * explicit user selection:
+             *
+             * discover
+             * -> SWITCH_STARTED
+             * -> Browser Membership switch
+             * -> /auth/me verification
+             * -> CONTEXT_CONFIRMED
+             *
+             * A BrowserSession restoration lifecycle is
+             * intentionally excluded here. Reload owns its
+             * separate advisory-hint verification path.
+             */
+            if (
+                options.restoreHint
+                    !== true
+                && discoveredState.status
+                    === 'selection-required'
+                && discoveredMemberships.length
+                    === 1
+            ) {
+                const onlyMembership =
+                    discoveredMemberships[0];
+
+                /*
+                 * Length === 1 proves this at runtime, but
+                 * keep the defensive guard for strict array
+                 * indexing configurations and malformed
+                 * contract data.
+                 */
+                if (
+                    onlyMembership
+                        === undefined
+                ) {
+                    throw new Error(
+                        'EduCore MembershipContext single-Membership discovery did not contain a switch target.',
+                    );
+                }
+
+                return await switchMembership(
+                    onlyMembership
+                        .membership_id,
+
+                    createMembershipRequestAbortOptions(
+                        options.signal,
+                    ),
+                );
+            }
+
+            /*
+             * Fresh authentication with multiple
+             * Memberships must preserve explicit selection.
              *
              * Restoration is enabled only when the caller
              * explicitly classifies this bootstrap as an
-             * initial BrowserSession reload lifecycle.
+             * existing BrowserSession reload lifecycle.
              */
             if (
                 options.restoreHint

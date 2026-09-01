@@ -157,8 +157,8 @@ describe('executeBrowserApiRequest', () => {
                         message:
                             'Some submitted values are invalid.',
                         errors: {
-                            email: [
-                                'The email field is required.',
+                            identifier: [
+                                'The identifier field is required.',
                             ],
                         },
                     },
@@ -178,10 +178,11 @@ describe('executeBrowserApiRequest', () => {
                     '/api/v1/browser/auth/login',
                     {
                         body: {
-                            email: '',
-                            password: '',
-                            tenant_uuid:
-                                '018f3b6a-7c20-7abc-8def-1234567890ab',
+                            identifier:
+                                '',
+
+                            password:
+                                '',
                         },
                     },
                 ),
@@ -197,8 +198,8 @@ describe('executeBrowserApiRequest', () => {
                 message:
                     'Some submitted values are invalid.',
                 errors: {
-                    email: [
-                        'The email field is required.',
+                    identifier: [
+                        'The identifier field is required.',
                     ],
                 },
             },

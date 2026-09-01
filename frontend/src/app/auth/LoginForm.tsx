@@ -37,18 +37,13 @@ export function LoginForm({
     onInputChange,
 }: LoginFormProps) {
     const [
-        email,
-        setEmail,
+        identifier,
+        setIdentifier,
     ] = useState('');
 
     const [
         password,
         setPassword,
-    ] = useState('');
-
-    const [
-        tenantUuid,
-        setTenantUuid,
     ] = useState('');
 
     const [
@@ -58,10 +53,6 @@ export function LoginForm({
         LoginFormErrors
     >({});
 
-    /*
-     * Local validation belongs closest to the form and takes
-     * precedence over server presentation for the same field.
-     */
     const errors:
         LoginFormErrors = {
             ...externalErrors,
@@ -107,9 +98,8 @@ export function LoginForm({
 
         const validation =
             validateLoginForm({
-                email,
+                identifier,
                 password,
-                tenantUuid,
             });
 
         if (! validation.ok) {
@@ -159,55 +149,61 @@ export function LoginForm({
             <div className="space-y-2">
                 <label
                     className="block text-sm font-medium text-slate-200"
-                    htmlFor="login-email"
+                    htmlFor="login-identifier"
                 >
-                    Email
+                    Email atau username
                 </label>
 
                 <input
                     aria-describedby={
-                        errors.email
+                        errors.identifier
                             === undefined
-                            ? undefined
-                            : 'login-email-error'
+                            ? 'login-identifier-help'
+                            : 'login-identifier-help login-identifier-error'
                     }
                     aria-invalid={
-                        errors.email
+                        errors.identifier
                             !== undefined
                     }
                     autoCapitalize="none"
                     autoComplete="username"
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={disabled}
-                    id="login-email"
-                    inputMode="email"
-                    name="email"
+                    id="login-identifier"
+                    name="identifier"
                     onChange={(event) => {
-                        setEmail(
+                        setIdentifier(
                             event.target.value,
                         );
 
                         clearFieldError(
-                            'email',
+                            'identifier',
                         );
 
                         notifyInputChange();
                     }}
                     spellCheck={false}
-                    type="email"
-                    value={email}
+                    type="text"
+                    value={identifier}
                 />
 
+                <p
+                    className="text-sm text-slate-400"
+                    id="login-identifier-help"
+                >
+                    Gunakan email atau username akun EduCore Anda.
+                </p>
+
                 {
-                    errors.email
+                    errors.identifier
                         !== undefined
                         ? (
                             <p
                                 className="text-sm text-red-300"
-                                id="login-email-error"
+                                id="login-identifier-error"
                                 role="alert"
                             >
-                                {errors.email}
+                                {errors.identifier}
                             </p>
                         )
                         : null
@@ -263,70 +259,6 @@ export function LoginForm({
                                 role="alert"
                             >
                                 {errors.password}
-                            </p>
-                        )
-                        : null
-                }
-            </div>
-
-            <div className="space-y-2">
-                <label
-                    className="block text-sm font-medium text-slate-200"
-                    htmlFor="login-tenant-uuid"
-                >
-                    Tenant UUID
-                </label>
-
-                <input
-                    aria-describedby={
-                        errors.tenantUuid
-                            === undefined
-                            ? 'login-tenant-uuid-help'
-                            : 'login-tenant-uuid-help login-tenant-uuid-error'
-                    }
-                    aria-invalid={
-                        errors.tenantUuid
-                            !== undefined
-                    }
-                    autoCapitalize="none"
-                    autoComplete="off"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-slate-100 outline-none focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={disabled}
-                    id="login-tenant-uuid"
-                    name="tenantUuid"
-                    onChange={(event) => {
-                        setTenantUuid(
-                            event.target.value,
-                        );
-
-                        clearFieldError(
-                            'tenantUuid',
-                        );
-
-                        notifyInputChange();
-                    }}
-                    spellCheck={false}
-                    type="text"
-                    value={tenantUuid}
-                />
-
-                <p
-                    className="text-sm text-slate-400"
-                    id="login-tenant-uuid-help"
-                >
-                    Masukkan identifier Tenant EduCore yang diberikan kepada Anda.
-                </p>
-
-                {
-                    errors.tenantUuid
-                        !== undefined
-                        ? (
-                            <p
-                                className="text-sm text-red-300"
-                                id="login-tenant-uuid-error"
-                                role="alert"
-                            >
-                                {errors.tenantUuid}
                             </p>
                         )
                         : null

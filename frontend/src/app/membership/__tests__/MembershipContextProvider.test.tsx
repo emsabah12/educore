@@ -41,6 +41,12 @@ const membershipId =
 const tenantId =
     '018f3b6a-7c20-7cde-8def-1234567890ab';
 
+const membershipBId =
+    '018f3b6a-7c20-7bcd-8def-1234567890ab';
+
+const tenantBId =
+    '018f3b6a-7c20-7def-8abc-1234567890ab';
+
 const membershipRequiredFailure:
     BrowserApiFailure = {
         ok: false,
@@ -105,6 +111,18 @@ const discoverySuccess:
                         'EduCore School',
                     tenant_subdomain:
                         'school',
+                },
+                {
+                    membership_id:
+                        membershipBId,
+                    membership_status:
+                        'ACTIVE',
+                    tenant_id:
+                        tenantBId,
+                    tenant_name:
+                        'EduCore School B',
+                    tenant_subdomain:
+                        'school-b',
                 },
             ],
         },

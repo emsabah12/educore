@@ -23,6 +23,7 @@ export function LoginRouteBoundary() {
     switch (
         authentication.status
     ) {
+        case 'identity-authenticated':
         case 'authenticated':
         case 'membership-context-required': {
             /*
@@ -56,7 +57,6 @@ export function LoginRouteBoundary() {
         case 'unknown':
         case 'anonymous':
         case 'authenticating':
-        case 'resolving-context':
         case 'logging-out':
         case 'unavailable':
             /*
@@ -64,8 +64,10 @@ export function LoginRouteBoundary() {
              * unresolved, transitioning, unavailable, or
              * authoritatively anonymous.
              *
-             * The actual login form/runtime integration is
-             * intentionally outside this routing step.
+             * Once global Identity authentication succeeds,
+             * Membership/Tenant orchestration belongs to the
+             * application route lifecycle rather than the
+             * credential-entry route.
              */
             return (
                 <LoginPage />

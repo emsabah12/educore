@@ -120,7 +120,7 @@ export function LoginPage() {
                         </h1>
 
                         <p className="leading-7 text-slate-300">
-                            Gunakan akun EduCore dan identifier Tenant Anda
+                            Gunakan email atau username akun EduCore Anda
                             untuk memulai Browser Session yang aman.
                         </p>
                     </div>

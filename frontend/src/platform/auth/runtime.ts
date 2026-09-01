@@ -24,7 +24,6 @@ import type {
 import type {
     BrowserAuthOperations,
 } from '@/platform/auth/operations';
-import { createBrowserAuthAbortOptions } from '@/platform/auth/request-options';
 import type {
     BrowserLoginOptions,
 } from '@/platform/auth/service';
@@ -121,6 +120,8 @@ export function createBrowserAuthRuntime(
         ) {
             if (
                 state.status
+                    === 'identity-authenticated'
+                || state.status
                     === 'authenticated'
                 || state.status
                     === 'logging-out'
@@ -183,7 +184,7 @@ export function createBrowserAuthRuntime(
                 state.status
                     === 'unknown'
                 || state.status
-                    === 'resolving-context'
+                    === 'identity-authenticated'
                 || state.status
                     === 'authenticated'
                 || state.status
@@ -333,28 +334,23 @@ export function createBrowserAuthRuntime(
                 });
             }
 
-            const login =
-                loginResult.data.data;
-
-            dispatch({
+            /*
+             * Successful fresh Browser login establishes
+             * global User identity only.
+             *
+             * Membership discovery and explicit Membership
+             * selection belong to MembershipRuntime.
+             *
+             * In particular, do not call /auth/me here:
+             * there is no Membership/Tenant context yet.
+             */
+            return dispatch({
                 type:
                     'LOGIN_ACCEPTED',
-                login,
+
+                identity:
+                    loginResult.data.data,
             });
-
-            const bootstrapResult =
-                await operations.bootstrap({
-                    membershipId:
-                        login.membership_id,
-
-                    ...createBrowserAuthAbortOptions(
-                        options?.signal,
-                    ),
-                });
-
-            return applyBootstrapResult(
-                bootstrapResult,
-            );
         },
 
         async logout(

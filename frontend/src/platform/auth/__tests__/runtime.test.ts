@@ -26,28 +26,49 @@ const tenantId =
 
 const loginRequest:
     BrowserLoginRequest = {
-        email:
+        identifier:
             'member@example.com',
+
         password:
             'correct-horse-battery-staple',
-        tenant_uuid:
-            tenantId,
     };
 
 const loginSuccess:
     BrowserApiResult<
         BrowserLoginSuccess
     > = {
-        ok: true,
-        status: 200,
+        ok:
+            true,
+
+        status:
+            200,
+
         data: {
             status:
                 'success',
+
             data: {
-                membership_id:
-                    membershipId,
-                tenant_id:
-                    tenantId,
+                context_type:
+                    'identity',
+
+                user: {
+                    id:
+                        '018f3b6a-7c20-7cde-8def-1234567890ab',
+
+                    name:
+                        'EduCore Member',
+
+                    email:
+                        'member@example.com',
+
+                    username:
+                        'member',
+                },
+
+                platform: {
+                    is_superadmin:
+                        false,
+                },
             },
         },
     };
@@ -273,7 +294,7 @@ describe(
             });
         });
 
-        it('orchestrates login through context resolution into canonical identity', async () => {
+        it('stops fresh global login at identity-authenticated without Membership bootstrap', async () => {
             const observedStatuses:
                 string[] = [];
 
@@ -296,6 +317,8 @@ describe(
                 sessionRequiredFailure,
             );
 
+            bootstrap.mockClear();
+
             const unsubscribe =
                 runtime.subscribe(
                     (state) => {
@@ -316,21 +339,22 @@ describe(
                 observedStatuses,
             ).toEqual([
                 'authenticating',
-                'resolving-context',
-                'authenticated',
+                'identity-authenticated',
             ]);
 
             expect(
                 bootstrap,
-            ).toHaveBeenLastCalledWith({
-                membershipId,
-                signal:
-                    undefined,
-            });
+            ).not.toHaveBeenCalled();
 
-            expect(state.status).toBe(
-                'authenticated',
-            );
+            expect(
+                state,
+            ).toEqual({
+                status:
+                    'identity-authenticated',
+
+                identity:
+                    loginSuccess.data?.data,
+            });
         });
 
         it('returns to anonymous when browser login fails', async () => {

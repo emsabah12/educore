@@ -37,11 +37,12 @@ export function MembershipContextProvider({
      * The controller belongs to the Provider lifecycle,
      * not to one authentication-status Effect execution.
      *
-     * Membership restoration itself temporarily drives
-     * BrowserAuth through resolving-context. React must not
-     * interpret that internal canonical verification
-     * transition as cancellation of the Membership
-     * operation that initiated it.
+     * Membership discovery or canonical target
+     * verification may legitimately change BrowserAuth
+     * state while the Membership operation is still in
+     * flight. React must not interpret that state change as
+     * automatic cancellation of the operation that caused
+     * it.
      */
     const activeBootstrapControllerRef =
         useRef<
@@ -81,6 +82,8 @@ export function MembershipContextProvider({
 
             if (
                 authenticationStatus
+                    === 'identity-authenticated'
+                || authenticationStatus
                     === 'authenticated'
                 || authenticationStatus
                     === 'membership-context-required'
@@ -134,9 +137,13 @@ export function MembershipContextProvider({
                         controller.signal,
 
                     /*
-                     * Only initial BrowserSession recovery
-                     * may consume the tab-local advisory
-                     * restoration hint.
+                     * Fresh global authentication must
+                     * never silently reuse a previous
+                     * tab-local Membership selection.
+                     *
+                     * Only an existing BrowserSession that
+                     * reports missing Membership context may
+                     * use the advisory restoration hint.
                      */
                     restoreHint:
                         authenticationStatus
@@ -158,26 +165,12 @@ export function MembershipContextProvider({
                 /*
                  * Deliberately no Effect cleanup here.
                  *
-                 * authentication.status may transition to
-                 * resolving-context as part of this very
-                 * Membership bootstrap. Cancelling on every
-                 * dependency transition would make the
-                 * operation abort itself.
-                 */
-                return;
-            }
-
-            if (
-                authenticationStatus
-                    === 'resolving-context'
-            ) {
-                /*
-                 * Canonical Membership confirmation owns
-                 * this temporary Auth transition.
-                 *
-                 * Keep both the in-flight Membership
-                 * bootstrap and current Membership truth
-                 * unchanged.
+                 * Canonical Membership verification may
+                 * transition authentication into the fully
+                 * authenticated state as part of this same
+                 * Membership lifecycle. Cancelling on every
+                 * authentication dependency transition
+                 * would make the operation abort itself.
                  */
                 return;
             }

@@ -30,9 +30,8 @@ export interface LoginFailurePresentation {
 
 const KNOWN_LOGIN_VALIDATION_FIELDS =
     new Set([
-        'email',
+        'identifier',
         'password',
-        'tenant_uuid',
     ]);
 
 function isCanonicalValidationError(
@@ -85,11 +84,11 @@ function presentValidationFailure(
     if (
         hasValidationField(
             failure.error.errors,
-            'email',
+            'identifier',
         )
     ) {
-        fieldErrors.email =
-            'Email tidak dapat diterima. Periksa kembali email Anda.';
+        fieldErrors.identifier =
+            'Identifier tidak dapat diterima. Periksa kembali email atau username Anda.';
     }
 
     if (
@@ -100,16 +99,6 @@ function presentValidationFailure(
     ) {
         fieldErrors.password =
             'Password tidak dapat diterima. Periksa kembali password Anda.';
-    }
-
-    if (
-        hasValidationField(
-            failure.error.errors,
-            'tenant_uuid',
-        )
-    ) {
-        fieldErrors.tenantUuid =
-            'Tenant UUID tidak dapat diterima. Periksa kembali Tenant UUID Anda.';
     }
 
     const unknownFieldPresent =
@@ -133,12 +122,6 @@ function presentValidationFailure(
 function presentResponseFailure(
     failure: BrowserApiResponseFailure,
 ): LoginFailurePresentation | null {
-    /*
-     * Initial BrowserSession bootstrap uses this canonical
-     * response to establish authoritative anonymous truth.
-     *
-     * It is authentication state, not a failed login attempt.
-     */
     if (
         failure.status === 401
         && failure.error.code
@@ -157,7 +140,7 @@ function presentResponseFailure(
                 'invalid-credentials',
 
             message:
-                'Email, password, atau Tenant UUID tidak cocok.',
+                'Identifier atau password tidak cocok.',
 
             fieldErrors: {},
         };
@@ -209,10 +192,6 @@ export function presentLoginFailure(
 
     switch (failure.kind) {
         case 'aborted':
-            /*
-             * Cancellation is a caller lifecycle outcome,
-             * not a user-facing authentication failure.
-             */
             return null;
 
         case 'network':

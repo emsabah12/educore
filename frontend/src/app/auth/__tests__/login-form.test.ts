@@ -9,20 +9,17 @@ import {
 } from '@/app/auth/login-form';
 
 const validValues = {
-    email:
+    identifier:
         'member@example.com',
 
     password:
         'correct horse battery staple',
-
-    tenantUuid:
-        '018f3b6a-7c20-7cde-8def-1234567890ab',
 };
 
 describe(
     'Login form input validation',
     () => {
-        it('creates the canonical Browser login request from valid input', () => {
+        it('creates the canonical global Browser login request', () => {
             expect(
                 validateLoginForm(
                     validValues,
@@ -32,138 +29,66 @@ describe(
                     true,
 
                 request: {
-                    email:
+                    identifier:
                         'member@example.com',
 
                     password:
                         'correct horse battery staple',
-
-                    tenant_uuid:
-                        '018f3b6a-7c20-7cde-8def-1234567890ab',
                 },
             });
         });
 
-
-
-        it('normalizes email and Tenant UUID without modifying the password', () => {
+        it('trims only surrounding identifier whitespace without modifying password', () => {
             expect(
                 validateLoginForm({
-                    email:
+                    identifier:
                         '  MEMBER@EXAMPLE.COM  ',
 
                     password:
                         '  secret value  ',
-
-                    tenantUuid:
-                        '  018f3b6a-7c20-7cde-8def-1234567890ab  ',
                 }),
             ).toEqual({
                 ok:
                     true,
 
                 request: {
-                    email:
-                        'member@example.com',
+                    identifier:
+                        'MEMBER@EXAMPLE.COM',
 
                     password:
                         '  secret value  ',
-
-                    tenant_uuid:
-                        '018f3b6a-7c20-7cde-8def-1234567890ab',
                 },
             });
         });
 
-        it('requires an email', () => {
+        it('accepts username identifiers without requiring email syntax', () => {
             expect(
                 validateLoginForm({
                     ...validValues,
 
-                    email:
-                        '   ',
+                    identifier:
+                        'school.admin',
                 }),
-            ).toEqual({
-                ok:
-                    false,
-
-                errors: {
-                    email:
-                        'Email wajib diisi.',
-                },
-            });
-        });
-
-        it('rejects an invalid email format', () => {
-            expect(
-                validateLoginForm({
-                    ...validValues,
-
-                    email:
-                        'not-an-email',
-                }),
-            ).toEqual({
-                ok:
-                    false,
-
-                errors: {
-                    email:
-                        'Format email tidak valid.',
-                },
-            });
-        });
-
-        it('requires a password without trimming credential input', () => {
-            expect(
-                validateLoginForm({
-                    ...validValues,
-
-                    password:
-                        '',
-                }),
-            ).toEqual({
-                ok:
-                    false,
-
-                errors: {
-                    password:
-                        'Password wajib diisi.',
-                },
-            });
-
-            const whitespacePassword =
-                validateLoginForm({
-                    ...validValues,
-
-                    password:
-                        '   ',
-                });
-
-            expect(
-                whitespacePassword,
             ).toEqual({
                 ok:
                     true,
 
                 request: {
-                    email:
-                        validValues.email,
+                    identifier:
+                        'school.admin',
 
                     password:
-                        '   ',
-
-                    tenant_uuid:
-                        validValues.tenantUuid,
+                        validValues.password,
                 },
             });
         });
 
-        it('requires a Tenant UUID', () => {
+        it('requires an identifier', () => {
             expect(
                 validateLoginForm({
                     ...validValues,
 
-                    tenantUuid:
+                    identifier:
                         '   ',
                 }),
             ).toEqual({
@@ -171,27 +96,27 @@ describe(
                     false,
 
                 errors: {
-                    tenantUuid:
-                        'Tenant UUID wajib diisi.',
+                    identifier:
+                        'Identifier wajib diisi.',
                 },
             });
         });
 
-        it('rejects a malformed Tenant UUID without requiring one UUID version', () => {
+        it('requires password without trimming credential input', () => {
             expect(
                 validateLoginForm({
                     ...validValues,
 
-                    tenantUuid:
-                        'not-a-uuid',
+                    password:
+                        '',
                 }),
             ).toEqual({
                 ok:
                     false,
 
                 errors: {
-                    tenantUuid:
-                        'Tenant UUID tidak valid.',
+                    password:
+                        'Password wajib diisi.',
                 },
             });
 
@@ -199,43 +124,44 @@ describe(
                 validateLoginForm({
                     ...validValues,
 
-                    tenantUuid:
-                        '018f3b6a-7c20-7cde-8def-1234567890ab',
-                }).ok,
-            ).toBe(
-                true,
-            );
+                    password:
+                        '   ',
+                }),
+            ).toEqual({
+                ok:
+                    true,
+
+                request: {
+                    identifier:
+                        validValues.identifier,
+
+                    password:
+                        '   ',
+                },
+            });
         });
 
-        it('returns all independently detectable field errors together', () => {
+        it('returns independently detectable field errors together', () => {
             expect(
                 validateLoginForm({
-                    email:
+                    identifier:
                         '',
 
                     password:
                         '',
-
-                    tenantUuid:
-                        'invalid',
                 }),
             ).toEqual({
                 ok:
                     false,
 
                 errors: {
-                    email:
-                        'Email wajib diisi.',
+                    identifier:
+                        'Identifier wajib diisi.',
 
                     password:
                         'Password wajib diisi.',
-
-                    tenantUuid:
-                        'Tenant UUID tidak valid.',
                 },
             });
         });
-
-
     },
 );

@@ -219,6 +219,66 @@ describe(
             ).toBeInTheDocument();
         });
 
+        it('leaves login after global Identity authentication before Membership context is selected', async () => {
+            mocks
+                .authenticationStatus =
+                    'identity-authenticated';
+
+            const router =
+                createTestRouter(
+                    '/login?returnTo=%2Facademic%2Fstudents',
+                );
+
+            render(
+                <RouterProvider
+                    router={router}
+                />,
+            );
+
+            /*
+             * Global authentication is already complete.
+             *
+             * Membership discovery, cardinality handling,
+             * and Tenant verification belong to the
+             * application/protected-route lifecycle.
+             *
+             * The login route therefore must not keep
+             * rendering credential input merely because
+             * Membership Context is not ready yet.
+             */
+            await waitFor(
+                () => {
+                    expect(
+                        router.state
+                            .location
+                            .pathname,
+                    ).toBe(
+                        '/academic/students',
+                    );
+                },
+            );
+
+            expect(
+                screen.queryByRole(
+                    'heading',
+                    {
+                        name:
+                            'Masuk ke EduCore',
+                    },
+                ),
+            ).not.toBeInTheDocument();
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Academic students',
+                    },
+                ),
+            ).toBeInTheDocument();
+        });
+
         it('falls back to the canonical application entry for authenticated users without returnTo', async () => {
             mocks
                 .authenticationStatus =

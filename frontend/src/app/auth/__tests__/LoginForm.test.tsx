@@ -15,13 +15,10 @@ import {
     LoginForm,
 } from '@/app/auth/LoginForm';
 
-const tenantUuid =
-    '018f3b6a-7c20-7cde-8def-1234567890ab';
-
 function fillValidForm(): void {
     fireEvent.change(
         screen.getByLabelText(
-            'Email',
+            'Email atau username',
         ),
         {
             target: {
@@ -42,24 +39,12 @@ function fillValidForm(): void {
             },
         },
     );
-
-    fireEvent.change(
-        screen.getByLabelText(
-            'Tenant UUID',
-        ),
-        {
-            target: {
-                value:
-                    tenantUuid,
-            },
-        },
-    );
 }
 
 describe(
     'LoginForm',
     () => {
-        it('renders accessible login fields with browser credential autocomplete semantics', () => {
+        it('renders global identifier and password fields with browser credential autocomplete semantics', () => {
             render(
                 <LoginForm
                     onValidatedSubmit={
@@ -68,9 +53,9 @@ describe(
                 />,
             );
 
-            const email =
+            const identifier =
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 );
 
             const password =
@@ -78,20 +63,15 @@ describe(
                     'Password',
                 );
 
-            const tenant =
-                screen.getByLabelText(
-                    'Tenant UUID',
-                );
-
             expect(
-                email,
+                identifier,
             ).toHaveAttribute(
                 'type',
-                'email',
+                'text',
             );
 
             expect(
-                email,
+                identifier,
             ).toHaveAttribute(
                 'autocomplete',
                 'username',
@@ -112,24 +92,10 @@ describe(
             );
 
             expect(
-                tenant,
-            ).toHaveAttribute(
-                'autocomplete',
-                'off',
-            );
-
-            expect(
-                screen.getByRole(
-                    'button',
-                    {
-                        name:
-                            'Masuk',
-                    },
+                screen.queryByLabelText(
+                    'Tenant UUID',
                 ),
-            ).toHaveAttribute(
-                'type',
-                'submit',
-            );
+            ).not.toBeInTheDocument();
         });
 
         it('shows all locally detectable validation errors without dispatching authentication intent', async () => {
@@ -144,18 +110,6 @@ describe(
                 />,
             );
 
-            fireEvent.change(
-                screen.getByLabelText(
-                    'Tenant UUID',
-                ),
-                {
-                    target: {
-                        value:
-                            'invalid',
-                    },
-                },
-            );
-
             fireEvent.click(
                 screen.getByRole(
                     'button',
@@ -168,19 +122,13 @@ describe(
 
             expect(
                 await screen.findByText(
-                    'Email wajib diisi.',
+                    'Identifier wajib diisi.',
                 ),
             ).toBeInTheDocument();
 
             expect(
                 screen.getByText(
                     'Password wajib diisi.',
-                ),
-            ).toBeInTheDocument();
-
-            expect(
-                screen.getByText(
-                    'Tenant UUID tidak valid.',
                 ),
             ).toBeInTheDocument();
 
@@ -210,7 +158,7 @@ describe(
 
             expect(
                 await screen.findByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
             ).toHaveAttribute(
                 'aria-invalid',
@@ -225,18 +173,9 @@ describe(
                 'aria-invalid',
                 'true',
             );
-
-            expect(
-                screen.getByLabelText(
-                    'Tenant UUID',
-                ),
-            ).toHaveAttribute(
-                'aria-invalid',
-                'true',
-            );
         });
 
-        it('clears a field error when that field is edited again', async () => {
+        it('clears identifier error when identifier is edited again', async () => {
             render(
                 <LoginForm
                     onValidatedSubmit={
@@ -257,30 +196,30 @@ describe(
 
             expect(
                 await screen.findByText(
-                    'Email wajib diisi.',
+                    'Identifier wajib diisi.',
                 ),
             ).toBeInTheDocument();
 
             fireEvent.change(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
                 {
                     target: {
                         value:
-                            'member@example.com',
+                            'school.admin',
                     },
                 },
             );
 
             expect(
                 screen.queryByText(
-                    'Email wajib diisi.',
+                    'Identifier wajib diisi.',
                 ),
             ).not.toBeInTheDocument();
         });
 
-        it('submits only a validated canonical Browser login request', async () => {
+        it('submits only identifier and password', async () => {
             const onValidatedSubmit =
                 vi.fn();
 
@@ -294,12 +233,12 @@ describe(
 
             fireEvent.change(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
                 {
                     target: {
                         value:
-                            '  MEMBER@EXAMPLE.COM  ',
+                            '  school.admin  ',
                     },
                 },
             );
@@ -312,18 +251,6 @@ describe(
                     target: {
                         value:
                             '  secret value  ',
-                    },
-                },
-            );
-
-            fireEvent.change(
-                screen.getByLabelText(
-                    'Tenant UUID',
-                ),
-                {
-                    target: {
-                        value:
-                            `  ${tenantUuid}  `,
                     },
                 },
             );
@@ -349,18 +276,15 @@ describe(
             expect(
                 onValidatedSubmit,
             ).toHaveBeenCalledWith({
-                email:
-                    'member@example.com',
+                identifier:
+                    'school.admin',
 
                 password:
                     '  secret value  ',
-
-                tenant_uuid:
-                    tenantUuid,
             });
         });
 
-        it('prevents submission while the form is disabled', () => {
+        it('prevents submission while disabled', () => {
             const onValidatedSubmit =
                 vi.fn();
 
@@ -375,19 +299,13 @@ describe(
 
             expect(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
             ).toBeDisabled();
 
             expect(
                 screen.getByLabelText(
                     'Password',
-                ),
-            ).toBeDisabled();
-
-            expect(
-                screen.getByLabelText(
-                    'Tenant UUID',
                 ),
             ).toBeDisabled();
 
@@ -406,7 +324,7 @@ describe(
             ).not.toHaveBeenCalled();
         });
 
-        it('does not clear the password after successful validated handoff', async () => {
+        it('does not clear password after successful validated handoff', async () => {
             render(
                 <LoginForm
                     onValidatedSubmit={
@@ -438,12 +356,12 @@ describe(
             });
         });
 
-                it('renders controlled form-level and server field errors without exposing transport details', () => {
+        it('renders controlled identifier server errors without exposing transport details', () => {
             render(
                 <LoginForm
                     externalErrors={{
-                        email:
-                            'Email tidak dapat diterima. Periksa kembali email Anda.',
+                        identifier:
+                            'Identifier tidak dapat diterima. Periksa kembali email atau username Anda.',
                     }}
                     formError="Periksa kembali data login yang ditandai."
                     onValidatedSubmit={
@@ -463,7 +381,7 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Email tidak dapat diterima. Periksa kembali email Anda.',
+                    'Identifier tidak dapat diterima. Periksa kembali email atau username Anda.',
                 ),
             ).toHaveAttribute(
                 'role',
@@ -472,7 +390,7 @@ describe(
 
             expect(
                 screen.getByLabelText(
-                    'Email',
+                    'Email atau username',
                 ),
             ).toHaveAttribute(
                 'aria-invalid',
@@ -480,7 +398,7 @@ describe(
             );
         });
 
-                it('notifies the application boundary when any login credential input changes', () => {
+        it('notifies application boundary for both credential inputs', () => {
             const onInputChange =
                 vi.fn();
 
@@ -495,46 +413,12 @@ describe(
                 />,
             );
 
-            fireEvent.change(
-                screen.getByLabelText(
-                    'Email',
-                ),
-                {
-                    target: {
-                        value:
-                            'member@example.com',
-                    },
-                },
-            );
-
-            fireEvent.change(
-                screen.getByLabelText(
-                    'Password',
-                ),
-                {
-                    target: {
-                        value:
-                            'secret-value',
-                    },
-                },
-            );
-
-            fireEvent.change(
-                screen.getByLabelText(
-                    'Tenant UUID',
-                ),
-                {
-                    target: {
-                        value:
-                            '018f3b6a-7c20-7cde-8def-1234567890ab',
-                    },
-                },
-            );
+            fillValidForm();
 
             expect(
                 onInputChange,
             ).toHaveBeenCalledTimes(
-                3,
+                2,
             );
         });
     },

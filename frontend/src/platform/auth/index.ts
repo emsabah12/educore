@@ -64,10 +64,11 @@ export type {
     AuthenticatedBrowserAuthState,
     AuthenticatingBrowserAuthState,
     BrowserAuthAction,
+    BrowserAuthenticatedIdentity,
     BrowserAuthState,
+    IdentityAuthenticatedBrowserAuthState,
     LoggingOutBrowserAuthState,
     MembershipContextRequiredBrowserAuthState,
-    ResolvingBrowserAuthContextState,
     UnavailableBrowserAuthState,
     UnknownBrowserAuthState,
 } from './state';

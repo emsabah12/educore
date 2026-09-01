@@ -2,6 +2,21 @@ import {
     useBrowserAuthRuntime,
     useBrowserAuthState,
 } from '@/app/auth/BrowserAuthProvider';
+import type {
+    BrowserAuthState,
+} from '@/platform/auth';
+
+function canStartGlobalLogout(
+    status:
+        BrowserAuthState['status'],
+): boolean {
+    return (
+        status
+            === 'identity-authenticated'
+        || status
+            === 'authenticated'
+    );
+}
 
 export function LogoutButton() {
     const runtime =
@@ -14,42 +29,54 @@ export function LogoutButton() {
         authentication.status
             === 'logging-out';
 
+    const logoutEligible =
+        canStartGlobalLogout(
+            authentication.status,
+        );
+
     /*
-     * The protected application normally renders this
-     * component only while authentication is authoritative.
+     * Global BrowserSession logout belongs to authenticated
+     * User identity, not specifically to Membership/Tenant
+     * authority.
      *
-     * Keep the component defensive so route/provider
-     * transitions cannot expose an invalid logout command.
+     * Therefore both global Identity Context and fully
+     * established Membership Context may expose logout.
+     *
+     * Keep the logging-out projection visible but disabled
+     * while the command is already in flight.
      */
     if (
-        authentication.status
-            !== 'authenticated'
-        && authentication.status
-            !== 'logging-out'
+        ! logoutEligible
+        && ! loggingOut
     ) {
         return null;
     }
 
     async function handleLogout(): Promise<void> {
         /*
-         * React snapshot controls the visible button state,
-         * but the live runtime state is checked again at the
-         * command boundary.
+         * React snapshot controls presentation, but command
+         * authorization is checked again against the live
+         * runtime state.
          *
-         * This prevents duplicate/stale clicks from
-         * dispatching LOGOUT_STARTED after another logout
-         * has already begun.
+         * This prevents stale or duplicate clicks from
+         * dispatching LOGOUT_STARTED after the runtime has
+         * already moved into logging-out or another
+         * non-eligible state.
          */
-        if (
+        const currentStatus =
             runtime.getState()
-                .status
-                !== 'authenticated'
+                .status;
+
+        if (
+            ! canStartGlobalLogout(
+                currentStatus,
+            )
         ) {
             return;
         }
 
         /*
-         * BrowserAuthRuntime owns the complete logout
+         * BrowserAuthRuntime owns the complete global logout
          * lifecycle:
          *
          * - CSRF bootstrap
@@ -57,7 +84,7 @@ export function LogoutButton() {
          * - authentication state transition
          *
          * Membership, Workspace, restoration hints, and
-         * routing react downstream to authority loss.
+         * routing react downstream to global authority loss.
          */
         await runtime.logout();
     }
