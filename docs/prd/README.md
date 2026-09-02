@@ -51,3 +51,16 @@ Current HR specification terdiri dari:
 ```text
 HR-001 → HR-016
 ```
+
+---
+
+## Proposed Billing & Subscription (Not Yet Approved)
+
+Open decisions dan proposed domain boundary tersedia di:
+
+[`billing/README.md`](billing/README.md)
+
+**Status: IN PROGRESS — OPEN DECISIONS ONLY.** Belum ada implementation,
+belum ada system/data design. Jangan disamakan dengan `Modules/Finance`
+yang disinggung `ADR-032` (payroll internal tenant) — Billing adalah
+platform mengenakan biaya ke Tenant, domain yang sepenuhnya berbeda.
