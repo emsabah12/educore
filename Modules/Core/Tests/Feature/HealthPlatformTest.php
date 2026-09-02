@@ -70,4 +70,43 @@ final class HealthPlatformTest extends TestCase
         $response->assertJsonPath('status', 'DOWN');
         $response->assertJsonPath('components.database.healthy', false);
     }
+
+    /**
+     * GAP-024: Endpoint ini publik (tidak ada middleware auth). Detail
+     * koneksi internal (nama database, username) yang disuntikkan salah
+     * di atas TIDAK BOLEH pernah muncul di response — hanya boleh masuk
+     * log operasional.
+     */
+    public function test_health_check_response_never_exposes_raw_connection_details(): void
+    {
+        $url = '/api/v1/core/health';
+
+        DB::disconnect();
+        $defaultConnection = DB::getDefaultConnection();
+
+        $originalDatabase = config("database.connections.{$defaultConnection}.database");
+        $originalUsername = config("database.connections.{$defaultConnection}.username");
+
+        Config::set("database.connections.{$defaultConnection}.database", 'db_palsu_testing');
+        Config::set("database.connections.{$defaultConnection}.username", 'user_salah_diagnostik');
+        DB::purge($defaultConnection);
+
+        $response = $this->withHeaders(['Accept' => 'application/json'])->json('GET', $url);
+
+        Config::set("database.connections.{$defaultConnection}.database", $originalDatabase);
+        Config::set("database.connections.{$defaultConnection}.username", $originalUsername);
+        DB::disconnect();
+        DB::purge($defaultConnection);
+
+        $rawBody = $response->getContent();
+
+        $this->assertIsString($rawBody);
+        $this->assertStringNotContainsString('db_palsu_testing', $rawBody);
+        $this->assertStringNotContainsString('user_salah_diagnostik', $rawBody);
+
+        $response->assertJsonPath(
+            'components.database.message',
+            'Database connectivity check failed.',
+        );
+    }
 }

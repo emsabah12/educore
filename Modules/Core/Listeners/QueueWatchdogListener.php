@@ -49,13 +49,11 @@ final class QueueWatchdogListener
                 $operatorIdProp->setAccessible(true);
                 $operatorId = $operatorIdProp->getValue($jobInstance);
 
-                // 3. Ekstrak properti payload secara aman
-                $payloadProp = $reflection->getProperty('payload');
-                $payloadProp->setAccessible(true);
-                $rawPayload = $payloadProp->getValue($jobInstance);
-
-                // PENGAMAN: Pastikan payload dinormalisasi menjadi array primitif murni yang bersih
-                $cleanPayload = is_array($rawPayload) ? $rawPayload : (array) $rawPayload;
+                // 3. Ambil audit context yang AMAN — bukan payload mentah.
+                //    Job yang tidak meng-override auditContext() akan
+                //    mengembalikan array kosong (fail-closed), bukan
+                //    membocorkan seluruh payload seperti perilaku lama.
+                $safeJobContext = $jobInstance->getAuditContext();
 
                 $sanitizedOperatorId = (! empty($operatorId) && is_string($operatorId)) ? $operatorId : null;
 
@@ -74,7 +72,9 @@ final class QueueWatchdogListener
                     [
                         'job_class' => $reflection->getName(),
                         'exception_class' => get_class($event->exception),
-                        'input_payload' => $cleanPayload // Menggunakan array murni yang bebas dari PHP internal scope mapping
+                        // Identifier-only (GAP-021 remediation): tidak
+                        // pernah berisi payload mentah/data personal.
+                        'job_context' => $safeJobContext,
                     ]
                 );
             }

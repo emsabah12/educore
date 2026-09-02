@@ -19,10 +19,14 @@ Route::middleware([
     Route::get(
         '/v1/hr/employees',
         [EmployeeManagementController::class, 'index']
-    )->name('api.v1.hr.employees.index');
+    )
+        ->middleware('tenant.permission:hr.employees.view')
+        ->name('api.v1.hr.employees.index');
 
     Route::post(
         '/v1/hr/employees',
         [EmployeeManagementController::class, 'store']
-    )->name('api.v1.hr.employees.store');
+    )
+        ->middleware('tenant.permission:hr.employees.create')
+        ->name('api.v1.hr.employees.store');
 });

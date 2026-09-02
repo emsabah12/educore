@@ -19,6 +19,10 @@ use Modules\Academic\Http\Controllers\Api\v1\BulkGradingController;
 |
 | Route prefix "api" diberikan oleh module route provider.
 |
+| Setiap route tulis/baca dilindungi middleware
+| `tenant.permission:<permission>` (ADR-016). Katalog permission
+| didefinisikan di AcademicAuthorizationCatalogSeeder.
+|
 */
 
 /*
@@ -40,12 +44,16 @@ Route::middleware([
     Route::get(
         '/v1/academic/classes',
         [AcademicClassController::class, 'index']
-    )->name('api.v1.academic.classes.index');
+    )
+        ->middleware('tenant.permission:academic.classes.read')
+        ->name('api.v1.academic.classes.index');
 
     Route::post(
         '/v1/academic/classes',
         [AcademicClassController::class, 'store']
-    )->name('api.v1.academic.classes.store');
+    )
+        ->middleware('tenant.permission:academic.classes.write')
+        ->name('api.v1.academic.classes.store');
 
     /*
     |--------------------------------------------------------------------------
@@ -56,12 +64,16 @@ Route::middleware([
     Route::get(
         '/v1/academic/subjects',
         [AcademicSubjectController::class, 'index']
-    )->name('api.v1.academic.subjects.index');
+    )
+        ->middleware('tenant.permission:academic.subjects.read')
+        ->name('api.v1.academic.subjects.index');
 
     Route::post(
         '/v1/academic/subjects',
         [AcademicSubjectController::class, 'store']
-    )->name('api.v1.academic.subjects.store');
+    )
+        ->middleware('tenant.permission:academic.subjects.write')
+        ->name('api.v1.academic.subjects.store');
 
     /*
     |--------------------------------------------------------------------------
@@ -72,12 +84,16 @@ Route::middleware([
     Route::get(
         '/v1/academic/students',
         [StudentManagementController::class, 'index']
-    )->name('api.v1.academic.students.index');
+    )
+        ->middleware('tenant.permission:academic.students.read')
+        ->name('api.v1.academic.students.index');
 
     Route::post(
         '/v1/academic/students',
         [StudentManagementController::class, 'store']
-    )->name('api.v1.academic.students.store');
+    )
+        ->middleware('tenant.permission:academic.students.write')
+        ->name('api.v1.academic.students.store');
 
     /*
     |--------------------------------------------------------------------------
@@ -88,12 +104,16 @@ Route::middleware([
     Route::get(
         '/v1/academic/guardians',
         [GuardianManagementController::class, 'index']
-    )->name('api.v1.academic.guardians.index');
+    )
+        ->middleware('tenant.permission:academic.guardians.read')
+        ->name('api.v1.academic.guardians.index');
 
     Route::post(
         '/v1/academic/guardians',
         [GuardianManagementController::class, 'store']
-    )->name('api.v1.academic.guardians.store');
+    )
+        ->middleware('tenant.permission:academic.guardians.write')
+        ->name('api.v1.academic.guardians.store');
 
     /*
     |--------------------------------------------------------------------------
@@ -104,17 +124,23 @@ Route::middleware([
     Route::get(
         '/v1/academic/guardians/{guardianId}/students',
         [GuardianStudentManagementController::class, 'index']
-    )->name('api.v1.academic.guardians.students.index');
+    )
+        ->middleware('tenant.permission:academic.guardians.read')
+        ->name('api.v1.academic.guardians.students.index');
 
     Route::post(
         '/v1/academic/guardians/associations',
         [GuardianStudentManagementController::class, 'store']
-    )->name('api.v1.academic.guardians.associations.store');
+    )
+        ->middleware('tenant.permission:academic.guardians.write')
+        ->name('api.v1.academic.guardians.associations.store');
 
     Route::delete(
         '/v1/academic/guardians/associations',
         [GuardianStudentManagementController::class, 'destroy']
-    )->name('api.v1.academic.guardians.associations.destroy');
+    )
+        ->middleware('tenant.permission:academic.guardians.write')
+        ->name('api.v1.academic.guardians.associations.destroy');
 
     /*
     |--------------------------------------------------------------------------
@@ -125,17 +151,23 @@ Route::middleware([
     Route::get(
         '/v1/academic/academic-years',
         [AcademicPeriodController::class, 'indexYears']
-    )->name('api.v1.academic.years.index');
+    )
+        ->middleware('tenant.permission:academic.years.read')
+        ->name('api.v1.academic.years.index');
 
     Route::post(
         '/v1/academic/academic-years',
         [AcademicPeriodController::class, 'storeYear']
-    )->name('api.v1.academic.years.store');
+    )
+        ->middleware('tenant.permission:academic.years.write')
+        ->name('api.v1.academic.years.store');
 
     Route::post(
         '/v1/academic/academic-years/{yearId}/semesters',
         [AcademicPeriodController::class, 'storeSemester']
-    )->name('api.v1.academic.semesters.store');
+    )
+        ->middleware('tenant.permission:academic.years.write')
+        ->name('api.v1.academic.semesters.store');
 
     /*
     |--------------------------------------------------------------------------

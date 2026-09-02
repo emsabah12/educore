@@ -10,18 +10,22 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
+use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Modules\HR\Models\Employee;
 use Modules\HR\Repositories\EloquentEmployeeRepository;
 use RuntimeException;
+use Tests\Support\GrantsAuthorizationRole;
 use Tests\TestCase;
 
 final class EmployeeManagementTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsAuthorizationRole;
 
     private string $tenantId;
     private string $operatorPersonId;
@@ -31,6 +35,8 @@ final class EmployeeManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(HrAuthorizationCatalogSeeder::class);
 
         $this->tenantId = UuidV7::generate();
         $this->operatorPersonId = UuidV7::generate();
@@ -190,6 +196,7 @@ final class EmployeeManagementTest extends TestCase
                 'jabatan' => 'STAFF',
             ])
             ->assertInternalServerError()
+            ->assertJsonPath('code', 'EMPLOYEE_PROVISIONING_FAILED')
             ->assertJsonPath('message', 'Failed to persist employee record.');
 
         $this->assertSame($beforePersons, DB::table('persons')->count());
@@ -323,6 +330,61 @@ final class EmployeeManagementTest extends TestCase
             ->assertJsonPath('meta.per_page', 100);
     }
 
+    public function test_store_succeeds_even_when_audit_trail_logging_fails(): void
+    {
+        // GAP-006: kegagalan audit trail (best-effort) tidak boleh
+        // mengubah operasi provisioning yang sudah sukses menjadi 500.
+        $this->mock(
+            AuditTrailServiceInterface::class,
+            static function (MockInterface $mock): void {
+                $mock->shouldReceive('log')
+                    ->once()
+                    ->andThrow(new RuntimeException('forced audit failure'));
+            },
+        );
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(route('api.v1.hr.employees.store', [], false), [
+                'nama' => 'Audit Failure Employee',
+                'nip' => 'AUDIT-FAIL-001',
+                'jabatan' => 'STAFF',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseHas('employees', [
+            'nip' => 'AUDIT-FAIL-001',
+        ]);
+    }
+
+    public function test_store_is_forbidden_when_hr_officer_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(route('api.v1.hr.employees.store', [], false), [
+                'nama' => 'Unauthorized Employee',
+                'jabatan' => 'guru',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_index_is_forbidden_when_hr_officer_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->getJson(route('api.v1.hr.employees.index', [], false))
+            ->assertForbidden();
+    }
+
     private function createAuthenticatedTenantFixture(): void
     {
         $this->createTenant(
@@ -360,6 +422,11 @@ final class EmployeeManagementTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->grantRole(
+            $this->operatorMembershipId,
+            HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE,
+        );
     }
 
     private function createTenant(

@@ -37,6 +37,10 @@ use Modules\Core\Person\Repositories\EloquentPersonRepository;
 use Modules\Core\Person\Contracts\PersonRepositoryInterface;
 use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
 use Modules\Core\Person\Repositories\EloquentPersonLifecycleEventRepository;
+use Modules\Core\Person\Contracts\PersonIdentifierCipherInterface;
+use Modules\Core\Person\Services\PersonIdentifierCipher;
+use Modules\Core\Person\Contracts\PersonIdentifierRepositoryInterface;
+use Modules\Core\Person\Repositories\EloquentPersonIdentifierRepository;
 use Modules\Core\Platform\Console\ModuleListCommand;
 use Modules\Core\Platform\Console\ModuleStatusCommand;
 use Modules\Core\Tests\Console\TestModuleLoaderCommand;
@@ -207,6 +211,16 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(
             PersonLifecycleEventRepositoryInterface::class,
             EloquentPersonLifecycleEventRepository::class,
+        );
+
+        $this->app->singleton(
+            PersonIdentifierCipherInterface::class,
+            PersonIdentifierCipher::class,
+        );
+
+        $this->app->singleton(
+            PersonIdentifierRepositoryInterface::class,
+            EloquentPersonIdentifierRepository::class,
         );
 
         $this->app->singleton(

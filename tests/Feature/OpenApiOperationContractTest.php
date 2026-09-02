@@ -19,6 +19,8 @@ final class OpenApiOperationContractTest extends TestCase
 
         'GET /api/v1/auth/me' => '#/components/schemas/AuthenticatedBootstrapSuccess',
 
+        'GET /api/v1/auth/identity' => '#/components/schemas/GlobalIdentitySuccess',
+
         'POST /api/v1/browser/auth/login' => '#/components/schemas/BrowserLoginSuccess',
 
         'POST /api/v1/browser/auth/logout' => '#/components/schemas/BrowserLogoutSuccess',
@@ -41,6 +43,10 @@ final class OpenApiOperationContractTest extends TestCase
 
         'PUT /api/v1/core/tenants/{id}' => '#/components/schemas/TenantUpdatedSuccess',
 
+        'GET /api/v1/hr/employees' => '#/components/schemas/EmployeeListSuccess',
+
+        'POST /api/v1/hr/employees' => '#/components/schemas/EmployeeCreatedSuccess',
+
         'GET /api/v1/user/my-memberships' => '#/components/schemas/MembershipListSuccess',
 
         'POST /api/v1/user/memberships/{membership_id}/switch' => '#/components/schemas/MembershipSwitchSuccess',
@@ -57,6 +63,7 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/auth/login-token' => '200',
         'POST /api/v1/auth/logout' => '200',
         'GET /api/v1/auth/me' => '200',
+        'GET /api/v1/auth/identity' => '200',
         'POST /api/v1/browser/auth/login' => '200',
         'POST /api/v1/browser/auth/logout' => '200',
         'POST /api/v1/browser/user/memberships/{membership_id}/switch' => '200',
@@ -68,6 +75,8 @@ final class OpenApiOperationContractTest extends TestCase
         'GET /api/v1/core/tenants' => '200',
         'POST /api/v1/core/tenants' => '201',
         'PUT /api/v1/core/tenants/{id}' => '200',
+        'GET /api/v1/hr/employees' => '200',
+        'POST /api/v1/hr/employees' => '201',
         'GET /api/v1/user/my-memberships' => '200',
         'POST /api/v1/user/memberships/{membership_id}/switch' => '200',
         'GET /api/v1/user/my-workspaces' => '200',
@@ -88,13 +97,15 @@ final class OpenApiOperationContractTest extends TestCase
 
         'PUT /api/v1/core/tenants/{id}' => '#/components/schemas/UpdateTenantRequest',
 
+        'POST /api/v1/hr/employees' => '#/components/schemas/StoreEmployeeRequest',
+
         'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/schemas/MembershipRoleAssignmentRequest',
     ];
 
-    public function test_all_18_json_foundation_operations_have_exact_success_schema_wiring(): void
+    public function test_all_21_json_foundation_operations_have_exact_success_schema_wiring(): void
     {
         $this->assertCount(
-            18,
+            21,
             self::SUCCESS_SCHEMAS,
         );
 
@@ -245,6 +256,7 @@ final class OpenApiOperationContractTest extends TestCase
 
         $canonicalDualTransportOperations = [
             'GET /api/v1/auth/me',
+            'GET /api/v1/auth/identity',
             'GET /api/v1/core/authorization/capabilities',
             'GET /api/v1/core/authorization/workspace-capabilities',
             'GET /api/v1/user/my-memberships',

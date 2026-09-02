@@ -209,7 +209,7 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
             )
             ->withHeader(
                 'Authorization',
-                'Bearer '.$forgedBearer,
+                'Bearer ' . $forgedBearer,
             )
             ->getJson('/api/v1/core/authorization/capabilities')
             ->assertOk()
@@ -296,7 +296,7 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
             )
             ->withHeader(
                 'Authorization',
-                'Bearer '.$bearerCredential,
+                'Bearer ' . $bearerCredential,
             )
             ->getJson('/api/v1/core/authorization/capabilities')
             ->assertUnauthorized()
@@ -411,10 +411,27 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
         $this->postJson(
             '/api/v1/browser/auth/login',
             [
-                'email' => $this->emailA,
+                'identifier' => $this->emailA,
                 'password' => 'secret123',
-                'tenant_uuid' => $this->tenantAId,
             ],
+        )->assertOk();
+
+        $this
+            ->withCredentials()
+            ->withCookie(
+                $this->sessionCookieName(),
+                $this->app['session']->getId(),
+            );
+
+        // Kontrak login global (identifier-only) tidak lagi memilih
+        // Membership secara implisit. Membership A sekarang harus
+        // diperoleh lewat switch eksplisit, bukan otomatis dari
+        // payload login (lihat AuthTokenFlowTest).
+        $this->postJson(
+            sprintf(
+                '/api/v1/browser/user/memberships/%s/switch',
+                $this->membershipAId,
+            ),
         )->assertOk();
 
         $browserAuthState = $this->app['session']->get(
@@ -423,19 +440,10 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
 
         $this->assertIsArray($browserAuthState);
 
-        $bearerCredential = $browserAuthState[
-            'membership_credentials'
-        ][$this->membershipAId] ?? null;
+        $bearerCredential = $browserAuthState['membership_credentials'][$this->membershipAId] ?? null;
 
         $this->assertIsString($bearerCredential);
         $this->assertNotSame('', trim($bearerCredential));
-
-        $this
-            ->withCredentials()
-            ->withCookie(
-                $this->sessionCookieName(),
-                $this->app['session']->getId(),
-            );
 
         return $bearerCredential;
     }

@@ -10,14 +10,17 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Modules\Academic\Contracts\GuardianRepositoryInterface;
+use Modules\Academic\Database\Seeders\AcademicAuthorizationCatalogSeeder;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
+use Tests\Support\GrantsAuthorizationRole;
 use Tests\TestCase;
 
 final class GuardianManagementTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsAuthorizationRole;
 
     private string $tenantId;
     private string $operatorPersonId;
@@ -27,6 +30,8 @@ final class GuardianManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(AcademicAuthorizationCatalogSeeder::class);
 
         $this->tenantId = UuidV7::generate();
         $this->operatorPersonId = UuidV7::generate();
@@ -230,6 +235,32 @@ final class GuardianManagementTest extends TestCase
             ]);
     }
 
+    public function test_store_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(route('api.v1.academic.guardians.store', [], false), [
+                'nama' => 'Unauthorized Guardian',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_index_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->getJson(route('api.v1.academic.guardians.index', [], false))
+            ->assertForbidden();
+    }
+
     private function createAuthenticatedTenantFixture(): void
     {
         DB::table('tenants')->insert([
@@ -274,6 +305,11 @@ final class GuardianManagementTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->grantRole(
+            $this->operatorMembershipId,
+            AcademicAuthorizationCatalogSeeder::REGISTRAR_ROLE,
+        );
     }
 
     private function issueToken(): string

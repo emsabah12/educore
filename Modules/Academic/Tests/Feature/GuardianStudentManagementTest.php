@@ -9,14 +9,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
+use Modules\Academic\Database\Seeders\AcademicAuthorizationCatalogSeeder;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
+use Tests\Support\GrantsAuthorizationRole;
 use Tests\TestCase;
 
 final class GuardianStudentManagementTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsAuthorizationRole;
 
     private string $tenantId;
     private string $operatorPersonId;
@@ -27,6 +30,8 @@ final class GuardianStudentManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(AcademicAuthorizationCatalogSeeder::class);
 
         $this->tenantId = UuidV7::generate();
         $this->operatorPersonId = UuidV7::generate();
@@ -634,6 +639,47 @@ final class GuardianStudentManagementTest extends TestCase
         );
     }
 
+    public function test_associations_store_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.academic.guardians.associations.store',
+                    [],
+                    false,
+                ),
+                [
+                    'guardian_id' => UuidV7::generate(),
+                    'student_id' => UuidV7::generate(),
+                    'relationship_type' => 'GUARDIAN',
+                ],
+            )
+            ->assertForbidden();
+    }
+
+    public function test_guardians_students_index_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.academic.guardians.students.index',
+                    ['guardianId' => UuidV7::generate()],
+                    false,
+                ),
+            )
+            ->assertForbidden();
+    }
+
     private function createAuthenticatedTenantFixture(): void
     {
         $this->createTenant(
@@ -668,6 +714,11 @@ final class GuardianStudentManagementTest extends TestCase
             $this->classId,
             $this->tenantId,
             'Guardian Student Canonical Class',
+        );
+
+        $this->grantRole(
+            $this->operatorMembershipId,
+            AcademicAuthorizationCatalogSeeder::REGISTRAR_ROLE,
         );
     }
 

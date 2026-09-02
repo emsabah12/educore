@@ -8,10 +8,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Http\Requests\StoreEmployeeRequest;
 use Modules\HR\Services\EmployeeProvisioningService;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 final class EmployeeManagementController extends Controller
@@ -28,11 +31,8 @@ final class EmployeeManagementController extends Controller
             'authenticated_tenant_id',
         );
 
-        if (! is_string($tenantId) || $tenantId === '') {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized. Tenant context missing.',
-            ], 401);
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
         }
 
         $perPage = max(
@@ -70,12 +70,13 @@ final class EmployeeManagementController extends Controller
             'authenticated_user_id',
         );
 
-        if (! is_string($tenantId) || $tenantId === '') {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized. Tenant context missing.',
-            ], 401);
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
         }
+
+        $operatorId = $this->isCanonicalUuid($operatorId)
+            ? $operatorId
+            : null;
 
         /** @var array{nama:string,nip:string,jabatan:string} $payload */
         $payload = $request->validated();
@@ -91,37 +92,68 @@ final class EmployeeManagementController extends Controller
                 'Employee provisioning failed.',
                 [
                     'tenant_id' => $tenantId,
-                    'operator_user_id' => is_string($operatorId)
-                        ? $operatorId
-                        : null,
+                    'operator_user_id' => $operatorId,
                     'exception_class' => $exception::class,
                 ],
             );
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to persist employee record.',
-            ], 500);
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_PROVISIONING_FAILED',
+                message: 'Failed to persist employee record.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
         }
 
-        $this->auditTrail->log(
-            eventType: 'employee.created',
-            description: 'Created employee profile.',
-            tenantId: $tenantId,
-            actorUserId: is_string($operatorId)
-                ? $operatorId
-                : null,
-            metadata: [
-                'employee_id' => $employee['employee_id'],
-                'membership_id' => $employee['membership_id'],
-                'person_id' => $employee['person_id'],
-            ],
-        );
+        /*
+         * ------------------------------------------------------------------
+         * Best-Effort Audit Boundary
+         * ------------------------------------------------------------------
+         *
+         * Employee record sudah berhasil dipersist di atas. Kegagalan
+         * audit trail (mis. tabel audit_logs bermasalah) tidak boleh
+         * mengubah operasi yang sudah sukses menjadi response 500 —
+         * itu akan membingungkan client (record ada, tapi API bilang
+         * gagal). Kegagalan tetap dilaporkan lewat report() untuk
+         * observability.
+         */
+        try {
+            $this->auditTrail->log(
+                eventType: 'employee.created',
+                description: 'Created employee profile.',
+                tenantId: $tenantId,
+                actorUserId: $operatorId,
+                metadata: [
+                    'employee_id' => $employee['employee_id'],
+                    'membership_id' => $employee['membership_id'],
+                    'person_id' => $employee['person_id'],
+                ],
+            );
+        } catch (Throwable $auditException) {
+            report($auditException);
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Employee registered successfully within tenant domain.',
             'data' => $employee,
         ], 201);
+    }
+
+    /**
+     * @phpstan-assert-if-true string $value
+     */
+    private function isCanonicalUuid(mixed $value): bool
+    {
+        return is_string($value)
+            && Str::isUuid(trim($value));
+    }
+
+    private function authenticationContextDeniedResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'AUTHENTICATION_CONTEXT_DENIED',
+            message: 'Authentication context missing or invalid.',
+            status: Response::HTTP_FORBIDDEN,
+        );
     }
 }

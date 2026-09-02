@@ -93,4 +93,17 @@ final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
     {
         return $this->notificationId;
     }
+
+    /**
+     * Hanya notification_id yang aman diaudit — recipient (kontak
+     * personal) dan body (isi pesan) TIDAK PERNAH masuk audit trail.
+     *
+     * @return array<string, scalar|null>
+     */
+    protected function auditContext(): array
+    {
+        return [
+            'notification_id' => $this->notificationId,
+        ];
+    }
 }

@@ -10,14 +10,17 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Modules\Academic\Contracts\StudentRepositoryInterface;
+use Modules\Academic\Database\Seeders\AcademicAuthorizationCatalogSeeder;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 use RuntimeException;
+use Tests\Support\GrantsAuthorizationRole;
 use Tests\TestCase;
 
 final class StudentManagementTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsAuthorizationRole;
 
     private string $tenantId;
     private string $operatorPersonId;
@@ -28,6 +31,8 @@ final class StudentManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(AcademicAuthorizationCatalogSeeder::class);
 
         $this->tenantId = UuidV7::generate();
         $this->operatorPersonId = UuidV7::generate();
@@ -227,6 +232,33 @@ final class StudentManagementTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
+    public function test_store_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(route('api.v1.academic.students.store', [], false), [
+                'class_id' => $this->classId,
+                'nama' => 'Unauthorized Student',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_index_is_forbidden_when_registrar_role_is_revoked(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $this
+            ->withToken($this->issueToken())
+            ->getJson(route('api.v1.academic.students.index', [], false))
+            ->assertForbidden();
+    }
+
     private function createAuthenticatedTenantFixture(): void
     {
         $this->createTenant(
@@ -269,6 +301,11 @@ final class StudentManagementTest extends TestCase
             $this->classId,
             $this->tenantId,
             'Canonical Student Class',
+        );
+
+        $this->grantRole(
+            $this->operatorMembershipId,
+            AcademicAuthorizationCatalogSeeder::REGISTRAR_ROLE,
         );
     }
 

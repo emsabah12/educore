@@ -221,7 +221,7 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
 
         $this->withHeader(
             'Authorization',
-            'Bearer '.$forgedBearer,
+            'Bearer ' . $forgedBearer,
         );
 
         $this
@@ -344,13 +344,13 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
             Route::getRoutes()->getRoutes(),
         )
             ->filter(
-                static fn (IlluminateRoute $route): bool => str_starts_with(
+                static fn(IlluminateRoute $route): bool => str_starts_with(
                     $route->uri(),
                     'api/v1/browser/',
                 ),
             )
             ->mapWithKeys(
-                static fn (IlluminateRoute $route): array => [
+                static fn(IlluminateRoute $route): array => [
                     (string) $route->getName() => $route->uri(),
                 ],
             )
@@ -389,19 +389,10 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
         $this->postJson(
             '/api/v1/browser/auth/login',
             [
-                'email' => $this->emailA,
+                'identifier' => $this->emailA,
                 'password' => 'secret123',
-                'tenant_uuid' => $this->tenantAId,
             ],
         )->assertOk();
-
-        $stateBeforeSwitch = $this->browserAuthState();
-        $bearerA = $stateBeforeSwitch[
-            'membership_credentials'
-        ][$this->membershipAId] ?? null;
-
-        $this->assertIsString($bearerA);
-        $this->assertNotSame('', trim($bearerA));
 
         $this
             ->withCredentials()
@@ -409,6 +400,24 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
                 $this->sessionCookieName(),
                 $this->app['session']->getId(),
             );
+
+        // Kontrak login global (identifier-only) tidak lagi memilih
+        // Membership secara implisit (lihat AuthTokenFlowTest: "global
+        // login issues explicit identity credential"). Membership A
+        // sekarang harus diperoleh lewat switch eksplisit yang sama
+        // seperti Membership B, bukan otomatis dari payload login.
+        $this->postJson(
+            sprintf(
+                '/api/v1/browser/user/memberships/%s/switch',
+                $this->membershipAId,
+            ),
+        )->assertOk();
+
+        $stateBeforeSwitch = $this->browserAuthState();
+        $bearerA = $stateBeforeSwitch['membership_credentials'][$this->membershipAId] ?? null;
+
+        $this->assertIsString($bearerA);
+        $this->assertNotSame('', trim($bearerA));
 
         $switchResponse = $this->postJson(
             sprintf(
@@ -429,17 +438,13 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
             );
 
         $stateAfterSwitch = $this->browserAuthState();
-        $bearerB = $stateAfterSwitch[
-            'membership_credentials'
-        ][$this->membershipBId] ?? null;
+        $bearerB = $stateAfterSwitch['membership_credentials'][$this->membershipBId] ?? null;
 
         $this->assertIsString($bearerB);
         $this->assertNotSame('', trim($bearerB));
         $this->assertSame(
             $bearerA,
-            $stateAfterSwitch[
-                'membership_credentials'
-            ][$this->membershipAId] ?? null,
+            $stateAfterSwitch['membership_credentials'][$this->membershipAId] ?? null,
         );
 
         $this->assertNoBearerExposure(

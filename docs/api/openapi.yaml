@@ -23,6 +23,7 @@ tags:
   - name: Core Platform
   - name: Tenancy
   - name: User Context
+  - name: Human Resources
 
 paths:
   /api/v1/auth/login-token:
@@ -118,6 +119,40 @@ paths:
 
         "503":
           $ref: "#/components/responses/BrowserSessionUnavailable"
+
+  /api/v1/auth/identity:
+    get:
+      operationId: authIdentity
+      x-laravel-route-name: api.v1.auth.identity
+      tags:
+        - Authentication
+      summary: Return the canonical global authenticated identity
+      description: |
+        Supports BearerAuth and BrowserSessionAuth at User identity scope.
+        This operation intentionally never establishes or exposes
+        Membership, Tenant, Workspace, Role, or Permission context —
+        X-EduCore-Membership-Id is not accepted here.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      responses:
+        "200":
+          description: Global authenticated identity projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalIdentitySuccess"
+
+        "401":
+          description: |
+            Authentication is required for the selected Bearer or Browser
+            Session transport.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationRequiredError"
+                  - $ref: "#/components/schemas/BrowserSessionAuthenticationRequiredError"
 
   /api/v1/browser/session/csrf:
     get:
@@ -515,6 +550,82 @@ paths:
 
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employees:
+    get:
+      operationId: hrEmployeeIndex
+      x-laravel-route-name: api.v1.hr.employees.index
+      tags:
+        - Human Resources
+      summary: List Employees for the current tenant
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EmployeePerPage"
+      responses:
+        "200":
+          description: Paginated Employee collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeListSuccess"
+
+        "403":
+          description: |
+            Tenant authentication context is invalid, or the current
+            Membership does not have hr.employees.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrEmployeeStore
+      x-laravel-route-name: api.v1.hr.employees.store
+      tags:
+        - Human Resources
+      summary: Provision an Employee profile within the current tenant
+      description: |
+        Atomically creates a Person, Membership, and Employee profile.
+        This administrative provisioning path does not create a User
+        account for the Employee.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreEmployeeRequest"
+      responses:
+        "201":
+          description: Employee profile created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeCreatedSuccess"
+
+        "403":
+          description: |
+            Tenant authentication context is invalid, or the current
+            Membership does not have hr.employees.create permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/EmployeeProvisioningFailed"
 
   /api/v1/user/my-memberships:
     get:
@@ -923,6 +1034,19 @@ components:
               type: boolean
 
     BrowserLoginSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/BrowserLoginData"
+
+    GlobalIdentitySuccess:
       type: object
       additionalProperties: false
       required:
@@ -1417,6 +1541,116 @@ components:
             - string
             - "null"
 
+    EmployeeResource:
+      type: object
+      additionalProperties: false
+      required:
+        - employee_id
+        - membership_id
+        - person_id
+        - tenant_id
+        - nip
+        - jabatan
+        - nama
+        - membership_status
+        - created_at
+      properties:
+        employee_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        person_id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        nip:
+          type:
+            - string
+            - "null"
+          description: Tenant-scoped unique employee identification number.
+        jabatan:
+          type: string
+          enum:
+            - GURU
+            - KEPALA_SEKOLAH
+            - STAFF
+          description: |
+            Legacy compatibility field (GAP-001 / HR-002 OD-HR-DATA-006).
+            Not the canonical position/Employment source going forward.
+        nama:
+          type: string
+          description: Canonical Person name, not duplicated on Employee.
+        membership_status:
+          type: string
+        created_at:
+          type: string
+          description: Raw persisted timestamp returned by the query builder.
+
+    EmployeeListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    StoreEmployeeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nama
+        - nip
+        - jabatan
+      properties:
+        nama:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Trimmed before validation.
+        nip:
+          type: string
+          maxLength: 50
+          description: |
+            Trimmed before validation. Must be unique within the current
+            tenant.
+        jabatan:
+          type: string
+          enum:
+            - GURU
+            - KEPALA_SEKOLAH
+            - STAFF
+          description: |
+            Trimmed and uppercased before validation. Legacy compatibility
+            field (GAP-001 / HR-002 OD-HR-DATA-006) — not RBAC and not the
+            canonical position source.
+
+    EmployeeCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: Employee registered successfully within tenant domain.
+        data:
+          $ref: "#/components/schemas/EmployeeResource"
+
     InitialTenantAdmin:
       type: object
       required:
@@ -1901,6 +2135,14 @@ components:
             code:
               const: NOTIFICATION_DISPATCH_FAILED
 
+    EmployeeProvisioningFailedError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            code:
+              const: EMPLOYEE_PROVISIONING_FAILED
+
   parameters:
     OrganizationalAssignmentId:
       name: X-EduCore-Organizational-Assignment-Id
@@ -1942,6 +2184,19 @@ components:
       in: query
       required: false
       description: Number of tenants returned per page. Defaults to 15.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 15
+
+    EmployeePerPage:
+      name: per_page
+      in: query
+      required: false
+      description: |
+        Number of Employees returned per page. Silently clamped to
+        [1, 100] by the controller; defaults to 15.
       schema:
         type: integer
         minimum: 1
@@ -2060,6 +2315,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/NotificationDispatchFailedError"
+
+    EmployeeProvisioningFailed:
+      description: Employee profile could not be persisted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EmployeeProvisioningFailedError"
 
     InvalidOrganizationalAssignmentId:
       description: Organizational assignment header is malformed.
@@ -2185,16 +2447,4 @@ x-educore-deferred-routes:
     path: /api/v1/academic/subjects
     route_name: api.v1.academic.subjects.store
     owner: Academic
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employees
-    route_name: api.v1.hr.employees.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employees
-    route_name: api.v1.hr.employees.store
-    owner: HR
     reason: domain-api-hardening-deferred

@@ -7,6 +7,7 @@ namespace Modules\Core\Services\Diagnostics;
 use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class SystemHealthService implements HealthCheckerInterface
@@ -42,12 +43,17 @@ final class SystemHealthService implements HealthCheckerInterface
                 'message' => 'PostgreSQL connection is responsive.'
             ];
         } catch (Throwable $e) {
-            // Bersihkan pesan dari karakter biner Windows/PostgreSQL lokal yang merusak JSON encoder
-            $cleanMessage = preg_replace('/[^\x20-\x7E]/', '', $e->getMessage());
+            // GAP-024: endpoint ini publik (tidak ada middleware auth).
+            // Detail asli (connection string, credential, path internal)
+            // WAJIB hanya masuk log operasional — tidak pernah ke response
+            // JSON yang bisa dibaca siapapun yang memanggil endpoint ini.
+            Log::error('Health check: database connectivity failed.', [
+                'exception' => $e,
+            ]);
 
             return [
                 'healthy' => false,
-                'message' => 'Database connection failed: ' . trim((string) $cleanMessage)
+                'message' => 'Database connectivity check failed.'
             ];
         }
     }
@@ -69,11 +75,15 @@ final class SystemHealthService implements HealthCheckerInterface
                 'message' => 'Local storage disk is writable and readable.'
             ];
         } catch (Throwable $e) {
-            $cleanMessage = preg_replace('/[^\x20-\x7E]/', '', $e->getMessage());
+            // GAP-024: sama seperti database — detail asli (path filesystem
+            // internal, dsb.) hanya masuk log, tidak ke response publik.
+            Log::error('Health check: storage read/write failed.', [
+                'exception' => $e,
+            ]);
 
             return [
                 'healthy' => false,
-                'message' => 'Storage check failed: ' . trim((string) $cleanMessage)
+                'message' => 'Storage connectivity check failed.'
             ];
         }
     }

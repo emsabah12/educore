@@ -45,6 +45,11 @@ final class OpenApiSchemaComponentsTest extends TestCase
         'InitialTenantAdmin',
         'TenantCreatedSuccess',
         'TenantUpdatedSuccess',
+        'EmployeeResource',
+        'EmployeeListSuccess',
+        'StoreEmployeeRequest',
+        'EmployeeCreatedSuccess',
+        'EmployeeProvisioningFailedError',
         'MembershipSummary',
         'MembershipListSuccess',
         'MembershipSwitchSuccess',
@@ -72,15 +77,9 @@ final class OpenApiSchemaComponentsTest extends TestCase
         }
     }
 
-    public function test_login_tenant_identifier_is_generic_uuid_not_uuid_v7(): void
+    public function test_generic_uuid_schema_is_format_only_without_pattern_constraint(): void
     {
         $schemas = $this->schemas();
-
-        $this->assertSame(
-            '#/components/schemas/Uuid',
-            $schemas['LoginTokenRequest']['properties']['tenant_uuid']['$ref']
-                ?? null,
-        );
 
         $this->assertSame(
             'uuid',
@@ -91,6 +90,38 @@ final class OpenApiSchemaComponentsTest extends TestCase
         $this->assertArrayNotHasKey(
             'pattern',
             $schemas['Uuid'],
+        );
+    }
+
+    public function test_login_identifier_has_no_tenant_selection_and_is_not_uuid_constrained(): void
+    {
+        $schemas = $this->schemas();
+
+        $loginRequestProperties = $schemas['LoginTokenRequest']['properties']
+            ?? [];
+
+        // Global login intentionally has no Tenant/Membership selection
+        // (lihat deskripsi LoginTokenRequest: "Tenant, Membership,
+        // Workspace, Role, and Permission context are intentionally
+        // absent"). Property tenant_uuid tidak boleh muncul lagi di
+        // sini — tenant/membership hanya dipilih lewat switch eksplisit
+        // setelah identity credential diterbitkan.
+        $this->assertArrayNotHasKey(
+            'tenant_uuid',
+            $loginRequestProperties,
+        );
+
+        $this->assertSame(
+            'string',
+            $loginRequestProperties['identifier']['type']
+                ?? null,
+        );
+
+        // identifier menerima email maupun username; tidak boleh
+        // dibatasi ke schema Uuid/UuidV7 manapun.
+        $this->assertArrayNotHasKey(
+            '$ref',
+            $loginRequestProperties['identifier'] ?? [],
         );
     }
 

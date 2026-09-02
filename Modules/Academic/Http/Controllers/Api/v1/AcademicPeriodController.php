@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
-use Modules\Core\Contracts\Auth\AuditTrailServiceInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Throwable;
 
 final class AcademicPeriodController extends Controller
