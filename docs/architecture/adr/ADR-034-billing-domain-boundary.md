@@ -1,11 +1,11 @@
-# ADR-034 — Billing Domain Boundary & Entitlement Architecture
+# ADR-034 — Billing Domain Boundary & Entitlement/Quota Architecture
 
-**Version** : 0.1
+**Version** : 0.2
 **Status** : Proposed — NOT YET ACCEPTED
-**Date** : 2026-09-03
+**Date** : 2026-09-03 (revised same day — v0.2 menambahkan layer Quota dari OD-BILL-008)
 **Scope** : Platform-level Billing/Subscription — mengenakan biaya kepada Tenant untuk penggunaan EduCore
 **Baseline Repository** : commit saat sesi ini berlangsung (lihat riwayat percakapan)
-**Product Requirement** : `BILL-000 — Billing & Subscription Open Decisions` (Open Decisions Confirmed)
+**Product Requirement** : `BILL-000 — Billing & Subscription Open Decisions` (Open Decisions Confirmed, v0.2)
 
 ---
 
@@ -16,13 +16,17 @@
 > Tenant atas penggunaan EduCore itu sendiri. Ini **berbeda total** dari
 > `Modules/Finance` yang sudah disinggung `ADR-032` (payroll/financial
 > settlement **internal** milik satu Tenant). `Modules/Billing` memperkenalkan
-> lapisan otorisasi baru — **Entitlement** ("apakah Tenant berlangganan fitur
-> ini?") — yang berjalan **terpisah dan sebelum** lapisan **Permission**
-> (`ADR-016`, "apakah User ini berwenang melakukan aksi ini?"). Tenant
-> creation tetap dikunci `RequireGlobalSuperadmin` untuk jalur admin-provisioned
-> yang sudah ada; self-service signup akan memakai jalur publik baru yang
-> secara eksplisit tidak mem-bypass proteksi tersebut, melainkan menjadi
-> pintu masuk terpisah dengan pengaman anti-abuse sendiri.
+> **dua** lapisan otorisasi baru yang berjalan berurutan **sebelum**
+> lapisan **Permission** (`ADR-016`, "apakah User ini berwenang melakukan
+> aksi ini?"): **Entitlement** ("apakah Tenant berlangganan fitur ini sama
+> sekali?") dan **Quota** ("apakah Tenant masih di bawah batas pemakaian
+> fitur ini?"). Ketiganya adalah concern terpisah dengan model data terpisah
+> (`FeatureAddon` untuk Entitlement, `QuotaAddon`/`UsageCounter` untuk Quota)
+> dan tidak boleh saling tercampur. Tenant creation tetap dikunci
+> `RequireGlobalSuperadmin` untuk jalur admin-provisioned yang sudah ada;
+> self-service signup akan memakai jalur publik baru yang secara eksplisit
+> tidak mem-bypass proteksi tersebut, melainkan menjadi pintu masuk terpisah
+> dengan pengaman anti-abuse sendiri.
 
 ---
 
@@ -114,20 +118,46 @@ tapi modul ini sendiri **bukan** tenant-scoped seperti Academic/HR — ia
 beroperasi di atas seluruh tenant sekaligus, mirip posisi `Modules/Core`
 `Tenancy` yang sudah ada.
 
-## 3.2 Entitlement adalah lapisan otorisasi baru, terpisah dari Permission
+## 3.2 Entitlement dan Quota adalah dua lapisan otorisasi baru, terpisah dari Permission dan dari satu sama lain
 
 ```text
 Request masuk
-  → Layer 1: tenant.entitlement:<feature>   (Billing — apakah tenant berlangganan?)
-  → Layer 2: tenant.permission:<perm>       (Core RBAC — apakah user berwenang?)
+  → Layer 1: tenant.entitlement:<feature>   (Billing — apakah tenant berlangganan fitur ini sama sekali?)
+  → Layer 2: tenant.quota:<metric>          (Billing — apakah tenant masih di bawah batas pemakaian?)
+  → Layer 3: tenant.permission:<perm>       (Core RBAC — apakah user berwenang?)
   → Controller
 ```
 
-Kedua layer wajib lolos. `CheckTenantPermission` (`ADR-016`) **tidak**
-diperluas untuk memahami Entitlement — middleware baru
-`CheckTenantEntitlement` dibuat terpisah, dengan kode error canonical
-sendiri (mis. `SUBSCRIPTION_ENTITLEMENT_DENIED`), mengikuti pola
-`ApiErrorResponse` yang sudah baku.
+Ketiga layer wajib lolos berurutan. `CheckTenantPermission` (`ADR-016`)
+**tidak** diperluas untuk memahami Entitlement maupun Quota — dua
+middleware baru dibuat terpisah:
+
+- `CheckTenantEntitlement`, kode error `SUBSCRIPTION_ENTITLEMENT_DENIED`
+- `CheckTenantQuota`, kode error `SUBSCRIPTION_QUOTA_EXCEEDED`
+
+Keduanya mengikuti pola `ApiErrorResponse` yang sudah baku. Layer Quota
+**hanya** relevan untuk operasi tulis yang menambah record baru (`store`),
+bukan untuk operasi baca — kecuali metric usage-based tertentu (mis. API
+rate limit) yang memang menghitung baca juga.
+
+## 3.7 Entitlement dan Quota punya model data berbeda — jangan digabung jadi satu tabel `Addon`
+
+```text
+FeatureAddon   — toggle on/off untuk 1 fitur (Layer 1: Entitlement)
+                 contoh: "aktifkan modul Leave Management"
+
+QuotaAddon     — penambahan angka ke limit yang sudah ada (Layer 2: Quota)
+                 contoh: "tambah kuota 100 siswa" — tidak menyalakan fitur
+                 apapun, cuma menaikkan batas record-count
+```
+
+Kedua entitas punya _lifecycle_ dan _behavior_ berbeda (on/off vs
+akumulatif angka), sehingga digabung menjadi satu tabel generik `Addon`
+akan memaksa logic bercabang berdasarkan tipe — anti-pattern yang sama
+persis dengan alasan `HR-013-BR-001` memisahkan Permission dari Resource
+Ownership. `UsageCounter` (nilai berjalan per Tenant per metric untuk
+metric usage-based) juga entitas terpisah dari `QuotaAddon` (yang cuma
+mendefinisikan batas, bukan mencatat pemakaian).
 
 ## 3.3 Tenant creation admin-provisioned TETAP ADA; self-service adalah jalur BARU
 
@@ -175,7 +205,8 @@ mengikuti pola `person_identifiers`/leave-ledger yang sudah terbukti di
 | ------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------- |
 | Tenant identity, subdomain, status aktif/nonaktif | `Modules/Core` (Tenancy)                                               | Tidak berubah                      |
 | Person, Membership, RBAC per-tenant               | `Modules/Core` (Authorization)                                         | Tidak berubah                      |
-| Plan, PlanFeature, AddonFeature                   | `Modules/Billing`                                                      | Baru                               |
+| Plan, PlanFeature, FeatureAddon                   | `Modules/Billing`                                                      | Baru                               |
+| QuotaDefinition, QuotaAddon, UsageCounter         | `Modules/Billing`                                                      | Baru — v0.2                        |
 | Subscription, SubscriptionEntitlement             | `Modules/Billing`                                                      | Baru                               |
 | Invoice, InvoiceLineItem, Payment                 | `Modules/Billing`                                                      | Baru                               |
 | RBAC platform-level (staf internal)               | Belum ditentukan — kandidat `Modules/Billing` atau `Modules/Core` baru | Open item                          |
@@ -189,15 +220,23 @@ mengikuti pola `person_identifiers`/leave-ledger yang sudah terbukti di
 
 - Model monetisasi hybrid (`OD-BILL-001`) dan self-service signup bisa
   dibangun tanpa melemahkan proteksi `RequireGlobalSuperadmin` yang sudah ada.
-- Pemisahan Entitlement vs Permission mencegah pencampuran concern yang
-  sudah terbukti bermasalah kalau digabung (pelajaran dari `HR-013-BR-001`).
+- Pemisahan Entitlement vs Quota vs Permission mencegah pencampuran concern
+  yang sudah terbukti bermasalah kalau digabung (pelajaran dari
+  `HR-013-BR-001`) — masing-masing bisa berubah independen (mis. Plan baru
+  tanpa menyentuh RBAC, kenaikan kuota tanpa menyentuh Entitlement).
+- Warning threshold (`OD-BILL-008`) bisa reuse Notification module yang
+  sudah ada (`GAP-021`) tanpa infrastruktur baru.
 - Invoice/Payment sebagai domain terpisah memudahkan audit finansial
   terpisah dari audit operasional platform.
 
 ## Trade-offs / Negative
 
-- Setiap endpoint yang nanti perlu entitlement check butuh **dua** middleware,
-  bukan satu — sedikit lebih verbose di route definition.
+- Setiap endpoint yang nanti perlu entitlement/quota check butuh **tiga**
+  middleware berurutan, bukan satu — lebih verbose di route definition
+  dibanding sebelum Quota ditambahkan (v0.1: dua middleware).
+- Usage-based Quota butuh scheduled job untuk reset counter per siklus
+  billing — komponen operasional baru yang tidak ada preseden di
+  `ADR-016`/`ADR-018`.
 - RBAC platform-level adalah gap arsitektur baru yang belum punya preseden
   di repository ini — perlu desain dari nol, tidak bisa reuse `ADR-016`
   begitu saja.
@@ -227,7 +266,19 @@ Ditolak. Kedua domain punya audience dan siklus hidup yang berbeda total
 (platform vs internal-tenant) — menggabungkan akan mengulang anti-pattern
 yang sudah dihindari `ADR-032` saat memisahkan HR dari Finance.
 
-## Option D — `Modules/Billing` dengan Entitlement + boundary terpisah dari RBAC tenant (**Accepted candidate**)
+## Option D — `Modules/Billing` dengan Entitlement + boundary terpisah dari RBAC tenant (v0.1)
+
+Direvisi menjadi Option F (v0.2) setelah `OD-BILL-008` menambahkan
+kebutuhan Quota.
+
+## Option E — Quota digabung ke dalam Entitlement (satu tabel `FeatureAddon` berisi flag on/off DAN angka limit)
+
+Ditolak. `FeatureAddon` (on/off) dan `QuotaAddon` (akumulatif angka) punya
+_behavior_ berbeda — menggabung keduanya memaksa kolom `limit_value` yang
+selalu `NULL` untuk fitur non-kuota, dan logic bercabang di setiap tempat
+yang membaca tabel ini. Lihat §3.7.
+
+## Option F — `Modules/Billing` dengan tiga layer terpisah (Entitlement, Quota, Permission) (**Accepted candidate**, v0.2)
 
 Opsi yang direkomendasikan ADR ini.
 
@@ -235,13 +286,16 @@ Opsi yang direkomendasikan ADR ini.
 
 # 7. Open Items (Belum Diputuskan)
 
-Lihat `BILL-000` §6 untuk daftar lengkap. ADR ini **tidak** memblokir
-finalisasi item tersebut — item itu adalah scope system/data design
-(`BILL-001` dst.), bukan domain boundary.
+Lihat `BILL-000` §6 untuk daftar lengkap (termasuk item baru terkait Quota
+dari v0.2: daftar metric final per modul, durasi grace period Quota,
+target penerima warning notifikasi). ADR ini **tidak** memblokir finalisasi
+item tersebut — item itu adalah scope system/data design (`BILL-001` dst.),
+bukan domain boundary.
 
 ---
 
 # 8. Status
 
-**Proposed** — menunggu review/approval owner platform sebelum menjadi
-`Accepted` dan menjadi authority untuk `BILL-001` dst.
+**Proposed (v0.2)** — sudah mencakup layer Quota (`OD-BILL-008`), menunggu
+review/approval owner platform sebelum menjadi `Accepted` dan menjadi
+authority untuk `BILL-001` dst.
