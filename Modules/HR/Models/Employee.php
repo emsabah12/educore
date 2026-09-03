@@ -7,6 +7,7 @@ namespace Modules\HR\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany; // ditambahkan ke daftar use di atas
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Support\Uuid\HasUuidV7;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;
@@ -42,6 +43,22 @@ final class Employee extends Model
         return $this->belongsTo(
             Membership::class,
             'membership_id',
+        );
+    }
+
+    /**
+     * Seluruh episode Employment milik Employee ini, termasuk yang sudah
+     * ENDED/CANCELLED. Untuk mengambil Employment yang sedang berjalan,
+     * filter tambahan `where('status', Employment::STATUS_ACTIVE)` di
+     * pemanggil (HR-002 INV-HR-002: maksimal satu yang ACTIVE).
+     *
+     * @return HasMany<Employment, $this>
+     */
+    public function employments(): HasMany
+    {
+        return $this->hasMany(
+            Employment::class,
+            'employee_id',
         );
     }
 }
