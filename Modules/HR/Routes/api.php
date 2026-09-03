@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
+use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
+use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
+use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -29,4 +34,141 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.employees.create')
         ->name('api.v1.hr.employees.store');
+
+    // HR-002 §10.2 — Employment Lifecycle.
+    Route::get(
+        '/v1/hr/employees/{employeeId}/employments',
+        [EmploymentManagementController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employees.employments.index');
+
+    Route::post(
+        '/v1/hr/employees/{employeeId}/employments',
+        [EmploymentManagementController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.employments.manage')
+        ->name('api.v1.hr.employees.employments.store');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/activate',
+        [EmploymentManagementController::class, 'activate']
+    )
+        ->middleware('tenant.permission:hr.employments.manage')
+        ->name('api.v1.hr.employments.activate');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/cancel',
+        [EmploymentManagementController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.employments.manage')
+        ->name('api.v1.hr.employments.cancel');
+
+    // HR-002 §9.4 — End Employment. Permission TERPISAH dari
+    // hr.employments.manage (higher-impact operation, HR-013-BR-002).
+    Route::post(
+        '/v1/hr/employments/{employmentId}/end',
+        [EmploymentManagementController::class, 'end']
+    )
+        ->middleware('tenant.permission:hr.employments.end')
+        ->name('api.v1.hr.employments.end');
+
+    // HR-002 §5.6 / §9.2 — Employment Placement.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/placements',
+        [EmploymentPlacementController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employments.placements.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/placements',
+        [EmploymentPlacementController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.employments.manage')
+        ->name('api.v1.hr.employments.placements.store');
+
+    // HR-002 §5.7 / §9.3 — Employment Position Assignment.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/position-assignments',
+        [EmploymentPositionAssignmentController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employments.position-assignments.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/position-assignments',
+        [EmploymentPositionAssignmentController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.employments.manage')
+        ->name('api.v1.hr.employments.position-assignments.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| HR Module API Routes — Organizationally-Scoped Workspace (RM-HR-02)
+|--------------------------------------------------------------------------
+|
+| HR-002 §12.3 Mutation Scope: mutasi Employment/Placement/Position
+| Assignment boleh dilakukan lewat workspace organisasi/unit SELAMA
+| Employee target sudah visible di workspace tersebut (HR-013 §6).
+| Route ini SENGAJA memakai ulang controller action yang sama persis
+| dengan grup tenant-wide di atas — bedanya cuma middleware chain dan
+| permission source-nya (organizational.permission, bukan
+| tenant.permission). Controller sendiri yang mendeteksi OrganizationalContext
+| aktif dan menegakkan resource-scope check (lihat ChecksHrResourceScope).
+|
+| "Future Workspace Employee Listing" (GET per-workspace) SENGAJA belum
+| ditambahkan — HR-013 §33 menandainya [DEFERRED ke API specification].
+| "Workspace Employee Creation" (POST /employees tenant-baru dari
+| workspace) juga SENGAJA belum ditambahkan — HR-013 §35 [DEFERRED].
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware([
+    InjectTenantContext::class,
+    InjectOrganizationalContext::class,
+])->prefix('v1/hr/workspace')->group(function (): void {
+
+    Route::post(
+        '/employees/{employeeId}/employments',
+        [EmploymentManagementController::class, 'store']
+    )
+        ->middleware('organizational.permission:hr.employments.manage')
+        ->name('api.v1.hr.workspace.employees.employments.store');
+
+    Route::post(
+        '/employments/{employmentId}/activate',
+        [EmploymentManagementController::class, 'activate']
+    )
+        ->middleware('organizational.permission:hr.employments.manage')
+        ->name('api.v1.hr.workspace.employments.activate');
+
+    Route::post(
+        '/employments/{employmentId}/cancel',
+        [EmploymentManagementController::class, 'cancel']
+    )
+        ->middleware('organizational.permission:hr.employments.manage')
+        ->name('api.v1.hr.workspace.employments.cancel');
+
+    Route::post(
+        '/employments/{employmentId}/end',
+        [EmploymentManagementController::class, 'end']
+    )
+        ->middleware('organizational.permission:hr.employments.end')
+        ->name('api.v1.hr.workspace.employments.end');
+
+    Route::post(
+        '/employments/{employmentId}/placements',
+        [EmploymentPlacementController::class, 'store']
+    )
+        ->middleware('organizational.permission:hr.employments.manage')
+        ->name('api.v1.hr.workspace.employments.placements.store');
+
+    Route::post(
+        '/employments/{employmentId}/position-assignments',
+        [EmploymentPositionAssignmentController::class, 'store']
+    )
+        ->middleware('organizational.permission:hr.employments.manage')
+        ->name('api.v1.hr.workspace.employments.position-assignments.store');
 });

@@ -19,18 +19,19 @@ final class HrAuthorizationCatalogSeeder extends Seeder
      * Nama mengikuti HR-013 — HR Authorization Matrix & Existing Route
      * Remediation (APPROVED/LOCKED), section "Workforce Permissions".
      *
-     * Sengaja hanya `employees.view` dan `employees.create` untuk
-     * sekarang (surface HR saat ini baru sebatas Employee list/create).
-     * `hr.employees.update` dan `hr.employees.sensitive.view` belum
-     * ditambahkan karena belum ada endpoint yang membutuhkannya —
-     * akan ditambah saat endpoint terkait benar-benar dibangun
-     * (Wave 1: Workforce/Employment).
+     * `hr.employments.end` dipisah dari `hr.employments.manage` karena
+     * HR-013-BR-002 menandainya sebagai higher-impact operation —
+     * mengakhiri hubungan kerja adalah tindakan yang jauh lebih serius
+     * daripada sekadar membuat/mengaktifkan Employment.
      *
      * @var array<string, string>
      */
     private const RESOURCE_PERMISSIONS = [
         'hr.employees.view' => 'View Employee directory/profile',
         'hr.employees.create' => 'Create/provision Employee',
+        'hr.employments.view' => 'View Employment history',
+        'hr.employments.manage' => 'Create/update non-final Employment lifecycle data',
+        'hr.employments.end' => 'End an active Employment (higher-impact operation)',
     ];
 
     /**
