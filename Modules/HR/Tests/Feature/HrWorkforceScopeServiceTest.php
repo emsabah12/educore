@@ -246,6 +246,116 @@ final class HrWorkforceScopeServiceTest extends TestCase
         );
     }
 
+    public function test_visible_employees_query_returns_only_employees_in_matching_organization(): void
+    {
+        $organizationId = $this->createOrganization();
+        $visibleEmployeeId = $this->createEmployeeWithOpenPlacement(
+            organizationId: $organizationId,
+        )['employeeId'];
+
+        $otherOrganizationId = $this->createOrganization();
+        $this->createEmployeeWithOpenPlacement(
+            organizationId: $otherOrganizationId,
+        );
+
+        $this->setOrganizationalContext(
+            organizationId: $organizationId,
+            organizationUnitId: null,
+        );
+
+        $employeeIds = $this->service
+            ->visibleEmployeesQuery($this->tenantId)
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$visibleEmployeeId], $employeeIds);
+    }
+
+    public function test_visible_employees_query_excludes_employee_from_sibling_unit(): void
+    {
+        $organizationId = $this->createOrganization();
+        $unitAId = $this->createOrganizationUnit($organizationId);
+        $unitBId = $this->createOrganizationUnit($organizationId);
+
+        $visibleEmployeeId = $this->createEmployeeWithOpenPlacement(
+            organizationId: $organizationId,
+            organizationUnitId: $unitAId,
+        )['employeeId'];
+
+        $this->createEmployeeWithOpenPlacement(
+            organizationId: $organizationId,
+            organizationUnitId: $unitBId,
+        );
+
+        $this->setOrganizationalContext(
+            organizationId: $organizationId,
+            organizationUnitId: $unitAId,
+        );
+
+        $employeeIds = $this->service
+            ->visibleEmployeesQuery($this->tenantId)
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$visibleEmployeeId], $employeeIds);
+    }
+
+    public function test_visible_employees_query_excludes_employee_without_open_placement(): void
+    {
+        $organizationId = $this->createOrganization();
+        $this->createEmployeeWithoutPlacement();
+
+        $this->setOrganizationalContext(
+            organizationId: $organizationId,
+            organizationUnitId: null,
+        );
+
+        $this->assertCount(
+            0,
+            $this->service->visibleEmployeesQuery($this->tenantId)->get(),
+        );
+    }
+
+    public function test_visible_employees_query_is_empty_when_no_context_is_set(): void
+    {
+        $organizationId = $this->createOrganization();
+        $this->createEmployeeWithOpenPlacement(
+            organizationId: $organizationId,
+        );
+
+        // Sengaja TIDAK memanggil setOrganizationalContext().
+        $this->assertCount(
+            0,
+            $this->service->visibleEmployeesQuery($this->tenantId)->get(),
+        );
+    }
+
+    /**
+     * INV-HR-011 — daftar tidak pernah bocor lintas tenant, sekalipun
+     * organization_id-nya kebetulan sama (mis. UUID collision-proof
+     * check: dua tenant beda tidak pernah dianggap satu workspace).
+     */
+    public function test_visible_employees_query_never_leaks_across_tenants(): void
+    {
+        $otherTenantId = $this->createTenant();
+        $organizationId = $this->createOrganization();
+        $this->createEmployeeWithOpenPlacement(
+            organizationId: $organizationId,
+        );
+
+        $this->setOrganizationalContext(
+            organizationId: $organizationId,
+            organizationUnitId: null,
+        );
+
+        // Query dengan tenantId LAIN dari context yang aktif -> harus
+        // kosong (fail-closed), sekalipun context organisasinya "cocok".
+        $this->assertCount(
+            0,
+            $this->service->visibleEmployeesQuery($otherTenantId)->get(),
+        );
+    }
+
     private function setOrganizationalContext(
         string $organizationId,
         ?string $organizationUnitId,

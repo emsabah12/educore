@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\HR\Services;
 
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Organization\Context\OrganizationalContext;
 use Modules\Core\Organization\Contracts\OrganizationalContextInterface;
 use Modules\HR\Exceptions\HrResourceScopeException;
+use Modules\HR\Models\Employee;
 
 /**
  * Implementasi HR-013 §6 — Target Employee Scope Rule.
@@ -38,15 +42,96 @@ final readonly class HrWorkforceScopeService
     ): bool {
         $context = $this->organizationalContext->getCurrentContext();
 
-        if ($context === null) {
+        if ($context === null || $context->tenantId !== $tenantId) {
             return false;
         }
 
-        // Tenant berbeda -> DENY (HR-013 §6 default).
-        if ($context->tenantId !== $tenantId) {
-            return false;
+        return $this->openPlacementQueryForContext($tenantId, $context)
+            ->where('employments.employee_id', $employeeId)
+            ->exists();
+    }
+
+    /**
+     * Varian yang langsung melempar exception kalau tidak visible —
+     * memudahkan pemakaian di controller tanpa mengulang pengecekan
+     * `if` di setiap tempat.
+     */
+    public function assertEmployeeVisibleInCurrentContext(
+        string $tenantId,
+        string $employeeId,
+    ): void {
+        if (! $this->isEmployeeVisibleInCurrentContext($tenantId, $employeeId)) {
+            throw new HrResourceScopeException(
+                sprintf(
+                    'Employee [%s] is not visible in the current organizational workspace.',
+                    $employeeId,
+                ),
+            );
+        }
+    }
+
+    /**
+     * HR-017 §2.2 — Collection query untuk Workspace Employee Listing.
+     *
+     * Mengembalikan Eloquent query builder Employee yang SUDAH difilter
+     * di level SQL sesuai HR-013 §31 (Collection Query Rule) — TIDAK
+     * PERNAH mengambil semua Employee tenant lalu memfilter di PHP.
+     * Controller tinggal memanggil ->paginate() langsung di atas query
+     * ini.
+     *
+     * Kalau tidak ada OrganizationalContext aktif (atau tenant tidak
+     * cocok), method ini mengembalikan query yang DIJAMIN kosong
+     * (`whereRaw('1 = 0')`) — bukan null/exception — supaya controller
+     * tidak perlu percabangan khusus dan tetap bisa memanggil
+     * ->paginate() secara normal (menghasilkan halaman kosong, sesuai
+     * kasus tepi HR-017 §2.5).
+     */
+    public function visibleEmployeesQuery(string $tenantId): EloquentBuilder
+    {
+        $query = Employee::query()
+            ->withoutGlobalScope('tenant')
+            ->where('employees.tenant_id', $tenantId);
+
+        $context = $this->organizationalContext->getCurrentContext();
+
+        if ($context === null || $context->tenantId !== $tenantId) {
+            return $query->whereRaw('1 = 0');
         }
 
+        return $query->whereExists(
+            function (QueryBuilder $subquery) use ($tenantId, $context): void {
+                $subquery
+                    ->from('employment_placements')
+                    ->join(
+                        'employments',
+                        'employments.id',
+                        '=',
+                        'employment_placements.employment_id',
+                    )
+                    ->join(
+                        'organizational_assignments',
+                        'organizational_assignments.id',
+                        '=',
+                        'employment_placements.organizational_assignment_id',
+                    )
+                    ->whereColumn(
+                        'employments.employee_id',
+                        'employees.id',
+                    );
+
+                $this->applyOpenPlacementConstraints(
+                    $subquery,
+                    $tenantId,
+                    $context,
+                );
+            },
+        );
+    }
+
+    private function openPlacementQueryForContext(
+        string $tenantId,
+        OrganizationalContext $context,
+    ): QueryBuilder {
         $query = DB::table('employment_placements')
             ->join(
                 'employments',
@@ -59,8 +144,28 @@ final readonly class HrWorkforceScopeService
                 'organizational_assignments.id',
                 '=',
                 'employment_placements.organizational_assignment_id',
-            )
-            ->where('employments.employee_id', $employeeId)
+            );
+
+        return $this->applyOpenPlacementConstraints(
+            $query,
+            $tenantId,
+            $context,
+        );
+    }
+
+    /**
+     * Kondisi bersama yang dipakai baik oleh pengecekan single-Employee
+     * (`isEmployeeVisibleInCurrentContext`) maupun query koleksi
+     * (`visibleEmployeesQuery`) — SATU sumber kebenaran untuk aturan
+     * HR-013 §6, supaya keduanya tidak pernah "menyimpang" seiring
+     * waktu.
+     */
+    private function applyOpenPlacementConstraints(
+        QueryBuilder $query,
+        string $tenantId,
+        OrganizationalContext $context,
+    ): QueryBuilder {
+        $query
             ->where('employment_placements.tenant_id', $tenantId)
             // Hanya Placement yang SEDANG BERJALAN yang jadi bukti
             // kepemilikan organisasi yang aman (bukan riwayat lama).
@@ -79,25 +184,6 @@ final readonly class HrWorkforceScopeService
             );
         }
 
-        return $query->exists();
-    }
-
-    /**
-     * Varian yang langsung melempar exception kalau tidak visible —
-     * memudahkan pemakaian di controller (Step 3) tanpa mengulang
-     * pengecekan `if` di setiap tempat.
-     */
-    public function assertEmployeeVisibleInCurrentContext(
-        string $tenantId,
-        string $employeeId,
-    ): void {
-        if (! $this->isEmployeeVisibleInCurrentContext($tenantId, $employeeId)) {
-            throw new HrResourceScopeException(
-                sprintf(
-                    'Employee [%s] is not visible in the current organizational workspace.',
-                    $employeeId,
-                ),
-            );
-        }
+        return $query;
     }
 }

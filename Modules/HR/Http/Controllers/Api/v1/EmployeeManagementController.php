@@ -14,6 +14,7 @@ use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Http\Requests\StoreEmployeeRequest;
 use Modules\HR\Services\EmployeeProvisioningService;
+use Modules\HR\Services\HrWorkforceScopeService;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -23,6 +24,7 @@ final class EmployeeManagementController extends Controller
         private readonly EmployeeRepositoryInterface $employeeRepository,
         private readonly EmployeeProvisioningService $employeeProvisioningService,
         private readonly AuditTrailServiceInterface $auditTrail,
+        private readonly HrWorkforceScopeService $hrWorkforceScopeService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -48,6 +50,50 @@ final class EmployeeManagementController extends Controller
                 $tenantId,
                 $perPage,
             );
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $employees->items(),
+            'meta' => [
+                'current_page' => $employees->currentPage(),
+                'last_page' => $employees->lastPage(),
+                'per_page' => $employees->perPage(),
+                'total' => $employees->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * HR-017 §2 — Workspace Employee Listing.
+     *
+     * Berbeda dari index() tenant-wide di atas: query di sini SUDAH
+     * difilter di level SQL sesuai scope organisasi/unit aktif
+     * (HrWorkforceScopeService::visibleEmployeesQuery(), menegakkan
+     * HR-013 §31 Collection Query Rule — TIDAK PERNAH mengambil semua
+     * Employee tenant lalu memfilter belakangan).
+     */
+    public function indexWorkspace(Request $request): JsonResponse
+    {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $perPage = max(
+            1,
+            min(
+                (int) $request->query('per_page', '15'),
+                100,
+            ),
+        );
+
+        $employees = $this->hrWorkforceScopeService
+            ->visibleEmployeesQuery($tenantId)
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
 
         return response()->json([
             'status' => 'success',

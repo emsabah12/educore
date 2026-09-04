@@ -179,10 +179,11 @@ Route::middleware([
 | tenant.permission). Controller sendiri yang mendeteksi OrganizationalContext
 | aktif dan menegakkan resource-scope check (lihat ChecksHrResourceScope).
 |
-| "Future Workspace Employee Listing" (GET per-workspace) SENGAJA belum
-| ditambahkan — HR-013 §33 menandainya [DEFERRED ke API specification].
+| "Workspace Employee Listing" (HR-013 §33) sekarang RESOLVED oleh HR-017
+| §2 — lihat route GET /employees di bawah.
 | "Workspace Employee Creation" (POST /employees tenant-baru dari
-| workspace) juga SENGAJA belum ditambahkan — HR-013 §35 [DEFERRED].
+| workspace) MASIH ditunda — HR-013 §35 sudah RESOLVED secara desain di
+| HR-017 §3, tapi implementasinya menyusul sebagai step terpisah.
 |--------------------------------------------------------------------------
 */
 
@@ -190,6 +191,14 @@ Route::middleware([
     InjectTenantContext::class,
     InjectOrganizationalContext::class,
 ])->prefix('v1/hr/workspace')->group(function (): void {
+
+    // HR-017 §2 — Workspace Employee Listing (resolves HR-013 §33).
+    Route::get(
+        '/employees',
+        [EmployeeManagementController::class, 'indexWorkspace']
+    )
+        ->middleware('organizational.permission:hr.employees.view')
+        ->name('api.v1.hr.workspace.employees.index');
 
     Route::post(
         '/employees/{employeeId}/employments',
