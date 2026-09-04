@@ -32,6 +32,10 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.employments.view' => 'View Employment history',
         'hr.employments.manage' => 'Create/update non-final Employment lifecycle data',
         'hr.employments.end' => 'End an active Employment (higher-impact operation)',
+        'hr.recruitment.view' => 'View Vacancy, Application, and Candidate records',
+        'hr.recruitment.manage' => 'Create/update non-final Recruitment lifecycle data',
+        'hr.recruitment.approve' => 'Approve/reject a Vacancy (higher-impact operation)',
+
     ];
 
     /**

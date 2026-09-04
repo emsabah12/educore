@@ -9,6 +9,7 @@ use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
 
 
 /*
@@ -102,6 +103,66 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.employments.manage')
         ->name('api.v1.hr.employments.position-assignments.store');
+
+    // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
+    Route::get(
+        '/v1/hr/recruitment/vacancies',
+        [RecruitmentVacancyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.vacancies.index');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies',
+        [RecruitmentVacancyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.store');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/submit',
+        [RecruitmentVacancyController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.submit');
+
+    // approve/reject SENGAJA memakai permission terpisah
+    // (hr.recruitment.approve) — bukan hr.recruitment.manage — karena
+    // ini higher-impact operation (§7.2: keputusan bisnis eksplisit).
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/approve',
+        [RecruitmentVacancyController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.vacancies.approve');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/reject',
+        [RecruitmentVacancyController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.vacancies.reject');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/open',
+        [RecruitmentVacancyController::class, 'open']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.open');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/close',
+        [RecruitmentVacancyController::class, 'close']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.close');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/cancel',
+        [RecruitmentVacancyController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.cancel');
 });
 
 /*
