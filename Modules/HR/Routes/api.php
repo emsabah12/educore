@@ -10,6 +10,8 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
+use Modules\HR\Http\Controllers\Api\v1\WorkspaceEmployeeProvisioningController;
+
 
 
 /*
@@ -241,4 +243,27 @@ Route::middleware([
     )
         ->middleware('organizational.permission:hr.employments.manage')
         ->name('api.v1.hr.workspace.employments.position-assignments.store');
+
+    // HR-017 §2 — Workspace Employee Listing (resolves HR-013 §33).
+    Route::get(
+        '/employees',
+        [EmployeeManagementController::class, 'indexWorkspace']
+    )
+        ->middleware('organizational.permission:hr.employees.view')
+        ->name('api.v1.hr.workspace.employees.index');
+
+    // HR-017 §3 — Workspace Employee Creation (resolves HR-013 §35).
+    // Permission DIPAKAI ULANG (hr.employees.create) — bukan permission
+    // baru — digrant lewat organizational_assignment_roles.
+    Route::post(
+        '/employees',
+        [WorkspaceEmployeeProvisioningController::class, 'store']
+    )
+        ->middleware('organizational.permission:hr.employees.create')
+        ->name('api.v1.hr.workspace.employees.store');
+
+    Route::post(
+        '/employees/{employeeId}/employments',
+        [EmploymentManagementController::class, 'store']
+    );
 });
