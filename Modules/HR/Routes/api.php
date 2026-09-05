@@ -9,6 +9,8 @@ use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
+use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
 use Modules\HR\Http\Controllers\Api\v1\WorkspaceEmployeeProvisioningController;
 
@@ -165,6 +167,67 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.recruitment.manage')
         ->name('api.v1.hr.recruitment.vacancies.cancel');
+
+    // HR-003 §7.4 — Candidate.
+    Route::get(
+        '/v1/hr/recruitment/candidates',
+        [RecruitmentCandidateController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.candidates.index');
+
+    Route::post(
+        '/v1/hr/recruitment/candidates',
+        [RecruitmentCandidateController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.candidates.store');
+
+    // HR-003 §7.6 / §8.2 — Application (Candidate x Vacancy) lifecycle.
+    Route::get(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
+        [RecruitmentApplicationController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.vacancies.applications.index');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
+        [RecruitmentApplicationController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.applications.store');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/start-processing',
+        [RecruitmentApplicationController::class, 'startProcessing']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.start-processing');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/reject',
+        [RecruitmentApplicationController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.reject');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/withdraw',
+        [RecruitmentApplicationController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.withdraw');
+
+    // approve-for-hiring SENGAJA memakai hr.recruitment.approve (bukan
+    // .manage) — higher-impact operation, konsisten dengan pola
+    // Vacancy approve/reject.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring',
+        [RecruitmentApplicationController::class, 'approveForHiring']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.applications.approve-for-hiring');
 });
 
 /*
