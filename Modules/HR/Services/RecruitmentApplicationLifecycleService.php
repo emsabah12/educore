@@ -11,6 +11,7 @@ use Modules\HR\Exceptions\RecruitmentLifecycleException;
 use Modules\HR\Models\RecruitmentApplication;
 use Modules\HR\Models\RecruitmentApplicationStage;
 use Modules\HR\Models\RecruitmentCandidate;
+use Modules\HR\Models\RecruitmentHiringDecision;
 use Modules\HR\Models\RecruitmentVacancy;
 use Modules\HR\Models\RecruitmentVacancyStage;
 
@@ -107,16 +108,41 @@ final readonly class RecruitmentApplicationLifecycleService
         );
     }
 
-    public function reject(string $tenantId, string $applicationId): RecruitmentApplication
-    {
-        return $this->transition(
-            tenantId: $tenantId,
-            applicationId: $applicationId,
-            allowedStatuses: [RecruitmentApplication::STATUS_IN_PROCESS],
-            newStatus: RecruitmentApplication::STATUS_REJECTED,
-            actionLabel: 'rejected',
-            isFinal: true,
-        );
+    /**
+     * HR-003 §7.9: setiap penolakan final Application meninggalkan
+     * bukti keputusan eksplisit — bukan cuma mengubah `status`.
+     */
+    public function reject(
+        string $tenantId,
+        string $applicationId,
+        string $decidedByMembershipId,
+        ?string $reason = null,
+    ): RecruitmentApplication {
+        return DB::transaction(function () use (
+            $tenantId,
+            $applicationId,
+            $decidedByMembershipId,
+            $reason,
+        ): RecruitmentApplication {
+            $application = $this->transitionLocked(
+                tenantId: $tenantId,
+                applicationId: $applicationId,
+                allowedStatuses: [RecruitmentApplication::STATUS_IN_PROCESS],
+                newStatus: RecruitmentApplication::STATUS_REJECTED,
+                actionLabel: 'rejected',
+                isFinal: true,
+            );
+
+            RecruitmentHiringDecision::create([
+                'application_id' => $application->id,
+                'decision' => RecruitmentHiringDecision::DECISION_REJECTED,
+                'decided_by_membership_id' => $decidedByMembershipId,
+                'reason' => $reason,
+                'decided_at' => now(),
+            ]);
+
+            return $application;
+        });
     }
 
     public function withdraw(string $tenantId, string $applicationId): RecruitmentApplication
@@ -138,18 +164,40 @@ final readonly class RecruitmentApplicationLifecycleService
      * "HIRING_APPROVED does not mean Employment is active" — SENGAJA
      * bukan status final (`isFinal: false`), karena Application masih
      * menunggu hire conversion (Fase E) untuk benar-benar berubah jadi
-     * HIRED.
+     * HIRED. Tetap menulis bukti keputusan (§7.9) karena ini keputusan
+     * hiring final sekalipun Application-nya sendiri belum final.
      */
-    public function approveForHiring(string $tenantId, string $applicationId): RecruitmentApplication
-    {
-        return $this->transition(
-            tenantId: $tenantId,
-            applicationId: $applicationId,
-            allowedStatuses: [RecruitmentApplication::STATUS_IN_PROCESS],
-            newStatus: RecruitmentApplication::STATUS_HIRING_APPROVED,
-            actionLabel: 'approved for hiring',
-            isFinal: false,
-        );
+    public function approveForHiring(
+        string $tenantId,
+        string $applicationId,
+        string $decidedByMembershipId,
+        ?string $reason = null,
+    ): RecruitmentApplication {
+        return DB::transaction(function () use (
+            $tenantId,
+            $applicationId,
+            $decidedByMembershipId,
+            $reason,
+        ): RecruitmentApplication {
+            $application = $this->transitionLocked(
+                tenantId: $tenantId,
+                applicationId: $applicationId,
+                allowedStatuses: [RecruitmentApplication::STATUS_IN_PROCESS],
+                newStatus: RecruitmentApplication::STATUS_HIRING_APPROVED,
+                actionLabel: 'approved for hiring',
+                isFinal: false,
+            );
+
+            RecruitmentHiringDecision::create([
+                'application_id' => $application->id,
+                'decision' => RecruitmentHiringDecision::DECISION_APPROVED,
+                'decided_by_membership_id' => $decidedByMembershipId,
+                'reason' => $reason,
+                'decided_at' => now(),
+            ]);
+
+            return $application;
+        });
     }
 
     /**
@@ -163,37 +211,55 @@ final readonly class RecruitmentApplicationLifecycleService
         string $actionLabel,
         bool $isFinal,
     ): RecruitmentApplication {
-        return DB::transaction(function () use (
-            $tenantId,
-            $applicationId,
-            $allowedStatuses,
-            $newStatus,
-            $actionLabel,
-            $isFinal,
-        ): RecruitmentApplication {
-            $application = $this->lockApplicationForTenant($applicationId, $tenantId);
+        return DB::transaction(fn(): RecruitmentApplication => $this->transitionLocked(
+            tenantId: $tenantId,
+            applicationId: $applicationId,
+            allowedStatuses: $allowedStatuses,
+            newStatus: $newStatus,
+            actionLabel: $actionLabel,
+            isFinal: $isFinal,
+        ));
+    }
 
-            if (! in_array($application->status, $allowedStatuses, true)) {
-                throw new RecruitmentLifecycleException(
-                    sprintf(
-                        'Application [%s] cannot be %s from status [%s].',
-                        $application->id,
-                        $actionLabel,
-                        $application->status,
-                    ),
-                );
-            }
+    /**
+     * Inti logika transisi TANPA membungkus transaksinya sendiri —
+     * dipakai oleh transition() (untuk startProcessing/withdraw, yang
+     * cukup transisi status saja) MAUPUN langsung oleh reject()/
+     * approveForHiring() (yang perlu menulis RecruitmentHiringDecision
+     * dalam transaksi atomik YANG SAMA, §7.9).
+     *
+     * @param list<string> $allowedStatuses
+     */
+    private function transitionLocked(
+        string $tenantId,
+        string $applicationId,
+        array $allowedStatuses,
+        string $newStatus,
+        string $actionLabel,
+        bool $isFinal,
+    ): RecruitmentApplication {
+        $application = $this->lockApplicationForTenant($applicationId, $tenantId);
 
-            $application->status = $newStatus;
+        if (! in_array($application->status, $allowedStatuses, true)) {
+            throw new RecruitmentLifecycleException(
+                sprintf(
+                    'Application [%s] cannot be %s from status [%s].',
+                    $application->id,
+                    $actionLabel,
+                    $application->status,
+                ),
+            );
+        }
 
-            if ($isFinal) {
-                $application->finalized_at = now();
-            }
+        $application->status = $newStatus;
 
-            $application->save();
+        if ($isFinal) {
+            $application->finalized_at = now();
+        }
 
-            return $application->refresh();
-        });
+        $application->save();
+
+        return $application->refresh();
     }
 
     private function lockVacancyForTenant(

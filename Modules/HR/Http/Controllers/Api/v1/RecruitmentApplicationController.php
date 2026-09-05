@@ -122,11 +122,11 @@ final class RecruitmentApplicationController extends Controller
 
     public function reject(Request $request, string $applicationId): JsonResponse
     {
-        return $this->transition(
+        return $this->transitionWithDecision(
             $request,
             $applicationId,
-            fn(string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
-                ->reject($tenantId, $applicationId),
+            fn(string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
+                ->reject($tenantId, $applicationId, $membershipId, $reason),
         );
     }
 
@@ -142,11 +142,11 @@ final class RecruitmentApplicationController extends Controller
 
     public function approveForHiring(Request $request, string $applicationId): JsonResponse
     {
-        return $this->transition(
+        return $this->transitionWithDecision(
             $request,
             $applicationId,
-            fn(string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
-                ->approveForHiring($tenantId, $applicationId),
+            fn(string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
+                ->approveForHiring($tenantId, $applicationId, $membershipId, $reason),
         );
     }
 
@@ -187,6 +187,59 @@ final class RecruitmentApplicationController extends Controller
             return ApiErrorResponse::make(
                 code: 'RECRUITMENT_APPLICATION_TRANSITION_FAILED',
                 message: 'Failed to transition Application lifecycle state.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $application,
+        ]);
+    }
+
+    /**
+     * @param callable(string, string, ?string): RecruitmentApplication $operation
+     */
+    private function transitionWithDecision(
+        Request $request,
+        string $applicationId,
+        callable $operation,
+    ): JsonResponse {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+        $membershipId = $request->attributes->get(
+            'authenticated_membership_id',
+        );
+
+        if (! $this->isCanonicalUuid($tenantId) || ! $this->isCanonicalUuid($membershipId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $reason = $request->input('reason');
+        $reason = is_string($reason) && trim($reason) !== '' ? $reason : null;
+
+        try {
+            $application = $operation($tenantId, $membershipId, $reason);
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse(
+                sprintf('Application [%s] was not found in the current tenant.', $applicationId),
+            );
+        } catch (RecruitmentLifecycleException $exception) {
+            return $this->lifecycleConflictResponse($exception);
+        } catch (Throwable $exception) {
+            Log::error(
+                'RecruitmentApplication decision failed.',
+                [
+                    'tenant_id' => $tenantId,
+                    'application_id' => $applicationId,
+                    'exception_class' => $exception::class,
+                ],
+            );
+
+            return ApiErrorResponse::make(
+                code: 'RECRUITMENT_APPLICATION_DECISION_FAILED',
+                message: 'Failed to record Application hiring decision.',
                 status: Response::HTTP_INTERNAL_SERVER_ERROR,
             );
         }

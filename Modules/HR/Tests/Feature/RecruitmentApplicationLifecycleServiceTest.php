@@ -115,10 +115,17 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
         $application = $this->createSubmittedApplication();
         $this->service->startProcessing($this->tenantId, $application->id);
 
-        $result = $this->service->reject($this->tenantId, $application->id);
+        $result = $this->service->reject(
+            $this->tenantId,
+            $application->id,
+            $this->membershipId,
+            'Tidak memenuhi kualifikasi.',
+        );
 
         $this->assertSame(RecruitmentApplication::STATUS_REJECTED, $result->status);
         $this->assertNotNull($result->finalized_at);
+        $this->assertCount(1, $result->hiringDecisions);
+        $this->assertSame('REJECTED', $result->hiringDecisions->first()->decision);
     }
 
     public function test_withdraw_transitions_submitted_to_withdrawn(): void
@@ -136,19 +143,26 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
         $application = $this->createSubmittedApplication();
         $this->service->startProcessing($this->tenantId, $application->id);
 
-        $result = $this->service->approveForHiring($this->tenantId, $application->id);
+        $result = $this->service->approveForHiring(
+            $this->tenantId,
+            $application->id,
+            $this->membershipId,
+            'Disetujui, siap direkrut.',
+        );
 
         $this->assertSame(RecruitmentApplication::STATUS_HIRING_APPROVED, $result->status);
         // HIRING_APPROVED bukan status final — HIRED baru terjadi lewat
         // hire conversion (Fase E, belum dibangun).
         $this->assertNull($result->finalized_at);
+        $this->assertCount(1, $result->hiringDecisions);
+        $this->assertSame('APPROVED', $result->hiringDecisions->first()->decision);
     }
 
     public function test_withdraw_rejects_already_hiring_approved_application(): void
     {
         $application = $this->createSubmittedApplication();
         $this->service->startProcessing($this->tenantId, $application->id);
-        $this->service->approveForHiring($this->tenantId, $application->id);
+        $this->service->approveForHiring($this->tenantId, $application->id, $this->membershipId);
 
         $this->expectException(RecruitmentLifecycleException::class);
         $this->expectExceptionMessageMatches('/cannot be withdrawn from status \[HIRING_APPROVED\]/');

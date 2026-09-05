@@ -93,4 +93,17 @@ final class RecruitmentApplication extends Model
             'application_id',
         );
     }
+
+    /**
+     * Riwayat keputusan hiring final (§7.9) — APPEND-ONLY.
+     *
+     * @return HasMany<RecruitmentHiringDecision, $this>
+     */
+    public function hiringDecisions(): HasMany
+    {
+        return $this->hasMany(
+            RecruitmentHiringDecision::class,
+            'application_id',
+        )->orderByDesc('decided_at');
+    }
 }
