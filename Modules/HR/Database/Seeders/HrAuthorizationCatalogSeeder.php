@@ -35,6 +35,9 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.recruitment.view' => 'View Vacancy, Application, and Candidate records',
         'hr.recruitment.manage' => 'Create/update non-final Recruitment lifecycle data',
         'hr.recruitment.approve' => 'Approve/reject a Vacancy (higher-impact operation)',
+        'hr.onboarding.view' => 'View Onboarding Templates, Cases, and Tasks',
+        'hr.onboarding.manage' => 'Create/update non-final Onboarding lifecycle data',
+        'hr.onboarding.activate' => 'Higher-impact Onboarding operations (waive a required task now; Employment Activation orchestration later, HR-003 §13)',
 
     ];
 

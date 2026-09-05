@@ -9,6 +9,8 @@ use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
+use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
@@ -228,6 +230,59 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.recruitment.approve')
         ->name('api.v1.hr.recruitment.applications.approve-for-hiring');
+
+    // HR-003 §7.10 — Onboarding Template.
+    Route::get(
+        '/v1/hr/onboarding/templates',
+        [OnboardingTemplateController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.onboarding.view')
+        ->name('api.v1.hr.onboarding.templates.index');
+
+    Route::post(
+        '/v1/hr/onboarding/templates',
+        [OnboardingTemplateController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.templates.store');
+
+    // HR-003 §7.12 / §8.3 — Onboarding Case lifecycle.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/onboarding',
+        [OnboardingCaseController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.store');
+
+    Route::post(
+        '/v1/hr/onboarding/cases/{caseId}/start',
+        [OnboardingCaseController::class, 'start']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.start');
+
+    Route::post(
+        '/v1/hr/onboarding/cases/{caseId}/cancel',
+        [OnboardingCaseController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.cancel');
+
+    Route::post(
+        '/v1/hr/onboarding/tasks/{taskId}/complete',
+        [OnboardingCaseController::class, 'completeTask']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.tasks.complete');
+
+    // waive SENGAJA memakai hr.onboarding.activate (bukan .manage) —
+    // "waived required task requires permission/audit" (§16).
+    Route::post(
+        '/v1/hr/onboarding/tasks/{taskId}/waive',
+        [OnboardingCaseController::class, 'waiveTask']
+    )
+        ->middleware('tenant.permission:hr.onboarding.activate')
+        ->name('api.v1.hr.onboarding.tasks.waive');
 });
 
 /*
