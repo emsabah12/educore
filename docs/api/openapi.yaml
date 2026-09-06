@@ -2448,3 +2448,255 @@ x-educore-deferred-routes:
     route_name: api.v1.academic.subjects.store
     owner: Academic
     reason: domain-api-hardening-deferred
+
+  # RM-HR-01 sampai RM-HR-03 — Employee/Employment lifecycle,
+  # Recruitment (Vacancy/Candidate/Application), Onboarding, dan
+  # Hiring Conversion. Deferred dengan alasan yang sama seperti
+  # Academic: dokumentasi OpenAPI penuh untuk domain ini menyusul
+  # di siklus pengerasan API tersendiri, bukan bagian dari scope
+  # implementasi fitur.
+  - method: GET
+    path: /api/v1/hr/employees/{employeeId}/employments
+    route_name: api.v1.hr.employees.employments.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employees/{employeeId}/employments
+    route_name: api.v1.hr.employees.employments.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/activate
+    route_name: api.v1.hr.employments.activate
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/cancel
+    route_name: api.v1.hr.employments.cancel
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/end
+    route_name: api.v1.hr.employments.end
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/employments/{employmentId}/placements
+    route_name: api.v1.hr.employments.placements.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/placements
+    route_name: api.v1.hr.employments.placements.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/employments/{employmentId}/position-assignments
+    route_name: api.v1.hr.employments.position-assignments.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/position-assignments
+    route_name: api.v1.hr.employments.position-assignments.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/onboarding/cases/{caseId}/cancel
+    route_name: api.v1.hr.onboarding.cases.cancel
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/onboarding/cases/{caseId}/start
+    route_name: api.v1.hr.onboarding.cases.start
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/onboarding/tasks/{taskId}/complete
+    route_name: api.v1.hr.onboarding.tasks.complete
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/onboarding/tasks/{taskId}/waive
+    route_name: api.v1.hr.onboarding.tasks.waive
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/onboarding/templates
+    route_name: api.v1.hr.onboarding.templates.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/onboarding/templates
+    route_name: api.v1.hr.onboarding.templates.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring
+    route_name: api.v1.hr.recruitment.applications.approve-for-hiring
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/hire-conversion
+    route_name: api.v1.hr.recruitment.applications.hire-conversion
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/onboarding
+    route_name: api.v1.hr.onboarding.cases.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/reject
+    route_name: api.v1.hr.recruitment.applications.reject
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/start-processing
+    route_name: api.v1.hr.recruitment.applications.start-processing
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/applications/{applicationId}/withdraw
+    route_name: api.v1.hr.recruitment.applications.withdraw
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/recruitment/candidates
+    route_name: api.v1.hr.recruitment.candidates.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/candidates
+    route_name: api.v1.hr.recruitment.candidates.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/recruitment/vacancies
+    route_name: api.v1.hr.recruitment.vacancies.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies
+    route_name: api.v1.hr.recruitment.vacancies.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
+    route_name: api.v1.hr.recruitment.vacancies.applications.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
+    route_name: api.v1.hr.recruitment.vacancies.applications.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/approve
+    route_name: api.v1.hr.recruitment.vacancies.approve
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/cancel
+    route_name: api.v1.hr.recruitment.vacancies.cancel
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/close
+    route_name: api.v1.hr.recruitment.vacancies.close
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/open
+    route_name: api.v1.hr.recruitment.vacancies.open
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/reject
+    route_name: api.v1.hr.recruitment.vacancies.reject
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/submit
+    route_name: api.v1.hr.recruitment.vacancies.submit
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/workspace/employees
+    route_name: api.v1.hr.workspace.employees.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employees
+    route_name: api.v1.hr.workspace.employees.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employees/{employeeId}/employments
+    route_name: api.v1.hr.workspace.employees.employments.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employments/{employmentId}/activate
+    route_name: api.v1.hr.workspace.employments.activate
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employments/{employmentId}/cancel
+    route_name: api.v1.hr.workspace.employments.cancel
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employments/{employmentId}/end
+    route_name: api.v1.hr.workspace.employments.end
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employments/{employmentId}/placements
+    route_name: api.v1.hr.workspace.employments.placements.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/workspace/employments/{employmentId}/position-assignments
+    route_name: api.v1.hr.workspace.employments.position-assignments.store
+    owner: HR
+    reason: domain-api-hardening-deferred

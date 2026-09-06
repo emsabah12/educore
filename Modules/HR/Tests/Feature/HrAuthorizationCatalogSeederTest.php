@@ -37,7 +37,7 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
         ]);
     }
 
-    public function test_seeder_creates_hr_officer_role_with_view_and_create_access(): void
+    public function test_seeder_creates_hr_officer_role_with_full_resource_permission_catalog(): void
     {
         $this->seed(HrAuthorizationCatalogSeeder::class);
 
@@ -57,6 +57,15 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             [
                 'hr.employees.create',
                 'hr.employees.view',
+                'hr.employments.end',
+                'hr.employments.manage',
+                'hr.employments.view',
+                'hr.onboarding.activate',
+                'hr.onboarding.manage',
+                'hr.onboarding.view',
+                'hr.recruitment.approve',
+                'hr.recruitment.manage',
+                'hr.recruitment.view',
             ],
             $grantedPermissionNames,
         );
