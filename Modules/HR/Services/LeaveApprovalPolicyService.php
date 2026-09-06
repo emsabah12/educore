@@ -6,6 +6,7 @@ namespace Modules\HR\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Modules\HR\Exceptions\LeaveLifecycleException;
 use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmploymentPlacement;
@@ -63,6 +64,58 @@ final readonly class LeaveApprovalPolicyService
         $data['version_no'] = $nextVersionNo;
 
         return LeaveApprovalPolicy::create($data);
+    }
+
+    /**
+     * Pembungkus atomik untuk HTTP layer (§15.4 hanya punya SATU
+     * endpoint POST, tanpa endpoint step terpisah) — policy dan seluruh
+     * step-nya dibuat dalam satu transaksi, semua-atau-tidak-sama-sekali.
+     *
+     * @param array<string, mixed> $policyData
+     * @param list<array{step_order: int, required_permission: string, scope_strategy: string, independent_approver?: bool}> $steps
+     */
+    public function createPolicyVersionWithSteps(
+        string $tenantId,
+        array $policyData,
+        array $steps,
+    ): LeaveApprovalPolicy {
+        return DB::transaction(function () use ($tenantId, $policyData, $steps): LeaveApprovalPolicy {
+            $policy = $this->createPolicyVersion($tenantId, $policyData);
+
+            foreach ($steps as $step) {
+                $this->addStep(
+                    $tenantId,
+                    $policy->id,
+                    $step['step_order'],
+                    $step['required_permission'],
+                    $step['scope_strategy'],
+                    $step['independent_approver'] ?? true,
+                );
+            }
+
+            return $policy->refresh()->load('steps');
+        });
+    }
+
+    public function deactivate(string $tenantId, string $approvalPolicyId): LeaveApprovalPolicy
+    {
+        $policy = LeaveApprovalPolicy::query()
+            ->withoutGlobalScope('tenant')
+            ->where('id', $approvalPolicyId)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        if ($policy === null) {
+            throw (new ModelNotFoundException())->setModel(
+                LeaveApprovalPolicy::class,
+                [$approvalPolicyId],
+            );
+        }
+
+        $policy->is_active = false;
+        $policy->save();
+
+        return $policy->refresh();
     }
 
     public function addStep(

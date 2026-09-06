@@ -10,6 +10,8 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalPolicyController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementPolicyController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveTypeController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
@@ -460,4 +462,62 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.leave.policy.manage')
         ->name('api.v1.hr.leave-entitlement-policies.deactivate');
+
+    // §15.3 Entitlements / Balance.
+    Route::get(
+        '/employees/{employeeId}/leave-balances',
+        [LeaveEntitlementController::class, 'employeeBalances']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.read')
+        ->name('api.v1.hr.employees.leave-balances.index');
+
+    Route::get(
+        '/employments/{employmentId}/leave-entitlements',
+        [LeaveEntitlementController::class, 'employmentEntitlements']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.read')
+        ->name('api.v1.hr.employments.leave-entitlements.index');
+
+    Route::post(
+        '/employments/{employmentId}/leave-entitlements/generate',
+        [LeaveEntitlementController::class, 'generate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.employments.leave-entitlements.generate');
+
+    Route::post(
+        '/leave-entitlements/{entitlementId}/adjustments',
+        [LeaveEntitlementController::class, 'adjust']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.adjust')
+        ->name('api.v1.hr.leave-entitlements.adjustments.store');
+
+    // §15.4 Approval Policy.
+    Route::get(
+        '/leave-approval-policies',
+        [LeaveApprovalPolicyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-approval-policies.index');
+
+    Route::post(
+        '/leave-approval-policies',
+        [LeaveApprovalPolicyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-approval-policies.store');
+
+    Route::get(
+        '/leave-approval-policies/{approvalPolicyId}',
+        [LeaveApprovalPolicyController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-approval-policies.show');
+
+    Route::post(
+        '/leave-approval-policies/{approvalPolicyId}/deactivate',
+        [LeaveApprovalPolicyController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-approval-policies.deactivate');
 });
