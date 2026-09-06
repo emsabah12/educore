@@ -97,6 +97,24 @@ final class EloquentPersonIdentifierRepository implements PersonIdentifierReposi
             ->exists();
     }
 
+    public function findPersonIdByFingerprint(
+        string $type,
+        string $issuingCountryCode,
+        string $rawValue,
+    ): ?string {
+        $fingerprint = $this->cipher->fingerprint(trim($rawValue));
+
+        $personId = $this->model
+            ->newQuery()
+            ->where('type', trim($type))
+            ->where('issuing_country_code', strtoupper(trim($issuingCountryCode)))
+            ->where('value_fingerprint', $fingerprint)
+            ->where('status', 'ACTIVE')
+            ->value('person_id');
+
+        return is_string($personId) ? $personId : null;
+    }
+
     public function listForPersonWithDecryptedValue(string $personId): array
     {
         $personId = trim($personId);

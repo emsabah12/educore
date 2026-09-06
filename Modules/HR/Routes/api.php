@@ -9,6 +9,7 @@ use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
@@ -283,6 +284,16 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.onboarding.activate')
         ->name('api.v1.hr.onboarding.tasks.waive');
+
+    // HR-003 §12 — Hiring Conversion Transaction (RM-HR-03 Fase E).
+    // hr.recruitment.approve (bukan .manage) — higher-impact operation,
+    // konsisten dengan pola approve-for-hiring.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/hire-conversion',
+        [HireConversionController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.applications.hire-conversion');
 });
 
 /*

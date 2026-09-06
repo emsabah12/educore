@@ -35,6 +35,19 @@ interface PersonIdentifierRepositoryInterface
     ): bool;
 
     /**
+     * Mencari Person mana yang memiliki identifier kuat ini — dipakai
+     * HR-003 §9.2 (PersonIdentityResolutionServiceInterface) untuk
+     * resolusi identitas Candidate -> Person canonical saat hiring
+     * conversion. Exact match saja (HR-013/HR-003 INV-REC-003), tidak
+     * ada fuzzy match.
+     */
+    public function findPersonIdByFingerprint(
+        string $type,
+        string $issuingCountryCode,
+        string $rawValue,
+    ): ?string;
+
+    /**
      * Daftar identifier milik satu Person, dengan value yang SUDAH
      * didekripsi. Pemanggil bertanggung jawab memastikan konteks ini
      * memang berwenang melihat raw legal identifier (bukan sekadar

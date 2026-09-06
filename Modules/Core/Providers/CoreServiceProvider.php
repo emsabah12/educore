@@ -198,6 +198,13 @@ final class CoreServiceProvider extends ServiceProvider
             EloquentMembershipRoleRepository::class,
         );
 
+        // HR-003 §10 — ensure/reaktivasi Membership untuk Hiring
+        // Conversion (RM-HR-03 Fase E).
+        $this->app->singleton(
+            \Modules\Core\Authorization\Contracts\MembershipLifecycleServiceInterface::class,
+            \Modules\Core\Authorization\Services\MembershipLifecycleService::class,
+        );
+
         $this->app->bind(
             RolePermissionRepositoryInterface::class,
             EloquentRolePermissionRepository::class,
@@ -226,6 +233,15 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(
             \Modules\Core\Person\Contracts\PersonLifecycleServiceInterface::class,
             \Modules\Core\Person\Services\PersonLifecycleService::class,
+        );
+
+        // HR-003 §9.2 — resolusi identitas Candidate -> Person canonical
+        // untuk Hiring Conversion (RM-HR-03 Fase E). "HR never owns or
+        // copies the canonical Person identifier table" — HR memanggil
+        // kontrak ini, bukan query person_identifiers langsung.
+        $this->app->singleton(
+            \Modules\Core\Person\Contracts\PersonIdentityResolutionServiceInterface::class,
+            \Modules\Core\Person\Services\PersonIdentityResolutionService::class,
         );
 
         $this->app->singleton(

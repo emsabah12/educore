@@ -48,4 +48,19 @@ interface RecruitmentCandidateIdentifierRepositoryInterface
         string $issuingCountryCode,
         string $rawValue,
     ): ?string;
+
+    /**
+     * Daftar identifier kuat milik satu Candidate, dengan value yang
+     * SUDAH didekripsi — dipakai HireConversionService (RM-HR-03 Fase E)
+     * untuk mengumpulkan klaim identitas yang akan diserahkan ke
+     * PersonIdentityResolutionServiceInterface::resolveByStrongIdentifiers().
+     * Pemanggil bertanggung jawab memastikan konteks ini memang
+     * berwenang melihat raw legal identifier (HR-013-BR-001).
+     *
+     * @return list<array{type: string, issuing_country_code: string, value: string}>
+     */
+    public function listForCandidateWithDecryptedValue(
+        string $tenantId,
+        string $candidateId,
+    ): array;
 }

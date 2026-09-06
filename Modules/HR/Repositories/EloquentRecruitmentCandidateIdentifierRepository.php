@@ -124,4 +124,26 @@ final class EloquentRecruitmentCandidateIdentifierRepository implements Recruitm
 
         return is_string($candidateId) ? $candidateId : null;
     }
+
+    public function listForCandidateWithDecryptedValue(
+        string $tenantId,
+        string $candidateId,
+    ): array {
+        return $this->model
+            ->newQuery()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('candidate_id', $candidateId)
+            ->where('status', RecruitmentCandidateIdentifier::STATUS_ACTIVE)
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn(RecruitmentCandidateIdentifier $record): array => [
+                'type' => (string) $record->type,
+                'issuing_country_code' => (string) $record->issuing_country_code,
+                'value' => $this->cipher->decrypt(
+                    (string) $record->getAttribute('encrypted_value'),
+                ),
+            ])
+            ->all();
+    }
 }
