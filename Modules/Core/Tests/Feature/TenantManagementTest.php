@@ -288,6 +288,133 @@ final class TenantManagementTest extends TestCase
         ]);
     }
 
+    public function test_global_superadmin_can_create_tenant_with_brand_new_admin(): void
+    {
+        $payload = [
+            'name' => 'SMA Digital Nusantara',
+            'subdomain' => 'sma-digital-nusantara',
+            'admin_name' => 'Kepala Sekolah Digital',
+            'admin_email' => 'kepala.digital@educore.test',
+            'admin_password' => 'kata-sandi-kuat-123',
+        ];
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT . '/with-new-admin',
+                $payload,
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.subdomain', $payload['subdomain']);
+
+        $this->assertDatabaseHas('tenants', [
+            'subdomain' => $payload['subdomain'],
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => $payload['admin_email'],
+        ]);
+
+        $newAdminUserId = $response->json('data.initial_admin.user_id');
+
+        // Password mentah TIDAK PERNAH bocor lewat respons HTTP.
+        $this->assertStringNotContainsString(
+            $payload['admin_password'],
+            $response->getContent(),
+        );
+
+        $adminRoleId = (string) DB::table('roles')
+            ->where('name', 'admin')
+            ->value('id');
+
+        $this->assertDatabaseHas('membership_roles', [
+            'membership_id' => $response->json('data.initial_admin.membership_id'),
+            'role_id' => $adminRoleId,
+        ]);
+
+        $this->assertIsString($newAdminUserId);
+    }
+
+    public function test_store_with_new_admin_rejects_duplicate_email(): void
+    {
+        DB::table('persons')->insert([
+            'id' => $existingPersonId = UuidV7::generate(),
+            'name' => 'Sudah Terdaftar',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('users')->insert([
+            'id' => UuidV7::generate(),
+            'person_id' => $existingPersonId,
+            'email' => 'sudah.ada@educore.test',
+            'password' => Hash::make('irrelevant'),
+            'status' => 'ACTIVE',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this
+            ->withToken(
+                $this->issueToken(
+                    $this->superadminId,
+                    $this->superadminMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT . '/with-new-admin',
+                [
+                    'name' => 'Tenant Email Duplikat',
+                    'subdomain' => 'tenant-email-duplikat',
+                    'admin_name' => 'Admin Duplikat',
+                    'admin_email' => 'sudah.ada@educore.test',
+                    'admin_password' => 'kata-sandi-kuat-123',
+                ],
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['admin_email']);
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'tenant-email-duplikat',
+        ]);
+    }
+
+    public function test_non_superadmin_is_forbidden_to_create_tenant_with_new_admin(): void
+    {
+        $this
+            ->withToken(
+                $this->issueToken(
+                    $this->pegawaiId,
+                    $this->pegawaiMembershipId,
+                ),
+            )
+            ->postJson(
+                self::TENANTS_ENDPOINT . '/with-new-admin',
+                [
+                    'name' => 'Tenant Tidak Berwenang',
+                    'subdomain' => 'tenant-tidak-berwenang',
+                    'admin_name' => 'Admin Tanpa Izin',
+                    'admin_email' => 'tanpa.izin@educore.test',
+                    'admin_password' => 'kata-sandi-kuat-123',
+                ],
+            )
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('tenants', [
+            'subdomain' => 'tenant-tidak-berwenang',
+        ]);
+    }
+
     public function test_store_requires_initial_admin_user_id(): void
     {
         $this

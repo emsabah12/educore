@@ -135,7 +135,7 @@ Route::middleware([
 ])->group(function (): void {
     Route::get(
         '/v1/core/authorization/roles',
-        '\\'.RoleCatalogController::class,
+        '\\' . RoleCatalogController::class,
     )->name(
         'api.v1.core.authorization.roles.index',
     );
@@ -160,6 +160,14 @@ Route::middleware([
             'store',
         ],
     )->name('api.v1.core.tenants.store');
+
+    Route::post(
+        '/v1/core/tenants/with-new-admin',
+        [
+            TenantManagementController::class,
+            'storeWithNewAdmin',
+        ],
+    )->name('api.v1.core.tenants.store-with-new-admin');
 
     Route::put(
         '/v1/core/tenants/{id}',

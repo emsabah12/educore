@@ -16,6 +16,7 @@ use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
 use Modules\Core\Tenancy\Http\Requests\ListTenantsRequest;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantRequest;
+use Modules\Core\Tenancy\Http\Requests\StoreTenantWithNewAdminRequest;
 use Symfony\Component\HttpFoundation\Response;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Throwable;
@@ -159,6 +160,86 @@ final class TenantManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Tenant registered successfully.',
+            'data' => array_merge(
+                $tenant,
+                [
+                    'initial_admin' => $initialAdmin,
+                ],
+            ),
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Mendaftarkan tenant baru SEKALIGUS membuat administrator baru
+     * (Person+User baru, bukan User yang sudah ada). Menutup celah
+     * operasional di mana `store()` mewajibkan `initial_admin_user_id`
+     * yang harus SUDAH ADA — tidak ada jalur lain untuk membuat admin
+     * baru dari nol selain manual lewat Tinker.
+     */
+    public function storeWithNewAdmin(
+        StoreTenantWithNewAdminRequest $request,
+    ): JsonResponse {
+        $validated = $request->validated();
+
+        $tenantData = [
+            'name' => $validated['name'],
+            'subdomain' => $validated['subdomain'],
+            'is_active' => $validated['is_active'] ?? true,
+        ];
+
+        $adminData = [
+            'name' => $validated['admin_name'],
+            'email' => $validated['admin_email'],
+            'password' => $validated['admin_password'],
+        ];
+
+        $operatorId = $this->resolveOperatorId(
+            $request,
+        );
+
+        try {
+            $result = $this->tenantProvisioningService->provisionWithNewAdmin(
+                $tenantData,
+                $adminData,
+            );
+        } catch (Throwable $exception) {
+            $this->logOperationFailure(
+                exception: $exception,
+                operation: 'tenant.create_with_new_admin',
+                operatorId: $operatorId,
+            );
+
+            return $this->internalServerErrorResponse(
+                'Failed to register tenant.',
+            );
+        }
+
+        $tenant = $result['tenant'];
+        $initialAdmin = $result['initial_admin'];
+        $tenantId = (string) $tenant['id'];
+
+        $auditPayload = $tenantData;
+        $auditPayload['initial_admin_user_id'] = $initialAdmin['user_id'];
+        $auditPayload['initial_admin_membership_id'] = $initialAdmin['membership_id'];
+        // INV: JANGAN PERNAH sertakan admin_password mentah di audit
+        // metadata, walau berhasil — audit trail bukan tempat rahasia
+        // kredensial, dan sudah di-hash sebelum sampai sini pula.
+
+        $this->recordAuditSafely(
+            eventType: 'tenant.created_with_new_admin',
+            description: sprintf(
+                'Superadmin mendaftarkan tenant baru beserta admin baru: %s (%s)',
+                $tenant['name'],
+                $tenant['subdomain'],
+            ),
+            tenantId: $tenantId,
+            operatorId: $operatorId,
+            payload: $auditPayload,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Tenant and initial admin registered successfully.',
             'data' => array_merge(
                 $tenant,
                 [

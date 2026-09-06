@@ -6,6 +6,7 @@ namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
 use Modules\Core\Identity\Models\User;
@@ -82,6 +83,92 @@ final class TenantProvisioningServiceTest extends TestCase
             'membership_id' => $membershipId,
             'role_id' => $adminRoleId,
         ]);
+    }
+
+    public function test_service_provisions_tenant_with_brand_new_admin_account(): void
+    {
+        $service = $this->app->make(
+            TenantProvisioningService::class,
+        );
+
+        $result = $service->provisionWithNewAdmin(
+            [
+                'name' => 'Sekolah Admin Baru',
+                'subdomain' => 'sekolah-admin-baru',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Kepala Sekolah Baru',
+                'email' => 'kepala.sekolah.baru@educore.test',
+                'password' => 'rahasia-yang-kuat',
+            ],
+        );
+
+        $tenantId = (string) $result['tenant']['id'];
+        $userId = $result['initial_admin']['user_id'];
+        $membershipId = $result['initial_admin']['membership_id'];
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenantId,
+            'subdomain' => 'sekolah-admin-baru',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userId,
+            'email' => 'kepala.sekolah.baru@educore.test',
+        ]);
+
+        $storedUser = User::query()->findOrFail($userId);
+
+        // Password TIDAK PERNAH disimpan sebagai teks polos — cast
+        // 'hashed' pada model User yang bertanggung jawab, bukan
+        // Hash::make() manual di service.
+        $this->assertNotSame('rahasia-yang-kuat', $storedUser->getAttributes()['password']);
+        $this->assertTrue(Hash::check('rahasia-yang-kuat', $storedUser->getAttributes()['password']));
+
+        $this->assertDatabaseHas('memberships', [
+            'id' => $membershipId,
+            'person_id' => (string) $storedUser->person_id,
+            'tenant_id' => $tenantId,
+            'status' => 'ACTIVE',
+        ]);
+
+        $adminRoleId = DB::table('roles')
+            ->where('name', 'admin')
+            ->value('id');
+
+        $this->assertDatabaseHas('membership_roles', [
+            'membership_id' => $membershipId,
+            'role_id' => $adminRoleId,
+        ]);
+    }
+
+    public function test_service_provisions_new_admin_can_authenticate_with_the_provided_password(): void
+    {
+        $service = $this->app->make(
+            TenantProvisioningService::class,
+        );
+
+        $service->provisionWithNewAdmin(
+            [
+                'name' => 'Sekolah Login Baru',
+                'subdomain' => 'sekolah-login-baru',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Admin Login Baru',
+                'email' => 'admin.login.baru@educore.test',
+                'password' => 'kata-sandi-asli',
+            ],
+        );
+
+        $storedUser = User::query()
+            ->where('email', 'admin.login.baru@educore.test')
+            ->firstOrFail();
+
+        $this->assertTrue(
+            Hash::check('kata-sandi-asli', $storedUser->getAttributes()['password']),
+        );
     }
 
     public function test_service_rejects_inactive_user_before_creating_tenant(): void
