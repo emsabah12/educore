@@ -6,11 +6,13 @@ namespace Modules\HR\Tests\Feature;
 
 use Illuminate\Http\Request;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Organization\Contracts\OrganizationalContextInterface;
 use Modules\Core\Person\Contracts\PersonRepositoryInterface;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Requests\StoreEmployeeRequest;
 use Modules\HR\Services\EmployeeProvisioningService;
+use Modules\HR\Services\HrWorkforceScopeService;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
@@ -107,10 +109,20 @@ final class EmployeeManagementControllerErrorContractTest extends TestCase
         ?EmployeeRepositoryInterface $employeeRepository = null,
         ?PersonRepositoryInterface $personRepository = null,
         ?AuditTrailServiceInterface $auditTrail = null,
+        ?HrWorkforceScopeService $hrWorkforceScopeService = null,
     ): EmployeeManagementController {
         $employeeRepository ??= $this->createMock(EmployeeRepositoryInterface::class);
         $personRepository ??= $this->createMock(PersonRepositoryInterface::class);
         $auditTrail ??= $this->createMock(AuditTrailServiceInterface::class);
+
+        // HrWorkforceScopeService dideklarasikan `final` — PHPUnit tidak
+        // bisa membuat mock-nya langsung. Test ini tidak pernah
+        // memanggil aksi yang menyentuhnya (indexWorkspace()), jadi
+        // instance ASLI dengan dependency yang di-mock sudah cukup dan
+        // tidak pernah benar-benar dieksekusi.
+        $hrWorkforceScopeService ??= new HrWorkforceScopeService(
+            $this->createMock(OrganizationalContextInterface::class),
+        );
 
         return new EmployeeManagementController(
             $employeeRepository,
@@ -119,6 +131,7 @@ final class EmployeeManagementControllerErrorContractTest extends TestCase
                 $employeeRepository,
             ),
             $auditTrail,
+            $hrWorkforceScopeService,
         );
     }
 }
