@@ -39,6 +39,36 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.onboarding.manage' => 'Create/update non-final Onboarding lifecycle data',
         'hr.onboarding.activate' => 'Higher-impact Onboarding operations (waive a required task now; Employment Activation orchestration later, HR-003 §13)',
 
+        // HR-004 §16 — Leave & Permit System.
+        //
+        // `hr.leave.self.*` SENGAJA TIDAK di-auto-grant ke hr-officer di
+        // sini — kapabilitas self-service secara konseptual milik SETIAP
+        // Employee (via membership mereka sendiri), bukan cuma staf HR.
+        // Katalog ini tetap MENDAFTARKAN nama permission-nya (supaya ada
+        // baris `permissions` yang valid untuk dirujuk role lain), tapi
+        // grant konkretnya menyusul lewat mekanisme provisioning
+        // Employee/Membership terpisah — belum ada di HR-004 Phase 2C.
+        'hr.leave.self.read' => 'View own Leave/Permit balance and request history (self-service)',
+        'hr.leave.self.request' => 'Submit/withdraw own Leave/Permit request (self-service)',
+        'hr.leave.read' => 'View Leave/Permit requests tenant-wide or within authorized organizational scope',
+        'hr.leave.manage' => 'Create/update non-final Leave/Permit request data on behalf of an Employee',
+        'hr.leave.approve' => 'Approve/reject a Leave/Permit request approval step',
+        'hr.leave.cancel' => 'Cancel an APPROVED Leave/Permit request (higher-impact operation)',
+        'hr.leave.policy.read' => 'View Leave Type, Entitlement Policy, and Approval Policy configuration',
+        'hr.leave.policy.manage' => 'Create/update Leave Type, Entitlement Policy, and Approval Policy configuration',
+        'hr.leave.balance.read' => 'View Entitlement balance for any Employee within authorized scope',
+        'hr.leave.balance.adjust' => 'Manually adjust Entitlement balance (higher-impact operation, always audited)',
+    ];
+
+    /**
+     * `hr.leave.self.*` dikecualikan dari auto-grant hr-officer — lihat
+     * komentar di RESOURCE_PERMISSIONS.
+     *
+     * @var list<string>
+     */
+    private const SELF_SERVICE_PERMISSIONS = [
+        'hr.leave.self.read',
+        'hr.leave.self.request',
     ];
 
     /**
@@ -70,6 +100,10 @@ final class HrAuthorizationCatalogSeeder extends Seeder
                         'module' => 'HR',
                     ],
                 );
+
+                if (in_array($name, self::SELF_SERVICE_PERMISSIONS, true)) {
+                    continue;
+                }
 
                 DB::table('role_permissions')->insertOrIgnore([
                     'role_id' => (string) $hrOfficerRole->getKey(),

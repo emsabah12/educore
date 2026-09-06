@@ -60,6 +60,14 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
                 'hr.employments.end',
                 'hr.employments.manage',
                 'hr.employments.view',
+                'hr.leave.approve',
+                'hr.leave.balance.adjust',
+                'hr.leave.balance.read',
+                'hr.leave.cancel',
+                'hr.leave.manage',
+                'hr.leave.policy.manage',
+                'hr.leave.policy.read',
+                'hr.leave.read',
                 'hr.onboarding.activate',
                 'hr.onboarding.manage',
                 'hr.onboarding.view',
@@ -69,6 +77,31 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             ],
             $grantedPermissionNames,
         );
+    }
+
+    public function test_seeder_creates_leave_self_service_permissions_without_granting_them_to_hr_officer(): void
+    {
+        $this->seed(HrAuthorizationCatalogSeeder::class);
+
+        $this->assertDatabaseHas('permissions', [
+            'name' => 'hr.leave.self.read',
+            'module' => 'HR',
+        ]);
+        $this->assertDatabaseHas('permissions', [
+            'name' => 'hr.leave.self.request',
+            'module' => 'HR',
+        ]);
+
+        $hrOfficer = Role::query()
+            ->where('name', HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE)
+            ->sole();
+
+        $grantedPermissionNames = $hrOfficer->permissions()
+            ->pluck('name')
+            ->all();
+
+        $this->assertNotContains('hr.leave.self.read', $grantedPermissionNames);
+        $this->assertNotContains('hr.leave.self.request', $grantedPermissionNames);
     }
 
     public function test_seeder_is_idempotent_and_does_not_duplicate_rows(): void

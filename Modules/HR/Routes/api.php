@@ -10,6 +10,8 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementPolicyController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveTypeController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
@@ -382,4 +384,80 @@ Route::middleware([
     )
         ->middleware('organizational.permission:hr.employees.create')
         ->name('api.v1.hr.workspace.employees.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| HR-004 — Leave & Permit System — Admin Configuration Routes
+|--------------------------------------------------------------------------
+| §15.1 Leave Type, §15.2 Entitlement Policy. Permission tenant-wide
+| (hr.leave.policy.*) — konfigurasi ini berlaku di seluruh tenant, bukan
+| per-workspace, sehingga tetap di grup InjectTenantContext biasa
+| (bukan grup workspace organizational).
+*/
+Route::middleware([
+    InjectTenantContext::class,
+])->prefix('v1/hr')->group(function (): void {
+    Route::get(
+        '/leave-types',
+        [LeaveTypeController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-types.index');
+
+    Route::post(
+        '/leave-types',
+        [LeaveTypeController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.store');
+
+    Route::get(
+        '/leave-types/{leaveTypeId}',
+        [LeaveTypeController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-types.show');
+
+    Route::patch(
+        '/leave-types/{leaveTypeId}',
+        [LeaveTypeController::class, 'update']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.update');
+
+    Route::post(
+        '/leave-types/{leaveTypeId}/deactivate',
+        [LeaveTypeController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.deactivate');
+
+    Route::get(
+        '/leave-entitlement-policies',
+        [LeaveEntitlementPolicyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-entitlement-policies.index');
+
+    Route::post(
+        '/leave-entitlement-policies',
+        [LeaveEntitlementPolicyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-entitlement-policies.store');
+
+    Route::get(
+        '/leave-entitlement-policies/{entitlementPolicyId}',
+        [LeaveEntitlementPolicyController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-entitlement-policies.show');
+
+    Route::post(
+        '/leave-entitlement-policies/{entitlementPolicyId}/deactivate',
+        [LeaveEntitlementPolicyController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-entitlement-policies.deactivate');
 });

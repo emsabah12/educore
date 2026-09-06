@@ -2700,3 +2700,57 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.workspace.employments.position-assignments.store
     owner: HR
     reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-types
+    route_name: api.v1.hr.leave-types.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-types
+    route_name: api.v1.hr.leave-types.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-types/{leaveTypeId}
+    route_name: api.v1.hr.leave-types.show
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: PATCH
+    path: /api/v1/hr/leave-types/{leaveTypeId}
+    route_name: api.v1.hr.leave-types.update
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-types/{leaveTypeId}/deactivate
+    route_name: api.v1.hr.leave-types.deactivate
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-entitlement-policies
+    route_name: api.v1.hr.leave-entitlement-policies.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-entitlement-policies
+    route_name: api.v1.hr.leave-entitlement-policies.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}
+    route_name: api.v1.hr.leave-entitlement-policies.show
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}/deactivate
+    route_name: api.v1.hr.leave-entitlement-policies.deactivate
+    owner: HR
+    reason: domain-api-hardening-deferred

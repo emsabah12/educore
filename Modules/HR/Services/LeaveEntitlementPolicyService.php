@@ -72,6 +72,27 @@ final readonly class LeaveEntitlementPolicyService
         return LeaveEntitlementPolicy::create($data);
     }
 
+    public function deactivate(string $tenantId, string $entitlementPolicyId): LeaveEntitlementPolicy
+    {
+        $policy = LeaveEntitlementPolicy::query()
+            ->withoutGlobalScope('tenant')
+            ->where('id', $entitlementPolicyId)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        if ($policy === null) {
+            throw (new ModelNotFoundException())->setModel(
+                LeaveEntitlementPolicy::class,
+                [$entitlementPolicyId],
+            );
+        }
+
+        $policy->is_active = false;
+        $policy->save();
+
+        return $policy->refresh();
+    }
+
     /**
      * 8 langkah resolusi §7.2. $periodStart menentukan efektivitas
      * kebijakan (langkah 1).
