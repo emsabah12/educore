@@ -116,7 +116,7 @@ final class LeaveSelfServiceController extends Controller
                 $payload['starts_at'],
                 $payload['ends_at'],
                 $payload['request_timezone'],
-                $payload['requested_units'],
+                (string) $payload['requested_units'],
                 $payload['reason'] ?? null,
             );
         } catch (LeaveLifecycleException $exception) {
