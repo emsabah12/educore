@@ -15,6 +15,7 @@ use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalPolicyController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementPolicyController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveRequestController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveSelfServiceController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveTypeController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
@@ -594,4 +595,50 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.leave.approve')
         ->name('api.v1.hr.leave-requests.reject');
+
+    // §15.7 Self-service. Permission hr.leave.self.* — LIHAT
+    // HrAuthorizationCatalogSeeder: permission ini SENGAJA tidak
+    // di-auto-grant ke hr-officer, karena secara konseptual milik
+    // SETIAP Employee (via membership sendiri), bukan staf HR.
+    Route::get(
+        '/self/leave-balances',
+        [LeaveSelfServiceController::class, 'balances']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-balances.index');
+
+    Route::get(
+        '/self/leave-requests',
+        [LeaveSelfServiceController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-requests.index');
+
+    Route::post(
+        '/self/leave-requests',
+        [LeaveSelfServiceController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.store');
+
+    Route::get(
+        '/self/leave-requests/{leaveRequestId}',
+        [LeaveSelfServiceController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-requests.show');
+
+    Route::post(
+        '/self/leave-requests/{leaveRequestId}/submit',
+        [LeaveSelfServiceController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.submit');
+
+    Route::post(
+        '/self/leave-requests/{leaveRequestId}/withdraw',
+        [LeaveSelfServiceController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.withdraw');
 });

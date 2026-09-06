@@ -2862,3 +2862,39 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.leave-requests.reject
     owner: HR
     reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/self/leave-balances
+    route_name: api.v1.hr.self.leave-balances.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/self/leave-requests
+    route_name: api.v1.hr.self.leave-requests.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/self/leave-requests
+    route_name: api.v1.hr.self.leave-requests.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/self/leave-requests/{leaveRequestId}
+    route_name: api.v1.hr.self.leave-requests.show
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/self/leave-requests/{leaveRequestId}/submit
+    route_name: api.v1.hr.self.leave-requests.submit
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw
+    route_name: api.v1.hr.self.leave-requests.withdraw
+    owner: HR
+    reason: domain-api-hardening-deferred
