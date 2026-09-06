@@ -18,17 +18,18 @@ use Modules\HR\Models\LeaveType;
 /**
  * HR-004 §13.1 — `LeaveRequestService`.
  *
- * `submit()` mengimplementasikan §10 langkah 1-13 UNTUK
- * `decision_mode=SEQUENTIAL`. Untuk `AUTO`, dokumen bilang "the service
- * immediately runs the same final-approval validation" — pengkabelan
- * itu menyusul di Step berikutnya begitu
- * `LeaveApprovalService::finalizeApproval()` ada, supaya submit() tidak
- * memanggil ke depan sebuah method yang belum benar-benar teruji.
+ * `submit()` mengimplementasikan §10 langkah 1-13. Untuk
+ * `decision_mode=AUTO`, dokumen bilang "the service immediately runs
+ * the same final-approval validation" — sekarang `LeaveApprovalService`
+ * sudah ada dan teruji, jadi submit() langsung memanggil
+ * `finalizeApproval()` untuk kebijakan AUTO alih-alih berhenti di
+ * SUBMITTED.
  */
 final readonly class LeaveRequestService
 {
     public function __construct(
         private LeaveApprovalPolicyService $approvalPolicyService,
+        private LeaveApprovalService $approvalService,
     ) {}
 
     /**
@@ -169,14 +170,18 @@ final readonly class LeaveRequestService
             $request->submitted_at = now();
 
             if ($policy->decision_mode === LeaveApprovalPolicy::DECISION_MODE_AUTO) {
-                // "no manual steps are generated" — finalisasi otomatis
-                // menyusul di LeaveApprovalService (Step berikutnya).
-                // Untuk sekarang, request berhenti di SUBMITTED sampai
-                // finalizeApproval() dipanggil secara eksplisit.
+                // "no manual steps are generated" — request langsung
+                // difinalisasi lewat jalur yang SAMA PERSIS dengan
+                // final approval SEQUENTIAL (LeaveApprovalService),
+                // bukan jalur pintas terpisah.
                 $request->status = LeaveRequest::STATUS_SUBMITTED;
                 $request->save();
 
-                return $request->refresh();
+                return $this->approvalService->finalizeApproval(
+                    $tenantId,
+                    $request->id,
+                    $submittedByMembershipId,
+                );
             }
 
             // §10 langkah 12: snapshot policy steps.

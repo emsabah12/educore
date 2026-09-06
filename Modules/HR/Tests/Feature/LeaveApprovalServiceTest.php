@@ -46,7 +46,7 @@ final class LeaveApprovalServiceTest extends TestCase
         parent::setUp();
 
         $this->approvalPolicyService = new LeaveApprovalPolicyService();
-        $this->requestService = new LeaveRequestService($this->approvalPolicyService);
+        $this->requestService = app(LeaveRequestService::class);
         $this->approvalService = app(LeaveApprovalService::class);
         $this->balanceService = new LeaveBalanceService();
 

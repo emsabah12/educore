@@ -16,6 +16,7 @@ use Modules\HR\Models\LeaveApprovalPolicyStep;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Services\LeaveApprovalPolicyService;
+use Modules\HR\Services\LeaveApprovalService;
 use Modules\HR\Services\LeaveRequestService;
 use Tests\TestCase;
 
@@ -35,7 +36,7 @@ final class LeaveRequestServiceTest extends TestCase
         parent::setUp();
 
         $this->approvalPolicyService = new LeaveApprovalPolicyService();
-        $this->service = new LeaveRequestService($this->approvalPolicyService);
+        $this->service = app(LeaveRequestService::class);
 
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
@@ -144,6 +145,42 @@ final class LeaveRequestServiceTest extends TestCase
         $this->expectExceptionMessageMatches('/cannot be withdrawn from status \[APPROVED\]/');
 
         $this->service->withdraw($this->tenantId, $request->id);
+    }
+
+    public function test_submit_finalizes_immediately_for_auto_decision_mode(): void
+    {
+        $this->approvalPolicyService->createPolicyVersion($this->tenantId, [
+            'policy_code' => 'AUTO-PERMIT',
+            'name' => 'Kebijakan Otomatis',
+            'decision_mode' => 'AUTO',
+            'effective_from' => '2026-01-01',
+        ]);
+
+        // Izin tanpa saldo (NONE) supaya finalisasi tidak perlu setup
+        // entitlement — fokus murni membuktikan jalur AUTO tersambung.
+        $noneTypeId = LeaveType::create([
+            'code' => 'AUTO-PERMIT-TYPE',
+            'name' => 'Izin Otomatis',
+            'category' => LeaveType::CATEGORY_PERMIT,
+            'balance_mode' => LeaveType::BALANCE_MODE_NONE,
+            'unit' => LeaveType::UNIT_DAY,
+        ])->id;
+
+        $request = $this->service->createDraft(
+            $this->tenantId,
+            $this->employmentId,
+            $noneTypeId,
+            '2026-08-01 00:00:00',
+            '2026-08-02 00:00:00',
+            'Asia/Jakarta',
+            '1',
+        );
+
+        $result = $this->service->submit($this->tenantId, $request->id, $this->membershipId);
+
+        $this->assertSame(LeaveRequest::STATUS_APPROVED, $result->status);
+        $this->assertNotNull($result->final_decided_at);
+        $this->assertCount(0, $result->approvalSteps);
     }
 
     public function test_get_history_returns_requests_ordered_by_most_recent(): void
