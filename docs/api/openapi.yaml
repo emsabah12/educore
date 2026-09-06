@@ -2802,3 +2802,63 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.leave-approval-policies.deactivate
     owner: HR
     reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-requests
+    route_name: api.v1.hr.leave-requests.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests
+    route_name: api.v1.hr.leave-requests.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-requests/{leaveRequestId}
+    route_name: api.v1.hr.leave-requests.show
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: PATCH
+    path: /api/v1/hr/leave-requests/{leaveRequestId}
+    route_name: api.v1.hr.leave-requests.update
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests/{leaveRequestId}/submit
+    route_name: api.v1.hr.leave-requests.submit
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests/{leaveRequestId}/withdraw
+    route_name: api.v1.hr.leave-requests.withdraw
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests/{leaveRequestId}/cancel
+    route_name: api.v1.hr.leave-requests.cancel
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/leave-approvals/pending
+    route_name: api.v1.hr.leave-approvals.pending
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests/{leaveRequestId}/approve
+    route_name: api.v1.hr.leave-requests.approve
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/leave-requests/{leaveRequestId}/reject
+    route_name: api.v1.hr.leave-requests.reject
+    owner: HR
+    reason: domain-api-hardening-deferred

@@ -73,6 +73,60 @@ final readonly class LeaveRequestService
     }
 
     /**
+     * §15.5 — "PATCH /leave-requests/{id} — DRAFT only." `status` TIDAK
+     * PERNAH diterima sebagai field yang bisa diubah lewat method ini —
+     * transisi status HANYA lewat submit()/withdraw()/finalize().
+     *
+     * @param array{
+     *     leave_type_id?: string,
+     *     starts_at?: string,
+     *     ends_at?: string,
+     *     request_timezone?: string,
+     *     requested_units?: string,
+     *     reason?: string|null,
+     * } $data
+     */
+    public function updateDraft(string $tenantId, string $leaveRequestId, array $data): LeaveRequest
+    {
+        $request = $this->lockRequestForTenant($leaveRequestId, $tenantId);
+
+        if ($request->status !== LeaveRequest::STATUS_DRAFT) {
+            throw new LeaveLifecycleException(
+                sprintf(
+                    'Leave Request [%s] can only be updated while DRAFT (current status [%s]).',
+                    $request->id,
+                    $request->status,
+                ),
+            );
+        }
+
+        // INV-HR-LEAVE-003: kalau leave_type_id diganti, `unit` HARUS
+        // disinkronkan ulang dari LeaveType yang baru — bukan dibiarkan
+        // basi dari LeaveType sebelumnya.
+        if (array_key_exists('leave_type_id', $data)) {
+            $leaveType = LeaveType::query()
+                ->withoutGlobalScope('tenant')
+                ->where('id', $data['leave_type_id'])
+                ->where('tenant_id', $tenantId)
+                ->first();
+
+            if ($leaveType === null) {
+                throw (new ModelNotFoundException())->setModel(
+                    LeaveType::class,
+                    [$data['leave_type_id']],
+                );
+            }
+
+            $data['unit'] = $leaveType->unit;
+        }
+
+        $request->fill($data);
+        $request->save();
+
+        return $request->refresh();
+    }
+
+    /**
      * §10 langkah 1-13 (decision_mode=SEQUENTIAL).
      *
      * @throws LeaveLifecycleException LEAVE_EMPLOYMENT_NOT_ACTIVE,

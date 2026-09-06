@@ -10,9 +10,11 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalPolicyController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveEntitlementPolicyController;
+use Modules\HR\Http\Controllers\Api\v1\LeaveRequestController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveTypeController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
@@ -520,4 +522,76 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.leave.policy.manage')
         ->name('api.v1.hr.leave-approval-policies.deactivate');
+
+    // §15.5 Leave Request.
+    Route::get(
+        '/leave-requests',
+        [LeaveRequestController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.read')
+        ->name('api.v1.hr.leave-requests.index');
+
+    Route::post(
+        '/leave-requests',
+        [LeaveRequestController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.store');
+
+    Route::get(
+        '/leave-requests/{leaveRequestId}',
+        [LeaveRequestController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.read')
+        ->name('api.v1.hr.leave-requests.show');
+
+    Route::patch(
+        '/leave-requests/{leaveRequestId}',
+        [LeaveRequestController::class, 'update']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.update');
+
+    Route::post(
+        '/leave-requests/{leaveRequestId}/submit',
+        [LeaveRequestController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.submit');
+
+    Route::post(
+        '/leave-requests/{leaveRequestId}/withdraw',
+        [LeaveRequestController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.withdraw');
+
+    Route::post(
+        '/leave-requests/{leaveRequestId}/cancel',
+        [LeaveRequestController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.leave.cancel')
+        ->name('api.v1.hr.leave-requests.cancel');
+
+    // §15.6 Approval queue / decision.
+    Route::get(
+        '/leave-approvals/pending',
+        [LeaveApprovalController::class, 'pending']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-approvals.pending');
+
+    Route::post(
+        '/leave-requests/{leaveRequestId}/approve',
+        [LeaveApprovalController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-requests.approve');
+
+    Route::post(
+        '/leave-requests/{leaveRequestId}/reject',
+        [LeaveApprovalController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-requests.reject');
 });
