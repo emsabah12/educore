@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Modules\Core\Authorization\Http\Middleware\CheckTenantPermission;
 use Modules\Core\Authorization\Http\Middleware\CheckTenantRole;
+use Modules\Core\Authorization\Http\Middleware\EnsureUserIsSuperadmin;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Modules\Core\Organization\Http\Middleware\CheckOrganizationalPermission;
@@ -31,6 +32,9 @@ return Application::configure(
                 // gate, dipasang setelah InjectOrganizationalContext di
                 // route chain masing-masing module.
                 'organizational.permission' => CheckOrganizationalPermission::class,
+                // Panel superadmin platform (Blade, session-based) —
+                // BUKAN bearer/API, lihat EnsureUserIsSuperadmin.
+                'platform.superadmin' => EnsureUserIsSuperadmin::class,
 
             ]);
 

@@ -374,6 +374,7 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->mapApiRoutes();
+        $this->mapWebRoutes();
     }
 
     protected function mapApiRoutes(): void
@@ -382,5 +383,16 @@ class RouteServiceProvider extends ServiceProvider
             ->middleware('api')
             ->namespace($this->moduleNamespace ?? 'Modules\Core\Http\Controllers')
             ->group(base_path('Modules/Core/Routes/api.php')); // <-- DIUBAH MENJADI BASE_PATH
+    }
+
+    /**
+     * Panel superadmin platform (Blade, session-based) — TERPISAH dari
+     * `mapApiRoutes()` yang stateless-bearer. Middleware `web` di sini
+     * menyediakan session, CSRF, dan cookie encryption bawaan Laravel.
+     */
+    protected function mapWebRoutes(): void
+    {
+        \Illuminate\Support\Facades\Route::middleware('web')
+            ->group(base_path('Modules/Core/Routes/web.php'));
     }
 }
