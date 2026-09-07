@@ -6,23 +6,30 @@ namespace Modules\Core\Tenancy\Http\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantWithNewAdminRequest;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use Throwable;
 
 /**
- * Panel Blade memanggil `TenantProvisioningService` LANGSUNG di dalam
- * proses PHP yang sama — TIDAK PERNAH lewat HTTP self-call ke endpoint
- * API-nya sendiri. Itu sebabnya kita sengaja meletakkan panel di
- * codebase yang SAMA (bukan backend terpisah): logika bisnisnya bisa
- * dipanggil langsung tanpa biaya jaringan atau duplikasi otorisasi.
+ * Panel Blade memanggil `TenantProvisioningService`/`TenantRepositoryInterface`
+ * LANGSUNG di dalam proses PHP yang sama — TIDAK PERNAH lewat HTTP
+ * self-call ke endpoint API-nya sendiri. `toggleStatus()` di bawah ini
+ * sengaja memakai repository yang SAMA PERSIS dipakai
+ * `TenantManagementController::update()` (API) — satu sumber kebenaran
+ * untuk operasi ubah status tenant, dua permukaan (API dan Blade).
  */
 final class PlatformTenantController extends Controller
 {
     public function __construct(
         private readonly TenantProvisioningService $provisioningService,
+        private readonly TenantRepositoryInterface $tenantRepository,
+        private readonly AuditTrailServiceInterface $auditTrail,
     ) {}
 
     public function index(): View
@@ -81,6 +88,76 @@ final class PlatformTenantController extends Controller
             ->with('status', sprintf(
                 'Tenant "%s" berhasil didaftarkan beserta admin awalnya.',
                 $tenantData['name'],
+            ));
+    }
+
+    /**
+     * Halaman detail — menampilkan info tenant DAN riwayat aktivitas
+     * (audit log) khusus untuk tenant ini, diambil dari `audit_logs`
+     * yang SAMA PERSIS ditulis oleh `recordAuditSafely()` di API
+     * controller. Belum ada Eloquent model untuk `audit_logs` (append
+     * -only, ditulis lewat `DatabaseAuditTrailService::log()`), jadi
+     * dibaca langsung lewat query builder — proporsional untuk
+     * kebutuhan "log sederhana", bukan sistem pelaporan audit penuh.
+     */
+    public function show(string $tenantId): View
+    {
+        try {
+            $tenant = $this->tenantRepository->findById($tenantId);
+        } catch (ModelNotFoundException) {
+            abort(404, 'Tenant tidak ditemukan.');
+        }
+
+        $auditLogs = DB::table('audit_logs')
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('created_at')
+            ->paginate(10, ['*'], 'audit_page');
+
+        return view('platform.tenants.show', [
+            'tenant' => $tenant,
+            'auditLogs' => $auditLogs,
+        ]);
+    }
+
+    /**
+     * Aktifkan/nonaktifkan tenant — TIDAK menerima status target dari
+     * client, selalu MEMBALIK status saat ini (dibaca ulang dari
+     * database, bukan dari input form) supaya tidak ada race antara
+     * apa yang tampil di layar dan apa yang benar-benar tersimpan.
+     */
+    public function toggleStatus(string $tenantId): RedirectResponse
+    {
+        try {
+            $tenant = $this->tenantRepository->findById($tenantId);
+            $newStatus = ! (bool) $tenant['is_active'];
+
+            $updated = $this->tenantRepository->update($tenantId, [
+                'is_active' => $newStatus,
+            ]);
+        } catch (ModelNotFoundException) {
+            abort(404, 'Tenant tidak ditemukan.');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', 'Gagal memperbarui status tenant.');
+        }
+
+        $this->auditTrail->log(
+            eventType: $newStatus ? 'tenant.activated' : 'tenant.deactivated',
+            description: sprintf(
+                'Superadmin %s tenant: %s',
+                $newStatus ? 'mengaktifkan' : 'menonaktifkan',
+                $updated['name'],
+            ),
+            tenantId: $tenantId,
+            actorUserId: auth('web')->id() !== null ? (string) auth('web')->id() : null,
+        );
+
+        return redirect()
+            ->route('platform.tenants.show', $tenantId)
+            ->with('status', sprintf(
+                'Status tenant berhasil diubah menjadi %s.',
+                $newStatus ? 'Aktif' : 'Nonaktif',
             ));
     }
 }

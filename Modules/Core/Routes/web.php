@@ -43,5 +43,15 @@ Route::prefix('platform')->name('platform.')->group(function (): void {
             '/tenants',
             [PlatformTenantController::class, 'store'],
         )->name('tenants.store');
+
+        Route::get(
+            '/tenants/{tenant}',
+            [PlatformTenantController::class, 'show'],
+        )->name('tenants.show');
+
+        Route::post(
+            '/tenants/{tenant}/toggle-status',
+            [PlatformTenantController::class, 'toggleStatus'],
+        )->name('tenants.toggle-status');
     });
 });

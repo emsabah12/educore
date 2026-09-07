@@ -34,6 +34,7 @@
                         <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Subdomain</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Dibuat</th>
+                        <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -55,10 +56,15 @@
                         <td class="px-4 py-3 text-sm text-slate-500">
                             {{ $tenant->created_at?->format('d M Y H:i') }}
                         </td>
+                        <td class="px-4 py-3 text-sm text-right">
+                            <a href="{{ route('platform.tenants.show', $tenant->id) }}" class="text-indigo-600 hover:underline">
+                                Detail
+                            </a>
+                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="px-4 py-6 text-center text-sm text-slate-500">
+                        <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">
                             Belum ada tenant terdaftar.
                         </td>
                     </tr>

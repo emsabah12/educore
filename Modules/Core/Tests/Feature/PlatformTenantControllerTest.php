@@ -138,4 +138,113 @@ final class PlatformTenantControllerTest extends TestCase
             'subdomain' => 'tenant-tidak-sah',
         ]);
     }
+
+    public function test_show_displays_tenant_detail(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        $tenant = Tenant::query()->create([
+            'name' => 'Tenant Detail Uji',
+            'subdomain' => 'tenant-detail-uji',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($superadmin, 'web')
+            ->get(route('platform.tenants.show', $tenant->id))
+            ->assertOk()
+            ->assertSee('Tenant Detail Uji')
+            ->assertSee('Nonaktifkan Tenant');
+    }
+
+    public function test_show_returns_not_found_for_unknown_tenant(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        $this->actingAs($superadmin, 'web')
+            ->get(route('platform.tenants.show', '01a00000-0000-7000-8000-000000000000'))
+            ->assertNotFound();
+    }
+
+    public function test_toggle_status_deactivates_active_tenant(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        $tenant = Tenant::query()->create([
+            'name' => 'Tenant Toggle Uji',
+            'subdomain' => 'tenant-toggle-uji',
+            'is_active' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($superadmin, 'web')
+            ->post(route('platform.tenants.toggle-status', $tenant->id));
+
+        $response->assertRedirect(route('platform.tenants.show', $tenant->id));
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'is_active' => false,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'tenant.deactivated',
+        ]);
+    }
+
+    public function test_toggle_status_activates_inactive_tenant(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        $tenant = Tenant::query()->create([
+            'name' => 'Tenant Toggle Aktif Uji',
+            'subdomain' => 'tenant-toggle-aktif-uji',
+            'is_active' => false,
+        ]);
+
+        $this
+            ->actingAs($superadmin, 'web')
+            ->post(route('platform.tenants.toggle-status', $tenant->id));
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'event_type' => 'tenant.activated',
+        ]);
+    }
+
+    public function test_toggle_status_is_forbidden_for_non_superadmin(): void
+    {
+        $regularUser = User::factory()->create([
+            'is_superadmin' => false,
+        ]);
+
+        $tenant = Tenant::query()->create([
+            'name' => 'Tenant Aman Uji',
+            'subdomain' => 'tenant-aman-uji',
+            'is_active' => true,
+        ]);
+
+        $this
+            ->actingAs($regularUser, 'web')
+            ->post(route('platform.tenants.toggle-status', $tenant->id))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'is_active' => true,
+        ]);
+    }
 }
