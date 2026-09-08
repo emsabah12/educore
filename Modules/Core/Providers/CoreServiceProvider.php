@@ -348,6 +348,7 @@ final class CoreServiceProvider extends ServiceProvider
             base_path('Modules/Core/Organization/Database/Migrations'),
             base_path('Modules/Core/Governance/Audit/Database/Migrations'),
             base_path('Modules/Core/Notification/Database/Migrations'),
+            base_path('Modules/Core/Subscription/Database/Migrations'),
         ];
 
         foreach ($migrationPaths as $migrationPath) {

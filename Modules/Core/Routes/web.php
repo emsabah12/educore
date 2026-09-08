@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Authorization\Http\Web\PlatformRoleController;
 use Modules\Core\Governance\Audit\Http\Web\PlatformAuditLogController;
 use Modules\Core\Tenancy\Http\Web\PlatformAuthController;
 use Modules\Core\Tenancy\Http\Web\PlatformDashboardController;
@@ -59,5 +60,30 @@ Route::prefix('platform')->name('platform.')->group(function (): void {
             '/audit-logs',
             [PlatformAuditLogController::class, 'index'],
         )->name('audit-logs.index');
+
+        Route::get(
+            '/roles',
+            [PlatformRoleController::class, 'index'],
+        )->name('roles.index');
+
+        Route::get(
+            '/roles/create',
+            [PlatformRoleController::class, 'create'],
+        )->name('roles.create');
+
+        Route::post(
+            '/roles',
+            [PlatformRoleController::class, 'store'],
+        )->name('roles.store');
+
+        Route::get(
+            '/roles/{role}',
+            [PlatformRoleController::class, 'show'],
+        )->name('roles.show');
+
+        Route::put(
+            '/roles/{role}',
+            [PlatformRoleController::class, 'update'],
+        )->name('roles.update');
     });
 });
