@@ -13,6 +13,12 @@
             class="text-sm {{ request()->routeIs('platform.tenants.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
             Tenant
         </a>
+
+        <a
+            href="{{ route('platform.audit-logs.index') }}"
+            class="text-sm {{ request()->routeIs('platform.audit-logs.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
+            Log Aktivitas
+        </a>
     </div>
 
     <form method="POST" action="{{ route('platform.logout') }}">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Modules\Core\Identity\Models\User;
 use Tests\TestCase;
 
@@ -66,6 +67,88 @@ final class PlatformAuthTest extends TestCase
 
         $response->assertSessionHasErrors(['identifier' => 'Kredensial tidak valid.']);
         $this->assertGuest('web');
+    }
+
+    public function test_login_locks_out_after_too_many_failed_attempts(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->post('/platform/login', [
+                'identifier' => $superadmin->email,
+                'password' => 'salah-password',
+            ]);
+        }
+
+        // Percobaan ke-6 harus terkunci walau password BENAR — rate
+        // limit sudah tercapai sebelum kredensial sempat diverifikasi.
+        $response = $this->post('/platform/login', [
+            'identifier' => $superadmin->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors(['identifier']);
+        $this->assertGuest('web');
+    }
+
+    public function test_login_rate_limit_does_not_block_different_identifier(): void
+    {
+        $lockedOutUser = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        $otherSuperadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->post('/platform/login', [
+                'identifier' => $lockedOutUser->email,
+                'password' => 'salah-password',
+            ]);
+        }
+
+        // Identifier BERBEDA dari IP yang sama tidak ikut terkunci.
+        $response = $this->post('/platform/login', [
+            'identifier' => $otherSuperadmin->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect(route('platform.dashboard'));
+        $this->assertAuthenticatedAs($otherSuperadmin, 'web');
+    }
+
+    public function test_successful_login_clears_rate_limit_counter(): void
+    {
+        $superadmin = User::factory()->create([
+            'is_superadmin' => true,
+        ]);
+
+        // 4 percobaan gagal (di bawah ambang batas 5).
+        for ($attempt = 1; $attempt <= 4; $attempt++) {
+            $this->post('/platform/login', [
+                'identifier' => $superadmin->email,
+                'password' => 'salah-password',
+            ]);
+        }
+
+        // Login benar berhasil DAN mengosongkan hitungan.
+        $this->post('/platform/login', [
+            'identifier' => $superadmin->email,
+            'password' => 'password',
+        ])->assertRedirect(route('platform.dashboard'));
+
+        Auth::guard('web')->logout();
+
+        // Percobaan berikutnya tidak terkena sisa hitungan lama.
+        $response = $this->post('/platform/login', [
+            'identifier' => $superadmin->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect(route('platform.dashboard'));
     }
 
     public function test_dashboard_redirects_guests_to_login(): void

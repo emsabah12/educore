@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Governance\Audit\Http\Web\PlatformAuditLogController;
 use Modules\Core\Tenancy\Http\Web\PlatformAuthController;
 use Modules\Core\Tenancy\Http\Web\PlatformDashboardController;
 use Modules\Core\Tenancy\Http\Web\PlatformTenantController;
@@ -53,5 +54,10 @@ Route::prefix('platform')->name('platform.')->group(function (): void {
             '/tenants/{tenant}/toggle-status',
             [PlatformTenantController::class, 'toggleStatus'],
         )->name('tenants.toggle-status');
+
+        Route::get(
+            '/audit-logs',
+            [PlatformAuditLogController::class, 'index'],
+        )->name('audit-logs.index');
     });
 });

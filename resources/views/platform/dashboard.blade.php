@@ -4,6 +4,7 @@
 <div class="min-h-screen">
     @include('platform.partials.nav')
 
+
     <main class="p-6">
         <h1 class="text-xl font-semibold">
             Selamat datang, {{ auth('web')->user()?->person?->name ?? auth('web')->user()?->email }}
