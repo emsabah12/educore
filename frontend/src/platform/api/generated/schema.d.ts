@@ -61,6 +61,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return the canonical global authenticated identity
+         * @description Supports BearerAuth and BrowserSessionAuth at User identity scope.
+         *     This operation intentionally never establishes or exposes
+         *     Membership, Tenant, Workspace, Role, or Permission context —
+         *     X-EduCore-Membership-Id is not accepted here.
+         */
+        get: operations["authIdentity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/browser/session/csrf": {
         parameters: {
             query?: never;
@@ -265,6 +288,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Employees for the current tenant */
+        get: operations["hrEmployeeIndex"];
+        put?: never;
+        /**
+         * Provision an Employee profile within the current tenant
+         * @description Atomically creates a Person, Membership, and Employee profile.
+         *     This administrative provisioning path does not create a User
+         *     account for the Employee.
+         */
+        post: operations["hrEmployeeStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -461,6 +507,11 @@ export interface components {
             status: "success";
             data: components["schemas"]["BrowserLoginData"];
         };
+        GlobalIdentitySuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["BrowserLoginData"];
+        };
         BrowserLogoutSuccess: {
             /** @constant */
             status: "success";
@@ -633,6 +684,54 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
+        };
+        EmployeeResource: {
+            employee_id: components["schemas"]["UuidV7"];
+            membership_id: components["schemas"]["UuidV7"];
+            person_id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            /** @description Tenant-scoped unique employee identification number. */
+            nip: string | null;
+            /**
+             * @description Legacy compatibility field (GAP-001 / HR-002 OD-HR-DATA-006).
+             *     Not the canonical position/Employment source going forward.
+             * @enum {string}
+             */
+            jabatan: "GURU" | "KEPALA_SEKOLAH" | "STAFF";
+            /** @description Canonical Person name, not duplicated on Employee. */
+            nama: string;
+            membership_status: string;
+            /** @description Raw persisted timestamp returned by the query builder. */
+            created_at: string;
+        };
+        EmployeeListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmployeeResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        StoreEmployeeRequest: {
+            /** @description Trimmed before validation. */
+            nama: string;
+            /**
+             * @description Trimmed before validation. Must be unique within the current
+             *     tenant.
+             */
+            nip: string;
+            /**
+             * @description Trimmed and uppercased before validation. Legacy compatibility
+             *     field (GAP-001 / HR-002 OD-HR-DATA-006) — not RBAC and not the
+             *     canonical position source.
+             * @enum {string}
+             */
+            jabatan: "GURU" | "KEPALA_SEKOLAH" | "STAFF";
+        };
+        EmployeeCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            /** @constant */
+            message: "Employee registered successfully within tenant domain.";
+            data: components["schemas"]["EmployeeResource"];
         };
         InitialTenantAdmin: {
             user_id: components["schemas"]["UuidV7"];
@@ -837,6 +936,10 @@ export interface components {
             /** @constant */
             code?: "NOTIFICATION_DISPATCH_FAILED";
         };
+        EmployeeProvisioningFailedError: components["schemas"]["ApiError"] & {
+            /** @constant */
+            code?: "EMPLOYEE_PROVISIONING_FAILED";
+        };
     };
     responses: {
         /** @description Authentication credentials are invalid. */
@@ -956,6 +1059,15 @@ export interface components {
                 "application/json": components["schemas"]["NotificationDispatchFailedError"];
             };
         };
+        /** @description Employee profile could not be persisted. */
+        EmployeeProvisioningFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["EmployeeProvisioningFailedError"];
+            };
+        };
         /** @description Organizational assignment header is malformed. */
         InvalidOrganizationalAssignmentId: {
             headers: {
@@ -1024,6 +1136,11 @@ export interface components {
         BrowserMembershipPathId: components["schemas"]["UuidV7"];
         /** @description Number of tenants returned per page. Defaults to 15. */
         TenantPerPage: number;
+        /**
+         * @description Number of Employees returned per page. Silently clamped to
+         *     [1, 100] by the controller; defaults to 15.
+         */
+        EmployeePerPage: number;
         TenantId: components["schemas"]["UuidV7"];
         MembershipId: components["schemas"]["MembershipPathIdentifier"];
         TargetMembershipId: components["schemas"]["MembershipPathIdentifier"];
@@ -1125,6 +1242,38 @@ export interface operations {
             };
             422: components["responses"]["InvalidBrowserMembershipId"];
             503: components["responses"]["BrowserSessionUnavailable"];
+        };
+    };
+    authIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global authenticated identity projection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlobalIdentitySuccess"];
+                };
+            };
+            /**
+             * @description Authentication is required for the selected Bearer or Browser
+             *     Session transport.
+             */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"] | components["schemas"]["BrowserSessionAuthenticationRequiredError"];
+                };
+            };
         };
     };
     browserSessionCsrfBootstrap: {
@@ -1495,6 +1644,83 @@ export interface operations {
             404: components["responses"]["ResourceNotFound"];
             422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmployeeIndex: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Number of Employees returned per page. Silently clamped to
+                 *     [1, 100] by the controller; defaults to 15.
+                 */
+                per_page?: components["parameters"]["EmployeePerPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated Employee collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeListSuccess"];
+                };
+            };
+            /**
+             * @description Tenant authentication context is invalid, or the current
+             *     Membership does not have hr.employees.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmployeeStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEmployeeRequest"];
+            };
+        };
+        responses: {
+            /** @description Employee profile created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeCreatedSuccess"];
+                };
+            };
+            /**
+             * @description Tenant authentication context is invalid, or the current
+             *     Membership does not have hr.employees.create permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["EmployeeProvisioningFailed"];
         };
     };
     userMembershipIndex: {
