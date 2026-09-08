@@ -311,6 +311,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/workspace/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Employees visible in the current organizational workspace
+         * @description Supports BearerAuth and BrowserSessionAuth. Browser Session requests
+         *     require X-EduCore-Membership-Id to select a prepared server-held
+         *     Membership credential; Bearer requests do not require that header.
+         *     Both transports require X-EduCore-Organizational-Assignment-Id to
+         *     select the organizational workspace (HR-013 §6 Target Employee
+         *     Scope Rule) — an Employee is only visible here when their current
+         *     Employment Placement resolves to the same Organization (and, when
+         *     the workspace is unit-scoped, the same Organization Unit).
+         */
+        get: operations["hrWorkspaceEmployeeIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -708,6 +735,38 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["EmployeeResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * @description Field shape is intentionally distinct from EmployeeResource: this
+         *     endpoint hydrates the Eloquent Employee model directly (employees.*)
+         *     rather than the tenant-scoped listing's raw aliased query, so the
+         *     primary key is `id` (not `employee_id`) and there is no separate
+         *     `person_id`/`membership_status` projection.
+         */
+        WorkspaceEmployeeResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            membership_id: components["schemas"]["UuidV7"];
+            /** @description Tenant-scoped unique employee identification number. */
+            nip: string | null;
+            /**
+             * @description Legacy compatibility field (GAP-001 / HR-002 OD-HR-DATA-006).
+             *     Not the canonical position/Employment source going forward.
+             * @enum {string}
+             */
+            jabatan: "GURU" | "KEPALA_SEKOLAH" | "STAFF";
+            /** @description Canonical Person name, not duplicated on Employee. */
+            nama: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        WorkspaceEmployeeListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["WorkspaceEmployeeResource"][];
             meta: components["schemas"]["PaginationMeta"];
         };
         StoreEmployeeRequest: {
@@ -1721,6 +1780,66 @@ export interface operations {
             };
             422: components["responses"]["ValidationFailed"];
             500: components["responses"]["EmployeeProvisioningFailed"];
+        };
+    };
+    hrWorkspaceEmployeeIndex: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Number of Employees returned per page. Silently clamped to
+                 *     [1, 100] by the controller; defaults to 15.
+                 */
+                per_page?: components["parameters"]["EmployeePerPage"];
+            };
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated Employee collection scoped to the current workspace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceEmployeeListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is missing,
+             *     unavailable, or mismatched; organizational context is missing or
+             *     invalid; or the current organizational assignment does not have
+             *     hr.employees.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
         };
     };
     userMembershipIndex: {

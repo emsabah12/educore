@@ -6,6 +6,9 @@ import {
 } from 'react-router/dom';
 
 import {
+    ApiClientProvider,
+} from '@/app/api/ApiClientProvider';
+import {
     ApplicationErrorBoundary,
 } from '@/app/ApplicationErrorBoundary';
 import {
@@ -67,17 +70,23 @@ export function AppBootstrap({
                                     runtime.capabilities
                                 }
                             >
-                                <QueryClientProvider
-                                    client={
-                                        runtime.queryClient
+                                <ApiClientProvider
+                                    apiClient={
+                                        runtime.apiClient
                                     }
                                 >
-                                    <RouterProvider
-                                        router={
-                                            runtime.router
+                                    <QueryClientProvider
+                                        client={
+                                            runtime.queryClient
                                         }
-                                    />
-                                </QueryClientProvider>
+                                    >
+                                        <RouterProvider
+                                            router={
+                                                runtime.router
+                                            }
+                                        />
+                                    </QueryClientProvider>
+                                </ApiClientProvider>
                             </CapabilityContextProvider>
                         </WorkspaceContextProvider>
                     </MembershipContextProvider>

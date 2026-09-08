@@ -627,6 +627,57 @@ paths:
         "500":
           $ref: "#/components/responses/EmployeeProvisioningFailed"
 
+  /api/v1/hr/workspace/employees:
+    get:
+      operationId: hrWorkspaceEmployeeIndex
+      x-laravel-route-name: api.v1.hr.workspace.employees.index
+      tags:
+        - Human Resources
+      summary: List Employees visible in the current organizational workspace
+      description: |
+        Supports BearerAuth and BrowserSessionAuth. Browser Session requests
+        require X-EduCore-Membership-Id to select a prepared server-held
+        Membership credential; Bearer requests do not require that header.
+        Both transports require X-EduCore-Organizational-Assignment-Id to
+        select the organizational workspace (HR-013 §6 Target Employee
+        Scope Rule) — an Employee is only visible here when their current
+        Employment Placement resolves to the same Organization (and, when
+        the workspace is unit-scoped, the same Organization Unit).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - $ref: "#/components/parameters/EmployeePerPage"
+      responses:
+        "200":
+          description: Paginated Employee collection scoped to the current workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceEmployeeListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is missing,
+            unavailable, or mismatched; organizational context is missing or
+            invalid; or the current organizational assignment does not have
+            hr.employees.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -1601,6 +1652,74 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EmployeeResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    WorkspaceEmployeeResource:
+      type: object
+      additionalProperties: false
+      description: |
+        Field shape is intentionally distinct from EmployeeResource: this
+        endpoint hydrates the Eloquent Employee model directly (employees.*)
+        rather than the tenant-scoped listing's raw aliased query, so the
+        primary key is `id` (not `employee_id`) and there is no separate
+        `person_id`/`membership_status` projection.
+      required:
+        - id
+        - tenant_id
+        - membership_id
+        - nip
+        - jabatan
+        - nama
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        nip:
+          type:
+            - string
+            - "null"
+          description: Tenant-scoped unique employee identification number.
+        jabatan:
+          type: string
+          enum:
+            - GURU
+            - KEPALA_SEKOLAH
+            - STAFF
+          description: |
+            Legacy compatibility field (GAP-001 / HR-002 OD-HR-DATA-006).
+            Not the canonical position/Employment source going forward.
+        nama:
+          type: string
+          description: Canonical Person name, not duplicated on Employee.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    WorkspaceEmployeeListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceEmployeeResource"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
 
@@ -2653,12 +2772,6 @@ x-educore-deferred-routes:
     owner: HR
     reason: domain-api-hardening-deferred
 
-  - method: GET
-    path: /api/v1/hr/workspace/employees
-    route_name: api.v1.hr.workspace.employees.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
   - method: POST
     path: /api/v1/hr/workspace/employees
     route_name: api.v1.hr.workspace.employees.store
@@ -2754,7 +2867,6 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.leave-entitlement-policies.deactivate
     owner: HR
     reason: domain-api-hardening-deferred
-
   - method: GET
     path: /api/v1/hr/employees/{employeeId}/leave-balances
     route_name: api.v1.hr.employees.leave-balances.index
@@ -2802,7 +2914,6 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.leave-approval-policies.deactivate
     owner: HR
     reason: domain-api-hardening-deferred
-
   - method: GET
     path: /api/v1/hr/leave-requests
     route_name: api.v1.hr.leave-requests.index
@@ -2862,7 +2973,6 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.leave-requests.reject
     owner: HR
     reason: domain-api-hardening-deferred
-
   - method: GET
     path: /api/v1/hr/self/leave-balances
     route_name: api.v1.hr.self.leave-balances.index
@@ -2898,7 +3008,6 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.self.leave-requests.withdraw
     owner: HR
     reason: domain-api-hardening-deferred
-
   - method: POST
     path: /api/v1/core/tenants/with-new-admin
     route_name: api.v1.core.tenants.store-with-new-admin

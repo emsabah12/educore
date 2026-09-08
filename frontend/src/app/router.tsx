@@ -31,6 +31,9 @@ import {
 import {
     academicRouteContributions,
 } from '@/modules/academic/routes';
+import {
+    hrRouteContributions,
+} from '@/modules/hr/routes';
 import type {
     ProtectedRoutePolicy,
 } from '@/platform/routing';
@@ -277,9 +280,10 @@ export function createApplicationRoutes(
 }
 
 export const appRoutes =
-    createApplicationRoutes(
-        academicRouteContributions,
-    );
+    createApplicationRoutes([
+        ...academicRouteContributions,
+        ...hrRouteContributions,
+    ]);
 
 export function createAppRouter() {
     return createBrowserRouter(

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
+use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
+use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
@@ -325,8 +327,27 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
+/*
+ * §Perbaikan: workspace/* di bawah ini dipanggil LANGSUNG oleh frontend
+ * React (sesi browser berbasis cookie, TIDAK PERNAH menyimpan bearer
+ * token — lihat ADR-030). `InjectTenantContext` yang lama HANYA baca
+ * `$request->bearerToken()`, jadi tidak bisa dipakai di sini.
+ *
+ * `InjectTransportAwareTenantContext` adalah pengganti AMAN: kalau
+ * request bawa cookie sesi browser, dia pakai jalur cookie; kalau
+ * tidak (klien bearer-token lain, mis. mobile app nanti), dia
+ * delegasikan PERSIS ke `InjectTenantContext` lama — perilaku klien
+ * bearer yang sudah ada TIDAK BERUBAH SAMA SEKALI. Pola yang SAMA
+ * PERSIS sudah dipakai & teruji di endpoint kanonik
+ * `GET /core/authorization/capabilities`.
+ *
+ * Endpoint HR-004 LAIN di luar prefix `workspace` ini SENGAJA belum
+ * diubah — ditangani satu per satu seiring halaman frontend-nya
+ * dibangun, bukan sekaligus semua.
+ */
 Route::middleware([
-    InjectTenantContext::class,
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
     InjectOrganizationalContext::class,
 ])->prefix('v1/hr/workspace')->group(function (): void {
 

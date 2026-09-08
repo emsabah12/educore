@@ -7,6 +7,7 @@ namespace Modules\HR\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Auth\Http\Middleware\InjectBrowserTenantContext;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Support\Uuid\UuidV7;
@@ -23,6 +24,7 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
     private string $operatorUserId;
     private string $operatorMembershipId;
     private string $organizationId;
+    private string $operatorEmail;
 
     protected function setUp(): void
     {
@@ -74,6 +76,57 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
      * INV-HR-011 — memperbesar per_page tidak pernah membocorkan Employee
      * di luar workspace, sekalipun jumlahnya melebihi total data workspace.
      */
+    public function test_workspace_listing_includes_employee_name(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $this->createEmployeeWithOpenPlacement($this->organizationId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->getJson(route('api.v1.hr.workspace.employees.index', [], false));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.nama', 'Workspace Employee Listing Fixture Employee');
+    }
+
+    public function test_workspace_listing_accepts_browser_session_without_exposing_bearer(): void
+    {
+        config(['session.driver' => 'array']);
+
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $this->createEmployeeWithOpenPlacement($this->organizationId);
+
+        $bearerCredential = $this->loginBrowserSessionAndAttachCookie();
+
+        $response = $this
+            ->withHeader(
+                InjectBrowserTenantContext::HEADER,
+                $this->operatorMembershipId,
+            )
+            ->withHeader(
+                InjectOrganizationalContext::HEADER,
+                $operatorAssignmentId,
+            )
+            ->getJson(route('api.v1.hr.workspace.employees.index', [], false));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+
+        $this->assertStringNotContainsString(
+            $bearerCredential,
+            $response->getContent(),
+        );
+    }
+
     public function test_workspace_listing_never_leaks_beyond_workspace_even_with_large_per_page(): void
     {
         $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
@@ -156,6 +209,54 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
             );
     }
 
+    private function loginBrowserSessionAndAttachCookie(): string
+    {
+        $this->postJson(
+            '/api/v1/browser/auth/login',
+            [
+                'identifier' => $this->operatorEmail,
+                'password' => 'secret123',
+            ],
+        )->assertOk();
+
+        $this
+            ->withCredentials()
+            ->withCookie(
+                $this->sessionCookieName(),
+                $this->app['session']->getId(),
+            );
+
+        $this->postJson(
+            sprintf(
+                '/api/v1/browser/user/memberships/%s/switch',
+                $this->operatorMembershipId,
+            ),
+        )->assertOk();
+
+        $browserAuthState = $this->app['session']->get(
+            'educore.browser_auth',
+        );
+
+        $this->assertIsArray($browserAuthState);
+
+        $bearerCredential = $browserAuthState['membership_credentials'][$this->operatorMembershipId] ?? null;
+
+        $this->assertIsString($bearerCredential);
+        $this->assertNotSame('', trim($bearerCredential));
+
+        return $bearerCredential;
+    }
+
+    private function sessionCookieName(): string
+    {
+        $cookieName = config('session.cookie');
+
+        $this->assertIsString($cookieName);
+        $this->assertNotSame('', trim($cookieName));
+
+        return $cookieName;
+    }
+
     private function createTenantFixture(): void
     {
         DB::table('tenants')->insert([
@@ -183,14 +284,16 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $this->operatorEmail = sprintf(
+            'workspace-emp-list-operator-%s@educore.test',
+            Str::lower(Str::random(10)),
+        );
+
         DB::table('users')->insert([
             'id' => $this->operatorUserId,
             'person_id' => $personId,
-            'email' => sprintf(
-                'workspace-emp-list-operator-%s@educore.test',
-                Str::lower(Str::random(10)),
-            ),
-            'password' => 'not-used-by-token-test',
+            'email' => $this->operatorEmail,
+            'password' => bcrypt('secret123'),
             'status' => 'ACTIVE',
             'is_superadmin' => false,
             'created_at' => now(),

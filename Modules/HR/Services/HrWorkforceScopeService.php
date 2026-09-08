@@ -85,11 +85,21 @@ final readonly class HrWorkforceScopeService
      * tidak perlu percabangan khusus dan tetap bisa memanggil
      * ->paginate() secara normal (menghasilkan halaman kosong, sesuai
      * kasus tepi HR-017 §2.5).
+     *
+     * JOIN ke `persons` sengaja ditambahkan (bukan cuma kolom
+     * `employees.*`) supaya hasilnya langsung menyertakan `nama` —
+     * mengikuti pola yang SAMA PERSIS dipakai listing tenant-scoped
+     * (`EmployeeRepository::baseTenantQuery()`). Tanpa ini, listing
+     * workspace mengembalikan `nip`/`jabatan` tanpa nama pegawai sama
+     * sekali, yang tidak berguna untuk ditampilkan di UI mana pun.
      */
     public function visibleEmployeesQuery(string $tenantId): EloquentBuilder
     {
         $query = Employee::query()
             ->withoutGlobalScope('tenant')
+            ->join('memberships', 'employees.membership_id', '=', 'memberships.id')
+            ->join('persons', 'memberships.person_id', '=', 'persons.id')
+            ->select(['employees.*', 'persons.name as nama'])
             ->where('employees.tenant_id', $tenantId);
 
         $context = $this->organizationalContext->getCurrentContext();
