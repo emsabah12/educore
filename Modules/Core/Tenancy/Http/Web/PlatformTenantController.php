@@ -10,6 +10,11 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Subscription\Models\Addon;
+use Modules\Core\Subscription\Models\SubscriptionPlan;
+use Modules\Core\Subscription\Models\TenantAddon;
+use Modules\Core\Subscription\Models\TenantSubscription;
+use Modules\Core\Subscription\Services\TenantSubscriptionService;
 use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantWithNewAdminRequest;
 use Modules\Core\Tenancy\Models\Tenant;
@@ -30,6 +35,7 @@ final class PlatformTenantController extends Controller
         private readonly TenantProvisioningService $provisioningService,
         private readonly TenantRepositoryInterface $tenantRepository,
         private readonly AuditTrailServiceInterface $auditTrail,
+        private readonly TenantSubscriptionService $subscriptionService,
     ) {}
 
     public function index(): View
@@ -108,14 +114,43 @@ final class PlatformTenantController extends Controller
             abort(404, 'Tenant tidak ditemukan.');
         }
 
+        $this->subscriptionService->syncExpiredLocks($tenantId);
+
         $auditLogs = DB::table('audit_logs')
             ->where('tenant_id', $tenantId)
             ->orderByDesc('created_at')
             ->paginate(10, ['*'], 'audit_page');
 
+        $subscription = TenantSubscription::query()
+            ->with('plan')
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        $availablePlans = SubscriptionPlan::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $tenantAddons = TenantAddon::query()
+            ->with('addon.feature')
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $assignedAddonIds = $tenantAddons->pluck('addon_id')->all();
+
+        $availableAddonsToAdd = Addon::query()
+            ->where('is_active', true)
+            ->whereNotIn('id', $assignedAddonIds)
+            ->orderBy('name')
+            ->get();
+
         return view('platform.tenants.show', [
             'tenant' => $tenant,
             'auditLogs' => $auditLogs,
+            'subscription' => $subscription,
+            'availablePlans' => $availablePlans,
+            'tenantAddons' => $tenantAddons,
+            'availableAddonsToAdd' => $availableAddonsToAdd,
         ]);
     }
 

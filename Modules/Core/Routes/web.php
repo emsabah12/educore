@@ -7,6 +7,7 @@ use Modules\Core\Authorization\Http\Web\PlatformRoleController;
 use Modules\Core\Governance\Audit\Http\Web\PlatformAuditLogController;
 use Modules\Core\Subscription\Http\Web\PlatformAddonController;
 use Modules\Core\Subscription\Http\Web\PlatformPlanController;
+use Modules\Core\Subscription\Http\Web\PlatformTenantSubscriptionController;
 use Modules\Core\Tenancy\Http\Web\PlatformAuthController;
 use Modules\Core\Tenancy\Http\Web\PlatformDashboardController;
 use Modules\Core\Tenancy\Http\Web\PlatformTenantController;
@@ -57,6 +58,31 @@ Route::prefix('platform')->name('platform.')->group(function (): void {
             '/tenants/{tenant}/toggle-status',
             [PlatformTenantController::class, 'toggleStatus'],
         )->name('tenants.toggle-status');
+
+        Route::post(
+            '/tenants/{tenant}/subscription',
+            [PlatformTenantSubscriptionController::class, 'assignPlan'],
+        )->name('tenants.subscription.assign-plan');
+
+        Route::post(
+            '/tenants/{tenant}/subscription/activate',
+            [PlatformTenantSubscriptionController::class, 'activatePlan'],
+        )->name('tenants.subscription.activate-plan');
+
+        Route::post(
+            '/tenants/{tenant}/addons',
+            [PlatformTenantSubscriptionController::class, 'assignAddon'],
+        )->name('tenants.addons.assign');
+
+        Route::post(
+            '/tenants/{tenant}/addons/{addon}/activate',
+            [PlatformTenantSubscriptionController::class, 'activateAddon'],
+        )->name('tenants.addons.activate');
+
+        Route::post(
+            '/tenants/{tenant}/addons/{addon}/revoke',
+            [PlatformTenantSubscriptionController::class, 'revokeAddon'],
+        )->name('tenants.addons.revoke');
 
         Route::get(
             '/audit-logs',
