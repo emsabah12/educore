@@ -25,6 +25,12 @@
             class="text-sm {{ request()->routeIs('platform.roles.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
             Role &amp; Permission
         </a>
+
+        <a
+            href="{{ route('platform.plans.index') }}"
+            class="text-sm {{ request()->routeIs('platform.plans.*') || request()->routeIs('platform.addons.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
+            Paket &amp; Add-on
+        </a>
     </div>
 
     <form method="POST" action="{{ route('platform.logout') }}">
