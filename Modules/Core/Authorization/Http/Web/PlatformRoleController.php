@@ -31,12 +31,19 @@ use Modules\Core\Authorization\Models\Role;
  *   role lain mungkin juga diasumsikan tetap oleh seeder modul
  *   masing-masing. Hanya deskripsi & kepemilikan permission yang
  *   boleh diubah lewat sini.
+ * - HANYA role GLOBAL (`tenant_id IS NULL`) — sejak Step D, `roles`
+ *   juga menyimpan role KUSTOM milik satu tenant tertentu
+ *   (`roles.tenant_id` terisi). Halaman superadmin ini SENGAJA
+ *   menyaring `whereNull('tenant_id')` di setiap query supaya role
+ *   kustom milik tenant TIDAK PERNAH bisa dilihat/diedit dari sini —
+ *   itu domain admin tenant sendiri (lihat `TenantRoleService`).
  */
 final class PlatformRoleController extends Controller
 {
     public function index(): View
     {
         $roles = Role::query()
+            ->whereNull('tenant_id')
             ->withCount('permissions')
             ->orderBy('name')
             ->get();
@@ -49,6 +56,7 @@ final class PlatformRoleController extends Controller
     public function show(string $roleId): View
     {
         $role = Role::query()
+            ->whereNull('tenant_id')
             ->with('permissions')
             ->findOrFail($roleId);
 
@@ -76,7 +84,9 @@ final class PlatformRoleController extends Controller
      */
     public function update(Request $request, string $roleId): RedirectResponse
     {
-        $role = Role::query()->findOrFail($roleId);
+        $role = Role::query()
+            ->whereNull('tenant_id')
+            ->findOrFail($roleId);
 
         $validated = $request->validate([
             'permission_ids' => ['sometimes', 'array'],
@@ -98,6 +108,14 @@ final class PlatformRoleController extends Controller
         return view('platform.roles.create');
     }
 
+    /**
+     * `Rule::unique` DISENGAJAKAN discope `whereNull('tenant_id')` —
+     * sejak Step D, constraint unik di database untuk `name` juga
+     * cuma berlaku di antara role GLOBAL (lihat migrasi
+     * `add_tenant_id_to_roles_table`). Tanpa scope ini, validasi bisa
+     * salah menolak nama role global baru hanya karena kebetulan sama
+     * dengan nama role KUSTOM milik satu tenant tertentu.
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -106,7 +124,7 @@ final class PlatformRoleController extends Controller
                 'string',
                 'max:150',
                 'regex:/^[a-z0-9](?:[a-z0-9._-]{0,148}[a-z0-9])?$/',
-                Rule::unique('roles', 'name'),
+                Rule::unique('roles', 'name')->whereNull('tenant_id'),
             ],
             'display_name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],

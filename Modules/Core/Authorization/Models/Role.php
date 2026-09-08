@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Modules\Core\Authorization\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Support\Uuid\HasUuidV7;
+use Modules\Core\Tenancy\Models\Tenant;
 
 final class Role extends Model
 {
@@ -16,6 +18,7 @@ final class Role extends Model
     protected $table = 'roles';
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'display_name',
         'description',
@@ -23,9 +26,19 @@ final class Role extends Model
 
     protected $casts = [
         'id' => 'string',
+        'tenant_id' => 'string',
         'created_at' => 'immutable_datetime',
         'updated_at' => 'immutable_datetime',
     ];
+
+    /**
+     * `NULL` = role sistem/global. Terisi = role kustom milik SATU
+     * tenant — lihat `TenantRoleService` untuk logika efektivitasnya.
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     public function membershipRoles(): HasMany
     {
