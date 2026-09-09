@@ -11,6 +11,7 @@ use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Person\Models\PersonModel;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Exceptions\InvalidInitialTenantAdminException;
 use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use RuntimeException;
@@ -82,6 +83,61 @@ final class TenantProvisioningServiceTest extends TestCase
         $this->assertDatabaseHas('membership_roles', [
             'membership_id' => $membershipId,
             'role_id' => $adminRoleId,
+        ]);
+    }
+
+    public function test_service_resolves_canonical_admin_role_even_when_another_tenant_has_a_custom_role_with_the_same_name(): void
+    {
+        $otherTenantId = (string) UuidV7::generate();
+
+        DB::table('tenants')->insert([
+            'id' => $otherTenantId,
+            'name' => 'Provisioning Shadow Admin Tenant',
+            'subdomain' => 'provisioning-shadow-admin-tenant',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Role KUSTOM milik tenant lain, sengaja bernama sama persis
+        // dengan role sistem "admin" — ini sah menurut partial unique
+        // index (unik per tenant_id), tapi TIDAK BOLEH pernah
+        // tertukar dengan role admin kanonik.
+        DB::table('roles')->insert([
+            'id' => (string) UuidV7::generate(),
+            'tenant_id' => $otherTenantId,
+            'name' => 'admin',
+            'display_name' => 'Admin Palsu Tenant Lain',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $canonicalAdminRoleId = DB::table('roles')
+            ->whereNull('tenant_id')
+            ->where('name', 'admin')
+            ->value('id');
+
+        $user = User::factory()->create();
+
+        $service = $this->app->make(
+            TenantProvisioningService::class,
+        );
+
+        $result = $service->provision(
+            [
+                'name' => 'Sekolah Provisioning Aman',
+                'subdomain' => 'sekolah-provisioning-aman',
+                'is_active' => true,
+                'settings' => [],
+            ],
+            (string) $user->id,
+        );
+
+        $membershipId = $result['initial_admin']['membership_id'];
+
+        $this->assertDatabaseHas('membership_roles', [
+            'membership_id' => $membershipId,
+            'role_id' => $canonicalAdminRoleId,
         ]);
     }
 

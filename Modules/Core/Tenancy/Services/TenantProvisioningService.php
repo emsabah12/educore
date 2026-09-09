@@ -132,9 +132,20 @@ final class TenantProvisioningService
         });
     }
 
+    /**
+     * §Perbaikan pasca-Step D: role KUSTOM milik tenant boleh
+     * memakai nama apa saja, termasuk (secara teknis) "admin" —
+     * partial unique index hanya menjaga keunikan nama DI ANTARA
+     * role kustom tenant yang sama, TIDAK mencegah tenant lain
+     * memakai nama yang sama persis dengan role sistem. Tanpa
+     * `whereNull('tenant_id')`, pencarian role admin kanonik di sini
+     * bisa saja secara tidak sengaja mengambil role kustom milik
+     * tenant lain kalau urutan baris kebetulan berbeda.
+     */
     private function requireAdminRole(): Role
     {
         $adminRole = Role::query()
+            ->whereNull('tenant_id')
             ->where('name', self::ADMIN_ROLE_NAME)
             ->first();
 

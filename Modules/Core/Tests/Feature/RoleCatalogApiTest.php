@@ -123,6 +123,49 @@ final class RoleCatalogApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_custom_role_belonging_to_another_tenant_never_appears_in_catalog(): void
+    {
+        $otherTenantId = UuidV7::generate();
+
+        DB::table('tenants')->insert([
+            'id' => $otherTenantId,
+            'name' => 'Role Catalog Leak Other Tenant',
+            'subdomain' => sprintf(
+                'role-catalog-leak-%s',
+                Str::lower(Str::random(8)),
+            ),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('roles')->insert([
+            'id' => UuidV7::generate(),
+            'tenant_id' => $otherTenantId,
+            'name' => 'wali-kelas-leak-test',
+            'display_name' => 'Wali Kelas (Tenant Lain)',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this
+            ->withToken($this->issueToken(
+                $this->adminUserId,
+                $this->adminMembershipId,
+            ))
+            ->getJson('/api/v1/core/authorization/roles');
+
+        $response->assertOk();
+
+        /** @var array<int, array<string, mixed>> $roles */
+        $roles = $response->json('data');
+
+        $this->assertNotContains(
+            'wali-kelas-leak-test',
+            array_column($roles, 'name'),
+        );
+    }
+
     private function createFixture(): void
     {
         DB::table('tenants')->insert([
