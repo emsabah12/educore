@@ -127,6 +127,52 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
         );
     }
 
+    public function test_workspace_listing_respects_page_query_parameter(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $firstEmployeeId = $this->createEmployeeWithOpenPlacement($this->organizationId);
+        $secondEmployeeId = $this->createEmployeeWithOpenPlacement($this->organizationId);
+
+        $secondPageResponse = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->getJson(
+                route('api.v1.hr.workspace.employees.index', [], false) . '?per_page=1&page=2',
+            );
+
+        $secondPageResponse
+            ->assertOk()
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonCount(1, 'data');
+
+        $secondPageEmployeeId = $secondPageResponse->json('data.0.id');
+
+        $this->assertContains(
+            $secondPageEmployeeId,
+            [$firstEmployeeId, $secondEmployeeId],
+        );
+
+        $firstPageResponse = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->getJson(
+                route('api.v1.hr.workspace.employees.index', [], false) . '?per_page=1&page=1',
+            );
+
+        $firstPageResponse->assertOk();
+
+        $this->assertNotSame(
+            $firstPageResponse->json('data.0.id'),
+            $secondPageEmployeeId,
+        );
+    }
+
     public function test_workspace_listing_never_leaks_beyond_workspace_even_with_large_per_page(): void
     {
         $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);

@@ -11,6 +11,7 @@ import {
 import {
     Badge,
     Button,
+    Pagination,
     Table,
     TableBody,
     TableCell,
@@ -201,49 +202,17 @@ export function HrWorkforcePage() {
                                             pegawai)
                                         </p>
 
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={
-                                                    query.data.currentPage <= 1
-                                                }
-                                                onClick={
-                                                    () =>
-                                                        setPage(
-                                                            (
-                                                                current,
-                                                            ) =>
-                                                                Math.max(
-                                                                    1,
-                                                                    current - 1,
-                                                                ),
-                                                        )
-                                                }
-                                            >
-                                                Sebelumnya
-                                            </Button>
-
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={
-                                                    query.data.currentPage
-                                                        >= query.data.lastPage
-                                                }
-                                                onClick={
-                                                    () =>
-                                                        setPage(
-                                                            (
-                                                                current,
-                                                            ) =>
-                                                                current + 1,
-                                                        )
-                                                }
-                                            >
-                                                Berikutnya
-                                            </Button>
-                                        </div>
+                                        <Pagination
+                                            currentPage={
+                                                query.data.currentPage
+                                            }
+                                            lastPage={
+                                                query.data.lastPage
+                                            }
+                                            onPageChange={
+                                                setPage
+                                            }
+                                        />
                                     </div>
                                 </>
                             )

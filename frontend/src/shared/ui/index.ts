@@ -19,6 +19,14 @@ export {
 } from './input';
 
 export {
+    buildPaginationRange,
+    Pagination,
+} from './pagination';
+export type {
+    PaginationProps,
+} from './pagination';
+
+export {
     Table,
     TableBody,
     TableCaption,

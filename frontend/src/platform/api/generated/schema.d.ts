@@ -1411,6 +1411,12 @@ export interface components {
         /** @description Number of tenants returned per page. Defaults to 15. */
         TenantPerPage: number;
         /**
+         * @description 1-indexed page number. Defaults to 1 (Laravel's standard
+         *     paginate() convention — read automatically from this query
+         *     string parameter, not passed explicitly by the controller).
+         */
+        EmployeePage: number;
+        /**
          * @description Number of Employees returned per page. Silently clamped to
          *     [1, 100] by the controller; defaults to 15.
          */
@@ -2000,6 +2006,12 @@ export interface operations {
     hrWorkspaceEmployeeIndex: {
         parameters: {
             query?: {
+                /**
+                 * @description 1-indexed page number. Defaults to 1 (Laravel's standard
+                 *     paginate() convention — read automatically from this query
+                 *     string parameter, not passed explicitly by the controller).
+                 */
+                page?: components["parameters"]["EmployeePage"];
                 /**
                  * @description Number of Employees returned per page. Silently clamped to
                  *     [1, 100] by the controller; defaults to 15.

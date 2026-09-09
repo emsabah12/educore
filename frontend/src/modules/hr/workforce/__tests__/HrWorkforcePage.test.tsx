@@ -3,8 +3,10 @@ import {
     QueryClientProvider,
 } from '@tanstack/react-query';
 import {
+    fireEvent,
     render,
     screen,
+    waitFor,
 } from '@testing-library/react';
 import {
     http,
@@ -222,6 +224,116 @@ describe(
                     ),
                 ).toHaveTextContent(
                     'Gagal memuat daftar pegawai',
+                );
+            },
+        );
+
+        it(
+            'requests the clicked page from the numbered pagination control',
+            async () => {
+                const requestedPages: string[] = [];
+
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/workspace/employees',
+                        (
+                            {
+                                request,
+                            },
+                        ) => {
+                            const url =
+                                new URL(
+                                    request.url,
+                                );
+
+                            const page =
+                                url.searchParams.get(
+                                    'page',
+                                )
+                                ?? '1';
+
+                            requestedPages.push(
+                                page,
+                            );
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: '01970000-0000-7000-8000-0000000000ee',
+                                            tenant_id:
+                                                '01970000-0000-7000-8000-0000000000bb',
+                                            membership_id:
+                                                '01970000-0000-7000-8000-0000000000ff',
+                                            nip: 'NIP-001',
+                                            jabatan: 'GURU',
+                                            nama: 'Budi Santoso',
+                                            created_at:
+                                                '2026-01-01T00:00:00Z',
+                                        },
+                                    ],
+                                    meta: {
+                                        current_page: Number(
+                                            page,
+                                        ),
+                                        last_page: 5,
+                                        per_page: 15,
+                                        total: 75,
+                                    },
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderWorkforcePage();
+
+                await screen.findByText(
+                    'Budi Santoso',
+                );
+
+                expect(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Halaman 1',
+                        },
+                    ),
+                ).toHaveAttribute(
+                    'aria-current',
+                    'page',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Halaman 3',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByRole(
+                                'button',
+                                {
+                                    name: 'Halaman 3',
+                                },
+                            ),
+                        ).toHaveAttribute(
+                            'aria-current',
+                            'page',
+                        );
+                    },
+                );
+
+                expect(
+                    requestedPages,
+                ).toContain(
+                    '3',
                 );
             },
         );

@@ -124,6 +124,8 @@ export function useWorkspaceEmployeesQuery({
                                         ),
 
                                     query: {
+                                        page,
+
                                         per_page:
                                             perPage,
                                     },
