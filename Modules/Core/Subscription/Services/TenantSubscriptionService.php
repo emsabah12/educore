@@ -145,6 +145,31 @@ final class TenantSubscriptionService
     }
 
     /**
+     * Status `tenant_addons` tenant ini untuk add-on yang membuka
+     * fitur `$featureCode` tertentu — `null` kalau tenant tidak
+     * pernah punya baris `tenant_addons` untuk fitur itu sama sekali
+     * (mis. fitur didapat langsung dari paket, bukan add-on, atau
+     * memang belum pernah diaktifkan).
+     *
+     * Dipakai untuk membedakan `locked_readonly` (masih bisa dilihat)
+     * vs `locked_hidden` (disembunyikan dari UI) — `isCustomRoleFeatureEffective()`
+     * di `TenantRoleService` cuma tahu ya/tidak, tidak tahu tahap
+     * penguncian yang mana.
+     */
+    public function addonStatusForFeature(string $tenantId, string $featureCode): ?string
+    {
+        $this->syncExpiredLocks($tenantId);
+
+        return TenantAddon::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas(
+                'addon.feature',
+                fn($query) => $query->where('code', $featureCode),
+            )
+            ->value('status');
+    }
+
+    /**
      * Gabungan (union) kode fitur yang SUNGGUH efektif untuk tenant
      * ini SEKARANG — fitur bawaan paket AKTIF, ditambah fitur dari
      * setiap add-on berstatus `trial`/`active` (BUKAN `locked_*`).

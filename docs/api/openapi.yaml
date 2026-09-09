@@ -3013,3 +3013,28 @@ x-educore-deferred-routes:
     route_name: api.v1.core.tenants.store-with-new-admin
     owner: Core
     reason: domain-api-hardening-deferred
+  - method: GET
+    path: /api/v1/core/tenant-roles
+    route_name: api.v1.core.tenant-roles.index
+    owner: Core
+    reason: domain-api-hardening-deferred
+  - method: POST
+    path: /api/v1/core/tenant-roles
+    route_name: api.v1.core.tenant-roles.store
+    owner: Core
+    reason: domain-api-hardening-deferred
+  - method: GET
+    path: /api/v1/core/tenant-roles/assignable-permissions
+    route_name: api.v1.core.tenant-roles.assignable-permissions
+    owner: Core
+    reason: domain-api-hardening-deferred
+  - method: GET
+    path: /api/v1/core/tenant-roles/{roleId}
+    route_name: api.v1.core.tenant-roles.show
+    owner: Core
+    reason: domain-api-hardening-deferred
+  - method: PUT
+    path: /api/v1/core/tenant-roles/{roleId}
+    route_name: api.v1.core.tenant-roles.update
+    owner: Core
+    reason: domain-api-hardening-deferred

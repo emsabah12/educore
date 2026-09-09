@@ -17,6 +17,7 @@ use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
 use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
 
 Route::prefix('v1/auth')->group(function (): void {
@@ -139,6 +140,46 @@ Route::middleware([
     )->name(
         'api.v1.core.authorization.roles.index',
     );
+});
+
+/*
+ * §PRD Subscription & Custom Role — role KUSTOM milik tenant sendiri
+ * (Step E). Otorisasi diperiksa lewat PERMISSION
+ * `tenant.custom-roles.manage` (bukan nama role di-hardcode) — sesuai
+ * keputusan "owner, admin, tim ops adalah PERAN, bukan nama role
+ * tetap" dari Step D. Dual transport SEJAK AWAL (bukan ditambal
+ * belakangan seperti HR-004) karena endpoint ini memang dipanggil
+ * langsung oleh frontend tenant berbasis sesi browser.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    'tenant.permission:tenant.custom-roles.manage',
+])->prefix('v1/core/tenant-roles')->group(function (): void {
+    Route::get(
+        '/',
+        [TenantRoleController::class, 'index'],
+    )->name('api.v1.core.tenant-roles.index');
+
+    Route::post(
+        '/',
+        [TenantRoleController::class, 'store'],
+    )->name('api.v1.core.tenant-roles.store');
+
+    Route::get(
+        '/assignable-permissions',
+        [TenantRoleController::class, 'assignablePermissions'],
+    )->name('api.v1.core.tenant-roles.assignable-permissions');
+
+    Route::get(
+        '/{roleId}',
+        [TenantRoleController::class, 'show'],
+    )->name('api.v1.core.tenant-roles.show');
+
+    Route::put(
+        '/{roleId}',
+        [TenantRoleController::class, 'update'],
+    )->name('api.v1.core.tenant-roles.update');
 });
 
 Route::middleware([

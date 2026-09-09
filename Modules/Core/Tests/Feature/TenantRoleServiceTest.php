@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Subscription\Exceptions\CustomRoleFeatureNotAvailableException;
 use Modules\Core\Subscription\Models\Addon;
@@ -107,5 +108,76 @@ final class TenantRoleServiceTest extends TestCase
         $this->subscriptionService->revokeAddon($this->tenantId, $addon->id);
 
         $this->assertFalse($this->service->isRoleEffective($customRole));
+    }
+
+    public function test_visibility_state_is_active_for_global_role(): void
+    {
+        $globalRole = Role::query()->create(['name' => 'trs-visibility-global', 'display_name' => 'Global']);
+
+        $this->assertSame(
+            TenantRoleService::VISIBILITY_ACTIVE,
+            $this->service->visibilityStateFor($globalRole),
+        );
+    }
+
+    public function test_visibility_state_is_locked_readonly_during_addon_grace_period(): void
+    {
+        $feature = SubscriptionFeature::query()->create(['code' => 'custom_roles', 'name' => 'Custom Role']);
+        $plan = SubscriptionPlan::query()->create(['code' => 'trs-visibility-plan', 'name' => 'Plan', 'grace_period_days' => 30]);
+        $addon = Addon::query()->create(['code' => 'trs-visibility-addon', 'name' => 'Addon', 'feature_id' => $feature->id]);
+
+        $this->subscriptionService->assignPlan($this->tenantId, $plan->id);
+        $this->subscriptionService->assignAddon($this->tenantId, $addon->id);
+
+        $customRole = $this->service->createCustomRole($this->tenantId, 'trs-visibility-role', 'Role');
+
+        $this->subscriptionService->revokeAddon($this->tenantId, $addon->id);
+
+        $this->assertSame(
+            TenantRoleService::VISIBILITY_LOCKED_READONLY,
+            $this->service->visibilityStateFor($customRole->fresh()),
+        );
+    }
+
+    public function test_visibility_state_is_locked_hidden_after_grace_period_expires(): void
+    {
+        $feature = SubscriptionFeature::query()->create(['code' => 'custom_roles', 'name' => 'Custom Role']);
+        $plan = SubscriptionPlan::query()->create(['code' => 'trs-visibility-hidden-plan', 'name' => 'Plan', 'grace_period_days' => 1]);
+        $addon = Addon::query()->create(['code' => 'trs-visibility-hidden-addon', 'name' => 'Addon', 'feature_id' => $feature->id]);
+
+        $this->subscriptionService->assignPlan($this->tenantId, $plan->id);
+        $this->subscriptionService->assignAddon($this->tenantId, $addon->id);
+
+        $customRole = $this->service->createCustomRole($this->tenantId, 'trs-visibility-hidden-role', 'Role');
+
+        $this->subscriptionService->revokeAddon($this->tenantId, $addon->id);
+
+        Carbon::setTestNow(now()->addDays(2));
+
+        $this->assertSame(
+            TenantRoleService::VISIBILITY_LOCKED_HIDDEN,
+            $this->service->visibilityStateFor($customRole->fresh()),
+        );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_visibility_state_is_locked_hidden_when_lost_via_plan_downgrade_without_addon(): void
+    {
+        $feature = SubscriptionFeature::query()->create(['code' => 'custom_roles', 'name' => 'Custom Role']);
+        $planWithFeature = SubscriptionPlan::query()->create(['code' => 'trs-plan-downgrade-from', 'name' => 'Plan']);
+        $planWithFeature->features()->attach($feature->id);
+
+        $this->subscriptionService->assignPlan($this->tenantId, $planWithFeature->id);
+
+        $customRole = $this->service->createCustomRole($this->tenantId, 'trs-downgrade-role', 'Role');
+
+        $barePlan = SubscriptionPlan::query()->create(['code' => 'trs-plan-downgrade-to', 'name' => 'Bare Plan']);
+        $this->subscriptionService->assignPlan($this->tenantId, $barePlan->id);
+
+        $this->assertSame(
+            TenantRoleService::VISIBILITY_LOCKED_HIDDEN,
+            $this->service->visibilityStateFor($customRole->fresh()),
+        );
     }
 }

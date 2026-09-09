@@ -89,7 +89,7 @@ final class OpenApiRouteCoverageTest extends TestCase
         $deferred = $this->deferredOperations();
 
         $this->assertCount(
-            112,
+            117,
             $actual,
             'Expected the current public /api/v1 operation inventory.',
         );
@@ -101,9 +101,9 @@ final class OpenApiRouteCoverageTest extends TestCase
         );
 
         $this->assertCount(
-            89,
+            94,
             $deferred,
-            'Academic and HR must contain exactly the 89 explicitly deferred operations (15 Academic + 73 HR + 1 Core).',
+            'Academic and HR must contain exactly the 94 explicitly deferred operations (15 Academic + 73 HR + 6 Core).',
         );
 
         $overlap = array_intersect_key(
