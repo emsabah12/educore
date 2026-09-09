@@ -23,6 +23,9 @@ import {
 export type WorkspaceEmployee =
     ApiComponents['schemas']['WorkspaceEmployeeResource'];
 
+export type WorkspaceEmployeeDetail =
+    ApiComponents['schemas']['WorkspaceEmployeeDetail'];
+
 export interface WorkspaceEmployeesPage {
     readonly employees: readonly WorkspaceEmployee[];
     readonly currentPage: number;
@@ -149,6 +152,103 @@ export function useWorkspaceEmployeesQuery({
                 total:
                     body?.meta.total ?? 0,
             };
+        },
+    });
+}
+
+/*
+ * `employeeId` is nullable so callers can mount this hook
+ * before a route param resolves without a separate
+ * conditional-render branch — `enabled` handles the wait.
+ */
+export function useWorkspaceEmployeeDetailQuery(
+    employeeId: string | null,
+): UseQueryResult<
+    WorkspaceEmployeeDetail,
+    BrowserApiFailure
+> {
+    const apiClient =
+        useApiClient();
+
+    const workspaceState =
+        useWorkspaceContextState();
+
+    const isWorkspaceReady =
+        workspaceState.status === 'ready';
+
+    const organizationalAssignmentId =
+        isWorkspaceReady
+        && workspaceState.current.organizational_assignment_id !== null
+            ? workspaceState.current.organizational_assignment_id
+            : null;
+
+    const membershipId =
+        isWorkspaceReady
+            ? workspaceState.context.membership.id
+            : null;
+
+    return useQuery<
+        WorkspaceEmployeeDetail,
+        BrowserApiFailure
+    >({
+        queryKey: [
+            'hr',
+            'workforce',
+            'employees',
+            organizationalAssignmentId,
+            employeeId,
+        ],
+
+        enabled:
+            organizationalAssignmentId !== null
+            && membershipId !== null
+            && employeeId !== null,
+
+        queryFn: async () => {
+            if (
+                organizationalAssignmentId === null
+                || membershipId === null
+                || employeeId === null
+            ) {
+                throw new Error(
+                    'useWorkspaceEmployeeDetailQuery executed without a ready organizational workspace or employeeId.',
+                );
+            }
+
+            const result =
+                await executeBrowserApiReadRequest(
+                    () =>
+                        apiClient.GET(
+                            '/api/v1/hr/workspace/employees/{employeeId}',
+                            {
+                                params: {
+                                    path: {
+                                        employeeId,
+                                    },
+
+                                    header:
+                                        createBrowserWorkspaceHeaderParams(
+                                            {
+                                                membershipId,
+                                                organizationalAssignmentId,
+                                            },
+                                        ),
+                                },
+                            },
+                        ),
+                );
+
+            if (! result.ok) {
+                throw result;
+            }
+
+            if (result.data === undefined) {
+                throw new Error(
+                    'Workspace employee detail response was empty.',
+                );
+            }
+
+            return result.data.data;
         },
     });
 }

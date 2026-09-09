@@ -1,6 +1,9 @@
 import {
     useState,
 } from 'react';
+import {
+    Link,
+} from 'react-router';
 
 import {
     useWorkspaceEmployeesQuery,
@@ -111,6 +114,9 @@ export function HrWorkforcePage() {
                                                 <TableHead>
                                                     Jabatan
                                                 </TableHead>
+                                                <TableHead>
+                                                    Aksi
+                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
 
@@ -150,6 +156,22 @@ export function HrWorkforcePage() {
                                                                         )
                                                                     }
                                                                 </Badge>
+                                                            </TableCell>
+
+                                                            <TableCell>
+                                                                <Button
+                                                                    asChild
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                >
+                                                                    <Link
+                                                                        to={
+                                                                            `/hr/workforce/${employee.id}`
+                                                                        }
+                                                                    >
+                                                                        Lihat Detail
+                                                                    </Link>
+                                                                </Button>
                                                             </TableCell>
                                                         </TableRow>
                                                     ),

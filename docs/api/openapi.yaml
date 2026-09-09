@@ -678,6 +678,61 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/workspace/employees/{employeeId}:
+    get:
+      operationId: hrWorkspaceEmployeeShow
+      x-laravel-route-name: api.v1.hr.workspace.employees.show
+      tags:
+        - Human Resources
+      summary: Show one Employee visible in the current organizational workspace
+      description: |
+        Filters from the exact same visibility query as
+        GET /hr/workspace/employees (HR-013 §6 Target Employee Scope
+        Rule) — an Employee outside the current workspace returns 404,
+        identical to an Employee that does not exist at all, so
+        existence is never leaked across workspace boundaries.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Employee's detail, including Employment history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceEmployeeDetailSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; or the current organizational
+            assignment does not have hr.employees.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/core/tenant-roles:
     get:
       operationId: tenantRoleIndex
@@ -2001,6 +2056,96 @@ components:
             $ref: "#/components/schemas/WorkspaceEmployeeResource"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
+
+    WorkspaceEmployeeEmployment:
+      type: object
+      additionalProperties: false
+      description: One Employment episode (HR-002 §5.5), most recent first.
+      required:
+        - id
+        - employment_type
+        - status
+        - start_date
+        - end_date
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_type:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - PLANNED
+            - ACTIVE
+            - ENDED
+            - CANCELLED
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type:
+            - string
+            - "null"
+          format: date
+
+    WorkspaceEmployeeDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tenant_id
+        - membership_id
+        - nip
+        - jabatan
+        - nama
+        - created_at
+        - employments
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        nip:
+          type:
+            - string
+            - "null"
+        jabatan:
+          type: string
+          enum:
+            - GURU
+            - KEPALA_SEKOLAH
+            - STAFF
+        nama:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        employments:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceEmployeeEmployment"
+
+    WorkspaceEmployeeDetailSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/WorkspaceEmployeeDetail"
 
     TenantCustomRoleVisibilityState:
       type: string

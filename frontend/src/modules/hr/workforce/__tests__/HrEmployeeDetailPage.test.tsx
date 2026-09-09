@@ -12,6 +12,8 @@ import {
 } from 'msw';
 import {
     MemoryRouter,
+    Route,
+    Routes,
 } from 'react-router';
 import {
     describe,
@@ -42,7 +44,7 @@ const READY_ORGANIZATIONAL_WORKSPACE_STATE = {
         },
     },
     tenant: {
-        name: 'Workforce Test Tenant',
+        name: 'Workforce Detail Test Tenant',
     },
     workspaces: [],
     current: {
@@ -52,7 +54,7 @@ const READY_ORGANIZATIONAL_WORKSPACE_STATE = {
         organization_id:
             '01970000-0000-7000-8000-0000000000dd',
         organization_unit_id: null,
-        label: 'Workforce Test Organization',
+        label: 'Workforce Detail Test Organization',
     },
     failure: null,
 };
@@ -65,18 +67,16 @@ vi.mock(
     }),
 );
 
-/*
- * Imported AFTER the mock above so the module under test
- * resolves the mocked workspace hook rather than the real
- * Provider-backed implementation.
- */
 const {
-    HrWorkforcePage,
+    HrEmployeeDetailPage,
 } = await import(
-    '@/modules/hr/workforce/HrWorkforcePage'
+    '@/modules/hr/workforce/HrEmployeeDetailPage'
 );
 
-function renderWorkforcePage() {
+const EMPLOYEE_ID =
+    '01970000-0000-7000-8000-0000000000ee';
+
+function renderDetailPage() {
     const queryClient =
         new QueryClient(
             {
@@ -94,8 +94,19 @@ function renderWorkforcePage() {
     render(
         <ApiClientProvider apiClient={apiClient}>
             <QueryClientProvider client={queryClient}>
-                <MemoryRouter>
-                    <HrWorkforcePage />
+                <MemoryRouter
+                    initialEntries={
+                        [`/hr/workforce/${EMPLOYEE_ID}`]
+                    }
+                >
+                    <Routes>
+                        <Route
+                            path="/hr/workforce/:employeeId"
+                            element={
+                                <HrEmployeeDetailPage />
+                            }
+                        />
+                    </Routes>
                 </MemoryRouter>
             </QueryClientProvider>
         </ApiClientProvider>,
@@ -103,44 +114,45 @@ function renderWorkforcePage() {
 }
 
 describe(
-    'HrWorkforcePage',
+    'HrEmployeeDetailPage',
     () => {
         it(
-            'renders employees returned by the workspace listing endpoint',
+            'renders employee detail with employment history',
             async () => {
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/hr/workspace/employees',
+                        `*/api/v1/hr/workspace/employees/${EMPLOYEE_ID}`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: [
-                                        {
-                                            id: '01970000-0000-7000-8000-0000000000ee',
-                                            tenant_id:
-                                                '01970000-0000-7000-8000-0000000000bb',
-                                            membership_id:
-                                                '01970000-0000-7000-8000-0000000000ff',
-                                            nip: 'NIP-001',
-                                            jabatan: 'GURU',
-                                            nama: 'Budi Santoso',
-                                            created_at:
-                                                '2026-01-01T00:00:00Z',
-                                        },
-                                    ],
-                                    meta: {
-                                        current_page: 1,
-                                        last_page: 1,
-                                        per_page: 15,
-                                        total: 1,
+                                    data: {
+                                        id: EMPLOYEE_ID,
+                                        tenant_id:
+                                            '01970000-0000-7000-8000-0000000000bb',
+                                        membership_id:
+                                            '01970000-0000-7000-8000-0000000000ff',
+                                        nip: 'NIP-001',
+                                        jabatan: 'GURU',
+                                        nama: 'Budi Santoso',
+                                        created_at:
+                                            '2026-01-01T00:00:00Z',
+                                        employments: [
+                                            {
+                                                id: '01970000-0000-7000-8000-000000001111',
+                                                employment_type: 'Tetap',
+                                                status: 'ACTIVE',
+                                                start_date: '2026-01-01',
+                                                end_date: null,
+                                            },
+                                        ],
                                     },
                                 },
                             ),
                     ),
                 );
 
-                renderWorkforcePage();
+                renderDetailPage();
 
                 expect(
                     await screen.findByText(
@@ -150,78 +162,90 @@ describe(
 
                 expect(
                     screen.getByText(
-                        'NIP-001',
+                        /NIP-001/,
                     ),
                 ).toBeInTheDocument();
 
                 expect(
                     screen.getByText(
-                        'Guru',
+                        'Tetap',
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.getByText(
+                        'Aktif',
                     ),
                 ).toBeInTheDocument();
             },
         );
 
         it(
-            'shows an empty state when the workspace has no visible employees',
+            'shows an empty state when the employee has no employment history',
             async () => {
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/hr/workspace/employees',
+                        `*/api/v1/hr/workspace/employees/${EMPLOYEE_ID}`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: [],
-                                    meta: {
-                                        current_page: 1,
-                                        last_page: 1,
-                                        per_page: 15,
-                                        total: 0,
+                                    data: {
+                                        id: EMPLOYEE_ID,
+                                        tenant_id:
+                                            '01970000-0000-7000-8000-0000000000bb',
+                                        membership_id:
+                                            '01970000-0000-7000-8000-0000000000ff',
+                                        nip: null,
+                                        jabatan: 'STAFF',
+                                        nama: 'Siti Aminah',
+                                        created_at:
+                                            '2026-01-01T00:00:00Z',
+                                        employments: [],
                                     },
                                 },
                             ),
                     ),
                 );
 
-                renderWorkforcePage();
+                renderDetailPage();
 
                 expect(
                     await screen.findByText(
-                        'Belum ada pegawai yang terlihat di workspace ini.',
+                        'Belum ada riwayat employment.',
                     ),
                 ).toBeInTheDocument();
             },
         );
 
         it(
-            'shows an error state when the request fails',
+            'shows a not-found message when the employee is outside the workspace',
             async () => {
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/hr/workspace/employees',
+                        `*/api/v1/hr/workspace/employees/${EMPLOYEE_ID}`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'error',
-                                    code: 'AUTHORIZATION_DENIED',
-                                    message: 'Denied.',
+                                    code: 'RESOURCE_NOT_FOUND',
+                                    message: 'Not found.',
                                 },
                                 {
-                                    status: 403,
+                                    status: 404,
                                 },
                             ),
                     ),
                 );
 
-                renderWorkforcePage();
+                renderDetailPage();
 
                 expect(
                     await screen.findByRole(
                         'alert',
                     ),
                 ).toHaveTextContent(
-                    'Gagal memuat daftar pegawai',
+                    'di luar workspace Anda',
                 );
             },
         );

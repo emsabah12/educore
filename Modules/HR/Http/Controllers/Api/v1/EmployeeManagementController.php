@@ -107,6 +107,63 @@ final class EmployeeManagementController extends Controller
         ]);
     }
 
+    /**
+     * HR-017 §2 — Workspace Employee Detail.
+     *
+     * Sengaja memfilter dari `visibleEmployeesQuery()` yang SAMA PERSIS
+     * dipakai `indexWorkspace()` (bukan query terpisah) — jadi aturan
+     * "siapa boleh lihat siapa" otomatis identik antara listing dan
+     * detail, tidak ada risiko drift antara dua endpoint. Employee di
+     * luar workspace operator akan mengembalikan 404 yang sama seperti
+     * Employee yang benar-benar tidak ada — tidak membocorkan
+     * keberadaannya.
+     */
+    public function showWorkspace(
+        Request $request,
+        string $employeeId,
+    ): JsonResponse {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $employee = $this->hrWorkforceScopeService
+            ->visibleEmployeesQuery($tenantId)
+            ->with([
+                'employments' => fn($query) => $query
+                    ->with('employmentType')
+                    ->orderByDesc('start_date'),
+            ])
+            ->where('employees.id', $employeeId)
+            ->firstOrFail();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => (string) $employee->id,
+                'tenant_id' => (string) $employee->tenant_id,
+                'membership_id' => (string) $employee->membership_id,
+                'nip' => $employee->nip,
+                'jabatan' => $employee->jabatan,
+                'nama' => $employee->nama,
+                'created_at' => $employee->created_at,
+                'updated_at' => $employee->updated_at,
+                'employments' => $employee->employments->map(
+                    fn($employment) => [
+                        'id' => (string) $employment->id,
+                        'employment_type' => $employment->employmentType?->name,
+                        'status' => $employment->status,
+                        'start_date' => $employment->start_date,
+                        'end_date' => $employment->end_date,
+                    ],
+                ),
+            ],
+        ]);
+    }
+
     public function store(StoreEmployeeRequest $request): JsonResponse
     {
         $tenantId = $request->attributes->get(

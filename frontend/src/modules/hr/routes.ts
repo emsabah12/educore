@@ -36,6 +36,32 @@ export const hrWorkforceRoutePolicy =
     });
 
 /*
+ * Same policy shape as the listing above — the detail
+ * endpoint filters from the identical visibility query, so
+ * anyone allowed to see the list is allowed to open a
+ * detail within it.
+ */
+export const hrWorkforceDetailRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.workforce.show',
+
+        contextRequirement:
+            'organizational',
+
+        authorizationScope:
+            'workspace',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.employees.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -73,6 +99,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrWorkforcePage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.workforce.show',
+
+        path:
+            'hr/workforce/:employeeId',
+
+        accessPolicy:
+            hrWorkforceDetailRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrEmployeeDetailPage,
+                } =
+                    await import(
+                        '@/modules/hr/workforce/HrEmployeeDetailPage'
+                    );
+
+                return {
+                    Component:
+                        HrEmployeeDetailPage,
                 };
             },
     },

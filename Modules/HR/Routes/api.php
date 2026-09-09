@@ -359,6 +359,13 @@ Route::middleware([
         ->middleware('organizational.permission:hr.employees.view')
         ->name('api.v1.hr.workspace.employees.index');
 
+    Route::get(
+        '/employees/{employeeId}',
+        [EmployeeManagementController::class, 'showWorkspace']
+    )
+        ->middleware('organizational.permission:hr.employees.view')
+        ->name('api.v1.hr.workspace.employees.show');
+
     Route::post(
         '/employees/{employeeId}/employments',
         [EmploymentManagementController::class, 'store']

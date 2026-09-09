@@ -338,6 +338,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/workspace/employees/{employeeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show one Employee visible in the current organizational workspace
+         * @description Filters from the exact same visibility query as
+         *     GET /hr/workspace/employees (HR-013 §6 Target Employee Scope
+         *     Rule) — an Employee outside the current workspace returns 404,
+         *     identical to an Employee that does not exist at all, so
+         *     existence is never leaked across workspace boundaries.
+         */
+        get: operations["hrWorkspaceEmployeeShow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/tenant-roles": {
         parameters: {
             query?: never;
@@ -851,6 +875,36 @@ export interface components {
             status: "success";
             data: components["schemas"]["WorkspaceEmployeeResource"][];
             meta: components["schemas"]["PaginationMeta"];
+        };
+        /** @description One Employment episode (HR-002 §5.5), most recent first. */
+        WorkspaceEmployeeEmployment: {
+            id: components["schemas"]["UuidV7"];
+            employment_type: string | null;
+            /** @enum {string} */
+            status: "PLANNED" | "ACTIVE" | "ENDED" | "CANCELLED";
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string | null;
+        };
+        WorkspaceEmployeeDetail: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            membership_id: components["schemas"]["UuidV7"];
+            nip: string | null;
+            /** @enum {string} */
+            jabatan: "GURU" | "KEPALA_SEKOLAH" | "STAFF";
+            nama: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+            employments: components["schemas"]["WorkspaceEmployeeEmployment"][];
+        };
+        WorkspaceEmployeeDetailSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["WorkspaceEmployeeDetail"];
         };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
@@ -2000,6 +2054,63 @@ export interface operations {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmployeeShow: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employeeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Employee's detail, including Employment history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceEmployeeDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; or the current organizational
+             *     assignment does not have hr.employees.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
             500: components["responses"]["InternalServerError"];
         };
     };
