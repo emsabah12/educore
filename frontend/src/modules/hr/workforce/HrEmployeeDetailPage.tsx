@@ -1,14 +1,27 @@
 import {
+    useState,
+} from 'react';
+import {
     Link,
     useParams,
 } from 'react-router';
 
 import {
+    useActivateEmploymentMutation,
+    useCancelEmploymentMutation,
+    useEndEmploymentMutation,
+} from '@/modules/hr/api/use-employment-mutations';
+import {
     useWorkspaceEmployeeDetailQuery,
+    type WorkspaceEmployeeDetail,
 } from '@/modules/hr/api/use-workspace-employees-query';
+import type {
+    BrowserApiFailure,
+} from '@/platform/api';
 import {
     Badge,
     Button,
+    Input,
     Table,
     TableBody,
     TableCell,
@@ -48,6 +61,249 @@ const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
     ENDED: 'Berakhir',
     CANCELLED: 'Dibatalkan',
 };
+
+type EmploymentSummary =
+    WorkspaceEmployeeDetail['employments'][number];
+
+function transitionErrorMessage(
+    error: BrowserApiFailure,
+): string {
+    if (
+        error.kind === 'response'
+        && error.error.code === 'EMPLOYMENT_LIFECYCLE_CONFLICT'
+    ) {
+        return 'Status employment ini sudah berubah — muat ulang halaman untuk melihat status terkini.';
+    }
+
+    return 'Gagal memproses aksi. Coba lagi.';
+}
+
+function EmploymentActionsCell({
+    employeeId,
+    employment,
+}: {
+    employeeId: string;
+    employment: EmploymentSummary;
+}) {
+    const activateMutation =
+        useActivateEmploymentMutation();
+
+    const cancelMutation =
+        useCancelEmploymentMutation();
+
+    const endMutation =
+        useEndEmploymentMutation();
+
+    const [
+        isEnding,
+        setIsEnding,
+    ] = useState(false);
+
+    const [
+        endDate,
+        setEndDate,
+    ] = useState('');
+
+    if (employment.status === 'PLANNED') {
+        return (
+            <div className="flex flex-col items-start gap-1">
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        disabled={
+                            activateMutation.isPending
+                        }
+                        onClick={
+                            () =>
+                                activateMutation.mutate(
+                                    {
+                                        employmentId: employment.id,
+                                        employeeId,
+                                    },
+                                )
+                        }
+                    >
+                        {
+                            activateMutation.isPending
+                                ? 'Mengaktifkan…'
+                                : 'Aktifkan'
+                        }
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                            cancelMutation.isPending
+                        }
+                        onClick={
+                            () =>
+                                cancelMutation.mutate(
+                                    {
+                                        employmentId: employment.id,
+                                        employeeId,
+                                    },
+                                )
+                        }
+                    >
+                        {
+                            cancelMutation.isPending
+                                ? 'Membatalkan…'
+                                : 'Batalkan'
+                        }
+                    </Button>
+                </div>
+
+                {
+                    activateMutation.isError
+                        ? (
+                            <p
+                                role="alert"
+                                className="text-xs text-destructive"
+                            >
+                                {
+                                    transitionErrorMessage(
+                                        activateMutation.error,
+                                    )
+                                }
+                            </p>
+                        )
+                        : null
+                }
+
+                {
+                    cancelMutation.isError
+                        ? (
+                            <p
+                                role="alert"
+                                className="text-xs text-destructive"
+                            >
+                                {
+                                    transitionErrorMessage(
+                                        cancelMutation.error,
+                                    )
+                                }
+                            </p>
+                        )
+                        : null
+                }
+            </div>
+        );
+    }
+
+    if (employment.status === 'ACTIVE') {
+        if (! isEnding) {
+            return (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={
+                        () =>
+                            setIsEnding(
+                                true,
+                            )
+                    }
+                >
+                    Akhiri
+                </Button>
+            );
+        }
+
+        return (
+            <div className="flex flex-col items-start gap-1">
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="date"
+                        aria-label={
+                            `Tanggal akhir untuk ${employment.employment_type ?? 'employment ini'}`
+                        }
+                        value={endDate}
+                        onChange={
+                            (
+                                event,
+                            ) =>
+                                setEndDate(
+                                    event.target.value,
+                                )
+                        }
+                        className="h-8 w-36 text-xs"
+                    />
+
+                    <Button
+                        size="sm"
+                        disabled={
+                            endDate === ''
+                            || endMutation.isPending
+                        }
+                        onClick={
+                            () =>
+                                endMutation.mutate(
+                                    {
+                                        employmentId: employment.id,
+                                        employeeId,
+                                        endDate,
+                                    },
+                                    {
+                                        onSuccess: () => {
+                                            setIsEnding(
+                                                false,
+                                            );
+                                        },
+                                    },
+                                )
+                        }
+                    >
+                        {
+                            endMutation.isPending
+                                ? 'Menyimpan…'
+                                : 'Konfirmasi'
+                        }
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={
+                            () => {
+                                setIsEnding(
+                                    false,
+                                );
+                                setEndDate(
+                                    '',
+                                );
+                            }
+                        }
+                    >
+                        Batal
+                    </Button>
+                </div>
+
+                {
+                    endMutation.isError
+                        ? (
+                            <p
+                                role="alert"
+                                className="text-xs text-destructive"
+                            >
+                                {
+                                    transitionErrorMessage(
+                                        endMutation.error,
+                                    )
+                                }
+                            </p>
+                        )
+                        : null
+                }
+            </div>
+        );
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground">
+            —
+        </span>
+    );
+}
 
 export function HrEmployeeDetailPage() {
     const {
@@ -170,6 +426,9 @@ export function HrEmployeeDetailPage() {
                                                         <TableHead>
                                                             Berakhir
                                                         </TableHead>
+                                                        <TableHead>
+                                                            Aksi
+                                                        </TableHead>
                                                     </TableRow>
                                                 </TableHeader>
 
@@ -224,6 +483,18 @@ export function HrEmployeeDetailPage() {
                                                                                 </span>
                                                                             )
                                                                         }
+                                                                    </TableCell>
+
+                                                                    <TableCell>
+                                                                        <EmploymentActionsCell
+                                                                            employeeId={
+                                                                                employeeId
+                                                                                ?? ''
+                                                                            }
+                                                                            employment={
+                                                                                employment
+                                                                            }
+                                                                        />
                                                                     </TableCell>
                                                                 </TableRow>
                                                             ),

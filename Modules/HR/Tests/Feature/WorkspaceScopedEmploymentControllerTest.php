@@ -153,6 +153,115 @@ final class WorkspaceScopedEmploymentControllerTest extends TestCase
             ->assertJsonPath('code', 'AUTHORIZATION_DENIED');
     }
 
+    public function test_workspace_cancel_succeeds_when_employee_is_visible_in_operator_workspace(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $employmentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $this->organizationId,
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employments.cancel',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.status', 'CANCELLED');
+    }
+
+    /**
+     * HR-002 §9.4 — hr.employments.end SENGAJA permission terpisah dari
+     * hr.employments.manage (activate/cancel). Test ini membuktikan
+     * jalur workspace-scoped-nya benar-benar berfungsi, bukan cuma
+     * jalur tenant-wide yang sudah diuji EmploymentManagementControllerTest.
+     */
+    public function test_workspace_end_succeeds_when_employee_is_visible_in_operator_workspace(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $employmentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $this->organizationId,
+        );
+
+        $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employments.activate',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+            )
+            ->assertOk();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employments.end',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+                [
+                    'end_date' => '2026-06-30',
+                ],
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.status', 'ENDED')
+            ->assertJsonPath('data.end_date', '2026-06-30');
+    }
+
+    public function test_workspace_end_is_denied_when_employee_is_not_visible_in_operator_workspace(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $otherOrganizationId = $this->createOrganizationFixture(UuidV7::generate());
+        $employmentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $otherOrganizationId,
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employments.end',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+                [
+                    'end_date' => '2026-06-30',
+                ],
+            );
+
+        $response
+            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertJsonPath('code', 'EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE');
+    }
+
     private function issueToken(): string
     {
         return app(TokenManagerInterface::class)

@@ -734,6 +734,222 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/workspace/employments/{employmentId}/activate:
+    post:
+      operationId: hrWorkspaceEmploymentActivate
+      x-laravel-route-name: api.v1.hr.workspace.employments.activate
+      tags:
+        - Human Resources
+      summary: Activate a PLANNED Employment episode
+      description: |
+        Transitions Employment status PLANNED -> ACTIVE (HR-002 §9).
+        Rejected with 409 EMPLOYMENT_LIFECYCLE_CONFLICT if the
+        Employment is not currently PLANNED, or if the owning Employee
+        already has a different ACTIVE Employment (INV-HR-002: at most
+        one ACTIVE Employment per Employee).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The activated Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; the current organizational
+            assignment does not have hr.employments.manage permission;
+            or the Employment's owning Employee is outside the current
+            organizational workspace.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently PLANNED, or another Employment is already ACTIVE for this Employee.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/workspace/employments/{employmentId}/cancel:
+    post:
+      operationId: hrWorkspaceEmploymentCancel
+      x-laravel-route-name: api.v1.hr.workspace.employments.cancel
+      tags:
+        - Human Resources
+      summary: Cancel a PLANNED Employment episode
+      description: |
+        Transitions Employment status PLANNED -> CANCELLED (HR-002 §9).
+        Rejected with 409 EMPLOYMENT_LIFECYCLE_CONFLICT if the
+        Employment is not currently PLANNED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The cancelled Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; the current organizational
+            assignment does not have hr.employments.manage permission;
+            or the Employment's owning Employee is outside the current
+            organizational workspace.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently PLANNED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/workspace/employments/{employmentId}/end:
+    post:
+      operationId: hrWorkspaceEmploymentEnd
+      x-laravel-route-name: api.v1.hr.workspace.employments.end
+      tags:
+        - Human Resources
+      summary: End an ACTIVE Employment episode
+      description: |
+        Transitions Employment status ACTIVE -> ENDED (HR-002 §9.4) and
+        closes the Employment's open Placement and Position Assignment.
+        Guarded by its own hr.employments.end permission — sengaja
+        terpisah dari hr.employments.manage karena higher-impact
+        dibanding create/activate/cancel. Rejected with 409
+        EMPLOYMENT_LIFECYCLE_CONFLICT if the Employment is not
+        currently ACTIVE.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndEmploymentRequest"
+      responses:
+        "200":
+          description: The ended Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; the current organizational
+            assignment does not have hr.employments.end permission; or
+            the Employment's owning Employee is outside the current
+            organizational workspace.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently ACTIVE.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/core/tenant-roles:
     get:
       operationId: tenantRoleIndex
@@ -2148,6 +2364,150 @@ components:
         data:
           $ref: "#/components/schemas/WorkspaceEmployeeDetail"
 
+    EmploymentResource:
+      type: object
+      additionalProperties: false
+      description: |
+        Raw Employment record (HR-002 §5.5) as returned by the lifecycle
+        transition endpoints — a different, richer shape than
+        WorkspaceEmployeeEmployment (which is a joined summary used only
+        by the read-only employee detail view).
+      required:
+        - id
+        - tenant_id
+        - employee_id
+        - employment_type_id
+        - employment_classification_id
+        - status
+        - start_date
+        - end_date
+        - cancelled_at
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        employee_id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_type_id:
+          type:
+            - string
+            - "null"
+        employment_classification_id:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - PLANNED
+            - ACTIVE
+            - ENDED
+            - CANCELLED
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type:
+            - string
+            - "null"
+          format: date
+        cancelled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    EmploymentTransitionSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/EmploymentResource"
+
+    EndEmploymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - end_date
+      properties:
+        end_date:
+          type: string
+          format: date
+          description: Must not be before the Employment's start_date, and never in the future.
+
+    EmployeeOutOfOrganizationalScopeError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE
+        message:
+          type: string
+
+    EmploymentNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYMENT_NOT_FOUND
+        message:
+          type: string
+
+    EmploymentLifecycleConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. activating an Employment that is not PLANNED, or ending one
+        that is not ACTIVE.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYMENT_LIFECYCLE_CONFLICT
+        message:
+          type: string
+
     TenantCustomRoleVisibilityState:
       type: string
       description: |
@@ -3431,24 +3791,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/workspace/employees/{employeeId}/employments
     route_name: api.v1.hr.workspace.employees.employments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employments/{employmentId}/activate
-    route_name: api.v1.hr.workspace.employments.activate
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employments/{employmentId}/cancel
-    route_name: api.v1.hr.workspace.employments.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employments/{employmentId}/end
-    route_name: api.v1.hr.workspace.employments.end
     owner: HR
     reason: domain-api-hardening-deferred
 

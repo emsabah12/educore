@@ -362,6 +362,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/workspace/employments/{employmentId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate a PLANNED Employment episode
+         * @description Transitions Employment status PLANNED -> ACTIVE (HR-002 §9).
+         *     Rejected with 409 EMPLOYMENT_LIFECYCLE_CONFLICT if the
+         *     Employment is not currently PLANNED, or if the owning Employee
+         *     already has a different ACTIVE Employment (INV-HR-002: at most
+         *     one ACTIVE Employment per Employee).
+         */
+        post: operations["hrWorkspaceEmploymentActivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/workspace/employments/{employmentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a PLANNED Employment episode
+         * @description Transitions Employment status PLANNED -> CANCELLED (HR-002 §9).
+         *     Rejected with 409 EMPLOYMENT_LIFECYCLE_CONFLICT if the
+         *     Employment is not currently PLANNED.
+         */
+        post: operations["hrWorkspaceEmploymentCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/workspace/employments/{employmentId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an ACTIVE Employment episode
+         * @description Transitions Employment status ACTIVE -> ENDED (HR-002 §9.4) and
+         *     closes the Employment's open Placement and Position Assignment.
+         *     Guarded by its own hr.employments.end permission — sengaja
+         *     terpisah dari hr.employments.manage karena higher-impact
+         *     dibanding create/activate/cancel. Rejected with 409
+         *     EMPLOYMENT_LIFECYCLE_CONFLICT if the Employment is not
+         *     currently ACTIVE.
+         */
+        post: operations["hrWorkspaceEmploymentEnd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/tenant-roles": {
         parameters: {
             query?: never;
@@ -905,6 +977,69 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["WorkspaceEmployeeDetail"];
+        };
+        /**
+         * @description Raw Employment record (HR-002 §5.5) as returned by the lifecycle
+         *     transition endpoints — a different, richer shape than
+         *     WorkspaceEmployeeEmployment (which is a joined summary used only
+         *     by the read-only employee detail view).
+         */
+        EmploymentResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            employee_id: components["schemas"]["UuidV7"];
+            employment_type_id: string | null;
+            employment_classification_id: string | null;
+            /** @enum {string} */
+            status: "PLANNED" | "ACTIVE" | "ENDED" | "CANCELLED";
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        EmploymentTransitionSuccess: {
+            /** @constant */
+            status: "success";
+            message: string;
+            data: components["schemas"]["EmploymentResource"];
+        };
+        EndEmploymentRequest: {
+            /**
+             * Format: date
+             * @description Must not be before the Employment's start_date, and never in the future.
+             */
+            end_date: string;
+        };
+        EmployeeOutOfOrganizationalScopeError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE";
+            message: string;
+        };
+        EmploymentNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "EMPLOYMENT_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description E.g. activating an Employment that is not PLANNED, or ending one
+         *     that is not ACTIVE.
+         */
+        EmploymentLifecycleConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "EMPLOYMENT_LIFECYCLE_CONFLICT";
+            message: string;
         };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
@@ -2123,6 +2258,239 @@ export interface operations {
                 };
             };
             404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmploymentActivate: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The activated Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentTransitionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; the current organizational
+             *     assignment does not have hr.employments.manage permission;
+             *     or the Employment's owning Employee is outside the current
+             *     organizational workspace.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                };
+            };
+            /** @description Employment was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentNotFoundError"];
+                };
+            };
+            /** @description The Employment is not currently PLANNED, or another Employment is already ACTIVE for this Employee. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentLifecycleConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmploymentCancel: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cancelled Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentTransitionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; the current organizational
+             *     assignment does not have hr.employments.manage permission;
+             *     or the Employment's owning Employee is outside the current
+             *     organizational workspace.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                };
+            };
+            /** @description Employment was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentNotFoundError"];
+                };
+            };
+            /** @description The Employment is not currently PLANNED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentLifecycleConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmploymentEnd: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndEmploymentRequest"];
+            };
+        };
+        responses: {
+            /** @description The ended Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentTransitionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; the current organizational
+             *     assignment does not have hr.employments.end permission; or
+             *     the Employment's owning Employee is outside the current
+             *     organizational workspace.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                };
+            };
+            /** @description Employment was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentNotFoundError"];
+                };
+            };
+            /** @description The Employment is not currently ACTIVE. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentLifecycleConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };

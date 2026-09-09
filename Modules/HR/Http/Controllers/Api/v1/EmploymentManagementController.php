@@ -308,7 +308,19 @@ final class EmploymentManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => $auditDescription,
-            'data' => $employment,
+            'data' => [
+                'id' => (string) $employment->id,
+                'tenant_id' => (string) $employment->tenant_id,
+                'employee_id' => (string) $employment->employee_id,
+                'employment_type_id' => $employment->employment_type_id,
+                'employment_classification_id' => $employment->employment_classification_id,
+                'status' => $employment->status,
+                'start_date' => $employment->start_date?->format('Y-m-d'),
+                'end_date' => $employment->end_date?->format('Y-m-d'),
+                'cancelled_at' => $employment->cancelled_at?->toJSON(),
+                'created_at' => $employment->created_at?->toJSON(),
+                'updated_at' => $employment->updated_at?->toJSON(),
+            ],
         ]);
     }
 

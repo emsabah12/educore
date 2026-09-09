@@ -50,8 +50,7 @@ interface UseWorkspaceEmployeesQueryOptions {
 export function useWorkspaceEmployeesQuery({
     page = 1,
     perPage = 15,
-}: UseWorkspaceEmployeesQueryOptions = {}): UseQueryResult<
-    WorkspaceEmployeesPage,
+}: UseWorkspaceEmployeesQueryOptions = {}): UseQueryResult<WorkspaceEmployeesPage,
     BrowserApiFailure
 > {
     const apiClient =
@@ -74,8 +73,7 @@ export function useWorkspaceEmployeesQuery({
             ? workspaceState.context.membership.id
             : null;
 
-    return useQuery<
-        WorkspaceEmployeesPage,
+    return useQuery<WorkspaceEmployeesPage,
         BrowserApiFailure
     >({
         queryKey: [
@@ -165,8 +163,7 @@ export function useWorkspaceEmployeesQuery({
  */
 export function useWorkspaceEmployeeDetailQuery(
     employeeId: string | null,
-): UseQueryResult<
-    WorkspaceEmployeeDetail,
+): UseQueryResult<WorkspaceEmployeeDetail,
     BrowserApiFailure
 > {
     const apiClient =
@@ -189,8 +186,7 @@ export function useWorkspaceEmployeeDetailQuery(
             ? workspaceState.context.membership.id
             : null;
 
-    return useQuery<
-        WorkspaceEmployeeDetail,
+    return useQuery<WorkspaceEmployeeDetail,
         BrowserApiFailure
     >({
         queryKey: [
