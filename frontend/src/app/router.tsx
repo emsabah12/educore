@@ -34,6 +34,9 @@ import {
 import {
     hrRouteContributions,
 } from '@/modules/hr/routes';
+import {
+    settingsRouteContributions,
+} from '@/modules/settings/routes';
 import type {
     ProtectedRoutePolicy,
 } from '@/platform/routing';
@@ -283,6 +286,7 @@ export const appRoutes =
     createApplicationRoutes([
         ...academicRouteContributions,
         ...hrRouteContributions,
+        ...settingsRouteContributions,
     ]);
 
 export function createAppRouter() {

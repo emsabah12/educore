@@ -338,6 +338,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/tenant-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List custom Roles owned by the current tenant
+         * @description Supports BearerAuth and BrowserSessionAuth. Only returns Roles
+         *     where tenant_id matches the caller's tenant — never global Roles
+         *     and never another tenant's custom Roles. Returns ALL of the
+         *     tenant's custom Roles regardless of visibility_state (including
+         *     locked_hidden) — the presentation layer decides how to display
+         *     each state, the backend never silently drops data.
+         */
+        get: operations["tenantRoleIndex"];
+        put?: never;
+        /**
+         * Create a custom Role for the current tenant
+         * @description Requires the tenant's custom_roles Subscription feature to be
+         *     currently effective (via plan or an active/trial add-on) —
+         *     rejected with 403 CUSTOM_ROLE_FEATURE_NOT_AVAILABLE otherwise.
+         *     name is unique per tenant, not globally.
+         */
+        post: operations["tenantRoleStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/tenant-roles/assignable-permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List permissions the tenant may assign to a custom Role
+         * @description MVP scope: the full global permission catalog, not filtered by
+         *     the tenant's module entitlements. This scope decision lives in
+         *     exactly one place server-side (TenantRoleService::assignablePermissions())
+         *     and may narrow later without changing this contract's shape.
+         */
+        get: operations["tenantRoleAssignablePermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/tenant-roles/{roleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show a custom Role owned by the current tenant
+         * @description 404 (not the tenant's own Role never leaks a distinct error
+         *     shape) when roleId does not exist, belongs to another tenant, or
+         *     is a global Role.
+         */
+        get: operations["tenantRoleShow"];
+        /**
+         * Replace a custom Role's assigned permissions
+         * @description Rejected with 409 CUSTOM_ROLE_NOT_EDITABLE when the Role's
+         *     visibility_state is not active (the tenant's custom_roles
+         *     feature is currently locked_readonly or locked_hidden).
+         */
+        put: operations["tenantRoleUpdate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -768,6 +851,84 @@ export interface components {
             status: "success";
             data: components["schemas"]["WorkspaceEmployeeResource"][];
             meta: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
+         *     Custom Role sedang dalam masa tenggang pencabutan add-on — bisa
+         *     dilihat tapi tidak bisa diedit. `locked_hidden`: masa tenggang
+         *     berakhir (atau fitur hilang lewat downgrade paket tanpa masa
+         *     tenggang) — data tetap ada, tidak pernah dihapus.
+         * @enum {string}
+         */
+        TenantCustomRoleVisibilityState: "active" | "locked_readonly" | "locked_hidden";
+        TenantCustomRoleSummary: {
+            id: components["schemas"]["UuidV7"];
+            name: string;
+            display_name: string;
+            description: string | null;
+            permission_count: number;
+            visibility_state: components["schemas"]["TenantCustomRoleVisibilityState"];
+        };
+        TenantCustomRoleListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["TenantCustomRoleSummary"][];
+        };
+        TenantCustomRolePermission: {
+            id: components["schemas"]["UuidV7"];
+            name: string;
+            display_name: string;
+            module: string;
+        };
+        TenantCustomRoleDetail: {
+            id: components["schemas"]["UuidV7"];
+            name: string;
+            display_name: string;
+            description: string | null;
+            visibility_state: components["schemas"]["TenantCustomRoleVisibilityState"];
+            permissions: components["schemas"]["TenantCustomRolePermission"][];
+        };
+        TenantCustomRoleDetailSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["TenantCustomRoleDetail"];
+        };
+        StoreTenantRoleRequest: {
+            /**
+             * @description Unik per tenant (bukan global) — dua tenant boleh punya role
+             *     kustom bernama sama.
+             */
+            name: string;
+            display_name: string;
+            description?: string | null;
+        };
+        UpdateTenantRolePermissionsRequest: {
+            permission_ids?: components["schemas"]["UuidV7"][];
+        };
+        TenantCustomRoleAssignablePermission: {
+            id: components["schemas"]["UuidV7"];
+            name: string;
+            display_name: string;
+            module: string;
+        };
+        TenantCustomRoleAssignablePermissionListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["TenantCustomRoleAssignablePermission"][];
+        };
+        CustomRoleFeatureNotAvailableError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "CUSTOM_ROLE_FEATURE_NOT_AVAILABLE";
+            message: string;
+        };
+        CustomRoleNotEditableError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "CUSTOM_ROLE_NOT_EDITABLE";
+            message: string;
         };
         StoreEmployeeRequest: {
             /** @description Trimmed before validation. */
@@ -1839,6 +2000,300 @@ export interface operations {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantRoleIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's custom Role catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantCustomRoleListSuccess"];
+                };
+            };
+            /** @description Missing or invalid authentication. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"];
+                };
+            };
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; or the current
+             *     membership does not have tenant.custom-roles.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantRoleStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreTenantRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created custom Role. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantCustomRoleDetailSuccess"];
+                };
+            };
+            /** @description Missing or invalid authentication. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"];
+                };
+            };
+            /**
+             * @description Authentication or Browser Session Membership context denied,
+             *     authorization denied, or the custom_roles feature is not
+             *     currently effective for this tenant.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["CustomRoleFeatureNotAvailableError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantRoleAssignablePermissions: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The assignable permission catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantCustomRoleAssignablePermissionListSuccess"];
+                };
+            };
+            /** @description Missing or invalid authentication. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"];
+                };
+            };
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; or the current
+             *     membership does not have tenant.custom-roles.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantRoleShow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                roleId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The custom Role, including its assigned permissions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantCustomRoleDetailSuccess"];
+                };
+            };
+            /** @description Missing or invalid authentication. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"];
+                };
+            };
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; or the current
+             *     membership does not have tenant.custom-roles.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantRoleUpdate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                roleId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantRolePermissionsRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated custom Role, including its new permission set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantCustomRoleDetailSuccess"];
+                };
+            };
+            /** @description Missing or invalid authentication. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationRequiredError"];
+                };
+            };
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; or the current
+             *     membership does not have tenant.custom-roles.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            /** @description The Role is currently not editable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRoleNotEditableError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };

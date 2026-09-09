@@ -678,6 +678,285 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/core/tenant-roles:
+    get:
+      operationId: tenantRoleIndex
+      x-laravel-route-name: api.v1.core.tenant-roles.index
+      tags:
+        - Core
+      summary: List custom Roles owned by the current tenant
+      description: |
+        Supports BearerAuth and BrowserSessionAuth. Only returns Roles
+        where tenant_id matches the caller's tenant — never global Roles
+        and never another tenant's custom Roles. Returns ALL of the
+        tenant's custom Roles regardless of visibility_state (including
+        locked_hidden) — the presentation layer decides how to display
+        each state, the backend never silently drops data.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The tenant's custom Role catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCustomRoleListSuccess"
+
+        "401":
+          description: Missing or invalid authentication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRequiredError"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; or the current
+            membership does not have tenant.custom-roles.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: tenantRoleStore
+      x-laravel-route-name: api.v1.core.tenant-roles.store
+      tags:
+        - Core
+      summary: Create a custom Role for the current tenant
+      description: |
+        Requires the tenant's custom_roles Subscription feature to be
+        currently effective (via plan or an active/trial add-on) —
+        rejected with 403 CUSTOM_ROLE_FEATURE_NOT_AVAILABLE otherwise.
+        name is unique per tenant, not globally.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreTenantRoleRequest"
+      responses:
+        "201":
+          description: The newly created custom Role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCustomRoleDetailSuccess"
+
+        "401":
+          description: Missing or invalid authentication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRequiredError"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context denied,
+            authorization denied, or the custom_roles feature is not
+            currently effective for this tenant.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/CustomRoleFeatureNotAvailableError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/tenant-roles/assignable-permissions:
+    get:
+      operationId: tenantRoleAssignablePermissions
+      x-laravel-route-name: api.v1.core.tenant-roles.assignable-permissions
+      tags:
+        - Core
+      summary: List permissions the tenant may assign to a custom Role
+      description: |
+        MVP scope: the full global permission catalog, not filtered by
+        the tenant's module entitlements. This scope decision lives in
+        exactly one place server-side (TenantRoleService::assignablePermissions())
+        and may narrow later without changing this contract's shape.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The assignable permission catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCustomRoleAssignablePermissionListSuccess"
+
+        "401":
+          description: Missing or invalid authentication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRequiredError"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; or the current
+            membership does not have tenant.custom-roles.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/tenant-roles/{roleId}:
+    get:
+      operationId: tenantRoleShow
+      x-laravel-route-name: api.v1.core.tenant-roles.show
+      tags:
+        - Core
+      summary: Show a custom Role owned by the current tenant
+      description: |
+        404 (not the tenant's own Role never leaks a distinct error
+        shape) when roleId does not exist, belongs to another tenant, or
+        is a global Role.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The custom Role, including its assigned permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCustomRoleDetailSuccess"
+
+        "401":
+          description: Missing or invalid authentication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRequiredError"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; or the current
+            membership does not have tenant.custom-roles.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      operationId: tenantRoleUpdate
+      x-laravel-route-name: api.v1.core.tenant-roles.update
+      tags:
+        - Core
+      summary: Replace a custom Role's assigned permissions
+      description: |
+        Rejected with 409 CUSTOM_ROLE_NOT_EDITABLE when the Role's
+        visibility_state is not active (the tenant's custom_roles
+        feature is currently locked_readonly or locked_hidden).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantRolePermissionsRequest"
+      responses:
+        "200":
+          description: The updated custom Role, including its new permission set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCustomRoleDetailSuccess"
+
+        "401":
+          description: Missing or invalid authentication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRequiredError"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; or the current
+            membership does not have tenant.custom-roles.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "409":
+          description: The Role is currently not editable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomRoleNotEditableError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -1722,6 +2001,219 @@ components:
             $ref: "#/components/schemas/WorkspaceEmployeeResource"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
+
+    TenantCustomRoleVisibilityState:
+      type: string
+      description: |
+        `active`: role kustom efektif normal. `locked_readonly`: fitur
+        Custom Role sedang dalam masa tenggang pencabutan add-on — bisa
+        dilihat tapi tidak bisa diedit. `locked_hidden`: masa tenggang
+        berakhir (atau fitur hilang lewat downgrade paket tanpa masa
+        tenggang) — data tetap ada, tidak pernah dihapus.
+      enum:
+        - active
+        - locked_readonly
+        - locked_hidden
+
+    TenantCustomRoleSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - display_name
+        - description
+        - permission_count
+        - visibility_state
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        permission_count:
+          type: integer
+          minimum: 0
+        visibility_state:
+          $ref: "#/components/schemas/TenantCustomRoleVisibilityState"
+
+    TenantCustomRoleListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantCustomRoleSummary"
+
+    TenantCustomRolePermission:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - display_name
+        - module
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        display_name:
+          type: string
+        module:
+          type: string
+
+    TenantCustomRoleDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - display_name
+        - description
+        - visibility_state
+        - permissions
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        visibility_state:
+          $ref: "#/components/schemas/TenantCustomRoleVisibilityState"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantCustomRolePermission"
+
+    TenantCustomRoleDetailSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/TenantCustomRoleDetail"
+
+    StoreTenantRoleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - display_name
+      properties:
+        name:
+          type: string
+          maxLength: 150
+          pattern: "^[a-z0-9](?:[a-z0-9._-]{0,148}[a-z0-9])?$"
+          description: |
+            Unik per tenant (bukan global) — dua tenant boleh punya role
+            kustom bernama sama.
+        display_name:
+          type: string
+          maxLength: 255
+        description:
+          type:
+            - string
+            - "null"
+          maxLength: 255
+
+    UpdateTenantRolePermissionsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        permission_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/UuidV7"
+
+    TenantCustomRoleAssignablePermission:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - display_name
+        - module
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        display_name:
+          type: string
+        module:
+          type: string
+
+    TenantCustomRoleAssignablePermissionListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantCustomRoleAssignablePermission"
+
+    CustomRoleFeatureNotAvailableError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: CUSTOM_ROLE_FEATURE_NOT_AVAILABLE
+        message:
+          type: string
+
+    CustomRoleNotEditableError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: CUSTOM_ROLE_NOT_EDITABLE
+        message:
+          type: string
 
     StoreEmployeeRequest:
       type: object
@@ -3011,30 +3503,5 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/core/tenants/with-new-admin
     route_name: api.v1.core.tenants.store-with-new-admin
-    owner: Core
-    reason: domain-api-hardening-deferred
-  - method: GET
-    path: /api/v1/core/tenant-roles
-    route_name: api.v1.core.tenant-roles.index
-    owner: Core
-    reason: domain-api-hardening-deferred
-  - method: POST
-    path: /api/v1/core/tenant-roles
-    route_name: api.v1.core.tenant-roles.store
-    owner: Core
-    reason: domain-api-hardening-deferred
-  - method: GET
-    path: /api/v1/core/tenant-roles/assignable-permissions
-    route_name: api.v1.core.tenant-roles.assignable-permissions
-    owner: Core
-    reason: domain-api-hardening-deferred
-  - method: GET
-    path: /api/v1/core/tenant-roles/{roleId}
-    route_name: api.v1.core.tenant-roles.show
-    owner: Core
-    reason: domain-api-hardening-deferred
-  - method: PUT
-    path: /api/v1/core/tenant-roles/{roleId}
-    route_name: api.v1.core.tenant-roles.update
     owner: Core
     reason: domain-api-hardening-deferred
