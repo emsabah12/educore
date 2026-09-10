@@ -30,6 +30,39 @@ export const settingsTenantRolesRoutePolicy =
         },
     });
 
+/*
+ * Canonical Kelola Organisasi route policy.
+ *
+ * contextRequirement: 'tenant' — Organisasi itu sendiri adalah
+ * prasyarat untuk modul organizational-scoped lain (HR, dst).
+ * Endpoint pembuatannya SENGAJA tidak boleh mensyaratkan
+ * Workspace organisasi sudah dipilih terlebih dahulu (lingkaran
+ * setan) — lihat OrganizationManagementController di backend.
+ *
+ * organization.manage adalah permission RBAC biasa, BUKAN
+ * Subscription feature — tidak ada requiredFeature terkait di
+ * navigation-definition.ts untuk destinasi ini.
+ */
+export const settingsOrganizationsRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'settings.organizations.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'organization.manage',
+        },
+    });
+
 export const settingsRouteContributions = [
     {
         routeId:
@@ -53,6 +86,32 @@ export const settingsRouteContributions = [
                 return {
                     Component:
                         TenantRolesPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'settings.organizations.index',
+
+        path:
+            'settings/organizations',
+
+        accessPolicy:
+            settingsOrganizationsRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    OrganizationsPage,
+                } =
+                    await import(
+                        '@/modules/settings/organizations/OrganizationsPage'
+                    );
+
+                return {
+                    Component:
+                        OrganizationsPage,
                 };
             },
     },

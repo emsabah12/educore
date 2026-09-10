@@ -2,6 +2,7 @@ import {
     hrWorkforceRoutePolicy,
 } from '@/modules/hr/routes';
 import {
+    settingsOrganizationsRoutePolicy,
     settingsTenantRolesRoutePolicy,
 } from '@/modules/settings/routes';
 import {
@@ -51,6 +52,9 @@ const applicationRouteAccessPolicies =
 
         'settings.tenant-roles.index':
             settingsTenantRolesRoutePolicy,
+
+        'settings.organizations.index':
+            settingsOrganizationsRoutePolicy,
     }) satisfies Readonly<
         Record<
             string,

@@ -61,6 +61,19 @@ describe(
                     requiredFeature:
                         'custom_roles',
                 },
+                {
+                    id:
+                        'settings.organizations',
+
+                    routeId:
+                        'settings.organizations.index',
+
+                    label:
+                        'Organisasi',
+
+                    destination:
+                        '/settings/organizations',
+                },
             ]);
         });
 

@@ -177,4 +177,24 @@ export const applicationNavigationCatalog =
             requiredFeature:
                 'custom_roles',
         }),
+
+        /*
+         * organization.manage adalah permission RBAC biasa,
+         * bukan Subscription feature — SENGAJA tidak diberi
+         * requiredFeature (beda dengan Kepegawaian/Role Kustom
+         * di atas).
+         */
+        defineApplicationNavigation({
+            id:
+                'settings.organizations',
+
+            routeId:
+                'settings.organizations.index',
+
+            label:
+                'Organisasi',
+
+            destination:
+                '/settings/organizations',
+        }),
     ]);

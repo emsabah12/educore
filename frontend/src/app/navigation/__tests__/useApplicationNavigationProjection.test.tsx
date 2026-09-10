@@ -442,6 +442,38 @@ describe(
                     reason:
                         'authority-pending',
                 },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.organizations',
+
+                        routeId:
+                            'settings.organizations.index',
+
+                        label:
+                            'Organisasi',
+
+                        destination:
+                            '/settings/organizations',
+                    },
+
+                    /*
+                     * settings.organizations.index's tenant-scoped
+                     * context requirement IS satisfied by this
+                     * fixture (same as settings.tenant-roles.index
+                     * above), but its Capability projection is
+                     * still unresolved, so the underlying
+                     * organization.manage permission check has not
+                     * settled yet — authority-pending, independent
+                     * of feature availability (this destination has
+                     * no requiredFeature at all).
+                     */
+                    reason:
+                        'authority-pending',
+                },
             ]);
         });
 
@@ -528,6 +560,27 @@ describe(
 
                         requiredFeature:
                             'custom_roles',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.organizations',
+
+                        routeId:
+                            'settings.organizations.index',
+
+                        label:
+                            'Organisasi',
+
+                        destination:
+                            '/settings/organizations',
                     },
 
                     reason:

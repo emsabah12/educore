@@ -593,6 +593,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's Organizations
+         * @description TENANT-level (not organizational-scoped) — an Organization is
+         *     the structure being managed here, so it cannot itself be a
+         *     prerequisite for reaching this endpoint. Requires
+         *     organization.manage permission.
+         */
+        get: operations["coreOrganizationIndex"];
+        put?: never;
+        /**
+         * Create a new Organization for the current tenant
+         * @description `code`, when provided, must be unique within the tenant (not
+         *     globally). Requires organization.manage permission.
+         */
+        post: operations["coreOrganizationStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -1177,6 +1205,29 @@ export interface components {
                  */
                 feature_codes: string[];
             };
+        };
+        OrganizationResource: {
+            id: components["schemas"]["UuidV7"];
+            name: string;
+            code: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OrganizationListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationResource"][];
+        };
+        OrganizationDetailSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationResource"];
+        };
+        StoreOrganizationRequest: {
+            name: string;
+            /** @description Unik per tenant (bukan global). Boleh dikosongkan. */
+            code?: string | null;
         };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
@@ -3095,6 +3146,99 @@ export interface operations {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's Organizations, ordered by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created Organization. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };

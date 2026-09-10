@@ -412,6 +412,27 @@ describe(
                     reason:
                         'authority-pending',
                 },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.organizations',
+
+                        routeId:
+                            'settings.organizations.index',
+
+                        label:
+                            'Organisasi',
+
+                        destination:
+                            '/settings/organizations',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
             ]);
         });
 
