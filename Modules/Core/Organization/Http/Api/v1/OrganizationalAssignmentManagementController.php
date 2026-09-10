@@ -7,18 +7,23 @@ namespace Modules\Core\Organization\Http\Api\v1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Core\Http\Responses\ApiErrorResponse;
+use Modules\Core\Organization\Contracts\OrganizationalAssignmentServiceInterface;
+use Modules\Core\Organization\Exceptions\OrganizationalAssignmentException;
+use Modules\Core\Organization\Http\Requests\StoreOrganizationalAssignmentRequest;
 use Modules\Core\Organization\Models\Organization;
 use Modules\Core\Organization\Models\OrganizationalAssignment;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Read side of "assign member" — listing WHO is currently placed
- * into one Organization (and, optionally, one exact Unit inside
- * it). The write side (create/deactivate an assignment) is a
- * separate operation layered on top of the existing, already-tested
- * OrganizationalAssignmentService (see ADR-018 §2.3 — Membership
+ * "Assign member" management surface — WHO is currently placed into
+ * one Organization (and, optionally, one exact Unit inside it), plus
+ * the ability to place/unplace them. Write operations
+ * (store/deactivate) are a thin HTTP layer over the existing,
+ * already-tested OrganizationalAssignmentService — this controller
+ * introduces NO new domain logic (see ADR-018 §2.3 — Membership
  * remains Person × Tenant; OrganizationalAssignment models
  * OPERATIONAL PLACEMENT separately, never a canonical identity
  * relation).
@@ -31,6 +36,11 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class OrganizationalAssignmentManagementController extends Controller
 {
+    public function __construct(
+        private readonly OrganizationalAssignmentServiceInterface $assignmentService,
+    ) {
+    }
+
     public function index(
         Request $request,
         string $organization,
@@ -74,6 +84,117 @@ final class OrganizationalAssignmentManagementController extends Controller
                     $assignment,
                 ),
             ),
+        ]);
+    }
+
+    public function store(
+        StoreOrganizationalAssignmentRequest $request,
+        string $organization,
+    ): JsonResponse {
+        $tenantId = $this->currentTenantId($request);
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $organizationModel = $this->requireOrganization(
+            $organization,
+            $tenantId,
+        );
+
+        if ($organizationModel === null) {
+            return $this->organizationNotFoundResponse();
+        }
+
+        $membershipId = $request->string('membership_id')->toString();
+
+        $organizationUnitId = $request->input('organization_unit_id');
+        $organizationUnitId = is_string($organizationUnitId)
+            && trim($organizationUnitId) !== ''
+                ? trim($organizationUnitId)
+                : null;
+
+        try {
+            $assignment = $organizationUnitId === null
+                ? $this->assignmentService->assignToOrganization(
+                    $membershipId,
+                    $organizationModel->id,
+                )
+                : $this->assignmentService->assignToUnit(
+                    $membershipId,
+                    $organizationModel->id,
+                    $organizationUnitId,
+                );
+        } catch (OrganizationalAssignmentException $exception) {
+            return $this->assignmentRejectedResponse($exception);
+        }
+
+        $assignment->loadMissing(['membership.person', 'organizationUnit']);
+
+        return response()->json(
+            [
+                'status' => 'success',
+                'data' => $this->summary($assignment),
+            ],
+            Response::HTTP_CREATED,
+        );
+    }
+
+    public function deactivate(
+        Request $request,
+        string $organization,
+        string $assignment,
+    ): JsonResponse {
+        $tenantId = $this->currentTenantId($request);
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $organizationModel = $this->requireOrganization(
+            $organization,
+            $tenantId,
+        );
+
+        if ($organizationModel === null) {
+            return $this->organizationNotFoundResponse();
+        }
+
+        $assignmentId = trim($assignment);
+
+        if (! Str::isUuid($assignmentId)) {
+            return $this->assignmentNotFoundResponse();
+        }
+
+        /*
+         * Scoped to (tenant, organization) BEFORE calling the
+         * service — an assignment id that is real but belongs to a
+         * different Organization than the URL states must be
+         * indistinguishable from one that does not exist at all.
+         */
+        $existingAssignment = OrganizationalAssignment::query()
+            ->whereKey($assignmentId)
+            ->where('tenant_id', $tenantId)
+            ->where('organization_id', $organizationModel->id)
+            ->first();
+
+        if ($existingAssignment === null) {
+            return $this->assignmentNotFoundResponse();
+        }
+
+        try {
+            $deactivated = $this->assignmentService->deactivate(
+                $assignmentId,
+            );
+        } catch (OrganizationalAssignmentException $exception) {
+            return $this->assignmentRejectedResponse($exception);
+        }
+
+        $deactivated->loadMissing(['membership.person', 'organizationUnit']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->summary($deactivated),
         ]);
     }
 
@@ -126,6 +247,39 @@ final class OrganizationalAssignmentManagementController extends Controller
         return ApiErrorResponse::make(
             code: 'RESOURCE_NOT_FOUND',
             message: 'The requested organization was not found.',
+            status: Response::HTTP_NOT_FOUND,
+        );
+    }
+
+    private function assignmentNotFoundResponse(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'The requested organizational assignment was not found.',
+            status: Response::HTTP_NOT_FOUND,
+        );
+    }
+
+    /**
+     * Mirrors AssignMembershipRoleController's pattern: the real
+     * RuntimeException message stays internal (useful for
+     * observability) but is never surfaced as public API contract.
+     * FormRequest validation is the primary rejection path (422);
+     * this only catches a race between validation and execution.
+     */
+    private function assignmentRejectedResponse(
+        OrganizationalAssignmentException $exception,
+    ): JsonResponse {
+        Log::warning(
+            'Organizational assignment operation rejected.',
+            [
+                'reason' => $exception->getMessage(),
+            ],
+        );
+
+        return ApiErrorResponse::make(
+            code: 'ORGANIZATIONAL_ASSIGNMENT_REJECTED',
+            message: 'Requested membership or organization unit is not available.',
             status: Response::HTTP_NOT_FOUND,
         );
     }

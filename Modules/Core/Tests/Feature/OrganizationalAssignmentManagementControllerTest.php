@@ -323,6 +323,410 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
         $response->assertJsonPath('data.1.membership_name', 'Assignment Lebih Lama');
     }
 
+    public function test_store_creates_organization_level_assignment_when_unit_omitted(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_CREATED);
+        $response->assertJsonPath('data.membership_id', $membershipId);
+        $response->assertJsonPath('data.organization_unit_id', null);
+        $response->assertJsonPath('data.status', 'ACTIVE');
+
+        $this->assertDatabaseHas('organizational_assignments', [
+            'tenant_id' => $this->tenantId,
+            'membership_id' => $membershipId,
+            'organization_id' => $this->organizationId,
+            'organization_unit_id' => null,
+            'status' => 'ACTIVE',
+        ]);
+    }
+
+    public function test_store_creates_unit_level_assignment(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Siti Aminah',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                    'organization_unit_id' => $this->unitId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_CREATED);
+        $response->assertJsonPath('data.organization_unit_id', $this->unitId);
+        $response->assertJsonPath('data.organization_unit_name', 'Fakultas Teknik');
+    }
+
+    public function test_store_is_idempotent_for_organization_level_assignment(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $payload = [
+            'membership_id' => $membershipId,
+        ];
+
+        $firstResponse = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                $payload,
+            );
+
+        $secondResponse = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                $payload,
+            );
+
+        $secondResponse->assertStatus(Response::HTTP_CREATED);
+        $this->assertSame(
+            $firstResponse->json('data.id'),
+            $secondResponse->json('data.id'),
+        );
+
+        $this->assertDatabaseCount('organizational_assignments', 1);
+    }
+
+    public function test_store_reactivates_previously_deactivated_assignment(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+        $assignmentId = $this->createAssignmentFixture(
+            $this->tenantId,
+            $membershipId,
+            $this->organizationId,
+            null,
+        );
+        OrganizationalAssignment::query()
+            ->whereKey($assignmentId)
+            ->update(['status' => 'INACTIVE']);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_CREATED);
+        $response->assertJsonPath('data.id', $assignmentId);
+        $response->assertJsonPath('data.status', 'ACTIVE');
+    }
+
+    public function test_store_rejects_membership_from_another_tenant(): void
+    {
+        $otherTenantId = UuidV7::generate();
+        $this->createTenantFixture($otherTenantId);
+        $foreignMembershipId = $this->createMembershipFixture(
+            $otherTenantId,
+            'Milik Tenant Lain',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $foreignMembershipId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonValidationErrors(['membership_id']);
+    }
+
+    public function test_store_rejects_unit_belonging_to_another_organization(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $otherOrganizationId = $this->createOrganizationFixture(
+            $this->tenantId,
+            'Kampus Cabang',
+        );
+        $foreignUnitId = $this->createUnitFixture(
+            $this->tenantId,
+            $otherOrganizationId,
+            'Unit Milik Organization Lain',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                    'organization_unit_id' => $foreignUnitId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonValidationErrors(['organization_unit_id']);
+    }
+
+    public function test_store_returns_404_when_organization_belongs_to_another_tenant(): void
+    {
+        $otherTenantId = UuidV7::generate();
+        $this->createTenantFixture($otherTenantId);
+        $foreignOrganizationId = $this->createOrganizationFixture(
+            $otherTenantId,
+            'Milik Tenant Lain',
+        );
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $foreignOrganizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
+    }
+
+    public function test_store_is_forbidden_without_organization_assignments_manage_permission(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.store',
+                    ['organization' => $this->organizationId],
+                    false,
+                ),
+                [
+                    'membership_id' => $membershipId,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
+    public function test_deactivate_transitions_active_assignment_to_inactive(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+        $assignmentId = $this->createAssignmentFixture(
+            $this->tenantId,
+            $membershipId,
+            $this->organizationId,
+            null,
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.deactivate',
+                    [
+                        'organization' => $this->organizationId,
+                        'assignment' => $assignmentId,
+                    ],
+                    false,
+                ),
+            );
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'INACTIVE');
+
+        $this->assertDatabaseHas('organizational_assignments', [
+            'id' => $assignmentId,
+            'status' => 'INACTIVE',
+        ]);
+    }
+
+    public function test_deactivate_is_idempotent(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+        $assignmentId = $this->createAssignmentFixture(
+            $this->tenantId,
+            $membershipId,
+            $this->organizationId,
+            null,
+        );
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.deactivate',
+                    [
+                        'organization' => $this->organizationId,
+                        'assignment' => $assignmentId,
+                    ],
+                    false,
+                ),
+            )
+            ->assertOk();
+
+        $secondResponse = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.deactivate',
+                    [
+                        'organization' => $this->organizationId,
+                        'assignment' => $assignmentId,
+                    ],
+                    false,
+                ),
+            );
+
+        $secondResponse->assertOk();
+        $secondResponse->assertJsonPath('data.status', 'INACTIVE');
+    }
+
+    public function test_deactivate_returns_404_for_assignment_belonging_to_another_organization(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $otherOrganizationId = $this->createOrganizationFixture(
+            $this->tenantId,
+            'Kampus Cabang',
+        );
+        $assignmentId = $this->createAssignmentFixture(
+            $this->tenantId,
+            $membershipId,
+            $otherOrganizationId,
+            null,
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.deactivate',
+                    [
+                        'organization' => $this->organizationId,
+                        'assignment' => $assignmentId,
+                    ],
+                    false,
+                ),
+            );
+
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
+
+        $this->assertDatabaseHas('organizational_assignments', [
+            'id' => $assignmentId,
+            'status' => 'ACTIVE',
+        ]);
+    }
+
+    public function test_deactivate_is_forbidden_without_organization_assignments_manage_permission(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+        $assignmentId = $this->createAssignmentFixture(
+            $this->tenantId,
+            $membershipId,
+            $this->organizationId,
+            null,
+        );
+
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.core.organizations.assignments.deactivate',
+                    [
+                        'organization' => $this->organizationId,
+                        'assignment' => $assignmentId,
+                    ],
+                    false,
+                ),
+            );
+
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
     private function issueToken(): string
     {
         return app(TokenManagerInterface::class)

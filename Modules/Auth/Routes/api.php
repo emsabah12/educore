@@ -250,7 +250,7 @@ Route::middleware([
 });
 
 /*
- * Read side of "assign member" — lihat catatan arsitektur di
+ * "Assign member" management surface — lihat catatan arsitektur di
  * OrganizationalAssignmentManagementController. Permission terpisah
  * dari organization.units.manage: menempatkan orang ke suatu tempat
  * adalah tindakan berbeda dari sekadar mendefinisikan strukturnya.
@@ -264,6 +264,16 @@ Route::middleware([
         '/',
         [OrganizationalAssignmentManagementController::class, 'index'],
     )->name('api.v1.core.organizations.assignments.index');
+
+    Route::post(
+        '/',
+        [OrganizationalAssignmentManagementController::class, 'store'],
+    )->name('api.v1.core.organizations.assignments.store');
+
+    Route::post(
+        '/{assignment}/deactivate',
+        [OrganizationalAssignmentManagementController::class, 'deactivate'],
+    )->name('api.v1.core.organizations.assignments.deactivate');
 });
 
 Route::middleware([
