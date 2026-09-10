@@ -341,6 +341,9 @@ describe(
                         status:
                             'unresolved',
                     },
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -360,6 +363,54 @@ describe(
                         destination:
                             '/',
                     },
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.workforce',
+
+                        routeId:
+                            'hr.workforce.index',
+
+                        label:
+                            'Kepegawaian',
+
+                        destination:
+                            '/hr/workforce',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'context-required',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.tenant-roles',
+
+                        routeId:
+                            'settings.tenant-roles.index',
+
+                        label:
+                            'Role Kustom',
+
+                        destination:
+                            '/settings/roles',
+
+                        requiredFeature:
+                            'custom_roles',
+                    },
+
+                    reason:
+                        'authority-pending',
                 },
             ]);
         });
@@ -387,6 +438,9 @@ describe(
                         readyTenantCapability([
                             studentsView,
                         ]),
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -428,6 +482,9 @@ describe(
                         readyTenantCapability(
                             [],
                         ),
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -469,6 +526,9 @@ describe(
                         readyTenantCapability([
                             studentsView,
                         ]),
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -507,6 +567,9 @@ describe(
                         readyTenantCapability(
                             [],
                         ),
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -548,6 +611,9 @@ describe(
                         status:
                             'unresolved',
                     },
+
+                    effectiveFeatureCodes:
+                        undefined,
                 }),
             ).toEqual([
                 {
@@ -579,6 +645,9 @@ describe(
                         status:
                             'unresolved',
                     },
+
+                    effectiveFeatureCodes:
+                        undefined,
                 });
 
             expect(

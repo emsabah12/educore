@@ -89,15 +89,15 @@ final class OpenApiRouteCoverageTest extends TestCase
         $deferred = $this->deferredOperations();
 
         $this->assertCount(
-            119,
+            120,
             $actual,
             'Expected the current public /api/v1 operation inventory.',
         );
 
         $this->assertCount(
-            34,
+            35,
             $documented,
-            'Foundation OpenAPI must contain exactly the 34 locked foundation, Browser BFF, HR, and Core operations.',
+            'Foundation OpenAPI must contain exactly the 35 locked foundation, Browser BFF, HR, and Core operations.',
         );
 
         $this->assertCount(
@@ -249,7 +249,7 @@ final class OpenApiRouteCoverageTest extends TestCase
         }
 
         $this->assertCount(
-            34,
+            35,
             $operationIds,
         );
     }

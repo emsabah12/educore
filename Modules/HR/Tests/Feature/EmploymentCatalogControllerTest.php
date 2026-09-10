@@ -14,12 +14,14 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\GrantsAuthorizationRole;
+use Tests\Support\GrantsSubscriptionFeature;
 use Tests\TestCase;
 
 final class EmploymentCatalogControllerTest extends TestCase
 {
     use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use GrantsSubscriptionFeature;
 
     private string $tenantId;
     private string $operatorUserId;
@@ -37,6 +39,7 @@ final class EmploymentCatalogControllerTest extends TestCase
         $this->operatorMembershipId = UuidV7::generate();
 
         $this->createTenantFixture();
+        $this->grantTenantFeature($this->tenantId, 'hr_module');
         $this->createOperatorFixture();
 
         $this->grantRole(

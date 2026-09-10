@@ -12,7 +12,7 @@ import {
 describe(
     'Application navigation definition',
     () => {
-        it('defines the current registered protected root destination without inventing additional module navigation', () => {
+        it('defines the current registered protected navigation destinations', () => {
             expect(
                 applicationNavigationCatalog,
             ).toEqual([
@@ -28,6 +28,38 @@ describe(
 
                     destination:
                         '/',
+                },
+                {
+                    id:
+                        'hr.workforce',
+
+                    routeId:
+                        'hr.workforce.index',
+
+                    label:
+                        'Kepegawaian',
+
+                    destination:
+                        '/hr/workforce',
+
+                    requiredFeature:
+                        'hr_module',
+                },
+                {
+                    id:
+                        'settings.tenant-roles',
+
+                    routeId:
+                        'settings.tenant-roles.index',
+
+                    label:
+                        'Role Kustom',
+
+                    destination:
+                        '/settings/roles',
+
+                    requiredFeature:
+                        'custom_roles',
                 },
             ]);
         });

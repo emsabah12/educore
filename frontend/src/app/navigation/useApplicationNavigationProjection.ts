@@ -12,6 +12,9 @@ import {
     useMembershipContextState,
 } from '@/app/membership/MembershipContextProvider';
 import {
+    useTenantEffectiveFeaturesQuery,
+} from '@/app/navigation/api/use-tenant-effective-features-query';
+import {
     projectApplicationNavigation,
     type ApplicationNavigationProjection,
 } from '@/app/navigation/navigation-projection';
@@ -34,6 +37,14 @@ export function useApplicationNavigationProjection():
         useCapabilityState();
 
     /*
+     * `.data` stays `undefined` while pending/erroring — the
+     * projection treats that as "no features available"
+     * (fail closed), never as "all features available".
+     */
+    const effectiveFeatureCodes =
+        useTenantEffectiveFeaturesQuery().data;
+
+    /*
      * Runtime Providers own all lifecycle orchestration.
      *
      * This hook only adapts already-published canonical
@@ -49,12 +60,14 @@ export function useApplicationNavigationProjection():
                 membership,
                 workspace,
                 capability,
+                effectiveFeatureCodes,
             }),
         [
             authentication,
             membership,
             workspace,
             capability,
+            effectiveFeatureCodes,
         ],
     );
 }

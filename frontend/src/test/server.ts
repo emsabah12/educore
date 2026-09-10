@@ -38,8 +38,32 @@ const defaultEmploymentTypesList =
             ),
     );
 
+/*
+ * useApplicationNavigationProjection calls
+ * useTenantEffectiveFeaturesQuery on every render of the
+ * authenticated shell (via ApplicationNavigation), so any
+ * full-integration test that reaches that shell needs this
+ * endpoint mocked. Defaults to no features — a test that needs
+ * a feature-gated nav entry visible overrides this with
+ * apiMockServer.use(...).
+ */
+const defaultTenantEffectiveFeatures =
+    http.get(
+        /\/api\/v1\/core\/tenant-subscription\/effective-features$/,
+        () =>
+            HttpResponse.json(
+                {
+                    status: 'success',
+                    data: {
+                        feature_codes: [],
+                    },
+                },
+            ),
+    );
+
 export const apiMockServer =
     setupServer(
         defaultBrowserSessionBootstrap,
         defaultEmploymentTypesList,
+        defaultTenantEffectiveFeatures,
     );

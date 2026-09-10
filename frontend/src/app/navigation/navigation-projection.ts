@@ -32,7 +32,8 @@ export type HiddenApplicationNavigationReason =
     | 'membership-empty'
     | 'authority-unavailable'
     | 'context-required'
-    | 'permission-denied';
+    | 'permission-denied'
+    | 'feature-unavailable';
 
 export interface VisibleApplicationNavigationProjection {
     readonly status:
@@ -75,6 +76,23 @@ export interface NavigationAuthoritySnapshot {
 
     readonly capability:
         CapabilityState;
+
+    /*
+     * Tenant-wide Subscription feature codes (see
+     * TenantSubscriptionService::effectiveFeatureCodes on the
+     * backend), NOT an RBAC authority snapshot — "does the
+     * tenant's plan/add-ons include this module at all" is a
+     * different question from "can this Membership use it",
+     * which `capability` above already answers. Bundled here
+     * purely for threading convenience.
+     *
+     * `undefined` means the features query has not resolved
+     * yet — callers must treat that as "no features
+     * available" (fail closed), never as "all features
+     * available".
+     */
+    readonly effectiveFeatureCodes:
+        readonly string[] | undefined;
 }
 
 export interface NavigationProjectionInput
@@ -88,8 +106,7 @@ export interface NavigationProjectionInput
 
 function hiddenReasonFromDecision(
     decision:
-        Exclude<
-            ProtectedRouteAccessDecision,
+        Exclude<ProtectedRouteAccessDecision,
             {
                 readonly status:
                     'allowed';
@@ -133,6 +150,7 @@ export function projectNavigationDefinitions(
         membership,
         workspace,
         capability,
+        effectiveFeatureCodes,
     } = input;
 
     const projections =
@@ -183,6 +201,26 @@ export function projectNavigationDefinitions(
                     decision.status
                         === 'allowed'
                 ) {
+                    if (
+                        navigation.requiredFeature !== undefined
+                        && ! (
+                            effectiveFeatureCodes
+                            ?? []
+                        ).includes(
+                            navigation.requiredFeature,
+                        )
+                    ) {
+                        return Object.freeze({
+                            status:
+                                'hidden',
+
+                            navigation,
+
+                            reason:
+                                'feature-unavailable' as const,
+                        });
+                    }
+
                     return Object.freeze({
                         status:
                             'visible',
@@ -232,5 +270,8 @@ export function projectApplicationNavigation(
 
         capability:
             authority.capability,
+
+        effectiveFeatureCodes:
+            authority.effectiveFeatureCodes,
     });
 }

@@ -673,6 +673,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
 
@@ -725,6 +726,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
 
@@ -775,6 +777,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
 
         "500":
@@ -834,6 +837,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
                   - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
@@ -908,6 +912,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
                   - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
@@ -975,6 +980,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
                   - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
@@ -1052,6 +1058,7 @@ paths:
               schema:
                 oneOf:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/OrganizationalContextRequiredError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
                   - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
@@ -1351,6 +1358,49 @@ paths:
 
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/core/tenant-subscription/effective-features:
+    get:
+      operationId: tenantEffectiveFeaturesIndex
+      x-laravel-route-name: api.v1.core.tenant-subscription.effective-features
+      tags:
+        - Core
+      summary: List the current tenant's effective Subscription feature codes
+      description: |
+        Read-only projection (union of plan baseline + active add-ons —
+        never locked_readonly/locked_hidden add-ons). Any authenticated
+        tenant member may call this; it is NOT a management endpoint
+        (that stays superadmin-only). Powers frontend navigation
+        visibility for feature-gated modules such as hr_module, so a
+        menu entry is only shown when it would not immediately 403
+        from CheckTenantFeature.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The tenant's currently effective feature codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantEffectiveFeaturesSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationContextDeniedError"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
@@ -2715,6 +2765,53 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EmploymentTypeResource"
+
+    SubscriptionFeatureNotAvailableError:
+      type: object
+      additionalProperties: false
+      description: |
+        Generic Subscription-feature gate failure (CheckTenantFeature
+        middleware) — the tenant's current plan/add-ons do not include
+        the feature the endpoint requires (e.g. hr_module).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: SUBSCRIPTION_FEATURE_NOT_AVAILABLE
+        message:
+          type: string
+
+    TenantEffectiveFeaturesSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - feature_codes
+          properties:
+            feature_codes:
+              type: array
+              items:
+                type: string
+              description: |
+                Union of the tenant's current plan's baseline features
+                and any TRIAL/ACTIVE add-on features (never
+                locked_readonly/locked_hidden add-ons). E.g. ["hr_module",
+                "custom_roles"].
 
     TenantCustomRoleVisibilityState:
       type: string

@@ -17,6 +17,7 @@ use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
 use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
 use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
 
@@ -180,6 +181,24 @@ Route::middleware([
         '/{roleId}',
         [TenantRoleController::class, 'update'],
     )->name('api.v1.core.tenant-roles.update');
+});
+
+/*
+ * Read-only Subscription feature projection for the current tenant —
+ * ANY authenticated tenant member may read this (no
+ * tenant.permission gate), since it powers frontend navigation
+ * visibility rather than protecting a sensitive management action.
+ * Dual transport for the same browser-session frontend reason as
+ * /core/tenant-roles above.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+])->prefix('v1/core/tenant-subscription')->group(function (): void {
+    Route::get(
+        '/effective-features',
+        [TenantEffectiveFeaturesController::class, 'index'],
+    )->name('api.v1.core.tenant-subscription.effective-features');
 });
 
 Route::middleware([

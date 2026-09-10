@@ -567,6 +567,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/tenant-subscription/effective-features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's effective Subscription feature codes
+         * @description Read-only projection (union of plan baseline + active add-ons —
+         *     never locked_readonly/locked_hidden add-ons). Any authenticated
+         *     tenant member may call this; it is NOT a management endpoint
+         *     (that stays superadmin-only). Powers frontend navigation
+         *     visibility for feature-gated modules such as hr_module, so a
+         *     menu entry is only shown when it would not immediately 403
+         *     from CheckTenantFeature.
+         */
+        get: operations["tenantEffectiveFeaturesIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -1126,6 +1152,31 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["EmploymentTypeResource"][];
+        };
+        /**
+         * @description Generic Subscription-feature gate failure (CheckTenantFeature
+         *     middleware) — the tenant's current plan/add-ons do not include
+         *     the feature the endpoint requires (e.g. hr_module).
+         */
+        SubscriptionFeatureNotAvailableError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "SUBSCRIPTION_FEATURE_NOT_AVAILABLE";
+            message: string;
+        };
+        TenantEffectiveFeaturesSuccess: {
+            /** @constant */
+            status: "success";
+            data: {
+                /**
+                 * @description Union of the tenant's current plan's baseline features
+                 *     and any TRIAL/ACTIVE add-on features (never
+                 *     locked_readonly/locked_hidden add-ons). E.g. ["hr_module",
+                 *     "custom_roles"].
+                 */
+                feature_codes: string[];
+            };
         };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
@@ -2284,7 +2335,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
             500: components["responses"]["InternalServerError"];
@@ -2340,7 +2391,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
             404: components["responses"]["ResourceNotFound"];
@@ -2386,7 +2437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
             500: components["responses"]["InternalServerError"];
@@ -2448,7 +2499,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
                 };
             };
             /** @description Employee was not found in the current tenant. */
@@ -2528,7 +2579,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
                 };
             };
             /** @description Employment was not found in the current tenant. */
@@ -2604,7 +2655,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
                 };
             };
             /** @description Employment was not found in the current tenant. */
@@ -2684,7 +2735,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
                 };
             };
             /** @description Employment was not found in the current tenant. */
@@ -3000,6 +3051,50 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    tenantEffectiveFeaturesIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's currently effective feature codes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantEffectiveFeaturesSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

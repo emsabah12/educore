@@ -358,6 +358,7 @@ Route::middleware([
 Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
+    'tenant.feature:hr_module',
     'tenant.permission:hr.employments.view',
 ])->prefix('v1/hr')->group(function (): void {
     Route::get(
@@ -369,6 +370,7 @@ Route::middleware([
 Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
+    'tenant.feature:hr_module',
     InjectOrganizationalContext::class,
 ])->prefix('v1/hr/workspace')->group(function (): void {
 

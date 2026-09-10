@@ -34,6 +34,15 @@ const membershipId =
 const tenantId =
     '018f3b6a-7c20-7000-8000-000000000004';
 
+/*
+ * A single stable array reference reused across renders —
+ * required so the "same projection reference" test can prove
+ * useMemo does not recompute when no upstream snapshot
+ * reference actually changed.
+ */
+const STABLE_EMPTY_FEATURE_CODES: readonly string[] =
+    Object.freeze([]);
+
 const mocks =
     vi.hoisted<{
         authentication:
@@ -47,6 +56,9 @@ const mocks =
 
         capability:
             CapabilityState;
+
+        effectiveFeatureCodes:
+            readonly string[] | undefined;
     }>(
         () => ({
             authentication: {
@@ -68,6 +80,9 @@ const mocks =
                 status:
                     'unresolved',
             },
+
+            effectiveFeatureCodes:
+                undefined,
         }),
     );
 
@@ -104,6 +119,17 @@ vi.mock(
         useCapabilityState:
             () =>
                 mocks.capability,
+    }),
+);
+
+vi.mock(
+    '@/app/navigation/api/use-tenant-effective-features-query',
+    () => ({
+        useTenantEffectiveFeaturesQuery:
+            () => ({
+                data:
+                    mocks.effectiveFeatureCodes,
+            }),
     }),
 );
 
@@ -284,6 +310,9 @@ function configureReadyTenantAuthority(): void {
         status:
             'unresolved',
     };
+
+    mocks.effectiveFeatureCodes =
+        STABLE_EMPTY_FEATURE_CODES;
 }
 
 describe(
@@ -310,6 +339,9 @@ describe(
                     status:
                         'unresolved',
                 };
+
+                mocks.effectiveFeatureCodes =
+                    undefined;
             },
         );
 
@@ -344,6 +376,71 @@ describe(
                         destination:
                             '/',
                     },
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.workforce',
+
+                        routeId:
+                            'hr.workforce.index',
+
+                        label:
+                            'Kepegawaian',
+
+                        destination:
+                            '/hr/workforce',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    /*
+                     * hr.workforce.index requires an
+                     * organizational Workspace — the fixture's
+                     * TENANT-type ready Workspace does not
+                     * satisfy that, independent of feature
+                     * availability.
+                     */
+                    reason:
+                        'context-required',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.tenant-roles',
+
+                        routeId:
+                            'settings.tenant-roles.index',
+
+                        label:
+                            'Role Kustom',
+
+                        destination:
+                            '/settings/roles',
+
+                        requiredFeature:
+                            'custom_roles',
+                    },
+
+                    /*
+                     * settings.tenant-roles.index's tenant-scoped
+                     * context requirement IS satisfied by this
+                     * fixture, but its Capability projection is
+                     * still unresolved, so the underlying
+                     * permission check has not settled yet —
+                     * this is the same authority-pending state
+                     * as any other unresolved-Capability route,
+                     * independent of feature availability.
+                     */
+                    reason:
+                        'authority-pending',
                 },
             ]);
         });
@@ -383,6 +480,54 @@ describe(
 
                         destination:
                             '/',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.workforce',
+
+                        routeId:
+                            'hr.workforce.index',
+
+                        label:
+                            'Kepegawaian',
+
+                        destination:
+                            '/hr/workforce',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'settings.tenant-roles',
+
+                        routeId:
+                            'settings.tenant-roles.index',
+
+                        label:
+                            'Role Kustom',
+
+                        destination:
+                            '/settings/roles',
+
+                        requiredFeature:
+                            'custom_roles',
                     },
 
                     reason:

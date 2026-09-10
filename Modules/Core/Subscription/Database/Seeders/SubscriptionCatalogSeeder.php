@@ -32,6 +32,14 @@ final class SubscriptionCatalogSeeder extends Seeder
             ],
         );
 
+        $hrModuleFeature = SubscriptionFeature::query()->updateOrCreate(
+            ['code' => 'hr_module'],
+            [
+                'name' => 'Modul HR',
+                'description' => 'Akses ke modul Human Resources — Manajemen Pegawai, riwayat Employment, dan katalog Jenis Employment.',
+            ],
+        );
+
         $basicPlan = SubscriptionPlan::query()->updateOrCreate(
             ['code' => 'basic'],
             [
@@ -46,7 +54,7 @@ final class SubscriptionCatalogSeeder extends Seeder
             ['code' => 'pro'],
             [
                 'name' => 'Pro',
-                'description' => 'Paket menengah dengan kapasitas lebih besar.',
+                'description' => 'Paket menengah dengan kapasitas lebih besar, termasuk Modul HR.',
                 'grace_period_days' => 30,
                 'is_active' => true,
             ],
@@ -56,7 +64,7 @@ final class SubscriptionCatalogSeeder extends Seeder
             ['code' => 'enterprise'],
             [
                 'name' => 'Enterprise',
-                'description' => 'Paket penuh untuk yayasan/institusi besar, termasuk Custom Role.',
+                'description' => 'Paket penuh untuk yayasan/institusi besar, termasuk Custom Role dan Modul HR.',
                 'grace_period_days' => 60,
                 'is_active' => true,
             ],
@@ -69,12 +77,37 @@ final class SubscriptionCatalogSeeder extends Seeder
             'feature_id' => $customRolesFeature->id,
         ]);
 
+        // Modul HR bawaan untuk Pro dan Enterprise — Basic harus
+        // lewat add-on terpisah (lihat 'hr-module-addon' di bawah).
+        // Ini contoh KEDUA dari pola gating berbasis fitur (bukan
+        // permission satu-satu) di PRD, kali ini men-gate SELURUH
+        // modul, bukan satu kemampuan spesifik seperti custom_roles.
+        DB::table('plan_features')->insertOrIgnore([
+            'plan_id' => $proPlan->id,
+            'feature_id' => $hrModuleFeature->id,
+        ]);
+
+        DB::table('plan_features')->insertOrIgnore([
+            'plan_id' => $enterprisePlan->id,
+            'feature_id' => $hrModuleFeature->id,
+        ]);
+
         Addon::query()->updateOrCreate(
             ['code' => 'custom-roles-addon'],
             [
                 'name' => 'Custom Role Add-on',
                 'description' => 'Aktifkan kemampuan membuat role kustom untuk paket Basic/Pro.',
                 'feature_id' => $customRolesFeature->id,
+                'is_active' => true,
+            ],
+        );
+
+        Addon::query()->updateOrCreate(
+            ['code' => 'hr-module-addon'],
+            [
+                'name' => 'Modul HR Add-on',
+                'description' => 'Aktifkan akses Modul HR untuk paket Basic.',
+                'feature_id' => $hrModuleFeature->id,
                 'is_active' => true,
             ],
         );

@@ -11,6 +11,7 @@ use Modules\Core\Authorization\Http\Middleware\CheckTenantPermission;
 use Modules\Core\Authorization\Http\Middleware\CheckTenantRole;
 use Modules\Core\Authorization\Http\Middleware\EnsureUserIsSuperadmin;
 use Modules\Core\Http\Responses\ApiErrorResponse;
+use Modules\Core\Subscription\Http\Middleware\CheckTenantFeature;
 use Symfony\Component\HttpFoundation\Response;
 use Modules\Core\Organization\Http\Middleware\CheckOrganizationalPermission;
 
@@ -32,6 +33,14 @@ return Application::configure(
                 // gate, dipasang setelah InjectOrganizationalContext di
                 // route chain masing-masing module.
                 'organizational.permission' => CheckOrganizationalPermission::class,
+                // Generic Subscription feature gate (plan atau add-on
+                // aktif) — men-gate SELURUH modul/kemampuan, terpisah
+                // dari RBAC permission di atas. Dipasang SEBELUM
+                // tenant.permission/organizational.permission di route
+                // chain supaya tenant tanpa fitur langsung 403 tanpa
+                // bergantung pada permission apa pun yang dimiliki
+                // operatornya.
+                'tenant.feature' => CheckTenantFeature::class,
                 // Panel superadmin platform (Blade, session-based) —
                 // BUKAN bearer/API, lihat EnsureUserIsSuperadmin.
                 'platform.superadmin' => EnsureUserIsSuperadmin::class,

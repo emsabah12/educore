@@ -26,6 +26,14 @@ final class SubscriptionCatalogSeederTest extends TestCase
         $this->assertDatabaseHas('addons', ['code' => 'custom-roles-addon']);
     }
 
+    public function test_seeder_creates_hr_module_feature_and_addon(): void
+    {
+        $this->seed(SubscriptionCatalogSeeder::class);
+
+        $this->assertDatabaseHas('subscription_features', ['code' => 'hr_module']);
+        $this->assertDatabaseHas('addons', ['code' => 'hr-module-addon']);
+    }
+
     public function test_only_enterprise_plan_includes_custom_roles_as_baseline_feature(): void
     {
         $this->seed(SubscriptionCatalogSeeder::class);
@@ -47,14 +55,35 @@ final class SubscriptionCatalogSeederTest extends TestCase
         );
     }
 
+    public function test_pro_and_enterprise_plans_include_hr_module_as_baseline_feature(): void
+    {
+        $this->seed(SubscriptionCatalogSeeder::class);
+
+        $enterprise = SubscriptionPlan::query()->where('code', 'enterprise')->firstOrFail();
+        $basic = SubscriptionPlan::query()->where('code', 'basic')->firstOrFail();
+        $pro = SubscriptionPlan::query()->where('code', 'pro')->firstOrFail();
+
+        $this->assertTrue(
+            $pro->features()->where('code', 'hr_module')->exists(),
+        );
+
+        $this->assertTrue(
+            $enterprise->features()->where('code', 'hr_module')->exists(),
+        );
+
+        $this->assertFalse(
+            $basic->features()->where('code', 'hr_module')->exists(),
+        );
+    }
+
     public function test_seeder_is_idempotent_and_does_not_duplicate_rows(): void
     {
         $this->seed(SubscriptionCatalogSeeder::class);
         $this->seed(SubscriptionCatalogSeeder::class);
 
         $this->assertSame(3, SubscriptionPlan::query()->count());
-        $this->assertSame(1, SubscriptionFeature::query()->count());
-        $this->assertSame(1, Addon::query()->count());
+        $this->assertSame(2, SubscriptionFeature::query()->count());
+        $this->assertSame(2, Addon::query()->count());
     }
 
     public function test_seeder_preserves_plan_id_across_reseed(): void

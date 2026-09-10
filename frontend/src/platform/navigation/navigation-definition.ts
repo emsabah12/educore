@@ -26,6 +26,21 @@ export interface ApplicationNavigationDefinition {
 
     readonly destination:
         ApplicationNavigationDestination;
+
+    /*
+     * Optional Subscription feature code (see
+     * TenantSubscriptionService::effectiveFeatureCodes on the
+     * backend) required for this destination to be visible.
+     *
+     * This is deliberately layered ON TOP OF, not instead of,
+     * the route's own ProtectedRoutePolicy/permission check —
+     * a Subscription feature answers "did the tenant buy
+     * this module at all", while the route policy answers
+     * "can this specific Membership use it". Omit for
+     * destinations that are not feature-gated.
+     */
+    readonly requiredFeature?:
+        string;
 }
 
 function requireNonEmpty(
@@ -98,6 +113,18 @@ export function defineApplicationNavigation(
             normalizeDestination(
                 definition.destination,
             ),
+
+        ...(
+            definition.requiredFeature === undefined
+                ? {}
+                : {
+                    requiredFeature:
+                        requireNonEmpty(
+                            definition.requiredFeature,
+                            'requiredFeature',
+                        ),
+                }
+        ),
     });
 }
 
@@ -115,5 +142,39 @@ export const applicationNavigationCatalog =
 
             destination:
                 '/',
+        }),
+
+        defineApplicationNavigation({
+            id:
+                'hr.workforce',
+
+            routeId:
+                'hr.workforce.index',
+
+            label:
+                'Kepegawaian',
+
+            destination:
+                '/hr/workforce',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
+                'settings.tenant-roles',
+
+            routeId:
+                'settings.tenant-roles.index',
+
+            label:
+                'Role Kustom',
+
+            destination:
+                '/settings/roles',
+
+            requiredFeature:
+                'custom_roles',
         }),
     ]);

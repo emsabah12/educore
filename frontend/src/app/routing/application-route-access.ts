@@ -1,4 +1,10 @@
 import {
+    hrWorkforceRoutePolicy,
+} from '@/modules/hr/routes';
+import {
+    settingsTenantRolesRoutePolicy,
+} from '@/modules/settings/routes';
+import {
     defineProtectedRoutePolicy,
     type ProtectedRoutePolicy,
 } from '@/platform/routing';
@@ -39,6 +45,12 @@ const applicationRouteAccessPolicies =
     Object.freeze({
         root:
             protectedApplicationPolicy,
+
+        'hr.workforce.index':
+            hrWorkforceRoutePolicy,
+
+        'settings.tenant-roles.index':
+            settingsTenantRolesRoutePolicy,
     }) satisfies Readonly<
         Record<
             string,

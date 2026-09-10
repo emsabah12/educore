@@ -14,11 +14,13 @@ use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Symfony\Component\HttpFoundation\Response;
+use Tests\Support\GrantsSubscriptionFeature;
 use Tests\TestCase;
 
 final class WorkspaceEmployeeListingControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsSubscriptionFeature;
 
     private string $tenantId;
     private string $operatorUserId;
@@ -38,6 +40,7 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
         $this->organizationId = UuidV7::generate();
 
         $this->createTenantFixture();
+        $this->grantTenantFeature($this->tenantId, 'hr_module');
         $this->createOperatorFixture();
         $this->createOrganizationFixture($this->organizationId);
     }
@@ -243,6 +246,30 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
         $response
             ->assertStatus(Response::HTTP_FORBIDDEN)
             ->assertJsonPath('code', 'AUTHORIZATION_DENIED');
+    }
+
+    public function test_workspace_listing_is_denied_when_tenant_lacks_hr_module_feature(): void
+    {
+        // setUp() grants hr_module — remove it to prove the
+        // tenant.feature:hr_module gate is actually enforced, not just
+        // structurally present in the route middleware array.
+        DB::table('tenant_subscriptions')
+            ->where('tenant_id', $this->tenantId)
+            ->delete();
+
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->getJson(route('api.v1.hr.workspace.employees.index', [], false));
+
+        $response
+            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertJsonPath('code', 'SUBSCRIPTION_FEATURE_NOT_AVAILABLE');
     }
 
     private function issueToken(): string

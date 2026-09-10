@@ -13,11 +13,13 @@ use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Symfony\Component\HttpFoundation\Response;
+use Tests\Support\GrantsSubscriptionFeature;
 use Tests\TestCase;
 
 final class WorkspaceScopedEmploymentControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsSubscriptionFeature;
 
     private string $tenantId;
     private string $operatorUserId;
@@ -36,6 +38,7 @@ final class WorkspaceScopedEmploymentControllerTest extends TestCase
         $this->organizationId = UuidV7::generate();
 
         $this->createTenantFixture();
+        $this->grantTenantFeature($this->tenantId, 'hr_module');
         $this->createOperatorFixture();
         $this->createOrganizationFixture($this->organizationId);
     }
