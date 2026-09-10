@@ -27,6 +27,10 @@ export type {
 } from './pagination';
 
 export {
+    Select,
+} from './select';
+
+export {
     Table,
     TableBody,
     TableCaption,

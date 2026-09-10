@@ -275,15 +275,15 @@ export function useEndEmploymentMutation(): UseMutationResult<EmploymentResource
 export interface CreateEmploymentInput {
     readonly employeeId: string;
     readonly startDate: string;
+    /*
+     * employment_classification_id still has no catalog-listing
+     * endpoint to power a picker, so it stays unexposed here —
+     * only employment_type_id is wired up now that
+     * useEmploymentTypesQuery exists.
+     */
+    readonly employmentTypeId?: string;
 }
 
-/*
- * Only `start_date` is exposed for now — `employment_type_id`
- * and `employment_classification_id` are accepted by the API
- * (StoreEmploymentRequest) but there is no catalog-listing
- * endpoint yet to power a picker for them, so wiring those two
- * fields into the form is deferred until that endpoint exists.
- */
 export function useCreateEmploymentMutation(): UseMutationResult<
     EmploymentResource,
     BrowserApiFailure,
@@ -309,6 +309,7 @@ export function useCreateEmploymentMutation(): UseMutationResult<
         mutationFn: async ({
             employeeId,
             startDate,
+            employmentTypeId,
         }) => {
             if (
                 membershipId === null
@@ -341,6 +342,10 @@ export function useCreateEmploymentMutation(): UseMutationResult<
                             body: {
                                 start_date:
                                     startDate,
+
+                                employment_type_id:
+                                    employmentTypeId
+                                    ?? null,
                             },
                         },
                     ),

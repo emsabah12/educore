@@ -13,6 +13,9 @@ import {
     useEndEmploymentMutation,
 } from '@/modules/hr/api/use-employment-mutations';
 import {
+    useEmploymentTypesQuery,
+} from '@/modules/hr/api/use-employment-types-query';
+import {
     useWorkspaceEmployeeDetailQuery,
     type WorkspaceEmployeeDetail,
 } from '@/modules/hr/api/use-workspace-employees-query';
@@ -23,6 +26,7 @@ import {
     Badge,
     Button,
     Input,
+    Select,
     Table,
     TableBody,
     TableCell,
@@ -314,6 +318,9 @@ function CreateEmploymentForm({
     const createMutation =
         useCreateEmploymentMutation();
 
+    const employmentTypesQuery =
+        useEmploymentTypesQuery();
+
     const [
         isOpen,
         setIsOpen,
@@ -322,6 +329,11 @@ function CreateEmploymentForm({
     const [
         startDate,
         setStartDate,
+    ] = useState('');
+
+    const [
+        employmentTypeId,
+        setEmploymentTypeId,
     ] = useState('');
 
     if (! isOpen) {
@@ -340,80 +352,165 @@ function CreateEmploymentForm({
         );
     }
 
-    return (
-        <div className="flex flex-col items-start gap-1 rounded-md border p-3">
-            <label
-                htmlFor="new-employment-start-date"
-                className="text-xs font-medium"
-            >
-                Tanggal Mulai
-            </label>
+    const activeEmploymentTypes =
+        (
+            employmentTypesQuery.data
+            ?? []
+        ).filter(
+            (
+                employmentType,
+            ) =>
+                employmentType.is_active,
+        );
 
-            <div className="flex items-center gap-2">
-                <Input
-                    id="new-employment-start-date"
-                    type="date"
-                    value={startDate}
+    return (
+        <div className="flex flex-col items-start gap-2 rounded-md border p-3">
+            <div className="flex flex-col gap-1">
+                <label
+                    htmlFor="new-employment-type"
+                    className="text-xs font-medium"
+                >
+                    Jenis Employment
+                    {' '}
+                    <span className="font-normal text-muted-foreground">
+                        (opsional)
+                    </span>
+                </label>
+
+                <Select
+                    id="new-employment-type"
+                    value={employmentTypeId}
+                    disabled={
+                        employmentTypesQuery.status === 'pending'
+                    }
                     onChange={
                         (
                             event,
                         ) =>
-                            setStartDate(
+                            setEmploymentTypeId(
                                 event.target.value,
                             )
                     }
-                    className="h-8 w-36 text-xs"
-                />
-
-                <Button
-                    size="sm"
-                    disabled={
-                        startDate === ''
-                        || createMutation.isPending
-                    }
-                    onClick={
-                        () =>
-                            createMutation.mutate(
-                                {
-                                    employeeId,
-                                    startDate,
-                                },
-                                {
-                                    onSuccess: () => {
-                                        setIsOpen(
-                                            false,
-                                        );
-                                        setStartDate(
-                                            '',
-                                        );
-                                    },
-                                },
-                            )
-                    }
+                    className="h-8 w-48 text-xs"
                 >
-                    {
-                        createMutation.isPending
-                            ? 'Menyimpan…'
-                            : 'Buat'
-                    }
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={
-                        () => {
-                            setIsOpen(
-                                false,
-                            );
-                            setStartDate(
-                                '',
-                            );
+                    <option value="">
+                        {
+                            employmentTypesQuery.status === 'pending'
+                                ? 'Memuat…'
+                                : '— Tidak dipilih —'
                         }
+                    </option>
+
+                    {
+                        activeEmploymentTypes.map(
+                            (
+                                employmentType,
+                            ) => (
+                                <option
+                                    key={
+                                        employmentType.id
+                                    }
+                                    value={
+                                        employmentType.id
+                                    }
+                                >
+                                    {
+                                        employmentType.name
+                                    }
+                                </option>
+                            ),
+                        )
                     }
+                </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+                <label
+                    htmlFor="new-employment-start-date"
+                    className="text-xs font-medium"
                 >
-                    Batal
-                </Button>
+                    Tanggal Mulai
+                </label>
+
+                <div className="flex items-center gap-2">
+                    <Input
+                        id="new-employment-start-date"
+                        type="date"
+                        value={startDate}
+                        onChange={
+                            (
+                                event,
+                            ) =>
+                                setStartDate(
+                                    event.target.value,
+                                )
+                        }
+                        className="h-8 w-36 text-xs"
+                    />
+
+                    <Button
+                        size="sm"
+                        disabled={
+                            startDate === ''
+                            || createMutation.isPending
+                        }
+                        onClick={
+                            () =>
+                                createMutation.mutate(
+                                    {
+                                        employeeId,
+                                        startDate,
+                                        ...(
+                                            employmentTypeId === ''
+                                                ? {}
+                                                : {
+                                                    employmentTypeId,
+                                                }
+                                        ),
+                                    },
+                                    {
+                                        onSuccess: () => {
+                                            setIsOpen(
+                                                false,
+                                            );
+                                            setStartDate(
+                                                '',
+                                            );
+                                            setEmploymentTypeId(
+                                                '',
+                                            );
+                                        },
+                                    },
+                                )
+                        }
+                    >
+                        {
+                            createMutation.isPending
+                                ? 'Menyimpan…'
+                                : 'Buat'
+                        }
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={
+                            () => {
+                                setIsOpen(
+                                    false,
+                                );
+                                setStartDate(
+                                    '',
+                                );
+                                setEmploymentTypeId(
+                                    '',
+                                );
+                            }
+                        }
+                    >
+                        Batal
+                    </Button>
+                </div>
             </div>
 
             {

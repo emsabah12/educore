@@ -362,6 +362,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employment-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's Employment Type catalog
+         * @description HR-002 §3 (OD-HR-DATA-002) — Employment Type is a tenant-scoped
+         *     catalog (e.g. TETAP / KONTRAK / HONORER), never a global enum.
+         *     Read-only; powers pickers such as the Tambah Employment form.
+         *     Deliberately tenant-wide, not organizational-scoped — supports
+         *     BearerAuth and BrowserSessionAuth but requires no organizational
+         *     context header. Returns both active and inactive entries; the
+         *     presentation layer decides which to offer for selection.
+         */
+        get: operations["hrEmploymentTypeIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/workspace/employees/{employeeId}/employments": {
         parameters: {
             query?: never;
@@ -1084,6 +1110,22 @@ export interface components {
             /** @constant */
             code: "EMPLOYEE_NOT_FOUND";
             message: string;
+        };
+        /**
+         * @description HR-002 §3 (OD-HR-DATA-002) — tenant-scoped catalog entry, e.g.
+         *     TETAP / KONTRAK / HONORER. Deliberately NOT a fixed global enum.
+         */
+        EmploymentTypeResource: {
+            id: components["schemas"]["UuidV7"];
+            code: string;
+            name: string;
+            description: string | null;
+            is_active: boolean;
+        };
+        EmploymentTypeListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmploymentTypeResource"][];
         };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
@@ -2302,6 +2344,51 @@ export interface operations {
                 };
             };
             404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmploymentTypeIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's Employment Type catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentTypeListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.employments.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

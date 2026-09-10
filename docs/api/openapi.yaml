@@ -734,6 +734,52 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/employment-types:
+    get:
+      operationId: hrEmploymentTypeIndex
+      x-laravel-route-name: api.v1.hr.employment-types.index
+      tags:
+        - Human Resources
+      summary: List the current tenant's Employment Type catalog
+      description: |
+        HR-002 §3 (OD-HR-DATA-002) — Employment Type is a tenant-scoped
+        catalog (e.g. TETAP / KONTRAK / HONORER), never a global enum.
+        Read-only; powers pickers such as the Tambah Employment form.
+        Deliberately tenant-wide, not organizational-scoped — supports
+        BearerAuth and BrowserSessionAuth but requires no organizational
+        context header. Returns both active and inactive entries; the
+        presentation layer decides which to offer for selection.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The tenant's Employment Type catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTypeListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employees/{employeeId}/employments:
     post:
       operationId: hrWorkspaceEmploymentStore
@@ -2628,6 +2674,47 @@ components:
           const: EMPLOYEE_NOT_FOUND
         message:
           type: string
+
+    EmploymentTypeResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-002 §3 (OD-HR-DATA-002) — tenant-scoped catalog entry, e.g.
+        TETAP / KONTRAK / HONORER. Deliberately NOT a fixed global enum.
+      required:
+        - id
+        - code
+        - name
+        - description
+        - is_active
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+
+    EmploymentTypeListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmploymentTypeResource"
 
     TenantCustomRoleVisibilityState:
       type: string

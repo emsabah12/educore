@@ -8,6 +8,7 @@ use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
+use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
@@ -345,6 +346,26 @@ Route::middleware([
  * diubah — ditangani satu per satu seiring halaman frontend-nya
  * dibangun, bukan sekaligus semua.
  */
+
+/*
+ * HR-002 §3 — read-only tenant catalog, dual-transport so the
+ * browser-session frontend (e.g. the Tambah Employment dropdown)
+ * can call it directly, same pattern as /core/tenant-roles.
+ * Deliberately its OWN group rather than folded into the
+ * organizational workspace group below — Employment Type is
+ * tenant-wide, not scoped to a particular organizational context.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    'tenant.permission:hr.employments.view',
+])->prefix('v1/hr')->group(function (): void {
+    Route::get(
+        '/employment-types',
+        [EmploymentCatalogController::class, 'indexEmploymentTypes']
+    )->name('api.v1.hr.employment-types.index');
+});
+
 Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,

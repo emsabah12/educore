@@ -669,5 +669,176 @@ describe(
                 ).toBeInTheDocument();
             },
         );
+
+        it(
+            'lists only active employment types and sends the selected one when creating',
+            async () => {
+                const EMPLOYMENT_TYPE_ID =
+                    '01970000-0000-7000-8000-000000004444';
+
+                let capturedBody: unknown = null;
+
+                apiMockServer.use(
+                    http.get(
+                        `*/api/v1/hr/workspace/employees/${EMPLOYEE_ID}`,
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: {
+                                        id: EMPLOYEE_ID,
+                                        tenant_id:
+                                            '01970000-0000-7000-8000-0000000000bb',
+                                        membership_id:
+                                            '01970000-0000-7000-8000-0000000000ff',
+                                        nip: 'NIP-001',
+                                        jabatan: 'GURU',
+                                        nama: 'Budi Santoso',
+                                        created_at:
+                                            '2026-01-01T00:00:00Z',
+                                        employments: [],
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/employment-types',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: EMPLOYMENT_TYPE_ID,
+                                            code: 'TETAP',
+                                            name: 'Pegawai Tetap',
+                                            description: null,
+                                            is_active: true,
+                                        },
+                                        {
+                                            id: '01970000-0000-7000-8000-000000005555',
+                                            code: 'HONORER-LAMA',
+                                            name: 'Honorer (nonaktif)',
+                                            description: null,
+                                            is_active: false,
+                                        },
+                                    ],
+                                },
+                            ),
+                    ),
+                    http.post(
+                        `*/api/v1/hr/workspace/employees/${EMPLOYEE_ID}/employments`,
+                        async (
+                            {
+                                request,
+                            },
+                        ) => {
+                            capturedBody =
+                                await request.json();
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    message: 'Employment created with PLANNED status.',
+                                    data: {
+                                        id: '01970000-0000-7000-8000-000000006666',
+                                        tenant_id:
+                                            '01970000-0000-7000-8000-0000000000bb',
+                                        employee_id: EMPLOYEE_ID,
+                                        employment_type_id: EMPLOYMENT_TYPE_ID,
+                                        employment_classification_id: null,
+                                        status: 'PLANNED',
+                                        start_date: '2026-07-01',
+                                        end_date: null,
+                                        cancelled_at: null,
+                                        created_at:
+                                            '2026-07-01T00:00:00Z',
+                                    },
+                                },
+                                {
+                                    status: 201,
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderDetailPage();
+
+                fireEvent.click(
+                    await screen.findByRole(
+                        'button',
+                        {
+                            name: '+ Tambah Employment',
+                        },
+                    ),
+                );
+
+                const select =
+                    await screen.findByLabelText(
+                        'Jenis Employment (opsional)',
+                    );
+
+                expect(
+                    screen.getByRole(
+                        'option',
+                        {
+                            name: 'Pegawai Tetap',
+                        },
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.queryByRole(
+                        'option',
+                        {
+                            name: 'Honorer (nonaktif)',
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
+                fireEvent.change(
+                    select,
+                    {
+                        target: {
+                            value: EMPLOYMENT_TYPE_ID,
+                        },
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Tanggal Mulai',
+                    ),
+                    {
+                        target: {
+                            value: '2026-07-01',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Buat',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            capturedBody,
+                        ).toEqual(
+                            {
+                                start_date: '2026-07-01',
+                                employment_type_id: EMPLOYMENT_TYPE_ID,
+                            },
+                        );
+                    },
+                );
+            },
+        );
     },
 );
