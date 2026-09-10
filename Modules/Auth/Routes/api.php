@@ -19,6 +19,7 @@ use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
 use Modules\Core\Organization\Http\Api\v1\OrganizationUnitManagementController;
+use Modules\Core\Organization\Http\Api\v1\OrganizationalAssignmentManagementController;
 use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
 use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
@@ -246,6 +247,23 @@ Route::middleware([
         '/',
         [OrganizationUnitManagementController::class, 'store'],
     )->name('api.v1.core.organizations.units.store');
+});
+
+/*
+ * Read side of "assign member" — lihat catatan arsitektur di
+ * OrganizationalAssignmentManagementController. Permission terpisah
+ * dari organization.units.manage: menempatkan orang ke suatu tempat
+ * adalah tindakan berbeda dari sekadar mendefinisikan strukturnya.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    'tenant.permission:organization.assignments.manage',
+])->prefix('v1/core/organizations/{organization}/assignments')->group(function (): void {
+    Route::get(
+        '/',
+        [OrganizationalAssignmentManagementController::class, 'index'],
+    )->name('api.v1.core.organizations.assignments.index');
 });
 
 Route::middleware([

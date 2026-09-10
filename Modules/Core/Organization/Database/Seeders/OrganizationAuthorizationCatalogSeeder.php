@@ -19,9 +19,10 @@ use Modules\Core\Authorization\Models\Role;
  * SETIAP tenant yang sudah ada langsung bisa memakai fitur ini tanpa
  * konfigurasi manual.
  *
- * `organization.units.manage` SENGAJA dipisah dari `organization.manage`
- * (bukan digabung jadi satu permission) — supaya ke depan bisa
- * didelegasikan secara granular (mis. staf tata usaha yang boleh atur
+ * `organization.units.manage` dan `organization.assignments.manage`
+ * SENGAJA dipisah dari `organization.manage` (bukan digabung jadi
+ * satu permission) — supaya ke depan bisa didelegasikan secara
+ * granular (mis. staf tata usaha yang boleh menempatkan anggota ke
  * Unit tapi tidak boleh membuat Organization baru).
  */
 final class OrganizationAuthorizationCatalogSeeder extends Seeder
@@ -32,6 +33,7 @@ final class OrganizationAuthorizationCatalogSeeder extends Seeder
     private const RESOURCE_PERMISSIONS = [
         'organization.manage' => 'Kelola Organisasi',
         'organization.units.manage' => 'Kelola Unit Organisasi',
+        'organization.assignments.manage' => 'Kelola Penempatan Anggota ke Organisasi/Unit',
     ];
 
     public function run(): void

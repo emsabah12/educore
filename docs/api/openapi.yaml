@@ -1606,6 +1606,61 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/core/organizations/{organization}/assignments:
+    get:
+      operationId: coreOrganizationalAssignmentIndex
+      x-laravel-route-name: api.v1.core.organizations.assignments.index
+      tags:
+        - Core
+      summary: List OrganizationalAssignments under one Organization
+      description: |
+        TENANT-level, gated by organization.assignments.manage.
+        Returns every assignment under the Organization —
+        organization-level (organization_unit_id null) and every
+        Unit — ordered newest first, unless narrowed with
+        organization_unit_id. This is the read side of "assign
+        member"; the write side (create/deactivate) is a separate
+        operation.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: organization
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - $ref: "#/components/parameters/OrganizationalAssignmentUnitFilter"
+      responses:
+        "200":
+          description: The Organization's assignments, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationalAssignmentListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.assignments.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -3156,6 +3211,63 @@ components:
             Unik per Organization (bukan per-tenant, bukan global).
             Boleh dikosongkan.
 
+    OrganizationalAssignmentResource:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - membership_id
+        - membership_name
+        - organization_id
+        - organization_unit_id
+        - organization_unit_name
+        - status
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        membership_name:
+          type: string
+          description: Display name of the Person behind this Membership.
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_unit_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+          description: |
+            null means an organization-level assignment (ADR-018
+            §2.3) — not narrower than the Organization itself.
+        organization_unit_name:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+        created_at:
+          type: string
+          format: date-time
+
+    OrganizationalAssignmentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationalAssignmentResource"
+
     TenantCustomRoleVisibilityState:
       type: string
       description: |
@@ -3954,6 +4066,21 @@ components:
         minimum: 1
         maximum: 100
         default: 15
+
+    OrganizationalAssignmentUnitFilter:
+      name: organization_unit_id
+      in: query
+      required: false
+      description: |
+        When present, restricts the listing to assignments exactly at
+        this Unit. Omit to list every assignment under the
+        Organization (organization-level and every Unit combined).
+        A value that does not match a real Unit simply yields an
+        empty result — it never errors, since existence in this
+        collection depends only on the assignment rows, not on the
+        Unit's current existence.
+      schema:
+        $ref: "#/components/schemas/UuidV7"
 
     EmployeePage:
       name: page

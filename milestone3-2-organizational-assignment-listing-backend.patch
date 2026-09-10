@@ -1,0 +1,898 @@
+diff --git a/Modules/Auth/Routes/api.php b/Modules/Auth/Routes/api.php
+index 1ee8cc5..6e977b0 100644
+--- a/Modules/Auth/Routes/api.php
++++ b/Modules/Auth/Routes/api.php
+@@ -19,6 +19,7 @@
+ use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+ use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
+ use Modules\Core\Organization\Http\Api\v1\OrganizationUnitManagementController;
++use Modules\Core\Organization\Http\Api\v1\OrganizationalAssignmentManagementController;
+ use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
+ use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
+ use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
+@@ -248,6 +249,23 @@
+     )->name('api.v1.core.organizations.units.store');
+ });
+ 
++/*
++ * Read side of "assign member" — lihat catatan arsitektur di
++ * OrganizationalAssignmentManagementController. Permission terpisah
++ * dari organization.units.manage: menempatkan orang ke suatu tempat
++ * adalah tindakan berbeda dari sekadar mendefinisikan strukturnya.
++ */
++Route::middleware([
++    UseBrowserSessionForCanonicalApi::class,
++    InjectTransportAwareTenantContext::class,
++    'tenant.permission:organization.assignments.manage',
++])->prefix('v1/core/organizations/{organization}/assignments')->group(function (): void {
++    Route::get(
++        '/',
++        [OrganizationalAssignmentManagementController::class, 'index'],
++    )->name('api.v1.core.organizations.assignments.index');
++});
++
+ Route::middleware([
+     InjectAuthenticatedUser::class,
+     RequireGlobalSuperadmin::class,
+diff --git a/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php b/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
+index 76706d0..c7fe22e 100644
+--- a/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
++++ b/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
+@@ -19,9 +19,10 @@
+  * SETIAP tenant yang sudah ada langsung bisa memakai fitur ini tanpa
+  * konfigurasi manual.
+  *
+- * `organization.units.manage` SENGAJA dipisah dari `organization.manage`
+- * (bukan digabung jadi satu permission) — supaya ke depan bisa
+- * didelegasikan secara granular (mis. staf tata usaha yang boleh atur
++ * `organization.units.manage` dan `organization.assignments.manage`
++ * SENGAJA dipisah dari `organization.manage` (bukan digabung jadi
++ * satu permission) — supaya ke depan bisa didelegasikan secara
++ * granular (mis. staf tata usaha yang boleh menempatkan anggota ke
+  * Unit tapi tidak boleh membuat Organization baru).
+  */
+ final class OrganizationAuthorizationCatalogSeeder extends Seeder
+@@ -32,6 +33,7 @@ final class OrganizationAuthorizationCatalogSeeder extends Seeder
+     private const RESOURCE_PERMISSIONS = [
+         'organization.manage' => 'Kelola Organisasi',
+         'organization.units.manage' => 'Kelola Unit Organisasi',
++        'organization.assignments.manage' => 'Kelola Penempatan Anggota ke Organisasi/Unit',
+     ];
+ 
+     public function run(): void
+diff --git a/Modules/Core/Organization/Http/Api/v1/OrganizationalAssignmentManagementController.php b/Modules/Core/Organization/Http/Api/v1/OrganizationalAssignmentManagementController.php
+new file mode 100644
+index 0000000..37124d7
+--- /dev/null
++++ b/Modules/Core/Organization/Http/Api/v1/OrganizationalAssignmentManagementController.php
+@@ -0,0 +1,149 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Modules\Core\Organization\Http\Api\v1;
++
++use App\Http\Controllers\Controller;
++use Illuminate\Http\JsonResponse;
++use Illuminate\Http\Request;
++use Illuminate\Support\Str;
++use Modules\Core\Http\Responses\ApiErrorResponse;
++use Modules\Core\Organization\Models\Organization;
++use Modules\Core\Organization\Models\OrganizationalAssignment;
++use Symfony\Component\HttpFoundation\Response;
++
++/**
++ * Read side of "assign member" — listing WHO is currently placed
++ * into one Organization (and, optionally, one exact Unit inside
++ * it). The write side (create/deactivate an assignment) is a
++ * separate operation layered on top of the existing, already-tested
++ * OrganizationalAssignmentService (see ADR-018 §2.3 — Membership
++ * remains Person × Tenant; OrganizationalAssignment models
++ * OPERATIONAL PLACEMENT separately, never a canonical identity
++ * relation).
++ *
++ * Deliberately NOT `organizational.permission` — assigning someone
++ * to a place is what CREATES organizational context for them, so
++ * this management surface has to live one level up, at TENANT
++ * scope, same as OrganizationManagementController and
++ * OrganizationUnitManagementController.
++ */
++final class OrganizationalAssignmentManagementController extends Controller
++{
++    public function index(
++        Request $request,
++        string $organization,
++    ): JsonResponse {
++        $tenantId = $this->currentTenantId($request);
++
++        if (! $this->isCanonicalUuid($tenantId)) {
++            return $this->authenticationContextDeniedResponse();
++        }
++
++        $organizationModel = $this->requireOrganization(
++            $organization,
++            $tenantId,
++        );
++
++        if ($organizationModel === null) {
++            return $this->organizationNotFoundResponse();
++        }
++
++        $unitFilter = $request->query('organization_unit_id');
++        $unitFilter = is_string($unitFilter) ? trim($unitFilter) : '';
++
++        $assignments = OrganizationalAssignment::query()
++            ->with(['membership.person', 'organizationUnit'])
++            ->where('tenant_id', $tenantId)
++            ->where('organization_id', $organizationModel->id)
++            ->when(
++                $unitFilter !== '' && Str::isUuid($unitFilter),
++                fn($query) => $query->where(
++                    'organization_unit_id',
++                    $unitFilter,
++                ),
++            )
++            ->orderByDesc('created_at')
++            ->get();
++
++        return response()->json([
++            'status' => 'success',
++            'data' => $assignments->map(
++                fn(OrganizationalAssignment $assignment) => $this->summary(
++                    $assignment,
++                ),
++            ),
++        ]);
++    }
++
++    private function currentTenantId(Request $request): string
++    {
++        $tenantId = $request->attributes->get(
++            'authenticated_tenant_id',
++        );
++
++        return is_string($tenantId) ? $tenantId : '';
++    }
++
++    private function requireOrganization(
++        string $organizationId,
++        string $tenantId,
++    ): ?Organization {
++        $organizationId = trim($organizationId);
++
++        if (! Str::isUuid($organizationId)) {
++            return null;
++        }
++
++        return Organization::query()
++            ->whereKey($organizationId)
++            ->where('tenant_id', $tenantId)
++            ->first();
++    }
++
++    /**
++     * @phpstan-assert-if-true string $value
++     */
++    private function isCanonicalUuid(mixed $value): bool
++    {
++        return is_string($value)
++            && $value !== ''
++            && Str::isUuid(trim($value));
++    }
++
++    private function authenticationContextDeniedResponse(): JsonResponse
++    {
++        return ApiErrorResponse::make(
++            code: 'AUTHENTICATION_CONTEXT_DENIED',
++            message: 'Authentication context missing or invalid.',
++            status: Response::HTTP_FORBIDDEN,
++        );
++    }
++
++    private function organizationNotFoundResponse(): JsonResponse
++    {
++        return ApiErrorResponse::make(
++            code: 'RESOURCE_NOT_FOUND',
++            message: 'The requested organization was not found.',
++            status: Response::HTTP_NOT_FOUND,
++        );
++    }
++
++    /**
++     * @return array<string, mixed>
++     */
++    private function summary(OrganizationalAssignment $assignment): array
++    {
++        return [
++            'id' => (string) $assignment->id,
++            'membership_id' => (string) $assignment->membership_id,
++            'membership_name' => $assignment->membership?->person?->name,
++            'organization_id' => (string) $assignment->organization_id,
++            'organization_unit_id' => $assignment->organization_unit_id,
++            'organization_unit_name' => $assignment->organizationUnit?->name,
++            'status' => $assignment->status,
++            'created_at' => $assignment->created_at?->toIso8601String(),
++        ];
++    }
++}
+diff --git a/Modules/Core/Tests/Feature/OrganizationalAssignmentManagementControllerTest.php b/Modules/Core/Tests/Feature/OrganizationalAssignmentManagementControllerTest.php
+new file mode 100644
+index 0000000..1f097b6
+--- /dev/null
++++ b/Modules/Core/Tests/Feature/OrganizationalAssignmentManagementControllerTest.php
+@@ -0,0 +1,478 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Modules\Core\Tests\Feature;
++
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Str;
++use Modules\Auth\Token\Contracts\TokenManagerInterface;
++use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
++use Modules\Core\Organization\Database\Seeders\OrganizationAuthorizationCatalogSeeder;
++use Modules\Core\Organization\Models\OrganizationalAssignment;
++use Modules\Core\Support\Uuid\UuidV7;
++use Modules\Core\Tenancy\Contracts\TenantContextInterface;
++use Symfony\Component\HttpFoundation\Response;
++use Tests\Support\GrantsAuthorizationRole;
++use Tests\TestCase;
++
++final class OrganizationalAssignmentManagementControllerTest extends TestCase
++{
++    use RefreshDatabase;
++    use GrantsAuthorizationRole;
++
++    private string $tenantId;
++    private string $operatorUserId;
++    private string $operatorMembershipId;
++    private string $organizationId;
++    private string $unitId;
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++
++        $this->seed(AuthorizationCatalogSeeder::class);
++        $this->seed(OrganizationAuthorizationCatalogSeeder::class);
++
++        $this->tenantId = UuidV7::generate();
++        $this->operatorUserId = UuidV7::generate();
++        $this->operatorMembershipId = UuidV7::generate();
++
++        $this->createTenantFixture($this->tenantId);
++        $this->createOperatorFixture();
++
++        $this->grantRole(
++            $this->operatorMembershipId,
++            'admin',
++        );
++
++        $this->organizationId = $this->createOrganizationFixture(
++            $this->tenantId,
++            'Kampus Utama',
++        );
++
++        $this->unitId = $this->createUnitFixture(
++            $this->tenantId,
++            $this->organizationId,
++            'Fakultas Teknik',
++        );
++    }
++
++    protected function tearDown(): void
++    {
++        app(TenantContextInterface::class)->clear();
++
++        parent::tearDown();
++    }
++
++    public function test_index_lists_organization_level_and_unit_level_assignments_together(): void
++    {
++        $orgLevelMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Budi Santoso',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $orgLevelMembershipId,
++            $this->organizationId,
++            null,
++        );
++
++        $unitLevelMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Siti Aminah',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $unitLevelMembershipId,
++            $this->organizationId,
++            $this->unitId,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++
++        $names = collect($response->json('data'))->pluck('membership_name');
++
++        $this->assertTrue($names->contains('Budi Santoso'));
++        $this->assertTrue($names->contains('Siti Aminah'));
++    }
++
++    public function test_index_reports_null_organization_unit_id_for_organization_level_assignment(): void
++    {
++        $membershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Budi Santoso',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $membershipId,
++            $this->organizationId,
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++        $response->assertJsonPath('data.0.organization_unit_id', null);
++        $response->assertJsonPath('data.0.organization_unit_name', null);
++    }
++
++    public function test_index_reports_unit_name_for_unit_level_assignment(): void
++    {
++        $membershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Siti Aminah',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $membershipId,
++            $this->organizationId,
++            $this->unitId,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++        $response->assertJsonPath('data.0.organization_unit_id', $this->unitId);
++        $response->assertJsonPath('data.0.organization_unit_name', 'Fakultas Teknik');
++    }
++
++    public function test_index_filters_by_organization_unit_id(): void
++    {
++        $orgLevelMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Budi Santoso',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $orgLevelMembershipId,
++            $this->organizationId,
++            null,
++        );
++
++        $unitLevelMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Siti Aminah',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $unitLevelMembershipId,
++            $this->organizationId,
++            $this->unitId,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ) . '?organization_unit_id=' . $this->unitId,
++            );
++
++        $response->assertOk();
++
++        $names = collect($response->json('data'))->pluck('membership_name');
++
++        $this->assertTrue($names->contains('Siti Aminah'));
++        $this->assertFalse(
++            $names->contains('Budi Santoso'),
++            'Organization-level assignment must not appear when filtering by a specific Unit.',
++        );
++    }
++
++    public function test_index_excludes_assignments_belonging_to_another_organization(): void
++    {
++        $otherOrganizationId = $this->createOrganizationFixture(
++            $this->tenantId,
++            'Kampus Cabang',
++        );
++        $otherMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Milik Organization Lain',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $otherMembershipId,
++            $otherOrganizationId,
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++        $response->assertJsonCount(0, 'data');
++    }
++
++    public function test_index_returns_404_when_organization_belongs_to_another_tenant(): void
++    {
++        $otherTenantId = UuidV7::generate();
++        $this->createTenantFixture($otherTenantId);
++        $foreignOrganizationId = $this->createOrganizationFixture(
++            $otherTenantId,
++            'Milik Tenant Lain',
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $foreignOrganizationId],
++                    false,
++                ),
++            );
++
++        $response->assertStatus(Response::HTTP_NOT_FOUND);
++    }
++
++    public function test_index_is_forbidden_without_organization_assignments_manage_permission(): void
++    {
++        DB::table('membership_roles')
++            ->where('membership_id', $this->operatorMembershipId)
++            ->delete();
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertStatus(Response::HTTP_FORBIDDEN);
++    }
++
++    public function test_index_orders_newest_assignment_first(): void
++    {
++        $olderMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Assignment Lebih Lama',
++        );
++        $olderAssignmentId = $this->createAssignmentFixture(
++            $this->tenantId,
++            $olderMembershipId,
++            $this->organizationId,
++            null,
++        );
++        OrganizationalAssignment::query()
++            ->whereKey($olderAssignmentId)
++            ->update(['created_at' => now()->subDay()]);
++
++        $newerMembershipId = $this->createMembershipFixture(
++            $this->tenantId,
++            'Assignment Lebih Baru',
++        );
++        $this->createAssignmentFixture(
++            $this->tenantId,
++            $newerMembershipId,
++            $this->organizationId,
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.assignments.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++        $response->assertJsonPath('data.0.membership_name', 'Assignment Lebih Baru');
++        $response->assertJsonPath('data.1.membership_name', 'Assignment Lebih Lama');
++    }
++
++    private function issueToken(): string
++    {
++        return app(TokenManagerInterface::class)
++            ->issueToken(
++                $this->operatorUserId,
++                $this->tenantId,
++                ['membership_id' => $this->operatorMembershipId],
++            );
++    }
++
++    private function createTenantFixture(string $tenantId): void
++    {
++        DB::table('tenants')->insert([
++            'id' => $tenantId,
++            'name' => 'Organizational Assignment Management Tenant',
++            'subdomain' => sprintf(
++                'org-assign-mgmt-%s',
++                Str::lower(Str::random(12)),
++            ),
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++    }
++
++    private function createOperatorFixture(): void
++    {
++        $personId = UuidV7::generate();
++
++        DB::table('persons')->insert([
++            'id' => $personId,
++            'name' => 'Organizational Assignment Management Operator',
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        $email = sprintf(
++            'org-assign-mgmt-operator-%s@educore.test',
++            Str::lower(Str::random(10)),
++        );
++
++        DB::table('users')->insert([
++            'id' => $this->operatorUserId,
++            'person_id' => $personId,
++            'email' => $email,
++            'password' => bcrypt('secret123'),
++            'status' => 'ACTIVE',
++            'is_superadmin' => false,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        DB::table('memberships')->insert([
++            'id' => $this->operatorMembershipId,
++            'person_id' => $personId,
++            'tenant_id' => $this->tenantId,
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++    }
++
++    private function createMembershipFixture(
++        string $tenantId,
++        string $personName,
++    ): string {
++        $personId = UuidV7::generate();
++
++        DB::table('persons')->insert([
++            'id' => $personId,
++            'name' => $personName,
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        $membershipId = UuidV7::generate();
++
++        DB::table('memberships')->insert([
++            'id' => $membershipId,
++            'person_id' => $personId,
++            'tenant_id' => $tenantId,
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $membershipId;
++    }
++
++    private function createOrganizationFixture(
++        string $tenantId,
++        string $name,
++    ): string {
++        $organizationId = UuidV7::generate();
++
++        DB::table('organizations')->insert([
++            'id' => $organizationId,
++            'tenant_id' => $tenantId,
++            'name' => $name,
++            'code' => null,
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $organizationId;
++    }
++
++    private function createUnitFixture(
++        string $tenantId,
++        string $organizationId,
++        string $name,
++    ): string {
++        $unitId = UuidV7::generate();
++
++        DB::table('organization_units')->insert([
++            'id' => $unitId,
++            'tenant_id' => $tenantId,
++            'organization_id' => $organizationId,
++            'name' => $name,
++            'code' => null,
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $unitId;
++    }
++
++    private function createAssignmentFixture(
++        string $tenantId,
++        string $membershipId,
++        string $organizationId,
++        ?string $organizationUnitId,
++    ): string {
++        $assignmentId = UuidV7::generate();
++
++        DB::table('organizational_assignments')->insert([
++            'id' => $assignmentId,
++            'tenant_id' => $tenantId,
++            'membership_id' => $membershipId,
++            'organization_id' => $organizationId,
++            'organization_unit_id' => $organizationUnitId,
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $assignmentId;
++    }
++}
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index 9275aba..24d90a8 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -1606,6 +1606,61 @@ paths:
+         "500":
+           $ref: "#/components/responses/InternalServerError"
+ 
++  /api/v1/core/organizations/{organization}/assignments:
++    get:
++      operationId: coreOrganizationalAssignmentIndex
++      x-laravel-route-name: api.v1.core.organizations.assignments.index
++      tags:
++        - Core
++      summary: List OrganizationalAssignments under one Organization
++      description: |
++        TENANT-level, gated by organization.assignments.manage.
++        Returns every assignment under the Organization —
++        organization-level (organization_unit_id null) and every
++        Unit — ordered newest first, unless narrowed with
++        organization_unit_id. This is the read side of "assign
++        member"; the write side (create/deactivate) is a separate
++        operation.
++      security:
++        - BearerAuth: []
++        - BrowserSessionAuth: []
++      parameters:
++        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
++        - name: organization
++          in: path
++          required: true
++          schema:
++            $ref: "#/components/schemas/UuidV7"
++        - $ref: "#/components/parameters/OrganizationalAssignmentUnitFilter"
++      responses:
++        "200":
++          description: The Organization's assignments, newest first.
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/OrganizationalAssignmentListSuccess"
++
++        "401":
++          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
++
++        "403":
++          description: |
++            Authentication context missing/invalid, or the current
++            Membership does not have organization.assignments.manage
++            permission.
++          content:
++            application/json:
++              schema:
++                oneOf:
++                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
++                  - $ref: "#/components/schemas/AuthorizationDeniedError"
++
++        "404":
++          $ref: "#/components/responses/ResourceNotFound"
++
++        "500":
++          $ref: "#/components/responses/InternalServerError"
++
+   /api/v1/user/my-memberships:
+     get:
+       operationId: userMembershipIndex
+@@ -3156,6 +3211,63 @@ components:
+             Unik per Organization (bukan per-tenant, bukan global).
+             Boleh dikosongkan.
+ 
++    OrganizationalAssignmentResource:
++      type: object
++      additionalProperties: false
++      required:
++        - id
++        - membership_id
++        - membership_name
++        - organization_id
++        - organization_unit_id
++        - organization_unit_name
++        - status
++        - created_at
++      properties:
++        id:
++          $ref: "#/components/schemas/UuidV7"
++        membership_id:
++          $ref: "#/components/schemas/UuidV7"
++        membership_name:
++          type: string
++          description: Display name of the Person behind this Membership.
++        organization_id:
++          $ref: "#/components/schemas/UuidV7"
++        organization_unit_id:
++          oneOf:
++            - $ref: "#/components/schemas/UuidV7"
++            - type: "null"
++          description: |
++            null means an organization-level assignment (ADR-018
++            §2.3) — not narrower than the Organization itself.
++        organization_unit_name:
++          type:
++            - string
++            - "null"
++        status:
++          type: string
++          enum:
++            - ACTIVE
++            - INACTIVE
++        created_at:
++          type: string
++          format: date-time
++
++    OrganizationalAssignmentListSuccess:
++      type: object
++      additionalProperties: false
++      required:
++        - status
++        - data
++      properties:
++        status:
++          type: string
++          const: success
++        data:
++          type: array
++          items:
++            $ref: "#/components/schemas/OrganizationalAssignmentResource"
++
+     TenantCustomRoleVisibilityState:
+       type: string
+       description: |
+@@ -3955,6 +4067,21 @@ components:
+         maximum: 100
+         default: 15
+ 
++    OrganizationalAssignmentUnitFilter:
++      name: organization_unit_id
++      in: query
++      required: false
++      description: |
++        When present, restricts the listing to assignments exactly at
++        this Unit. Omit to list every assignment under the
++        Organization (organization-level and every Unit combined).
++        A value that does not match a real Unit simply yields an
++        empty result — it never errors, since existence in this
++        collection depends only on the assignment rows, not on the
++        Unit's current existence.
++      schema:
++        $ref: "#/components/schemas/UuidV7"
++
+     EmployeePage:
+       name: page
+       in: query
+diff --git a/tests/Feature/OpenApiIntegrityGateTest.php b/tests/Feature/OpenApiIntegrityGateTest.php
+index 91ac966..ef02ea6 100644
+--- a/tests/Feature/OpenApiIntegrityGateTest.php
++++ b/tests/Feature/OpenApiIntegrityGateTest.php
+@@ -371,7 +371,7 @@ public function test_all_foundation_operations_have_operation_id_route_name_and_
+             );
+ 
+         $this->assertCount(
+-            39,
++            40,
+             $operations,
+         );
+ 
+diff --git a/tests/Feature/OpenApiRouteCoverageTest.php b/tests/Feature/OpenApiRouteCoverageTest.php
+index fed95d4..f216933 100644
+--- a/tests/Feature/OpenApiRouteCoverageTest.php
++++ b/tests/Feature/OpenApiRouteCoverageTest.php
+@@ -89,15 +89,15 @@ public function test_all_public_api_v1_routes_are_documented_or_explicitly_defer
+         $deferred = $this->deferredOperations();
+ 
+         $this->assertCount(
+-            124,
++            125,
+             $actual,
+             'Expected the current public /api/v1 operation inventory.',
+         );
+ 
+         $this->assertCount(
+-            39,
++            40,
+             $documented,
+-            'Foundation OpenAPI must contain exactly the 39 locked foundation, Browser BFF, HR, and Core operations.',
++            'Foundation OpenAPI must contain exactly the 40 locked foundation, Browser BFF, HR, and Core operations.',
+         );
+ 
+         $this->assertCount(
+@@ -249,7 +249,7 @@ public function test_documented_openapi_operation_ids_are_unique(): void
+         }
+ 
+         $this->assertCount(
+-            39,
++            40,
+             $operationIds,
+         );
+     }
