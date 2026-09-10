@@ -1,0 +1,962 @@
+diff --git a/Modules/Auth/Routes/api.php b/Modules/Auth/Routes/api.php
+index 1b20c61..1ee8cc5 100644
+--- a/Modules/Auth/Routes/api.php
++++ b/Modules/Auth/Routes/api.php
+@@ -18,6 +18,7 @@
+ use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+ use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+ use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
++use Modules\Core\Organization\Http\Api\v1\OrganizationUnitManagementController;
+ use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
+ use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
+ use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
+@@ -224,6 +225,29 @@
+     )->name('api.v1.core.organizations.store');
+ });
+ 
++/*
++ * Kelola Unit di bawah SATU Organization — selalu nested, tidak
++ * pernah koleksi Unit lintas-Organization (lihat catatan arsitektur
++ * di OrganizationUnitManagementController). Permission terpisah dari
++ * organization.manage supaya bisa didelegasikan secara granular ke
++ * depan.
++ */
++Route::middleware([
++    UseBrowserSessionForCanonicalApi::class,
++    InjectTransportAwareTenantContext::class,
++    'tenant.permission:organization.units.manage',
++])->prefix('v1/core/organizations/{organization}/units')->group(function (): void {
++    Route::get(
++        '/',
++        [OrganizationUnitManagementController::class, 'index'],
++    )->name('api.v1.core.organizations.units.index');
++
++    Route::post(
++        '/',
++        [OrganizationUnitManagementController::class, 'store'],
++    )->name('api.v1.core.organizations.units.store');
++});
++
+ Route::middleware([
+     InjectAuthenticatedUser::class,
+     RequireGlobalSuperadmin::class,
+diff --git a/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php b/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
+index f76985f..76706d0 100644
+--- a/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
++++ b/Modules/Core/Organization/Database/Seeders/OrganizationAuthorizationCatalogSeeder.php
+@@ -10,42 +10,56 @@
+ use Modules\Core\Authorization\Models\Role;
+ 
+ /**
+- * Mengelola Organisasi (membuat struktur organisasi tenant) adalah
+- * tindakan level-TENANT — bukan level-organisasi (organisasi itu
+- * sendiri belum ada sebelum dibuat, jadi tidak bisa digate lewat
+- * `organizational.permission`). Pola sama persis dengan
+- * `TenantRoleAuthorizationCatalogSeeder`: permission baru + diberikan
+- * ke role sistem `admin` secara default supaya SETIAP tenant yang
+- * sudah ada langsung bisa memakai fitur ini tanpa konfigurasi manual.
++ * Mengelola Organisasi/Unit (membuat struktur organisasi tenant)
++ * adalah tindakan level-TENANT — bukan level-organisasi (Organization
++ * itu sendiri belum tentu sudah ada/lengkap sebelum diubah, jadi
++ * tidak bisa digate lewat `organizational.permission`). Pola sama
++ * persis dengan `TenantRoleAuthorizationCatalogSeeder`: permission
++ * baru + diberikan ke role sistem `admin` secara default supaya
++ * SETIAP tenant yang sudah ada langsung bisa memakai fitur ini tanpa
++ * konfigurasi manual.
++ *
++ * `organization.units.manage` SENGAJA dipisah dari `organization.manage`
++ * (bukan digabung jadi satu permission) — supaya ke depan bisa
++ * didelegasikan secara granular (mis. staf tata usaha yang boleh atur
++ * Unit tapi tidak boleh membuat Organization baru).
+  */
+ final class OrganizationAuthorizationCatalogSeeder extends Seeder
+ {
+-    private const PERMISSION_NAME = 'organization.manage';
++    /**
++     * @var array<string, string>
++     */
++    private const RESOURCE_PERMISSIONS = [
++        'organization.manage' => 'Kelola Organisasi',
++        'organization.units.manage' => 'Kelola Unit Organisasi',
++    ];
+ 
+     public function run(): void
+     {
+         DB::transaction(function (): void {
+-            $permission = Permission::query()->updateOrCreate(
+-                ['name' => self::PERMISSION_NAME],
+-                [
+-                    'display_name' => 'Kelola Organisasi',
+-                    'module' => 'Core',
+-                ],
+-            );
+-
+             $adminRole = Role::query()
+                 ->whereNull('tenant_id')
+                 ->where('name', 'admin')
+                 ->first();
+ 
+-            if ($adminRole === null) {
+-                return;
+-            }
++            foreach (self::RESOURCE_PERMISSIONS as $name => $displayName) {
++                $permission = Permission::query()->updateOrCreate(
++                    ['name' => $name],
++                    [
++                        'display_name' => $displayName,
++                        'module' => 'Core',
++                    ],
++                );
+ 
+-            DB::table('role_permissions')->insertOrIgnore([
+-                'role_id' => $adminRole->id,
+-                'permission_id' => $permission->id,
+-            ]);
++                if ($adminRole === null) {
++                    continue;
++                }
++
++                DB::table('role_permissions')->insertOrIgnore([
++                    'role_id' => $adminRole->id,
++                    'permission_id' => $permission->id,
++                ]);
++            }
+         });
+     }
+ }
+diff --git a/Modules/Core/Organization/Http/Api/v1/OrganizationUnitManagementController.php b/Modules/Core/Organization/Http/Api/v1/OrganizationUnitManagementController.php
+new file mode 100644
+index 0000000..7ba2c9e
+--- /dev/null
++++ b/Modules/Core/Organization/Http/Api/v1/OrganizationUnitManagementController.php
+@@ -0,0 +1,171 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Modules\Core\Organization\Http\Api\v1;
++
++use App\Http\Controllers\Controller;
++use Illuminate\Http\JsonResponse;
++use Illuminate\Http\Request;
++use Illuminate\Support\Str;
++use Modules\Core\Http\Responses\ApiErrorResponse;
++use Modules\Core\Organization\Http\Requests\StoreOrganizationUnitRequest;
++use Modules\Core\Organization\Models\Organization;
++use Modules\Core\Organization\Models\OrganizationUnit;
++use Symfony\Component\HttpFoundation\Response;
++
++/**
++ * Kelola Unit di bawah SATU Organization milik tenant — mengikuti
++ * topologi tetap ADR-018 (`Tenant → Organization → OrganizationUnit`,
++ * non-rekursif). Selalu nested di bawah Organization; tidak ada
++ * koleksi Unit lintas-Organization.
++ *
++ * Sama seperti OrganizationManagementController, ini level TENANT
++ * (digate oleh organization.units.manage, bukan
++ * organizational.permission) — operator mengelola struktur SEBELUM
++ * ada OrganizationalAssignment yang menempatkan siapa pun ke sana.
++ */
++final class OrganizationUnitManagementController extends Controller
++{
++    public function index(
++        Request $request,
++        string $organization,
++    ): JsonResponse {
++        $tenantId = $this->currentTenantId($request);
++
++        if (! $this->isCanonicalUuid($tenantId)) {
++            return $this->authenticationContextDeniedResponse();
++        }
++
++        $organizationModel = $this->requireOrganization(
++            $organization,
++            $tenantId,
++        );
++
++        if ($organizationModel === null) {
++            return $this->organizationNotFoundResponse();
++        }
++
++        $units = OrganizationUnit::query()
++            ->where('tenant_id', $tenantId)
++            ->where('organization_id', $organizationModel->id)
++            ->orderBy('name')
++            ->get();
++
++        return response()->json([
++            'status' => 'success',
++            'data' => $units->map(
++                fn(OrganizationUnit $unit) => $this->summary($unit),
++            ),
++        ]);
++    }
++
++    public function store(
++        StoreOrganizationUnitRequest $request,
++        string $organization,
++    ): JsonResponse {
++        $tenantId = $this->currentTenantId($request);
++
++        if (! $this->isCanonicalUuid($tenantId)) {
++            return $this->authenticationContextDeniedResponse();
++        }
++
++        $organizationModel = $this->requireOrganization(
++            $organization,
++            $tenantId,
++        );
++
++        if ($organizationModel === null) {
++            return $this->organizationNotFoundResponse();
++        }
++
++        $unit = OrganizationUnit::query()->create([
++            'tenant_id' => $tenantId,
++            'organization_id' => $organizationModel->id,
++            'name' => $request->string('name')->toString(),
++            'code' => $request->string('code')->toString() ?: null,
++            'is_active' => true,
++        ]);
++
++        return response()->json(
++            [
++                'status' => 'success',
++                'data' => $this->summary($unit),
++            ],
++            Response::HTTP_CREATED,
++        );
++    }
++
++    private function currentTenantId(Request $request): string
++    {
++        $tenantId = $request->attributes->get(
++            'authenticated_tenant_id',
++        );
++
++        return is_string($tenantId) ? $tenantId : '';
++    }
++
++    private function requireOrganization(
++        string $organizationId,
++        string $tenantId,
++    ): ?Organization {
++        $organizationId = trim($organizationId);
++
++        if (! Str::isUuid($organizationId)) {
++            return null;
++        }
++
++        return Organization::query()
++            ->whereKey($organizationId)
++            ->where('tenant_id', $tenantId)
++            ->first();
++    }
++
++    /**
++     * @phpstan-assert-if-true string $value
++     */
++    private function isCanonicalUuid(mixed $value): bool
++    {
++        return is_string($value)
++            && $value !== ''
++            && Str::isUuid(trim($value));
++    }
++
++    private function authenticationContextDeniedResponse(): JsonResponse
++    {
++        return ApiErrorResponse::make(
++            code: 'AUTHENTICATION_CONTEXT_DENIED',
++            message: 'Authentication context missing or invalid.',
++            status: Response::HTTP_FORBIDDEN,
++        );
++    }
++
++    /**
++     * Organization tidak ditemukan ATAU bukan milik tenant saat ini
++     * selalu mengembalikan respons yang identik — eksistensi Organization
++     * milik tenant lain tidak boleh bisa dibedakan lewat status code.
++     */
++    private function organizationNotFoundResponse(): JsonResponse
++    {
++        return ApiErrorResponse::make(
++            code: 'RESOURCE_NOT_FOUND',
++            message: 'The requested organization was not found.',
++            status: Response::HTTP_NOT_FOUND,
++        );
++    }
++
++    /**
++     * @return array<string, mixed>
++     */
++    private function summary(OrganizationUnit $unit): array
++    {
++        return [
++            'id' => (string) $unit->id,
++            'organization_id' => (string) $unit->organization_id,
++            'name' => $unit->name,
++            'code' => $unit->code,
++            'is_active' => $unit->is_active,
++            'created_at' => $unit->created_at?->toIso8601String(),
++        ];
++    }
++}
+diff --git a/Modules/Core/Organization/Http/Requests/StoreOrganizationUnitRequest.php b/Modules/Core/Organization/Http/Requests/StoreOrganizationUnitRequest.php
+new file mode 100644
+index 0000000..865c977
+--- /dev/null
++++ b/Modules/Core/Organization/Http/Requests/StoreOrganizationUnitRequest.php
+@@ -0,0 +1,63 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Modules\Core\Organization\Http\Requests;
++
++use Illuminate\Foundation\Http\FormRequest;
++use Illuminate\Validation\Rule;
++
++final class StoreOrganizationUnitRequest extends FormRequest
++{
++    public function authorize(): bool
++    {
++        return true;
++    }
++
++    /**
++     * `code` sengaja unik PER ORGANIZATION (bukan per-tenant seperti
++     * `Organization::code`, dan bukan pula global) — dua Organization
++     * berbeda milik tenant yang sama boleh punya Unit dengan kode
++     * identik (mis. dua kampus yang sama-sama punya unit "REKTORAT").
++     * `tenant_id` dan `organization` diambil dari context/route yang
++     * sudah diverifikasi controller, bukan dari payload.
++     *
++     * @return array<string, array<int, mixed>>
++     */
++    public function rules(): array
++    {
++        $tenantId = $this->attributes->get(
++            'authenticated_tenant_id',
++        );
++        $tenantId = is_string($tenantId) ? $tenantId : '';
++
++        $organizationId = $this->route('organization');
++        $organizationId = is_string($organizationId) ? $organizationId : '';
++
++        return [
++            'name' => [
++                'required',
++                'string',
++                'max:255',
++            ],
++            'code' => [
++                'nullable',
++                'string',
++                'max:100',
++                Rule::unique('organization_units', 'code')
++                    ->where(
++                        fn($query) => $query
++                            ->where(
++                                'tenant_id',
++                                $tenantId,
++                            )
++                            ->where(
++                                'organization_id',
++                                $organizationId,
++                            )
++                            ->whereNull('deleted_at'),
++                    ),
++            ],
++        ];
++    }
++}
+diff --git a/Modules/Core/Tests/Feature/OrganizationUnitManagementControllerTest.php b/Modules/Core/Tests/Feature/OrganizationUnitManagementControllerTest.php
+new file mode 100644
+index 0000000..3972963
+--- /dev/null
++++ b/Modules/Core/Tests/Feature/OrganizationUnitManagementControllerTest.php
+@@ -0,0 +1,382 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Modules\Core\Tests\Feature;
++
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Str;
++use Modules\Auth\Token\Contracts\TokenManagerInterface;
++use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
++use Modules\Core\Organization\Database\Seeders\OrganizationAuthorizationCatalogSeeder;
++use Modules\Core\Support\Uuid\UuidV7;
++use Modules\Core\Tenancy\Contracts\TenantContextInterface;
++use Symfony\Component\HttpFoundation\Response;
++use Tests\Support\GrantsAuthorizationRole;
++use Tests\TestCase;
++
++final class OrganizationUnitManagementControllerTest extends TestCase
++{
++    use RefreshDatabase;
++    use GrantsAuthorizationRole;
++
++    private string $tenantId;
++    private string $operatorUserId;
++    private string $operatorMembershipId;
++    private string $organizationId;
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++
++        $this->seed(AuthorizationCatalogSeeder::class);
++        $this->seed(OrganizationAuthorizationCatalogSeeder::class);
++
++        $this->tenantId = UuidV7::generate();
++        $this->operatorUserId = UuidV7::generate();
++        $this->operatorMembershipId = UuidV7::generate();
++
++        $this->createTenantFixture($this->tenantId);
++        $this->createOperatorFixture();
++
++        $this->grantRole(
++            $this->operatorMembershipId,
++            'admin',
++        );
++
++        $this->organizationId = $this->createOrganizationFixture(
++            $this->tenantId,
++            'Kampus Utama',
++            'KAMPUS-UTAMA',
++        );
++    }
++
++    protected function tearDown(): void
++    {
++        app(TenantContextInterface::class)->clear();
++
++        parent::tearDown();
++    }
++
++    public function test_index_lists_units_for_the_given_organization(): void
++    {
++        $this->createUnitFixture(
++            $this->tenantId,
++            $this->organizationId,
++            'Fakultas Teknik',
++            'FT',
++        );
++
++        $otherOrganizationId = $this->createOrganizationFixture(
++            $this->tenantId,
++            'Kampus Cabang',
++            'KAMPUS-CABANG',
++        );
++        $this->createUnitFixture(
++            $this->tenantId,
++            $otherOrganizationId,
++            'Milik Organization Lain',
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.units.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertOk();
++
++        $names = collect($response->json('data'))->pluck('name');
++
++        $this->assertTrue($names->contains('Fakultas Teknik'));
++        $this->assertFalse(
++            $names->contains('Milik Organization Lain'),
++            'Units belonging to another Organization must never appear.',
++        );
++    }
++
++    public function test_index_returns_404_when_organization_belongs_to_another_tenant(): void
++    {
++        $otherTenantId = UuidV7::generate();
++        $this->createTenantFixture($otherTenantId);
++        $foreignOrganizationId = $this->createOrganizationFixture(
++            $otherTenantId,
++            'Milik Tenant Lain',
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.units.index',
++                    ['organization' => $foreignOrganizationId],
++                    false,
++                ),
++            );
++
++        $response->assertStatus(Response::HTTP_NOT_FOUND);
++    }
++
++    public function test_store_creates_new_unit(): void
++    {
++        $response = $this
++            ->withToken($this->issueToken())
++            ->postJson(
++                route(
++                    'api.v1.core.organizations.units.store',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++                [
++                    'name' => 'Fakultas Teknik',
++                    'code' => 'FT',
++                ],
++            );
++
++        $response->assertStatus(Response::HTTP_CREATED);
++        $response->assertJsonPath('data.name', 'Fakultas Teknik');
++        $response->assertJsonPath('data.code', 'FT');
++        $response->assertJsonPath('data.organization_id', $this->organizationId);
++        $response->assertJsonPath('data.is_active', true);
++
++        $this->assertDatabaseHas('organization_units', [
++            'tenant_id' => $this->tenantId,
++            'organization_id' => $this->organizationId,
++            'name' => 'Fakultas Teknik',
++            'code' => 'FT',
++        ]);
++    }
++
++    public function test_store_allows_omitted_code(): void
++    {
++        $response = $this
++            ->withToken($this->issueToken())
++            ->postJson(
++                route(
++                    'api.v1.core.organizations.units.store',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++                [
++                    'name' => 'Fakultas Teknik',
++                ],
++            );
++
++        $response->assertStatus(Response::HTTP_CREATED);
++        $response->assertJsonPath('data.code', null);
++    }
++
++    public function test_store_rejects_duplicate_code_within_same_organization(): void
++    {
++        $this->createUnitFixture(
++            $this->tenantId,
++            $this->organizationId,
++            'Fakultas Teknik',
++            'FT',
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->postJson(
++                route(
++                    'api.v1.core.organizations.units.store',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++                [
++                    'name' => 'Fakultas Teknik (Duplikat)',
++                    'code' => 'FT',
++                ],
++            );
++
++        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
++    }
++
++    public function test_store_allows_same_code_across_different_organizations(): void
++    {
++        $otherOrganizationId = $this->createOrganizationFixture(
++            $this->tenantId,
++            'Kampus Cabang',
++            'KAMPUS-CABANG',
++        );
++        $this->createUnitFixture(
++            $this->tenantId,
++            $otherOrganizationId,
++            'Rektorat',
++            'REKTORAT',
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->postJson(
++                route(
++                    'api.v1.core.organizations.units.store',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++                [
++                    'name' => 'Rektorat',
++                    'code' => 'REKTORAT',
++                ],
++            );
++
++        $response->assertStatus(Response::HTTP_CREATED);
++    }
++
++    public function test_store_returns_404_when_organization_belongs_to_another_tenant(): void
++    {
++        $otherTenantId = UuidV7::generate();
++        $this->createTenantFixture($otherTenantId);
++        $foreignOrganizationId = $this->createOrganizationFixture(
++            $otherTenantId,
++            'Milik Tenant Lain',
++            null,
++        );
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->postJson(
++                route(
++                    'api.v1.core.organizations.units.store',
++                    ['organization' => $foreignOrganizationId],
++                    false,
++                ),
++                [
++                    'name' => 'Unit Ilegal',
++                ],
++            );
++
++        $response->assertStatus(Response::HTTP_NOT_FOUND);
++    }
++
++    public function test_index_is_forbidden_without_organization_units_manage_permission(): void
++    {
++        DB::table('membership_roles')
++            ->where('membership_id', $this->operatorMembershipId)
++            ->delete();
++
++        $response = $this
++            ->withToken($this->issueToken())
++            ->getJson(
++                route(
++                    'api.v1.core.organizations.units.index',
++                    ['organization' => $this->organizationId],
++                    false,
++                ),
++            );
++
++        $response->assertStatus(Response::HTTP_FORBIDDEN);
++    }
++
++    private function issueToken(): string
++    {
++        return app(TokenManagerInterface::class)
++            ->issueToken(
++                $this->operatorUserId,
++                $this->tenantId,
++                ['membership_id' => $this->operatorMembershipId],
++            );
++    }
++
++    private function createTenantFixture(string $tenantId): void
++    {
++        DB::table('tenants')->insert([
++            'id' => $tenantId,
++            'name' => 'Organization Unit Management Tenant',
++            'subdomain' => sprintf(
++                'org-unit-mgmt-%s',
++                Str::lower(Str::random(12)),
++            ),
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++    }
++
++    private function createOperatorFixture(): void
++    {
++        $personId = UuidV7::generate();
++
++        DB::table('persons')->insert([
++            'id' => $personId,
++            'name' => 'Organization Unit Management Operator',
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        $email = sprintf(
++            'org-unit-mgmt-operator-%s@educore.test',
++            Str::lower(Str::random(10)),
++        );
++
++        DB::table('users')->insert([
++            'id' => $this->operatorUserId,
++            'person_id' => $personId,
++            'email' => $email,
++            'password' => bcrypt('secret123'),
++            'status' => 'ACTIVE',
++            'is_superadmin' => false,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        DB::table('memberships')->insert([
++            'id' => $this->operatorMembershipId,
++            'person_id' => $personId,
++            'tenant_id' => $this->tenantId,
++            'status' => 'ACTIVE',
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++    }
++
++    private function createOrganizationFixture(
++        string $tenantId,
++        string $name,
++        ?string $code,
++    ): string {
++        $organizationId = UuidV7::generate();
++
++        DB::table('organizations')->insert([
++            'id' => $organizationId,
++            'tenant_id' => $tenantId,
++            'name' => $name,
++            'code' => $code,
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $organizationId;
++    }
++
++    private function createUnitFixture(
++        string $tenantId,
++        string $organizationId,
++        string $name,
++        ?string $code,
++    ): string {
++        $unitId = UuidV7::generate();
++
++        DB::table('organization_units')->insert([
++            'id' => $unitId,
++            'tenant_id' => $tenantId,
++            'organization_id' => $organizationId,
++            'name' => $name,
++            'code' => $code,
++            'is_active' => true,
++            'created_at' => now(),
++            'updated_at' => now(),
++        ]);
++
++        return $unitId;
++    }
++}
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index 919affd..9275aba 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -1495,6 +1495,117 @@ paths:
+         "500":
+           $ref: "#/components/responses/InternalServerError"
+ 
++  /api/v1/core/organizations/{organization}/units:
++    get:
++      operationId: coreOrganizationUnitIndex
++      x-laravel-route-name: api.v1.core.organizations.units.index
++      tags:
++        - Core
++      summary: List the Units under one Organization
++      description: |
++        TENANT-level, gated by organization.units.manage (separate
++        from organization.manage). Always nested under one
++        Organization — there is no cross-Organization Unit listing.
++        A missing or cross-tenant organization always returns 404,
++        identical to a non-existent one, so existence never leaks
++        across tenant boundaries.
++      security:
++        - BearerAuth: []
++        - BrowserSessionAuth: []
++      parameters:
++        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
++        - name: organization
++          in: path
++          required: true
++          schema:
++            $ref: "#/components/schemas/UuidV7"
++      responses:
++        "200":
++          description: The Organization's Units, ordered by name.
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/OrganizationUnitListSuccess"
++
++        "401":
++          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
++
++        "403":
++          description: |
++            Authentication context missing/invalid, or the current
++            Membership does not have organization.units.manage
++            permission.
++          content:
++            application/json:
++              schema:
++                oneOf:
++                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
++                  - $ref: "#/components/schemas/AuthorizationDeniedError"
++
++        "404":
++          $ref: "#/components/responses/ResourceNotFound"
++
++        "500":
++          $ref: "#/components/responses/InternalServerError"
++
++    post:
++      operationId: coreOrganizationUnitStore
++      x-laravel-route-name: api.v1.core.organizations.units.store
++      tags:
++        - Core
++      summary: Create a new Unit under one Organization
++      description: |
++        `code`, when provided, must be unique within the Organization
++        (not tenant-wide, and not global). Requires
++        organization.units.manage permission.
++      security:
++        - BearerAuth: []
++        - BrowserSessionAuth: []
++      parameters:
++        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
++        - name: organization
++          in: path
++          required: true
++          schema:
++            $ref: "#/components/schemas/UuidV7"
++      requestBody:
++        required: true
++        content:
++          application/json:
++            schema:
++              $ref: "#/components/schemas/StoreOrganizationUnitRequest"
++      responses:
++        "201":
++          description: The newly created Unit.
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/OrganizationUnitDetailSuccess"
++
++        "401":
++          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
++
++        "403":
++          description: |
++            Authentication context missing/invalid, or the current
++            Membership does not have organization.units.manage
++            permission.
++          content:
++            application/json:
++              schema:
++                oneOf:
++                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
++                  - $ref: "#/components/schemas/AuthorizationDeniedError"
++
++        "404":
++          $ref: "#/components/responses/ResourceNotFound"
++
++        "422":
++          $ref: "#/components/responses/ValidationFailed"
++
++        "500":
++          $ref: "#/components/responses/InternalServerError"
++
+   /api/v1/user/my-memberships:
+     get:
+       operationId: userMembershipIndex
+@@ -2972,6 +3083,79 @@ components:
+           description: |
+             Unik per tenant (bukan global). Boleh dikosongkan.
+ 
++    OrganizationUnitResource:
++      type: object
++      additionalProperties: false
++      required:
++        - id
++        - organization_id
++        - name
++        - code
++        - is_active
++        - created_at
++      properties:
++        id:
++          $ref: "#/components/schemas/UuidV7"
++        organization_id:
++          $ref: "#/components/schemas/UuidV7"
++        name:
++          type: string
++        code:
++          type:
++            - string
++            - "null"
++        is_active:
++          type: boolean
++        created_at:
++          type: string
++          format: date-time
++
++    OrganizationUnitListSuccess:
++      type: object
++      additionalProperties: false
++      required:
++        - status
++        - data
++      properties:
++        status:
++          type: string
++          const: success
++        data:
++          type: array
++          items:
++            $ref: "#/components/schemas/OrganizationUnitResource"
++
++    OrganizationUnitDetailSuccess:
++      type: object
++      additionalProperties: false
++      required:
++        - status
++        - data
++      properties:
++        status:
++          type: string
++          const: success
++        data:
++          $ref: "#/components/schemas/OrganizationUnitResource"
++
++    StoreOrganizationUnitRequest:
++      type: object
++      additionalProperties: false
++      required:
++        - name
++      properties:
++        name:
++          type: string
++          maxLength: 255
++        code:
++          type:
++            - string
++            - "null"
++          maxLength: 100
++          description: |
++            Unik per Organization (bukan per-tenant, bukan global).
++            Boleh dikosongkan.
++
+     TenantCustomRoleVisibilityState:
+       type: string
+       description: |

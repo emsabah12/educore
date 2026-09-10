@@ -18,6 +18,7 @@ use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
+use Modules\Core\Organization\Http\Api\v1\OrganizationUnitManagementController;
 use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
 use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
@@ -222,6 +223,29 @@ Route::middleware([
         '/',
         [OrganizationManagementController::class, 'store'],
     )->name('api.v1.core.organizations.store');
+});
+
+/*
+ * Kelola Unit di bawah SATU Organization — selalu nested, tidak
+ * pernah koleksi Unit lintas-Organization (lihat catatan arsitektur
+ * di OrganizationUnitManagementController). Permission terpisah dari
+ * organization.manage supaya bisa didelegasikan secara granular ke
+ * depan.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    'tenant.permission:organization.units.manage',
+])->prefix('v1/core/organizations/{organization}/units')->group(function (): void {
+    Route::get(
+        '/',
+        [OrganizationUnitManagementController::class, 'index'],
+    )->name('api.v1.core.organizations.units.index');
+
+    Route::post(
+        '/',
+        [OrganizationUnitManagementController::class, 'store'],
+    )->name('api.v1.core.organizations.units.store');
 });
 
 Route::middleware([

@@ -1495,6 +1495,117 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/core/organizations/{organization}/units:
+    get:
+      operationId: coreOrganizationUnitIndex
+      x-laravel-route-name: api.v1.core.organizations.units.index
+      tags:
+        - Core
+      summary: List the Units under one Organization
+      description: |
+        TENANT-level, gated by organization.units.manage (separate
+        from organization.manage). Always nested under one
+        Organization — there is no cross-Organization Unit listing.
+        A missing or cross-tenant organization always returns 404,
+        identical to a non-existent one, so existence never leaks
+        across tenant boundaries.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: organization
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Organization's Units, ordered by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationUnitListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.units.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: coreOrganizationUnitStore
+      x-laravel-route-name: api.v1.core.organizations.units.store
+      tags:
+        - Core
+      summary: Create a new Unit under one Organization
+      description: |
+        `code`, when provided, must be unique within the Organization
+        (not tenant-wide, and not global). Requires
+        organization.units.manage permission.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: organization
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreOrganizationUnitRequest"
+      responses:
+        "201":
+          description: The newly created Unit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationUnitDetailSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.units.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -2971,6 +3082,79 @@ components:
           maxLength: 100
           description: |
             Unik per tenant (bukan global). Boleh dikosongkan.
+
+    OrganizationUnitResource:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organization_id
+        - name
+        - code
+        - is_active
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        code:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    OrganizationUnitListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationUnitResource"
+
+    OrganizationUnitDetailSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/OrganizationUnitResource"
+
+    StoreOrganizationUnitRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type:
+            - string
+            - "null"
+          maxLength: 100
+          description: |
+            Unik per Organization (bukan per-tenant, bukan global).
+            Boleh dikosongkan.
 
     TenantCustomRoleVisibilityState:
       type: string

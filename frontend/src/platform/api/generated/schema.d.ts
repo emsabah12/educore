@@ -621,6 +621,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/organizations/{organization}/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the Units under one Organization
+         * @description TENANT-level, gated by organization.units.manage (separate
+         *     from organization.manage). Always nested under one
+         *     Organization — there is no cross-Organization Unit listing.
+         *     A missing or cross-tenant organization always returns 404,
+         *     identical to a non-existent one, so existence never leaks
+         *     across tenant boundaries.
+         */
+        get: operations["coreOrganizationUnitIndex"];
+        put?: never;
+        /**
+         * Create a new Unit under one Organization
+         * @description `code`, when provided, must be unique within the Organization
+         *     (not tenant-wide, and not global). Requires
+         *     organization.units.manage permission.
+         */
+        post: operations["coreOrganizationUnitStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -1227,6 +1258,33 @@ export interface components {
         StoreOrganizationRequest: {
             name: string;
             /** @description Unik per tenant (bukan global). Boleh dikosongkan. */
+            code?: string | null;
+        };
+        OrganizationUnitResource: {
+            id: components["schemas"]["UuidV7"];
+            organization_id: components["schemas"]["UuidV7"];
+            name: string;
+            code: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OrganizationUnitListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationUnitResource"][];
+        };
+        OrganizationUnitDetailSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationUnitResource"];
+        };
+        StoreOrganizationUnitRequest: {
+            name: string;
+            /**
+             * @description Unik per Organization (bukan per-tenant, bukan global).
+             *     Boleh dikosongkan.
+             */
             code?: string | null;
         };
         /**
@@ -3238,6 +3296,107 @@ export interface operations {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationUnitIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Organization's Units, ordered by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationUnitListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.units.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationUnitStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreOrganizationUnitRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created Unit. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationUnitDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.units.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
             422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
