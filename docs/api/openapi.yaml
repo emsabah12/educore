@@ -1405,6 +1405,96 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/core/organizations:
+    get:
+      operationId: coreOrganizationIndex
+      x-laravel-route-name: api.v1.core.organizations.index
+      tags:
+        - Core
+      summary: List the current tenant's Organizations
+      description: |
+        TENANT-level (not organizational-scoped) — an Organization is
+        the structure being managed here, so it cannot itself be a
+        prerequisite for reaching this endpoint. Requires
+        organization.manage permission.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The tenant's Organizations, ordered by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: coreOrganizationStore
+      x-laravel-route-name: api.v1.core.organizations.store
+      tags:
+        - Core
+      summary: Create a new Organization for the current tenant
+      description: |
+        `code`, when provided, must be unique within the tenant (not
+        globally). Requires organization.manage permission.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreOrganizationRequest"
+      responses:
+        "201":
+          description: The newly created Organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationDetailSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -2812,6 +2902,75 @@ components:
                 and any TRIAL/ACTIVE add-on features (never
                 locked_readonly/locked_hidden add-ons). E.g. ["hr_module",
                 "custom_roles"].
+
+    OrganizationResource:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - code
+        - is_active
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+        code:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    OrganizationListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationResource"
+
+    OrganizationDetailSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/OrganizationResource"
+
+    StoreOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type:
+            - string
+            - "null"
+          maxLength: 100
+          description: |
+            Unik per tenant (bukan global). Boleh dikosongkan.
 
     TenantCustomRoleVisibilityState:
       type: string

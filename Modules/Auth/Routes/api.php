@@ -17,6 +17,7 @@ use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
 use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
 use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
 use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
@@ -199,6 +200,28 @@ Route::middleware([
         '/effective-features',
         [TenantEffectiveFeaturesController::class, 'index'],
     )->name('api.v1.core.tenant-subscription.effective-features');
+});
+
+/*
+ * Kelola Organisasi milik tenant — level TENANT, bukan
+ * organizational-scoped (lihat catatan arsitektur di
+ * OrganizationManagementController). Dual transport untuk frontend
+ * browser-session, pola sama seperti /core/tenant-roles.
+ */
+Route::middleware([
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
+    'tenant.permission:organization.manage',
+])->prefix('v1/core/organizations')->group(function (): void {
+    Route::get(
+        '/',
+        [OrganizationManagementController::class, 'index'],
+    )->name('api.v1.core.organizations.index');
+
+    Route::post(
+        '/',
+        [OrganizationManagementController::class, 'store'],
+    )->name('api.v1.core.organizations.store');
 });
 
 Route::middleware([
