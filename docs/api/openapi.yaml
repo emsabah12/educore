@@ -734,6 +734,86 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/workspace/employees/{employeeId}/employments:
+    post:
+      operationId: hrWorkspaceEmploymentStore
+      x-laravel-route-name: api.v1.hr.workspace.employees.employments.store
+      tags:
+        - Human Resources
+      summary: Create a new PLANNED Employment episode for an Employee
+      description: |
+        HR-002 §9 — starts a new Employment episode with PLANNED status.
+        Filters the target Employee through the same visibility rule as
+        GET /hr/workspace/employees (HR-013 §6) — an Employee outside
+        the current workspace returns 403
+        EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreEmploymentRequest"
+      responses:
+        "201":
+          description: The newly created, PLANNED Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; the current organizational
+            assignment does not have hr.employments.manage permission;
+            or the Employee is outside the current organizational
+            workspace.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/EmployeeOutOfOrganizationalScopeError"
+
+        "404":
+          description: Employee was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeNotFoundError"
+
+        "409":
+          description: |
+            The referenced EmploymentType or EmploymentClassification
+            catalog entry is not active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employments/{employmentId}/activate:
     post:
       operationId: hrWorkspaceEmploymentActivate
@@ -2508,6 +2588,47 @@ components:
         message:
           type: string
 
+    StoreEmploymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - start_date
+      properties:
+        employment_type_id:
+          description: |
+            Must reference an EmploymentType belonging to the current
+            tenant. `is_active` is NOT checked here — an inactive
+            catalog entry fails as 409 EMPLOYMENT_LIFECYCLE_CONFLICT
+            (a business rule), not 422 (a malformed request).
+          type:
+            - string
+            - "null"
+        employment_classification_id:
+          description: Same tenant-ownership rule as employment_type_id.
+          type:
+            - string
+            - "null"
+        start_date:
+          type: string
+          format: date
+
+    EmployeeNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYEE_NOT_FOUND
+        message:
+          type: string
+
     TenantCustomRoleVisibilityState:
       type: string
       description: |
@@ -3785,12 +3906,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/workspace/employees
     route_name: api.v1.hr.workspace.employees.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employees/{employeeId}/employments
-    route_name: api.v1.hr.workspace.employees.employments.store
     owner: HR
     reason: domain-api-hardening-deferred
 

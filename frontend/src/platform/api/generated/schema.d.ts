@@ -362,6 +362,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/workspace/employees/{employeeId}/employments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new PLANNED Employment episode for an Employee
+         * @description HR-002 §9 — starts a new Employment episode with PLANNED status.
+         *     Filters the target Employee through the same visibility rule as
+         *     GET /hr/workspace/employees (HR-013 §6) — an Employee outside
+         *     the current workspace returns 403
+         *     EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE.
+         */
+        post: operations["hrWorkspaceEmploymentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/workspace/employments/{employmentId}/activate": {
         parameters: {
             query?: never;
@@ -1039,6 +1063,26 @@ export interface components {
             status: "error";
             /** @constant */
             code: "EMPLOYMENT_LIFECYCLE_CONFLICT";
+            message: string;
+        };
+        StoreEmploymentRequest: {
+            /**
+             * @description Must reference an EmploymentType belonging to the current
+             *     tenant. `is_active` is NOT checked here — an inactive
+             *     catalog entry fails as 409 EMPLOYMENT_LIFECYCLE_CONFLICT
+             *     (a business rule), not 422 (a malformed request).
+             */
+            employment_type_id?: string | null;
+            /** @description Same tenant-ownership rule as employment_type_id. */
+            employment_classification_id?: string | null;
+            /** Format: date */
+            start_date: string;
+        };
+        EmployeeNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "EMPLOYEE_NOT_FOUND";
             message: string;
         };
         /**
@@ -2258,6 +2302,90 @@ export interface operations {
                 };
             };
             404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmploymentStore: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employeeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEmploymentRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created, PLANNED Employment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentTransitionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; the current organizational
+             *     assignment does not have hr.employments.manage permission;
+             *     or the Employee is outside the current organizational
+             *     workspace.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"] | components["schemas"]["EmployeeOutOfOrganizationalScopeError"];
+                };
+            };
+            /** @description Employee was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNotFoundError"];
+                };
+            };
+            /**
+             * @description The referenced EmploymentType or EmploymentClassification
+             *     catalog entry is not active.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentLifecycleConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };

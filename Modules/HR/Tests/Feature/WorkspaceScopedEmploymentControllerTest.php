@@ -262,6 +262,112 @@ final class WorkspaceScopedEmploymentControllerTest extends TestCase
             ->assertJsonPath('code', 'EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE');
     }
 
+    public function test_workspace_store_creates_new_employment_episode_for_visible_employee(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $existingEmploymentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $this->organizationId,
+        );
+
+        $employeeId = $this->employeeIdForEmployment($existingEmploymentId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employees.employments.store',
+                    ['employeeId' => $employeeId],
+                    false,
+                ),
+                [
+                    'start_date' => '2026-07-01',
+                ],
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'PLANNED')
+            ->assertJsonPath('data.employee_id', $employeeId)
+            ->assertJsonPath('data.start_date', '2026-07-01');
+    }
+
+    public function test_workspace_store_is_denied_when_employee_is_not_visible_in_operator_workspace(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $otherOrganizationId = $this->createOrganizationFixture(UuidV7::generate());
+        $existingEmploymentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $otherOrganizationId,
+        );
+
+        $employeeId = $this->employeeIdForEmployment($existingEmploymentId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employees.employments.store',
+                    ['employeeId' => $employeeId],
+                    false,
+                ),
+                [
+                    'start_date' => '2026-07-01',
+                ],
+            );
+
+        $response
+            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertJsonPath('code', 'EMPLOYEE_OUT_OF_ORGANIZATIONAL_SCOPE');
+    }
+
+    public function test_workspace_store_validation_rejects_missing_start_date(): void
+    {
+        $operatorAssignmentId = $this->createOperatorAssignment($this->organizationId);
+        $this->grantScopedRole($operatorAssignmentId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $existingEmploymentId = $this->createPlannedEmploymentWithOpenPlacement(
+            $this->organizationId,
+        );
+
+        $employeeId = $this->employeeIdForEmployment($existingEmploymentId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->withHeaders([
+                InjectOrganizationalContext::HEADER => $operatorAssignmentId,
+            ])
+            ->postJson(
+                route(
+                    'api.v1.hr.workspace.employees.employments.store',
+                    ['employeeId' => $employeeId],
+                    false,
+                ),
+                [],
+            );
+
+        $response->assertJsonValidationErrors(['start_date']);
+    }
+
+    private function employeeIdForEmployment(string $employmentId): string
+    {
+        $employeeId = DB::table('employments')
+            ->where('id', $employmentId)
+            ->value('employee_id');
+
+        $this->assertIsString($employeeId);
+
+        return $employeeId;
+    }
+
     private function issueToken(): string
     {
         return app(TokenManagerInterface::class)

@@ -271,3 +271,107 @@ export function useEndEmploymentMutation(): UseMutationResult<EmploymentResource
         },
     });
 }
+
+export interface CreateEmploymentInput {
+    readonly employeeId: string;
+    readonly startDate: string;
+}
+
+/*
+ * Only `start_date` is exposed for now — `employment_type_id`
+ * and `employment_classification_id` are accepted by the API
+ * (StoreEmploymentRequest) but there is no catalog-listing
+ * endpoint yet to power a picker for them, so wiring those two
+ * fields into the form is deferred until that endpoint exists.
+ */
+export function useCreateEmploymentMutation(): UseMutationResult<
+    EmploymentResource,
+    BrowserApiFailure,
+    CreateEmploymentInput
+> {
+    const apiClient =
+        useApiClient();
+
+    const {
+        membershipId,
+        organizationalAssignmentId,
+    } =
+        useWorkspaceHeaderInputs();
+
+    const queryClient =
+        useQueryClient();
+
+    return useMutation<
+        EmploymentResource,
+        BrowserApiFailure,
+        CreateEmploymentInput
+    >({
+        mutationFn: async ({
+            employeeId,
+            startDate,
+        }) => {
+            if (
+                membershipId === null
+                || organizationalAssignmentId === null
+            ) {
+                throw new Error(
+                    'useCreateEmploymentMutation executed without a ready organizational workspace.',
+                );
+            }
+
+            const result =
+                await executeBrowserApiRequest(
+                    apiClient.POST(
+                        '/api/v1/hr/workspace/employees/{employeeId}/employments',
+                        {
+                            params: {
+                                path: {
+                                    employeeId,
+                                },
+
+                                header:
+                                    createBrowserWorkspaceHeaderParams(
+                                        {
+                                            membershipId,
+                                            organizationalAssignmentId,
+                                        },
+                                    ),
+                            },
+
+                            body: {
+                                start_date:
+                                    startDate,
+                            },
+                        },
+                    ),
+                );
+
+            if (! result.ok) {
+                throw result;
+            }
+
+            if (result.data === undefined) {
+                throw new Error(
+                    'Create Employment response was empty.',
+                );
+            }
+
+            return result.data.data;
+        },
+
+        onSuccess: (
+            _data,
+            variables,
+        ) => {
+            void queryClient.invalidateQueries(
+                {
+                    queryKey:
+                        employeeDetailQueryKey(
+                            organizationalAssignmentId,
+                            variables.employeeId,
+                        ),
+                },
+            );
+        },
+    });
+}

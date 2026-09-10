@@ -9,6 +9,7 @@ import {
 import {
     useActivateEmploymentMutation,
     useCancelEmploymentMutation,
+    useCreateEmploymentMutation,
     useEndEmploymentMutation,
 } from '@/modules/hr/api/use-employment-mutations';
 import {
@@ -305,6 +306,132 @@ function EmploymentActionsCell({
     );
 }
 
+function CreateEmploymentForm({
+    employeeId,
+}: {
+    employeeId: string;
+}) {
+    const createMutation =
+        useCreateEmploymentMutation();
+
+    const [
+        isOpen,
+        setIsOpen,
+    ] = useState(false);
+
+    const [
+        startDate,
+        setStartDate,
+    ] = useState('');
+
+    if (! isOpen) {
+        return (
+            <Button
+                size="sm"
+                onClick={
+                    () =>
+                        setIsOpen(
+                            true,
+                        )
+                }
+            >
+                + Tambah Employment
+            </Button>
+        );
+    }
+
+    return (
+        <div className="flex flex-col items-start gap-1 rounded-md border p-3">
+            <label
+                htmlFor="new-employment-start-date"
+                className="text-xs font-medium"
+            >
+                Tanggal Mulai
+            </label>
+
+            <div className="flex items-center gap-2">
+                <Input
+                    id="new-employment-start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={
+                        (
+                            event,
+                        ) =>
+                            setStartDate(
+                                event.target.value,
+                            )
+                    }
+                    className="h-8 w-36 text-xs"
+                />
+
+                <Button
+                    size="sm"
+                    disabled={
+                        startDate === ''
+                        || createMutation.isPending
+                    }
+                    onClick={
+                        () =>
+                            createMutation.mutate(
+                                {
+                                    employeeId,
+                                    startDate,
+                                },
+                                {
+                                    onSuccess: () => {
+                                        setIsOpen(
+                                            false,
+                                        );
+                                        setStartDate(
+                                            '',
+                                        );
+                                    },
+                                },
+                            )
+                    }
+                >
+                    {
+                        createMutation.isPending
+                            ? 'Menyimpan…'
+                            : 'Buat'
+                    }
+                </Button>
+
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={
+                        () => {
+                            setIsOpen(
+                                false,
+                            );
+                            setStartDate(
+                                '',
+                            );
+                        }
+                    }
+                >
+                    Batal
+                </Button>
+            </div>
+
+            {
+                createMutation.isError
+                    ? (
+                        <p
+                            role="alert"
+                            className="text-xs text-destructive"
+                        >
+                            Gagal membuat employment baru. Coba lagi.
+                        </p>
+                    )
+                    : null
+            }
+        </div>
+    );
+}
+
 export function HrEmployeeDetailPage() {
     const {
         employeeId,
@@ -399,9 +526,18 @@ export function HrEmployeeDetailPage() {
                             </div>
 
                             <div className="space-y-3">
-                                <h2 className="text-sm font-semibold">
-                                    Riwayat Employment
-                                </h2>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-sm font-semibold">
+                                        Riwayat Employment
+                                    </h2>
+
+                                    <CreateEmploymentForm
+                                        employeeId={
+                                            employeeId
+                                            ?? ''
+                                        }
+                                    />
+                                </div>
 
                                 {
                                     query.data.employments.length === 0
