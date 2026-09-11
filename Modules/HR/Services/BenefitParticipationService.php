@@ -16,11 +16,9 @@ use Modules\HR\Services\Concerns\LocksEmploymentRecords;
 
 /**
  * Implementasi algoritma transaksi Employee Benefit Participation
- * dari HR-006 §7.6 — create (status awal ELIGIBLE) + enroll
- * (ELIGIBLE → ENROLLED, sekaligus tindakan verifikasi
- * administratif). Belum termasuk suspend/reinstate/end/markIneligible
- * — step berikutnya, mengikuti pola inkremental yang sama dengan
- * CompensationAssignmentService.
+ * dari HR-006 §7.6 — create, enroll, suspend, reinstate, end. Belum
+ * termasuk markIneligible() — belum ada kebutuhan konkret, gampang
+ * ditambah kapan saja mengikuti pola `transitionStatus()` yang sama.
  *
  * PENTING (§7.6 invariant #4 — "[RESOURCE GAP]"): service ini SAMA
  * SEKALI TIDAK memverifikasi bahwa `beneficiary_person_id` benar-benar
@@ -208,35 +206,11 @@ final readonly class BenefitParticipationService
             $participationId,
             $verifierMembershipId,
         ): EmployeeBenefitParticipation {
-            $this->lockEmploymentForTenant(
-                $employmentId,
+            $participation = $this->lockParticipationForTenant(
                 $tenantId,
+                $employmentId,
+                $participationId,
             );
-
-            /** @var EmployeeBenefitParticipation|null $participation */
-            $participation = EmployeeBenefitParticipation::query()
-                ->withoutGlobalScope('tenant')
-                ->where('id', $participationId)
-                ->where('tenant_id', $tenantId)
-                ->lockForUpdate()
-                ->first();
-
-            if ($participation === null) {
-                throw (new ModelNotFoundException())->setModel(
-                    EmployeeBenefitParticipation::class,
-                    [$participationId],
-                );
-            }
-
-            if ($participation->employment_id !== $employmentId) {
-                throw new BenefitParticipationLifecycleException(
-                    sprintf(
-                        'EmployeeBenefitParticipation [%s] does not belong to Employment [%s].',
-                        $participationId,
-                        $employmentId,
-                    ),
-                );
-            }
 
             if ($participation->status !== EmployeeBenefitParticipation::STATUS_ELIGIBLE) {
                 throw new BenefitParticipationLifecycleException(
@@ -274,6 +248,235 @@ final readonly class BenefitParticipationService
 
             return $participation->refresh();
         });
+    }
+
+    /**
+     * HR-006 §7.6 — Suspend (ENROLLED → SUSPENDED). Penghentian
+     * SEMENTARA (mis. gaji tertahan sehingga potongan premi tidak
+     * bisa jalan) — beda dari `end()` yang permanen.
+     *
+     * CATATAN INTERAKSI dengan partial unique index (Langkah 5.5):
+     * baris SUSPENDED TIDAK dianggap "aktif" oleh constraint overlap
+     * (`WHERE status IN ('ELIGIBLE','ENROLLED')`) — begitu di-suspend,
+     * slot Employment+Program+beneficiary yang sama otomatis bisa
+     * dipakai bikin participation ELIGIBLE/ENROLLED baru. Ini
+     * perilaku constraint yang SUDAH ADA sejak Langkah 5.5 (diuji di
+     * `test_database_allows_open_participation_alongside_suspended_open_row`),
+     * bukan sesuatu yang baru diperkenalkan di sini.
+     */
+    public function suspend(
+        string $tenantId,
+        string $employmentId,
+        string $participationId,
+    ): EmployeeBenefitParticipation {
+        return $this->transitionStatus(
+            $tenantId,
+            $employmentId,
+            $participationId,
+            requiredStatus: EmployeeBenefitParticipation::STATUS_ENROLLED,
+            newStatus: EmployeeBenefitParticipation::STATUS_SUSPENDED,
+        );
+    }
+
+    /**
+     * HR-006 §7.6 — Reinstate (SUSPENDED → ENROLLED). Kebalikan dari
+     * `suspend()` — bisa gagal dengan konflik overlap kalau SEMENTARA
+     * ini ada participation ELIGIBLE/ENROLLED lain untuk
+     * Employment+Program+beneficiary yang sama (lihat catatan
+     * interaksi constraint di `suspend()`).
+     */
+    public function reinstate(
+        string $tenantId,
+        string $employmentId,
+        string $participationId,
+    ): EmployeeBenefitParticipation {
+        return DB::transaction(function () use (
+            $tenantId,
+            $employmentId,
+            $participationId,
+        ): EmployeeBenefitParticipation {
+            $participation = $this->lockParticipationForTenant(
+                $tenantId,
+                $employmentId,
+                $participationId,
+            );
+
+            if ($participation->status !== EmployeeBenefitParticipation::STATUS_SUSPENDED) {
+                throw new BenefitParticipationLifecycleException(
+                    sprintf(
+                        'EmployeeBenefitParticipation [%s] cannot be reinstated from status [%s]. Only SUSPENDED participations may transition back to ENROLLED.',
+                        $participationId,
+                        $participation->status,
+                    ),
+                );
+            }
+
+            try {
+                $participation->status = EmployeeBenefitParticipation::STATUS_ENROLLED;
+                $participation->save();
+            } catch (QueryException $exception) {
+                if ($this->isDuplicateOpenActiveConflict($exception)) {
+                    throw new BenefitParticipationLifecycleException(
+                        sprintf(
+                            'Reinstating EmployeeBenefitParticipation [%s] would conflict with another open, active participation for the same Employment/Program/beneficiary (HR-006 §7.6).',
+                            $participationId,
+                        ),
+                        previous: $exception,
+                    );
+                }
+
+                throw $exception;
+            }
+
+            return $participation->refresh();
+        });
+    }
+
+    /**
+     * HR-006 §7.6 — End (ENROLLED/ELIGIBLE/SUSPENDED → ENDED),
+     * penutupan PERMANEN. Hanya untuk participation "open"
+     * (`effective_to IS NULL`) — pola sama persis dengan
+     * `CompensationAssignmentService::end()`.
+     */
+    public function end(
+        string $tenantId,
+        string $employmentId,
+        string $participationId,
+        string $endDate,
+    ): EmployeeBenefitParticipation {
+        return DB::transaction(function () use (
+            $tenantId,
+            $employmentId,
+            $participationId,
+            $endDate,
+        ): EmployeeBenefitParticipation {
+            $participation = $this->lockParticipationForTenant(
+                $tenantId,
+                $employmentId,
+                $participationId,
+            );
+
+            if (in_array($participation->status, [
+                EmployeeBenefitParticipation::STATUS_ENDED,
+                EmployeeBenefitParticipation::STATUS_INELIGIBLE,
+            ], true)) {
+                throw new BenefitParticipationLifecycleException(
+                    sprintf(
+                        'EmployeeBenefitParticipation [%s] cannot be ended from status [%s].',
+                        $participationId,
+                        $participation->status,
+                    ),
+                );
+            }
+
+            if ($participation->effective_to !== null) {
+                throw new BenefitParticipationLifecycleException(
+                    sprintf(
+                        'EmployeeBenefitParticipation [%s] already has a fixed effective_to [%s] and is not open-ended.',
+                        $participationId,
+                        $participation->effective_to->toDateString(),
+                    ),
+                );
+            }
+
+            $endDateParsed = Carbon::parse($endDate);
+
+            if ($endDateParsed->lt($participation->effective_from)) {
+                throw new BenefitParticipationLifecycleException(
+                    sprintf(
+                        'end date [%s] cannot be earlier than the participation effective_from [%s].',
+                        $endDateParsed->toDateString(),
+                        $participation->effective_from->toDateString(),
+                    ),
+                );
+            }
+
+            if ($endDateParsed->gt(Carbon::today())) {
+                throw new BenefitParticipationLifecycleException(
+                    'end date cannot be in the future. Scheduled/future ending is not supported in this phase.',
+                );
+            }
+
+            $participation->status = EmployeeBenefitParticipation::STATUS_ENDED;
+            $participation->effective_to = $endDateParsed->toDateString();
+            $participation->save();
+
+            return $participation->refresh();
+        });
+    }
+
+    private function transitionStatus(
+        string $tenantId,
+        string $employmentId,
+        string $participationId,
+        string $requiredStatus,
+        string $newStatus,
+    ): EmployeeBenefitParticipation {
+        return DB::transaction(function () use (
+            $tenantId,
+            $employmentId,
+            $participationId,
+            $requiredStatus,
+            $newStatus,
+        ): EmployeeBenefitParticipation {
+            $participation = $this->lockParticipationForTenant(
+                $tenantId,
+                $employmentId,
+                $participationId,
+            );
+
+            if ($participation->status !== $requiredStatus) {
+                throw new BenefitParticipationLifecycleException(
+                    sprintf(
+                        'EmployeeBenefitParticipation [%s] cannot transition to [%s] from status [%s]. Required prior status: [%s].',
+                        $participationId,
+                        $newStatus,
+                        $participation->status,
+                        $requiredStatus,
+                    ),
+                );
+            }
+
+            $participation->status = $newStatus;
+            $participation->save();
+
+            return $participation->refresh();
+        });
+    }
+
+    private function lockParticipationForTenant(
+        string $tenantId,
+        string $employmentId,
+        string $participationId,
+    ): EmployeeBenefitParticipation {
+        $this->lockEmploymentForTenant($employmentId, $tenantId);
+
+        /** @var EmployeeBenefitParticipation|null $participation */
+        $participation = EmployeeBenefitParticipation::query()
+            ->withoutGlobalScope('tenant')
+            ->where('id', $participationId)
+            ->where('tenant_id', $tenantId)
+            ->lockForUpdate()
+            ->first();
+
+        if ($participation === null) {
+            throw (new ModelNotFoundException())->setModel(
+                EmployeeBenefitParticipation::class,
+                [$participationId],
+            );
+        }
+
+        if ($participation->employment_id !== $employmentId) {
+            throw new BenefitParticipationLifecycleException(
+                sprintf(
+                    'EmployeeBenefitParticipation [%s] does not belong to Employment [%s].',
+                    $participationId,
+                    $employmentId,
+                ),
+            );
+        }
+
+        return $participation;
     }
 
     private function requireActiveVerifierMembership(

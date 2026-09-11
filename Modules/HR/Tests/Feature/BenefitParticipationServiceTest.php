@@ -356,6 +356,281 @@ final class BenefitParticipationServiceTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // suspend / reinstate
+    // ---------------------------------------------------------------
+
+    public function test_suspend_transitions_enrolled_to_suspended(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+        $verifierMembershipId = $this->createMembership();
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->service->enroll(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            participationId: $participation->id,
+            verifierMembershipId: $verifierMembershipId,
+        );
+
+        $suspended = $this->service->suspend(
+            $this->tenantId,
+            $employmentId,
+            $participation->id,
+        );
+
+        $this->assertSame(EmployeeBenefitParticipation::STATUS_SUSPENDED, $suspended->status);
+    }
+
+    public function test_suspend_rejects_non_enrolled(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->suspend(
+            $this->tenantId,
+            $employmentId,
+            $participation->id,
+        );
+    }
+
+    public function test_reinstate_transitions_suspended_back_to_enrolled(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+        $verifierMembershipId = $this->createMembership();
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->service->enroll(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            participationId: $participation->id,
+            verifierMembershipId: $verifierMembershipId,
+        );
+
+        $this->service->suspend($this->tenantId, $employmentId, $participation->id);
+
+        $reinstated = $this->service->reinstate(
+            $this->tenantId,
+            $employmentId,
+            $participation->id,
+        );
+
+        $this->assertSame(EmployeeBenefitParticipation::STATUS_ENROLLED, $reinstated->status);
+    }
+
+    public function test_reinstate_rejects_non_suspended(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->reinstate(
+            $this->tenantId,
+            $employmentId,
+            $participation->id,
+        );
+    }
+
+    public function test_reinstate_allows_new_open_slot_created_while_suspended(): void
+    {
+        // Membuktikan catatan interaksi constraint di docblock
+        // suspend(): baris SUSPENDED tidak dianggap "aktif" oleh
+        // partial unique index, jadi sementara di-suspend, slot
+        // Employment+Program+beneficiary yang sama bisa dipakai
+        // participation ELIGIBLE baru — TAPI itu artinya reinstate()
+        // baris lama sekarang GAGAL karena konflik dengan yang baru.
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+        $verifierMembershipId = $this->createMembership();
+
+        $first = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->service->enroll(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            participationId: $first->id,
+            verifierMembershipId: $verifierMembershipId,
+        );
+
+        $this->service->suspend($this->tenantId, $employmentId, $first->id);
+
+        $second = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-02-01',
+            ],
+        );
+
+        $this->assertNotNull($second->id);
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->reinstate($this->tenantId, $employmentId, $first->id);
+    }
+
+    // ---------------------------------------------------------------
+    // end
+    // ---------------------------------------------------------------
+
+    public function test_end_transitions_enrolled_to_ended_and_sets_effective_to(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+        $verifierMembershipId = $this->createMembership();
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->service->enroll(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            participationId: $participation->id,
+            verifierMembershipId: $verifierMembershipId,
+        );
+
+        $ended = $this->service->end(
+            $this->tenantId,
+            $employmentId,
+            $participation->id,
+            '2026-06-30',
+        );
+
+        $this->assertSame(EmployeeBenefitParticipation::STATUS_ENDED, $ended->status);
+        $this->assertSame('2026-06-30', $ended->effective_to->toDateString());
+    }
+
+    public function test_end_rejects_already_ended(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->service->end($this->tenantId, $employmentId, $participation->id, '2026-06-30');
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->end($this->tenantId, $employmentId, $participation->id, '2026-07-01');
+    }
+
+    public function test_end_rejects_participation_with_already_fixed_effective_to(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-01-01',
+                'effective_to' => '2026-12-31',
+            ],
+        );
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->end($this->tenantId, $employmentId, $participation->id, '2026-06-30');
+    }
+
+    public function test_end_rejects_end_date_before_effective_from(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $programId = $this->createProgram(
+            BenefitProgram::BENEFICIARY_SCOPE_EITHER,
+        );
+
+        $participation = $this->service->create(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'benefit_program_id' => $programId,
+                'effective_from' => '2026-06-01',
+            ],
+        );
+
+        $this->expectException(BenefitParticipationLifecycleException::class);
+
+        $this->service->end($this->tenantId, $employmentId, $participation->id, '2026-01-01');
+    }
+
+    // ---------------------------------------------------------------
     // Fixtures
     // ---------------------------------------------------------------
 
