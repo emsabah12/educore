@@ -1,0 +1,363 @@
+diff --git a/frontend/src/app/AppBootstrap.tsx b/frontend/src/app/AppBootstrap.tsx
+index 84598f7..853a2f3 100644
+--- a/frontend/src/app/AppBootstrap.tsx
++++ b/frontend/src/app/AppBootstrap.tsx
+@@ -94,4 +94,4 @@ export function AppBootstrap({
+             </ObservabilityContextProvider>
+         </ApplicationErrorBoundary>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/app/api/ApiClientProvider.tsx b/frontend/src/app/api/ApiClientProvider.tsx
+index 68afc67..150afaf 100644
+--- a/frontend/src/app/api/ApiClientProvider.tsx
++++ b/frontend/src/app/api/ApiClientProvider.tsx
+@@ -62,4 +62,4 @@ export function useApiClient(): BrowserApiClient {
+     }
+ 
+     return apiClient;
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx b/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
+index c7054dd..a538f26 100644
+--- a/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
++++ b/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
+@@ -657,4 +657,4 @@ describe(
+             );
+         });
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/app/router.tsx b/frontend/src/app/router.tsx
+index 053b0ff..27fd02c 100644
+--- a/frontend/src/app/router.tsx
++++ b/frontend/src/app/router.tsx
+@@ -293,4 +293,4 @@ export function createAppRouter() {
+     return createBrowserRouter(
+         appRoutes,
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/app/routing/application-route-access.ts b/frontend/src/app/routing/application-route-access.ts
+index 5904417..e52c259 100644
+--- a/frontend/src/app/routing/application-route-access.ts
++++ b/frontend/src/app/routing/application-route-access.ts
+@@ -78,4 +78,4 @@ export function resolveApplicationRouteAccessPolicy(
+     return applicationRouteAccessPolicies[
+         routeId as keyof typeof applicationRouteAccessPolicies
+     ];
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/hr/api/use-employment-mutations.ts b/frontend/src/modules/hr/api/use-employment-mutations.ts
+index 761a77a..3331816 100644
+--- a/frontend/src/modules/hr/api/use-employment-mutations.ts
++++ b/frontend/src/modules/hr/api/use-employment-mutations.ts
+@@ -379,4 +379,4 @@ export function useCreateEmploymentMutation(): UseMutationResult<
+             );
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/hr/api/use-employment-types-query.ts b/frontend/src/modules/hr/api/use-employment-types-query.ts
+index 0d58081..529fa07 100644
+--- a/frontend/src/modules/hr/api/use-employment-types-query.ts
++++ b/frontend/src/modules/hr/api/use-employment-types-query.ts
+@@ -95,4 +95,4 @@ export function useEmploymentTypesQuery(): UseQueryResult<
+             return result.data?.data ?? [];
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/hr/routes.ts b/frontend/src/modules/hr/routes.ts
+index f24aaec..e5ba10a 100644
+--- a/frontend/src/modules/hr/routes.ts
++++ b/frontend/src/modules/hr/routes.ts
+@@ -128,4 +128,4 @@ export const hrRouteContributions = [
+                 };
+             },
+     },
+-] as const;
+\ No newline at end of file
++] as const;
+diff --git a/frontend/src/modules/hr/workforce/HrEmployeeDetailPage.tsx b/frontend/src/modules/hr/workforce/HrEmployeeDetailPage.tsx
+index 7388000..24bba0c 100644
+--- a/frontend/src/modules/hr/workforce/HrEmployeeDetailPage.tsx
++++ b/frontend/src/modules/hr/workforce/HrEmployeeDetailPage.tsx
+@@ -744,4 +744,4 @@ export function HrEmployeeDetailPage() {
+             }
+         </section>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/hr/workforce/HrWorkforcePage.tsx b/frontend/src/modules/hr/workforce/HrWorkforcePage.tsx
+index f26dc1a..7e1d466 100644
+--- a/frontend/src/modules/hr/workforce/HrWorkforcePage.tsx
++++ b/frontend/src/modules/hr/workforce/HrWorkforcePage.tsx
+@@ -221,4 +221,4 @@ export function HrWorkforcePage() {
+             }
+         </section>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/hr/workforce/__tests__/HrEmployeeDetailPage.test.tsx b/frontend/src/modules/hr/workforce/__tests__/HrEmployeeDetailPage.test.tsx
+index 1e04c88..0c34dc8 100644
+--- a/frontend/src/modules/hr/workforce/__tests__/HrEmployeeDetailPage.test.tsx
++++ b/frontend/src/modules/hr/workforce/__tests__/HrEmployeeDetailPage.test.tsx
+@@ -841,4 +841,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/modules/hr/workforce/__tests__/HrWorkforcePage.test.tsx b/frontend/src/modules/hr/workforce/__tests__/HrWorkforcePage.test.tsx
+index 82db5bd..d136b7f 100644
+--- a/frontend/src/modules/hr/workforce/__tests__/HrWorkforcePage.test.tsx
++++ b/frontend/src/modules/hr/workforce/__tests__/HrWorkforcePage.test.tsx
+@@ -338,4 +338,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/modules/settings/api/use-tenant-role-mutations.ts b/frontend/src/modules/settings/api/use-tenant-role-mutations.ts
+index bb78ccf..a61d862 100644
+--- a/frontend/src/modules/settings/api/use-tenant-role-mutations.ts
++++ b/frontend/src/modules/settings/api/use-tenant-role-mutations.ts
+@@ -203,4 +203,4 @@ export function useUpdateTenantRolePermissionsMutation(): UseMutationResult<
+             );
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/api/use-tenant-roles-query.ts b/frontend/src/modules/settings/api/use-tenant-roles-query.ts
+index d5cb325..7791859 100644
+--- a/frontend/src/modules/settings/api/use-tenant-roles-query.ts
++++ b/frontend/src/modules/settings/api/use-tenant-roles-query.ts
+@@ -237,4 +237,4 @@ export function useAssignablePermissionsQuery(): UseQueryResult<
+             );
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/organizations/OrganizationsPage.tsx b/frontend/src/modules/settings/organizations/OrganizationsPage.tsx
+index e82a646..ef0f9f5 100644
+--- a/frontend/src/modules/settings/organizations/OrganizationsPage.tsx
++++ b/frontend/src/modules/settings/organizations/OrganizationsPage.tsx
+@@ -439,4 +439,4 @@ export function OrganizationsPage() {
+             }
+         </section>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/organizations/__tests__/OrganizationsPage.test.tsx b/frontend/src/modules/settings/organizations/__tests__/OrganizationsPage.test.tsx
+index 4c25e2e..95d622c 100644
+--- a/frontend/src/modules/settings/organizations/__tests__/OrganizationsPage.test.tsx
++++ b/frontend/src/modules/settings/organizations/__tests__/OrganizationsPage.test.tsx
+@@ -340,4 +340,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/modules/settings/organizations/api/use-organization-mutations.ts b/frontend/src/modules/settings/organizations/api/use-organization-mutations.ts
+index 8e6eb90..ab1c635 100644
+--- a/frontend/src/modules/settings/organizations/api/use-organization-mutations.ts
++++ b/frontend/src/modules/settings/organizations/api/use-organization-mutations.ts
+@@ -107,4 +107,4 @@ export function useCreateOrganizationMutation(): UseMutationResult<
+             );
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/organizations/api/use-organizations-query.ts b/frontend/src/modules/settings/organizations/api/use-organizations-query.ts
+index 1d51fe6..247dfa6 100644
+--- a/frontend/src/modules/settings/organizations/api/use-organizations-query.ts
++++ b/frontend/src/modules/settings/organizations/api/use-organizations-query.ts
+@@ -100,4 +100,4 @@ export function useOrganizationsQuery(): UseQueryResult<
+             );
+         },
+     });
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/roles/TenantRolesPage.tsx b/frontend/src/modules/settings/roles/TenantRolesPage.tsx
+index ebab8b5..2955c39 100644
+--- a/frontend/src/modules/settings/roles/TenantRolesPage.tsx
++++ b/frontend/src/modules/settings/roles/TenantRolesPage.tsx
+@@ -625,4 +625,4 @@ export function TenantRolesPage() {
+             }
+         </section>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/modules/settings/roles/__tests__/TenantRolesPage.test.tsx b/frontend/src/modules/settings/roles/__tests__/TenantRolesPage.test.tsx
+index e8274b0..c909e32 100644
+--- a/frontend/src/modules/settings/roles/__tests__/TenantRolesPage.test.tsx
++++ b/frontend/src/modules/settings/roles/__tests__/TenantRolesPage.test.tsx
+@@ -333,4 +333,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/modules/settings/routes.ts b/frontend/src/modules/settings/routes.ts
+index 6613f1a..307df9e 100644
+--- a/frontend/src/modules/settings/routes.ts
++++ b/frontend/src/modules/settings/routes.ts
+@@ -234,4 +234,4 @@ export const settingsRouteContributions = [
+                 };
+             },
+     },
+-] as const;
+\ No newline at end of file
++] as const;
+diff --git a/frontend/src/shared/lib/utils.ts b/frontend/src/shared/lib/utils.ts
+index 622bb88..9d6f702 100644
+--- a/frontend/src/shared/lib/utils.ts
++++ b/frontend/src/shared/lib/utils.ts
+@@ -27,4 +27,4 @@ export function cn(
+             ...inputs,
+         ),
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/__tests__/button.test.tsx b/frontend/src/shared/ui/__tests__/button.test.tsx
+index dd93c3c..dc28b60 100644
+--- a/frontend/src/shared/ui/__tests__/button.test.tsx
++++ b/frontend/src/shared/ui/__tests__/button.test.tsx
+@@ -120,4 +120,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/shared/ui/__tests__/pagination.test.tsx b/frontend/src/shared/ui/__tests__/pagination.test.tsx
+index 8e21e8b..e30ad60 100644
+--- a/frontend/src/shared/ui/__tests__/pagination.test.tsx
++++ b/frontend/src/shared/ui/__tests__/pagination.test.tsx
+@@ -174,4 +174,4 @@ describe(
+             },
+         );
+     },
+-);
+\ No newline at end of file
++);
+diff --git a/frontend/src/shared/ui/badge.tsx b/frontend/src/shared/ui/badge.tsx
+index f7a6307..6e0a4df 100644
+--- a/frontend/src/shared/ui/badge.tsx
++++ b/frontend/src/shared/ui/badge.tsx
+@@ -76,4 +76,4 @@ export function Badge(
+             {...props}
+         />
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/button.tsx b/frontend/src/shared/ui/button.tsx
+index 97f0fb6..8381f92 100644
+--- a/frontend/src/shared/ui/button.tsx
++++ b/frontend/src/shared/ui/button.tsx
+@@ -97,4 +97,4 @@ export function Button(
+             {...props}
+         />
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/index.ts b/frontend/src/shared/ui/index.ts
+index 64c5c7c..02c45cc 100644
+--- a/frontend/src/shared/ui/index.ts
++++ b/frontend/src/shared/ui/index.ts
+@@ -39,4 +39,4 @@ export {
+     TableHead,
+     TableHeader,
+     TableRow,
+-} from './table';
+\ No newline at end of file
++} from './table';
+diff --git a/frontend/src/shared/ui/input.tsx b/frontend/src/shared/ui/input.tsx
+index 4994e82..f5d4afe 100644
+--- a/frontend/src/shared/ui/input.tsx
++++ b/frontend/src/shared/ui/input.tsx
+@@ -30,4 +30,4 @@ export function Input(
+             {...props}
+         />
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/pagination.tsx b/frontend/src/shared/ui/pagination.tsx
+index a9ffa64..8e7bf11 100644
+--- a/frontend/src/shared/ui/pagination.tsx
++++ b/frontend/src/shared/ui/pagination.tsx
+@@ -224,4 +224,4 @@ export function Pagination({
+             </Button>
+         </nav>
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/select.tsx b/frontend/src/shared/ui/select.tsx
+index c2b4aef..cc4e5dd 100644
+--- a/frontend/src/shared/ui/select.tsx
++++ b/frontend/src/shared/ui/select.tsx
+@@ -27,4 +27,4 @@ export function Select(
+             {...props}
+         />
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/shared/ui/table.tsx b/frontend/src/shared/ui/table.tsx
+index fcc276c..570c8eb 100644
+--- a/frontend/src/shared/ui/table.tsx
++++ b/frontend/src/shared/ui/table.tsx
+@@ -169,4 +169,4 @@ export function TableCaption(
+             {...props}
+         />
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/styles.css b/frontend/src/styles.css
+index 2adb295..0396943 100644
+--- a/frontend/src/styles.css
++++ b/frontend/src/styles.css
+@@ -72,4 +72,4 @@ #root {
+ body {
+     min-width: 320px;
+     margin: 0;
+-}
+\ No newline at end of file
++}
+diff --git a/frontend/src/test/server.ts b/frontend/src/test/server.ts
+index 7099682..4c46011 100644
+--- a/frontend/src/test/server.ts
++++ b/frontend/src/test/server.ts
+@@ -66,4 +66,4 @@ export const apiMockServer =
+         defaultBrowserSessionBootstrap,
+         defaultEmploymentTypesList,
+         defaultTenantEffectiveFeatures,
+-    );
+\ No newline at end of file
++    );
