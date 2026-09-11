@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\Core\Organization\Contracts\OrganizationalAssignmentServiceInterface;
 use Modules\Core\Organization\Exceptions\OrganizationalAssignmentException;
@@ -82,6 +83,84 @@ final class OrganizationalAssignmentManagementController extends Controller
             'data' => $assignments->map(
                 fn(OrganizationalAssignment $assignment) => $this->summary(
                     $assignment,
+                ),
+            ),
+        ]);
+    }
+
+    /**
+     * Search ACTIVE Memberships in the current tenant by Person
+     * name — the "pick someone to assign" picker. Deliberately NOT
+     * a general-purpose directory: it exists only to feed the
+     * assign-member flow, which is why it stays gated by
+     * organization.assignments.manage instead of a new, broader
+     * "view all people" permission.
+     *
+     * `q` shorter than 2 characters returns an empty result rather
+     * than erroring — a live-typing search box hits this on every
+     * keystroke of a fresh query, and an empty array is a strictly
+     * simpler contract for the frontend than a conditional error
+     * state for what is not really an invalid request.
+     */
+    public function candidateMemberships(
+        Request $request,
+        string $organization,
+    ): JsonResponse {
+        $tenantId = $this->currentTenantId($request);
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $organizationModel = $this->requireOrganization(
+            $organization,
+            $tenantId,
+        );
+
+        if ($organizationModel === null) {
+            return $this->organizationNotFoundResponse();
+        }
+
+        $query = $request->query('q');
+        $query = is_string($query) ? trim($query) : '';
+
+        if (mb_strlen($query) < 2) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [],
+            ]);
+        }
+
+        $escapedQuery = str_replace(
+            ['\\', '%', '_'],
+            ['\\\\', '\\%', '\\_'],
+            $query,
+        );
+
+        $memberships = Membership::query()
+            ->select('memberships.*')
+            ->join(
+                'persons',
+                'persons.id',
+                '=',
+                'memberships.person_id',
+            )
+            ->where('memberships.tenant_id', $tenantId)
+            ->where('memberships.status', 'ACTIVE')
+            ->whereRaw(
+                'persons.name ILIKE ?',
+                ["%{$escapedQuery}%"],
+            )
+            ->orderBy('persons.name')
+            ->limit(10)
+            ->with('person')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $memberships->map(
+                fn(Membership $membership) => $this->candidateSummary(
+                    $membership,
                 ),
             ),
         ]);
@@ -282,6 +361,17 @@ final class OrganizationalAssignmentManagementController extends Controller
             message: 'Requested membership or organization unit is not available.',
             status: Response::HTTP_NOT_FOUND,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidateSummary(Membership $membership): array
+    {
+        return [
+            'membership_id' => (string) $membership->id,
+            'name' => $membership->person?->name,
+        ];
     }
 
     /**

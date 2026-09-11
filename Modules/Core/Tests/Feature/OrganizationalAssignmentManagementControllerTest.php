@@ -727,6 +727,186 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
         $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
+    public function test_candidate_memberships_finds_case_insensitive_partial_match(): void
+    {
+        $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Santoso',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=santoso',
+            );
+
+        $response->assertOk();
+
+        $names = collect($response->json('data'))->pluck('name');
+
+        $this->assertTrue($names->contains('Budi Santoso'));
+    }
+
+    public function test_candidate_memberships_orders_results_by_name(): void
+    {
+        $this->createMembershipFixture($this->tenantId, 'Zainal Arifin');
+        $this->createMembershipFixture($this->tenantId, 'Amir Hamzah');
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=a',
+            );
+
+        $response->assertOk();
+
+        $names = collect($response->json('data'))->pluck('name')->all();
+        $sorted = $names;
+        sort($sorted);
+
+        $this->assertSame($sorted, $names);
+    }
+
+    public function test_candidate_memberships_excludes_inactive_membership(): void
+    {
+        $membershipId = $this->createMembershipFixture(
+            $this->tenantId,
+            'Budi Nonaktif',
+        );
+        DB::table('memberships')
+            ->where('id', $membershipId)
+            ->update(['status' => 'INACTIVE']);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=nonaktif',
+            );
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'data');
+    }
+
+    public function test_candidate_memberships_excludes_another_tenant(): void
+    {
+        $otherTenantId = UuidV7::generate();
+        $this->createTenantFixture($otherTenantId);
+        $this->createMembershipFixture(
+            $otherTenantId,
+            'Budi Tenant Lain',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=budi',
+            );
+
+        $response->assertOk();
+
+        $names = collect($response->json('data'))->pluck('name');
+
+        $this->assertFalse($names->contains('Budi Tenant Lain'));
+    }
+
+    public function test_candidate_memberships_returns_empty_array_for_short_query(): void
+    {
+        $this->createMembershipFixture($this->tenantId, 'Budi Santoso');
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=b',
+            );
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'data');
+    }
+
+    public function test_candidate_memberships_safely_escapes_like_wildcard_characters(): void
+    {
+        $this->createMembershipFixture($this->tenantId, 'Budi Santoso');
+        $this->createMembershipFixture($this->tenantId, 'Siti Aminah');
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?' . http_build_query(['q' => '%_']),
+            );
+
+        $response->assertOk();
+        $response->assertJsonCount(
+            0,
+            'data',
+            'A literal "%_" query must not act as an unescaped wildcard matching every name.',
+        );
+    }
+
+    public function test_candidate_memberships_returns_404_when_organization_belongs_to_another_tenant(): void
+    {
+        $otherTenantId = UuidV7::generate();
+        $this->createTenantFixture($otherTenantId);
+        $foreignOrganizationId = $this->createOrganizationFixture(
+            $otherTenantId,
+            'Milik Tenant Lain',
+        );
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $foreignOrganizationId],
+                    false,
+                ) . '?q=budi',
+            );
+
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
+    }
+
+    public function test_candidate_memberships_is_forbidden_without_organization_assignments_manage_permission(): void
+    {
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route(
+                    'api.v1.core.organizations.assignments.candidate-memberships',
+                    ['organization' => $this->organizationId],
+                    false,
+                ) . '?q=budi',
+            );
+
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
     private function issueToken(): string
     {
         return app(TokenManagerInterface::class)

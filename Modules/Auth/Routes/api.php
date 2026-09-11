@@ -265,6 +265,11 @@ Route::middleware([
         [OrganizationalAssignmentManagementController::class, 'index'],
     )->name('api.v1.core.organizations.assignments.index');
 
+    Route::get(
+        '/candidate-memberships',
+        [OrganizationalAssignmentManagementController::class, 'candidateMemberships'],
+    )->name('api.v1.core.organizations.assignments.candidate-memberships');
+
     Route::post(
         '/',
         [OrganizationalAssignmentManagementController::class, 'store'],

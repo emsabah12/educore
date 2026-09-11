@@ -1782,6 +1782,68 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/core/organizations/{organization}/assignments/candidate-memberships:
+    get:
+      operationId: coreOrganizationalAssignmentCandidateMembershipIndex
+      x-laravel-route-name: api.v1.core.organizations.assignments.candidate-memberships
+      tags:
+        - Core
+      summary: Search ACTIVE tenant Memberships by Person name for the assign picker
+      description: |
+        TENANT-level (Membership is Person × Tenant, never
+        organization-scoped — ADR-018 §2.3); the {organization} path
+        segment exists only to keep this endpoint's permission
+        gating and URL namespace consistent with the rest of the
+        "assign member" flow, not because results are filtered by
+        it. Deliberately narrow: exists only to feed this flow, not
+        as a general-purpose people directory — gated by
+        organization.assignments.manage rather than a new, broader
+        permission. q shorter than 2 characters returns an empty
+        array rather than an error. Results are capped at 10,
+        ordered by name.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: organization
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - $ref: "#/components/parameters/MembershipCandidateSearchQuery"
+      responses:
+        "200":
+          description: |
+            Up to 10 matching ACTIVE Memberships, ordered by Person
+            name. Empty when q is omitted or shorter than 2
+            characters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipCandidateListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication context missing/invalid, or the current
+            Membership does not have organization.assignments.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          $ref: "#/components/responses/ResourceNotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/user/my-memberships:
     get:
       operationId: userMembershipIndex
@@ -3419,6 +3481,35 @@ components:
             null → organization-level assignment. Send explicit null,
             not an empty string, for the organization-level mode.
 
+    MembershipCandidateResource:
+      type: object
+      additionalProperties: false
+      required:
+        - membership_id
+        - name
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        name:
+          type: string
+          description: Display name of the Person behind this Membership.
+
+    MembershipCandidateListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/MembershipCandidateResource"
+
     TenantCustomRoleVisibilityState:
       type: string
       description: |
@@ -4232,6 +4323,18 @@ components:
         Unit's current existence.
       schema:
         $ref: "#/components/schemas/UuidV7"
+
+    MembershipCandidateSearchQuery:
+      name: q
+      in: query
+      required: false
+      description: |
+        Case-insensitive substring match against the Person's name.
+        Fewer than 2 characters (including omitted) yields an empty
+        result rather than an error.
+      schema:
+        type: string
+        maxLength: 255
 
     EmployeePage:
       name: page
