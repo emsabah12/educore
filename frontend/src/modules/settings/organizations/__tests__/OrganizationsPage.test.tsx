@@ -155,6 +155,18 @@ describe(
                     'href',
                     `/settings/organizations/${SAMPLE_ORGANIZATION.id}/units`,
                 );
+
+                expect(
+                    screen.getByRole(
+                        'link',
+                        {
+                            name: 'Kelola Anggota',
+                        },
+                    ),
+                ).toHaveAttribute(
+                    'href',
+                    `/settings/organizations/${SAMPLE_ORGANIZATION.id}/members`,
+                );
             },
         );
 

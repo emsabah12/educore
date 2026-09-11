@@ -411,6 +411,21 @@ export function OrganizationsPage() {
                                                                     Kelola Unit
                                                                 </Link>
                                                             </Button>
+
+                                                            <Button
+                                                                asChild
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="ml-2"
+                                                            >
+                                                                <Link
+                                                                    to={
+                                                                        `/settings/organizations/${organization.id}/members`
+                                                                    }
+                                                                >
+                                                                    Kelola Anggota
+                                                                </Link>
+                                                            </Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 ),

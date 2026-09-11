@@ -99,6 +99,37 @@ export const settingsOrganizationUnitsRoutePolicy =
         },
     });
 
+/*
+ * Same sub-page shape as Unit Organisasi (dijangkau lewat tombol
+ * "Kelola Anggota" di baris tabel OrganizationsPage, bukan entri
+ * navigasi top-level) — lihat catatan arsitektur di
+ * settingsOrganizationUnitsRoutePolicy untuk kenapa ini juga TIDAK
+ * perlu didaftarkan silang ke application-route-access.ts.
+ *
+ * Permission reuse organization.assignments.manage — sama persis
+ * dengan yang menggate ketiga endpoint backend halaman ini
+ * (list/assign/deactivate/candidate-memberships).
+ */
+export const settingsOrganizationMembersRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'settings.organizations.members.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'organization.assignments.manage',
+        },
+    });
+
 export const settingsRouteContributions = [
     {
         routeId:
@@ -174,6 +205,32 @@ export const settingsRouteContributions = [
                 return {
                     Component:
                         OrganizationUnitsPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'settings.organizations.members.index',
+
+        path:
+            'settings/organizations/:organizationId/members',
+
+        accessPolicy:
+            settingsOrganizationMembersRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    OrganizationMembersPage,
+                } =
+                    await import(
+                        '@/modules/settings/organizations/OrganizationMembersPage'
+                    );
+
+                return {
+                    Component:
+                        OrganizationMembersPage,
                 };
             },
     },
