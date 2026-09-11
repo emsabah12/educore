@@ -3,11 +3,15 @@ import {
 } from 'react';
 import {
     Link,
+    useParams,
 } from 'react-router';
 
 import {
-    useCreateOrganizationMutation,
-} from '@/modules/settings/organizations/api/use-organization-mutations';
+    useCreateOrganizationUnitMutation,
+} from '@/modules/settings/organizations/api/use-organization-unit-mutations';
+import {
+    useOrganizationUnitsQuery,
+} from '@/modules/settings/organizations/api/use-organization-units-query';
 import {
     useOrganizationsQuery,
 } from '@/modules/settings/organizations/api/use-organizations-query';
@@ -67,11 +71,13 @@ function formatCreatedAt(
 }
 
 /*
- * Extracts the first field-level validation message from a
- * VALIDATION_FAILED (422) response, e.g. `code` uniqueness
- * conflicts on StoreOrganizationRequest. Returns null for
- * every other failure shape so callers can fall back to a
- * generic message.
+ * Same field-level validation error extraction as
+ * OrganizationsPage's CreateOrganizationForm — see that file for
+ * the full rationale. Duplicated rather than shared because the
+ * two forms validate different fields (code here is unique PER
+ * ORGANIZATION, not per tenant) and the duplication is small
+ * enough that a shared abstraction would cost more to read than
+ * the repetition itself.
  */
 function extractFieldErrorMessage(
     error:
@@ -113,7 +119,14 @@ function extractFieldErrorMessage(
     );
 }
 
-function CreateOrganizationForm() {
+function CreateOrganizationUnitForm(
+    {
+        organizationId,
+    }: {
+        organizationId:
+            string;
+    },
+) {
     const [
         name,
         setName,
@@ -125,7 +138,9 @@ function CreateOrganizationForm() {
     ] = useState('');
 
     const mutation =
-        useCreateOrganizationMutation();
+        useCreateOrganizationUnitMutation(
+            organizationId,
+        );
 
     const codeErrorMessage =
         mutation.isError
@@ -164,22 +179,22 @@ function CreateOrganizationForm() {
             className="space-y-3 rounded-md border p-4"
         >
             <h2 className="text-sm font-semibold">
-                Buat Organisasi Baru
+                Buat Unit Baru
             </h2>
 
             <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                     <label
-                        htmlFor="organization-name"
+                        htmlFor="organization-unit-name"
                         className="text-xs font-medium text-muted-foreground"
                     >
-                        Nama Organisasi
+                        Nama Unit
                     </label>
 
                     <Input
-                        id="organization-name"
+                        id="organization-unit-name"
                         value={name}
-                        placeholder="Kampus Utama"
+                        placeholder="Fakultas Teknik"
                         required
                         onChange={
                             (
@@ -194,16 +209,16 @@ function CreateOrganizationForm() {
 
                 <div className="space-y-1">
                     <label
-                        htmlFor="organization-code"
+                        htmlFor="organization-unit-code"
                         className="text-xs font-medium text-muted-foreground"
                     >
                         Kode (opsional)
                     </label>
 
                     <Input
-                        id="organization-code"
+                        id="organization-unit-code"
                         value={code}
-                        placeholder="KAMPUS-UTAMA"
+                        placeholder="FT"
                         aria-invalid={
                             codeErrorMessage !== null
                         }
@@ -242,7 +257,7 @@ function CreateOrganizationForm() {
                             role="alert"
                             className="text-sm text-destructive"
                         >
-                            Gagal membuat Organisasi. Coba lagi.
+                            Gagal membuat Unit. Coba lagi.
                         </p>
                     )
                     : null
@@ -255,72 +270,130 @@ function CreateOrganizationForm() {
                 {
                     mutation.isPending
                         ? 'Menyimpan…'
-                        : 'Buat Organisasi'
+                        : 'Buat Unit'
                 }
             </Button>
         </form>
     );
 }
 
-export function OrganizationsPage() {
+export function OrganizationUnitsPage() {
+    const {
+        organizationId,
+    } = useParams<{
+        organizationId:
+            string;
+    }>();
+
+    const resolvedOrganizationId =
+        organizationId
+        ?? null;
+
+    /*
+     * There is no single-Organization GET endpoint on the backend
+     * (only index + store) — reusing the already-fetched
+     * Organisasi list to resolve this Organization's display name
+     * is a deliberate simplification rather than adding a new
+     * backend endpoint just for a page heading. The tenant's
+     * Organization count is expected to stay small.
+     */
     const organizationsQuery =
         useOrganizationsQuery();
 
+    const organization =
+        organizationsQuery.data?.find(
+            (
+                candidate,
+            ) =>
+                candidate.id === resolvedOrganizationId,
+        )
+        ?? null;
+
+    const unitsQuery =
+        useOrganizationUnitsQuery(
+            resolvedOrganizationId,
+        );
+
     return (
         <section
-            aria-labelledby="organizations-heading"
+            aria-labelledby="organization-units-heading"
             className="space-y-6"
         >
+            <Button
+                asChild
+                variant="ghost"
+                size="sm"
+            >
+                <Link to="/settings/organizations">
+                    ← Kembali ke Daftar Organisasi
+                </Link>
+            </Button>
+
             <div>
                 <h1
-                    id="organizations-heading"
+                    id="organization-units-heading"
                     className="text-xl font-semibold"
                 >
-                    Organisasi
+                    {
+                        organization !== null
+                            ? `Unit — ${organization.name}`
+                            : 'Unit Organisasi'
+                    }
                 </h1>
 
                 <p className="text-sm text-muted-foreground">
-                    Kelola Organisasi milik tenant Anda. Modul
-                    organizational-scoped seperti Kepegawaian
-                    memerlukan minimal satu Organisasi aktif.
+                    Kelola Unit (fakultas/departemen) di bawah Organisasi ini.
                 </p>
             </div>
 
-            <CreateOrganizationForm />
+            {
+                resolvedOrganizationId !== null
+                    ? (
+                        <CreateOrganizationUnitForm
+                            organizationId={resolvedOrganizationId}
+                        />
+                    )
+                    : null
+            }
 
             {
-                organizationsQuery.status === 'pending'
+                unitsQuery.status === 'pending'
                     ? (
                         <p
                             role="status"
                             className="text-sm text-muted-foreground"
                         >
-                            Memuat daftar Organisasi…
+                            Memuat daftar Unit…
                         </p>
                     )
                     : null
             }
 
             {
-                organizationsQuery.status === 'error'
+                unitsQuery.status === 'error'
                     ? (
                         <div
                             role="alert"
                             className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
                         >
-                            Gagal memuat daftar Organisasi. Coba muat ulang halaman ini.
+                            {
+                                unitsQuery.error.kind === 'response'
+                                && unitsQuery.error.status === 404
+                                    ? 'Organisasi tidak ditemukan.'
+                                    : 'Gagal memuat daftar Unit. Coba muat ulang halaman ini.'
+                            }
                         </div>
                     )
                     : null
             }
 
             {
-                organizationsQuery.status === 'success'
+                unitsQuery.status === 'success'
                     ? (
-                        organizationsQuery.data.length === 0
+                        unitsQuery.data.length === 0
                             ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Belum ada Organisasi yang dibuat.
+                                    Belum ada Unit yang dibuat.
                                 </p>
                             )
                             : (
@@ -339,32 +412,29 @@ export function OrganizationsPage() {
                                             <TableHead>
                                                 Dibuat Pada
                                             </TableHead>
-                                            <TableHead>
-                                                Aksi
-                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
 
                                     <TableBody>
                                         {
-                                            organizationsQuery.data.map(
+                                            unitsQuery.data.map(
                                                 (
-                                                    organization,
+                                                    unit,
                                                 ) => (
                                                     <TableRow
                                                         key={
-                                                            organization.id
+                                                            unit.id
                                                         }
                                                     >
                                                         <TableCell className="font-medium">
                                                             {
-                                                                organization.name
+                                                                unit.name
                                                             }
                                                         </TableCell>
 
                                                         <TableCell>
                                                             {
-                                                                organization.code
+                                                                unit.code
                                                                 ?? (
                                                                     <span className="text-muted-foreground">
                                                                         —
@@ -376,13 +446,13 @@ export function OrganizationsPage() {
                                                         <TableCell>
                                                             <Badge
                                                                 variant={
-                                                                    organization.is_active
+                                                                    unit.is_active
                                                                         ? 'success'
                                                                         : 'secondary'
                                                                 }
                                                             >
                                                                 {
-                                                                    organization.is_active
+                                                                    unit.is_active
                                                                         ? 'Aktif'
                                                                         : 'Nonaktif'
                                                                 }
@@ -392,25 +462,9 @@ export function OrganizationsPage() {
                                                         <TableCell>
                                                             {
                                                                 formatCreatedAt(
-                                                                    organization.created_at,
+                                                                    unit.created_at,
                                                                 )
                                                             }
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            <Button
-                                                                asChild
-                                                                variant="outline"
-                                                                size="sm"
-                                                            >
-                                                                <Link
-                                                                    to={
-                                                                        `/settings/organizations/${organization.id}/units`
-                                                                    }
-                                                                >
-                                                                    Kelola Unit
-                                                                </Link>
-                                                            </Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 ),

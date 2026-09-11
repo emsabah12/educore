@@ -14,6 +14,8 @@ import {
 } from 'msw';
 import {
     MemoryRouter,
+    Route,
+    Routes,
 } from 'react-router';
 import {
     describe,
@@ -44,7 +46,7 @@ const READY_TENANT_WORKSPACE_STATE = {
         },
     },
     tenant: {
-        name: 'Organizations Test Tenant',
+        name: 'Organization Units Test Tenant',
     },
     workspaces: [],
     current: {
@@ -52,7 +54,7 @@ const READY_TENANT_WORKSPACE_STATE = {
         organizational_assignment_id: null,
         organization_id: null,
         organization_unit_id: null,
-        label: 'Organizations Test Tenant',
+        label: 'Organization Units Test Tenant',
     },
     failure: null,
 };
@@ -66,12 +68,32 @@ vi.mock(
 );
 
 const {
-    OrganizationsPage,
+    OrganizationUnitsPage,
 } = await import(
-    '@/modules/settings/organizations/OrganizationsPage'
+    '@/modules/settings/organizations/OrganizationUnitsPage'
 );
 
-function renderOrganizationsPage() {
+const ORGANIZATION_ID =
+    '01970000-0000-7000-8000-0000000000gg';
+
+const SAMPLE_ORGANIZATION = {
+    id: ORGANIZATION_ID,
+    name: 'Kampus Utama',
+    code: 'KAMPUS-UTAMA',
+    is_active: true,
+    created_at: '2026-09-01T08:00:00+00:00',
+};
+
+const SAMPLE_UNIT = {
+    id: '01970000-0000-7000-8000-0000000000hh',
+    organization_id: ORGANIZATION_ID,
+    name: 'Fakultas Teknik',
+    code: 'FT',
+    is_active: true,
+    created_at: '2026-09-02T08:00:00+00:00',
+};
+
+function renderOrganizationUnitsPage() {
     const queryClient =
         new QueryClient(
             {
@@ -89,81 +111,122 @@ function renderOrganizationsPage() {
     render(
         <ApiClientProvider apiClient={apiClient}>
             <QueryClientProvider client={queryClient}>
-                <MemoryRouter>
-                    <OrganizationsPage />
+                <MemoryRouter
+                    initialEntries={
+                        [`/settings/organizations/${ORGANIZATION_ID}/units`]
+                    }
+                >
+                    <Routes>
+                        <Route
+                            path="/settings/organizations/:organizationId/units"
+                            element={
+                                <OrganizationUnitsPage />
+                            }
+                        />
+                    </Routes>
                 </MemoryRouter>
             </QueryClientProvider>
         </ApiClientProvider>,
     );
 }
 
-const SAMPLE_ORGANIZATION = {
-    id: '01970000-0000-7000-8000-0000000000gg',
-    name: 'Kampus Utama',
-    code: 'KAMPUS-UTAMA',
-    is_active: true,
-    created_at: '2026-09-01T08:00:00+00:00',
-};
+function mockOrganizationsList() {
+    apiMockServer.use(
+        http.get(
+            '*/api/v1/core/organizations',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [SAMPLE_ORGANIZATION],
+                    },
+                ),
+        ),
+    );
+}
 
 describe(
-    'OrganizationsPage',
+    'OrganizationUnitsPage',
     () => {
         it(
-            'renders organizations returned by the organizations endpoint',
+            'renders the organization name and its units',
             async () => {
+                mockOrganizationsList();
+
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/core/organizations',
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: [SAMPLE_ORGANIZATION],
+                                    data: [SAMPLE_UNIT],
                                 },
                             ),
                     ),
                 );
 
-                renderOrganizationsPage();
+                renderOrganizationUnitsPage();
 
                 expect(
-                    await screen.findByText(
-                        'Kampus Utama',
-                    ),
-                ).toBeInTheDocument();
-
-                expect(
-                    screen.getByText(
-                        'KAMPUS-UTAMA',
-                    ),
-                ).toBeInTheDocument();
-
-                expect(
-                    screen.getByText(
-                        'Aktif',
-                    ),
-                ).toBeInTheDocument();
-
-                expect(
-                    screen.getByRole(
-                        'link',
+                    await screen.findByRole(
+                        'heading',
                         {
-                            name: 'Kelola Unit',
+                            name: 'Unit — Kampus Utama',
                         },
                     ),
-                ).toHaveAttribute(
-                    'href',
-                    `/settings/organizations/${SAMPLE_ORGANIZATION.id}/units`,
-                );
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.getByText(
+                        'Fakultas Teknik',
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.getByText(
+                        'FT',
+                    ),
+                ).toBeInTheDocument();
             },
         );
 
         it(
-            'creates a new organization from the inline form',
+            'shows an empty state when the organization has no units yet',
             async () => {
+                mockOrganizationsList();
+
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/core/organizations',
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                );
+
+                renderOrganizationUnitsPage();
+
+                expect(
+                    await screen.findByText(
+                        'Belum ada Unit yang dibuat.',
+                    ),
+                ).toBeInTheDocument();
+            },
+        );
+
+        it(
+            'creates a new unit from the inline form',
+            async () => {
+                mockOrganizationsList();
+
+                apiMockServer.use(
+                    http.get(
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
                         () =>
                             HttpResponse.json(
                                 {
@@ -173,12 +236,12 @@ describe(
                             ),
                     ),
                     http.post(
-                        '*/api/v1/core/organizations',
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: SAMPLE_ORGANIZATION,
+                                    data: SAMPLE_UNIT,
                                 },
                                 {
                                     status: 201,
@@ -187,19 +250,19 @@ describe(
                     ),
                 );
 
-                renderOrganizationsPage();
+                renderOrganizationUnitsPage();
 
                 await screen.findByText(
-                    'Belum ada Organisasi yang dibuat.',
+                    'Belum ada Unit yang dibuat.',
                 );
 
                 fireEvent.change(
                     screen.getByLabelText(
-                        'Nama Organisasi',
+                        'Nama Unit',
                     ),
                     {
                         target: {
-                            value: 'Kampus Utama',
+                            value: 'Fakultas Teknik',
                         },
                     },
                 );
@@ -210,7 +273,7 @@ describe(
                     ),
                     {
                         target: {
-                            value: 'KAMPUS-UTAMA',
+                            value: 'FT',
                         },
                     },
                 );
@@ -219,7 +282,7 @@ describe(
                     screen.getByRole(
                         'button',
                         {
-                            name: 'Buat Organisasi',
+                            name: 'Buat Unit',
                         },
                     ),
                 );
@@ -228,7 +291,7 @@ describe(
                     () => {
                         expect(
                             screen.getByLabelText(
-                                'Nama Organisasi',
+                                'Nama Unit',
                             ),
                         ).toHaveValue(
                             '',
@@ -239,11 +302,13 @@ describe(
         );
 
         it(
-            'shows the field-level validation message when code is already taken',
+            'shows the field-level validation message when code is already taken in this organization',
             async () => {
+                mockOrganizationsList();
+
                 apiMockServer.use(
                     http.get(
-                        '*/api/v1/core/organizations',
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
                         () =>
                             HttpResponse.json(
                                 {
@@ -253,7 +318,7 @@ describe(
                             ),
                     ),
                     http.post(
-                        '*/api/v1/core/organizations',
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
                         () =>
                             HttpResponse.json(
                                 {
@@ -273,19 +338,19 @@ describe(
                     ),
                 );
 
-                renderOrganizationsPage();
+                renderOrganizationUnitsPage();
 
                 await screen.findByText(
-                    'Belum ada Organisasi yang dibuat.',
+                    'Belum ada Unit yang dibuat.',
                 );
 
                 fireEvent.change(
                     screen.getByLabelText(
-                        'Nama Organisasi',
+                        'Nama Unit',
                     ),
                     {
                         target: {
-                            value: 'Kampus Utama',
+                            value: 'Fakultas Teknik',
                         },
                     },
                 );
@@ -296,7 +361,7 @@ describe(
                     ),
                     {
                         target: {
-                            value: 'KAMPUS-UTAMA',
+                            value: 'FT',
                         },
                     },
                 );
@@ -305,7 +370,7 @@ describe(
                     screen.getByRole(
                         'button',
                         {
-                            name: 'Buat Organisasi',
+                            name: 'Buat Unit',
                         },
                     ),
                 );
@@ -315,16 +380,72 @@ describe(
                         'The code has already been taken.',
                     ),
                 ).toBeInTheDocument();
+            },
+        );
 
-                /*
-                 * The field-level message must not be duplicated
-                 * by the generic fallback error paragraph.
-                 */
-                expect(
-                    screen.queryByText(
-                        'Gagal membuat Organisasi. Coba lagi.',
+        it(
+            'shows a not-found message when the organization does not exist',
+            async () => {
+                mockOrganizationsList();
+
+                apiMockServer.use(
+                    http.get(
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'error',
+                                    code: 'RESOURCE_NOT_FOUND',
+                                    message: 'The requested organization was not found.',
+                                },
+                                {
+                                    status: 404,
+                                },
+                            ),
                     ),
-                ).not.toBeInTheDocument();
+                );
+
+                renderOrganizationUnitsPage();
+
+                expect(
+                    await screen.findByText(
+                        'Organisasi tidak ditemukan.',
+                    ),
+                ).toBeInTheDocument();
+            },
+        );
+
+        it(
+            'renders a back link to the organizations list',
+            async () => {
+                mockOrganizationsList();
+
+                apiMockServer.use(
+                    http.get(
+                        `*/api/v1/core/organizations/${ORGANIZATION_ID}/units`,
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                );
+
+                renderOrganizationUnitsPage();
+
+                expect(
+                    await screen.findByRole(
+                        'link',
+                        {
+                            name: '← Kembali ke Daftar Organisasi',
+                        },
+                    ),
+                ).toHaveAttribute(
+                    'href',
+                    '/settings/organizations',
+                );
             },
         );
     },

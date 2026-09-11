@@ -652,6 +652,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/organizations/{organization}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List OrganizationalAssignments under one Organization
+         * @description TENANT-level, gated by organization.assignments.manage.
+         *     Returns every assignment under the Organization —
+         *     organization-level (organization_unit_id null) and every
+         *     Unit — ordered newest first, unless narrowed with
+         *     organization_unit_id. This is the read side of "assign
+         *     member"; the write side (create/deactivate) is a separate
+         *     operation.
+         */
+        get: operations["coreOrganizationalAssignmentIndex"];
+        put?: never;
+        /**
+         * Place a Membership into an Organization or one of its Units
+         * @description `organization_unit_id` selects the mode: present → exact-Unit
+         *     assignment, omitted/null → organization-level assignment
+         *     (ADR-018 §2.3). Idempotent — re-assigning an already-active
+         *     placement, or reactivating a previously deactivated one,
+         *     both succeed and return the same underlying row. Requires
+         *     organization.assignments.manage permission. Existence and
+         *     tenant/Organization scope of membership_id and
+         *     organization_unit_id are validated as 422 field errors, not
+         *     404 — see StoreOrganizationalAssignmentRequest.
+         */
+        post: operations["coreOrganizationalAssignmentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/organizations/{organization}/assignments/{assignment}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate one OrganizationalAssignment
+         * @description Idempotent — deactivating an already-INACTIVE assignment
+         *     still succeeds and returns it unchanged. An assignment id
+         *     that belongs to a different Organization than the URL states
+         *     returns 404, identical to one that does not exist at all.
+         *     Requires organization.assignments.manage permission.
+         */
+        post: operations["coreOrganizationalAssignmentDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/organizations/{organization}/assignments/candidate-memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search ACTIVE tenant Memberships by Person name for the assign picker
+         * @description TENANT-level (Membership is Person × Tenant, never
+         *     organization-scoped — ADR-018 §2.3); the {organization} path
+         *     segment exists only to keep this endpoint's permission
+         *     gating and URL namespace consistent with the rest of the
+         *     "assign member" flow, not because results are filtered by
+         *     it. Deliberately narrow: exists only to feed this flow, not
+         *     as a general-purpose people directory — gated by
+         *     organization.assignments.manage rather than a new, broader
+         *     permission. q shorter than 2 characters returns an empty
+         *     array rather than an error. Results are capped at 10,
+         *     ordered by name.
+         */
+        get: operations["coreOrganizationalAssignmentCandidateMembershipIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user/my-memberships": {
         parameters: {
             query?: never;
@@ -1287,6 +1379,52 @@ export interface components {
              */
             code?: string | null;
         };
+        OrganizationalAssignmentResource: {
+            id: components["schemas"]["UuidV7"];
+            membership_id: components["schemas"]["UuidV7"];
+            /** @description Display name of the Person behind this Membership. */
+            membership_name: string;
+            organization_id: components["schemas"]["UuidV7"];
+            /**
+             * @description null means an organization-level assignment (ADR-018
+             *     §2.3) — not narrower than the Organization itself.
+             */
+            organization_unit_id: components["schemas"]["UuidV7"] | null;
+            organization_unit_name: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** Format: date-time */
+            created_at: string;
+        };
+        OrganizationalAssignmentListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationalAssignmentResource"][];
+        };
+        OrganizationalAssignmentDetailSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OrganizationalAssignmentResource"];
+        };
+        StoreOrganizationalAssignmentRequest: {
+            membership_id: components["schemas"]["UuidV7"];
+            /**
+             * @description Present → assign to this exact Unit. Omitted or explicit
+             *     null → organization-level assignment. Send explicit null,
+             *     not an empty string, for the organization-level mode.
+             */
+            organization_unit_id?: components["schemas"]["UuidV7"] | null;
+        };
+        MembershipCandidateResource: {
+            membership_id: components["schemas"]["UuidV7"];
+            /** @description Display name of the Person behind this Membership. */
+            name: string;
+        };
+        MembershipCandidateListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["MembershipCandidateResource"][];
+        };
         /**
          * @description `active`: role kustom efektif normal. `locked_readonly`: fitur
          *     Custom Role sedang dalam masa tenggang pencabutan add-on — bisa
@@ -1791,6 +1929,22 @@ export interface components {
         BrowserMembershipPathId: components["schemas"]["UuidV7"];
         /** @description Number of tenants returned per page. Defaults to 15. */
         TenantPerPage: number;
+        /**
+         * @description When present, restricts the listing to assignments exactly at
+         *     this Unit. Omit to list every assignment under the
+         *     Organization (organization-level and every Unit combined).
+         *     A value that does not match a real Unit simply yields an
+         *     empty result — it never errors, since existence in this
+         *     collection depends only on the assignment rows, not on the
+         *     Unit's current existence.
+         */
+        OrganizationalAssignmentUnitFilter: components["schemas"]["UuidV7"];
+        /**
+         * @description Case-insensitive substring match against the Person's name.
+         *     Fewer than 2 characters (including omitted) yields an empty
+         *     result rather than an error.
+         */
+        MembershipCandidateSearchQuery: string;
         /**
          * @description 1-indexed page number. Defaults to 1 (Laravel's standard
          *     paginate() convention — read automatically from this query
@@ -3398,6 +3552,226 @@ export interface operations {
             };
             404: components["responses"]["ResourceNotFound"];
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationalAssignmentIndex: {
+        parameters: {
+            query?: {
+                /**
+                 * @description When present, restricts the listing to assignments exactly at
+                 *     this Unit. Omit to list every assignment under the
+                 *     Organization (organization-level and every Unit combined).
+                 *     A value that does not match a real Unit simply yields an
+                 *     empty result — it never errors, since existence in this
+                 *     collection depends only on the assignment rows, not on the
+                 *     Unit's current existence.
+                 */
+                organization_unit_id?: components["parameters"]["OrganizationalAssignmentUnitFilter"];
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Organization's assignments, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationalAssignmentListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationalAssignmentStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreOrganizationalAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description The created or reactivated assignment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationalAssignmentDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationalAssignmentDeactivate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+                assignment: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The now-inactive assignment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationalAssignmentDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    coreOrganizationalAssignmentCandidateMembershipIndex: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Case-insensitive substring match against the Person's name.
+                 *     Fewer than 2 characters (including omitted) yields an empty
+                 *     result rather than an error.
+                 */
+                q?: components["parameters"]["MembershipCandidateSearchQuery"];
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                organization: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Up to 10 matching ACTIVE Memberships, ordered by Person
+             *     name. Empty when q is omitted or shorter than 2
+             *     characters.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipCandidateListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication context missing/invalid, or the current
+             *     Membership does not have organization.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
             500: components["responses"]["InternalServerError"];
         };
     };

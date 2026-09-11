@@ -63,6 +63,42 @@ export const settingsOrganizationsRoutePolicy =
         },
     });
 
+/*
+ * Kelola Unit di bawah satu Organization — SUB-HALAMAN dari
+ * Kelola Organisasi (dijangkau via tombol "Kelola Unit" di baris
+ * tabel OrganizationsPage), BUKAN entri menu navigasi top-level
+ * tersendiri. Sama seperti hr.workforce.show (detail pegawai),
+ * rute tanpa entri navigasi tidak perlu didaftarkan silang ke
+ * application-route-access.ts — hanya rute YANG MUNCUL di
+ * navigation-definition.ts butuh itu, karena registry di sana
+ * dipakai khusus oleh proyeksi visibilitas navigasi, bukan oleh
+ * guard rute itu sendiri (accessPolicy di bawah ini dikonsumsi
+ * router.tsx secara langsung).
+ *
+ * Permission reuse organization.units.manage — sama persis dengan
+ * yang menggate endpoint backend-nya, TIDAK ada permission
+ * terpisah untuk "melihat halaman ini" vs "mengelola isinya".
+ */
+export const settingsOrganizationUnitsRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'settings.organizations.units.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'organization.units.manage',
+        },
+    });
+
 export const settingsRouteContributions = [
     {
         routeId:
@@ -112,6 +148,32 @@ export const settingsRouteContributions = [
                 return {
                     Component:
                         OrganizationsPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'settings.organizations.units.index',
+
+        path:
+            'settings/organizations/:organizationId/units',
+
+        accessPolicy:
+            settingsOrganizationUnitsRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    OrganizationUnitsPage,
+                } =
+                    await import(
+                        '@/modules/settings/organizations/OrganizationUnitsPage'
+                    );
+
+                return {
+                    Component:
+                        OrganizationUnitsPage,
                 };
             },
     },
