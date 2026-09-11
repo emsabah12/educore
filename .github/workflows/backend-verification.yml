@@ -1,0 +1,90 @@
+name: Backend Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-verification:
+    name: Run backend test suite and style check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Beberapa migration HR (mis. compensation_assignments,
+    # employee_benefit_participations) memakai fitur khusus PostgreSQL:
+    # GiST exclusion constraint (btree_gist), daterange, dan partial
+    # unique index. SQLite TIDAK BISA menjalankan migration ini —
+    # service container Postgres di sini WAJIB ada, bukan opsional.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: educore_testing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # DB_* di sini SENGAJA di level job (bukan phpunit.xml) supaya
+    # dipakai konsisten baik oleh `php artisan migrate` maupun
+    # `php artisan test`. Dotenv (yang membaca file .env) TIDAK akan
+    # menimpa environment variable proses yang sudah di-set di sini,
+    # jadi nilai job-level ini yang selalu menang.
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: educore_testing
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, ctype, fileinfo, intl, openssl, tokenizer, xml
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment file
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      # Dijalankan terpisah dari `php artisan test` supaya kalau ada
+      # migration yang gagal (mis. constraint Postgres salah tulis),
+      # error-nya jelas muncul di step ini, bukan tenggelam di tengah
+      # ratusan hasil test.
+      - name: Run database migrations
+        run: php artisan migrate --force
+
+      - name: Check code style (Laravel Pint)
+        run: vendor/bin/pint --test
+
+      - name: Run test suite
+        run: php artisan test
