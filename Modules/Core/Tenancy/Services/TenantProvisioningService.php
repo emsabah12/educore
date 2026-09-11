@@ -23,6 +23,7 @@ final class TenantProvisioningService
         private readonly TenantManager $tenantManager,
         private readonly ActiveUserResolverInterface $activeUserResolver,
         private readonly MembershipRoleRepositoryInterface $membershipRoleRepository,
+        private readonly TenantActivationService $tenantActivationService,
     ) {}
 
     /**
@@ -198,6 +199,27 @@ final class TenantProvisioningService
             $tenantId,
             (string) $adminRole->id,
         );
+
+        /*
+         * Menutup celah operasional: tanpa ini, admin baru harus
+         * login lalu manual buat Organization + assign diri sendiri
+         * sebelum modul organizational-scoped (HR, dst) bisa dipakai
+         * sama sekali — lihat catatan arsitektur di
+         * TenantActivationService.
+         *
+         * Kondisional pada `is_active` — bukan tanpa syarat — supaya
+         * pemanggil yang SENGAJA membuat tenant belum aktif (staging,
+         * belum siap dipakai) tidak tiba-tiba gagal provisioning
+         * gara-gara TenantActivationService menolak tenant
+         * non-aktif. `activate()` sendiri sudah idempotent dan aman
+         * dipanggil lagi nanti (mis. lewat backfill) begitu tenant
+         * ini benar-benar diaktifkan.
+         */
+        if (($tenant['is_active'] ?? true) === true) {
+            $this->tenantActivationService->activate(
+                $tenantId,
+            );
+        }
 
         return [
             'tenant' => $tenant,

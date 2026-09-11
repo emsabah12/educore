@@ -84,6 +84,30 @@ final class TenantProvisioningServiceTest extends TestCase
             'membership_id' => $membershipId,
             'role_id' => $adminRoleId,
         ]);
+
+        /*
+         * Integrasi dengan TenantActivationService (lihat test
+         * dedikasinya sendiri untuk cakupan perilaku lengkap) —
+         * yang diverifikasi DI SINI murni bahwa provisioning
+         * benar-benar MEMICUNYA, bukan mengulang semua skenario
+         * activate() lagi.
+         */
+        $this->assertDatabaseHas('organizations', [
+            'tenant_id' => $tenantId,
+            'name' => 'Sekolah Provisioning',
+        ]);
+
+        $organizationId = DB::table('organizations')
+            ->where('tenant_id', $tenantId)
+            ->value('id');
+
+        $this->assertDatabaseHas('organizational_assignments', [
+            'tenant_id' => $tenantId,
+            'membership_id' => $membershipId,
+            'organization_id' => $organizationId,
+            'organization_unit_id' => null,
+            'status' => 'ACTIVE',
+        ]);
     }
 
     public function test_service_resolves_canonical_admin_role_even_when_another_tenant_has_a_custom_role_with_the_same_name(): void
@@ -196,6 +220,22 @@ final class TenantProvisioningServiceTest extends TestCase
         $this->assertDatabaseHas('membership_roles', [
             'membership_id' => $membershipId,
             'role_id' => $adminRoleId,
+        ]);
+
+        $this->assertDatabaseHas('organizations', [
+            'tenant_id' => $tenantId,
+            'name' => 'Sekolah Admin Baru',
+        ]);
+
+        $organizationId = DB::table('organizations')
+            ->where('tenant_id', $tenantId)
+            ->value('id');
+
+        $this->assertDatabaseHas('organizational_assignments', [
+            'tenant_id' => $tenantId,
+            'membership_id' => $membershipId,
+            'organization_id' => $organizationId,
+            'status' => 'ACTIVE',
         ]);
     }
 
@@ -319,6 +359,38 @@ final class TenantProvisioningServiceTest extends TestCase
                 'subdomain' => 'missing-role',
             ]);
         }
+    }
+
+    public function test_service_skips_organization_auto_provisioning_for_explicitly_inactive_tenant(): void
+    {
+        $user = User::factory()->create();
+
+        $service = $this->app->make(
+            TenantProvisioningService::class,
+        );
+
+        $result = $service->provision(
+            [
+                'name' => 'Tenant Staging Belum Aktif',
+                'subdomain' => 'tenant-staging-belum-aktif',
+                'is_active' => false,
+                'settings' => [],
+            ],
+            (string) $user->id,
+        );
+
+        $tenantId = (string) $result['tenant']['id'];
+
+        // Provisioning tenant+membership+role admin TETAP sukses —
+        // hanya auto-provisioning Organization yang dilewati.
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenantId,
+            'is_active' => false,
+        ]);
+
+        $this->assertDatabaseMissing('organizations', [
+            'tenant_id' => $tenantId,
+        ]);
     }
 
     public function test_role_assignment_failure_rolls_back_tenant_and_membership(): void
