@@ -25,6 +25,9 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             'employees create' => ['hr.employees.create'],
             'compensation components view' => ['hr.compensation.components.view'],
             'compensation components manage' => ['hr.compensation.components.manage'],
+            'compensation assignments view' => ['hr.compensation.assignments.view'],
+            'compensation assignments manage' => ['hr.compensation.assignments.manage'],
+            'compensation assignments approve' => ['hr.compensation.assignments.approve'],
         ];
     }
 
@@ -57,6 +60,9 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
 
         $this->assertSame(
             [
+                'hr.compensation.assignments.approve',
+                'hr.compensation.assignments.manage',
+                'hr.compensation.assignments.view',
                 'hr.compensation.components.manage',
                 'hr.compensation.components.view',
                 'hr.employees.create',

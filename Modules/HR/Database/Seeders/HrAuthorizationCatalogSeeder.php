@@ -62,6 +62,11 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         // HR-006 §7.2 — Compensation Component catalog.
         'hr.compensation.components.view' => 'View Compensation Component catalog',
         'hr.compensation.components.manage' => 'Create/update Compensation Component catalog',
+
+        // HR-006 §7.3 — Compensation Assignment lifecycle.
+        'hr.compensation.assignments.view' => 'View Compensation Assignment records for an Employment',
+        'hr.compensation.assignments.manage' => 'Create draft / end Compensation Assignment records',
+        'hr.compensation.assignments.approve' => 'Approve or correct a Compensation Assignment (higher-impact operation)',
     ];
 
     /**

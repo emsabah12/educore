@@ -7,6 +7,7 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+use Modules\HR\Http\Controllers\Api\v1\CompensationAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationComponentController;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
@@ -121,6 +122,45 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.employments.manage')
         ->name('api.v1.hr.employments.position-assignments.store');
+
+    // HR-006 §7.3 — Compensation Assignment lifecycle.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/compensation-assignments',
+        [CompensationAssignmentController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.compensation.assignments.view')
+        ->name('api.v1.hr.employments.compensation-assignments.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-assignments',
+        [CompensationAssignmentController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.compensation.assignments.manage')
+        ->name('api.v1.hr.employments.compensation-assignments.store');
+
+    // approve/correct SENGAJA memakai permission terpisah (higher-impact
+    // operation, mengubah/mengunci riwayat kompensasi APPROVED) —
+    // konsisten dengan pola hr.recruitment.approve.
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/approve',
+        [CompensationAssignmentController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.compensation.assignments.approve')
+        ->name('api.v1.hr.employments.compensation-assignments.approve');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/end',
+        [CompensationAssignmentController::class, 'end']
+    )
+        ->middleware('tenant.permission:hr.compensation.assignments.manage')
+        ->name('api.v1.hr.employments.compensation-assignments.end');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/correct',
+        [CompensationAssignmentController::class, 'correct']
+    )
+        ->middleware('tenant.permission:hr.compensation.assignments.approve')
+        ->name('api.v1.hr.employments.compensation-assignments.correct');
 
     // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
     Route::get(
