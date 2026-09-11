@@ -6,8 +6,10 @@ namespace Modules\HR\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\HR\Contracts\EmployeeBenefitIdentifierRepositoryInterface;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Contracts\RecruitmentCandidateIdentifierRepositoryInterface;
+use Modules\HR\Repositories\EloquentEmployeeBenefitIdentifierRepository;
 use Modules\HR\Repositories\EloquentEmployeeRepository;
 use Modules\HR\Repositories\EloquentRecruitmentCandidateIdentifierRepository;
 
@@ -29,6 +31,13 @@ final class HRServiceProvider extends ServiceProvider
         $this->app->bind(
             RecruitmentCandidateIdentifierRepositoryInterface::class,
             EloquentRecruitmentCandidateIdentifierRepository::class,
+        );
+
+        // HR-006 §7.7 — pola binding sama persis dengan
+        // RecruitmentCandidateIdentifierRepositoryInterface di atas.
+        $this->app->bind(
+            EmployeeBenefitIdentifierRepositoryInterface::class,
+            EloquentEmployeeBenefitIdentifierRepository::class,
         );
     }
 
