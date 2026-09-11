@@ -18,6 +18,7 @@ final class PersonIdentityResolutionServiceTest extends TestCase
     use RefreshDatabase;
 
     private PersonIdentityResolutionServiceInterface $service;
+
     private PersonIdentifierRepositoryInterface $identifierRepository;
 
     protected function setUp(): void
@@ -111,7 +112,7 @@ final class PersonIdentityResolutionServiceTest extends TestCase
 
         DB::table('persons')->insert([
             'id' => $personId,
-            'name' => 'Fixture Person ' . Str::random(6),
+            'name' => 'Fixture Person '.Str::random(6),
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),

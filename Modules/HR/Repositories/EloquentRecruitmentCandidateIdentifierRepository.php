@@ -137,7 +137,7 @@ final class EloquentRecruitmentCandidateIdentifierRepository implements Recruitm
             ->where('status', RecruitmentCandidateIdentifier::STATUS_ACTIVE)
             ->orderBy('created_at')
             ->get()
-            ->map(fn(RecruitmentCandidateIdentifier $record): array => [
+            ->map(fn (RecruitmentCandidateIdentifier $record): array => [
                 'type' => (string) $record->type,
                 'issuing_country_code' => (string) $record->issuing_country_code,
                 'value' => $this->cipher->decrypt(

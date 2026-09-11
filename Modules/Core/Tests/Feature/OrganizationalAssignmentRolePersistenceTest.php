@@ -7,6 +7,7 @@ namespace Modules\Core\Tests\Feature;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Identity\Models\User;
@@ -194,8 +195,8 @@ final class OrganizationalAssignmentRolePersistenceTest extends TestCase
     ): array {
         $tenant = Tenant::query()->create([
             'name' => 'Scoped Role Tenant',
-            'subdomain' => 'scoped-role-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'subdomain' => 'scoped-role-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
             'is_active' => true,
         ]);
@@ -226,8 +227,8 @@ final class OrganizationalAssignmentRolePersistenceTest extends TestCase
         ]);
 
         $role = Role::query()->create([
-            'name' => 'scoped-role-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'name' => 'scoped-role-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
             'display_name' => 'Scoped Role',
             'description' => 'Scoped role persistence test.',

@@ -27,13 +27,14 @@ final class EmploymentEndTest extends TestCase
     use RefreshDatabase;
 
     private EmploymentLifecycleService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new EmploymentLifecycleService();
+        $this->service = new EmploymentLifecycleService;
         $this->tenantId = $this->createTenant('End Employment Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -162,7 +163,7 @@ final class EmploymentEndTest extends TestCase
     {
         [$employeeId, $membershipId] = $this->createEmployee();
         $employmentTypeId = EmploymentType::create([
-            'code' => 'TIPE-' . Str::upper(Str::random(6)),
+            'code' => 'TIPE-'.Str::upper(Str::random(6)),
             'name' => 'Tipe Uji End Employment',
             'is_active' => true,
         ])->id;
@@ -262,7 +263,7 @@ final class EmploymentEndTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return (new EmploymentPlacementService())->createPlacement(
+        return (new EmploymentPlacementService)->createPlacement(
             tenantId: $this->tenantId,
             employmentId: $employmentId,
             data: [
@@ -277,12 +278,12 @@ final class EmploymentEndTest extends TestCase
         string $placementId,
     ): string {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji End Employment',
             'is_active' => true,
         ])->id;
 
-        return (new EmploymentPositionAssignmentService())->createAssignment(
+        return (new EmploymentPositionAssignmentService)->createAssignment(
             tenantId: $this->tenantId,
             employmentId: $employmentId,
             data: [

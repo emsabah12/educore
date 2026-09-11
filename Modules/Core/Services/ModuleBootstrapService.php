@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services;
 
-use Modules\Core\Platform\Module\Domain\ModuleDefinition;
-use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
 use Modules\Core\Platform\Dependency\DependencyResolver;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Registry\ModuleRegistry;
 

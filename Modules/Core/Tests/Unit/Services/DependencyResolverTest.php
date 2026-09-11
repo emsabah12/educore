@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Services;
 
-use PHPUnit\Framework\TestCase;
-use Modules\Core\Platform\Module\Domain\ModuleDefinition;
-use Modules\Core\Platform\Dependency\DependencyResolver;
 use Modules\Core\Exceptions\CircularDependencyException;
 use Modules\Core\Exceptions\MissingModuleDependencyException;
+use Modules\Core\Platform\Dependency\DependencyResolver;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
+use PHPUnit\Framework\TestCase;
 
 final class DependencyResolverTest extends TestCase
 {
@@ -17,7 +17,7 @@ final class DependencyResolverTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->resolver = new DependencyResolver();
+        $this->resolver = new DependencyResolver;
     }
 
     public function test_resolves_independent_modules_in_any_order(): void
@@ -57,7 +57,7 @@ final class DependencyResolverTest extends TestCase
         ];
 
         $this->expectException(MissingModuleDependencyException::class);
-        $this->expectExceptionMessage("Gagal memuat modul [Academic] karena modul prasyarat (dependency) [Finance] tidak ditemukan");
+        $this->expectExceptionMessage('Gagal memuat modul [Academic] karena modul prasyarat (dependency) [Finance] tidak ditemukan');
 
         $this->resolver->resolve($modules);
     }
@@ -72,7 +72,7 @@ final class DependencyResolverTest extends TestCase
         ];
 
         $this->expectException(CircularDependencyException::class);
-        $this->expectExceptionMessage("Terdeteksi Circular Dependency");
+        $this->expectExceptionMessage('Terdeteksi Circular Dependency');
 
         $this->resolver->resolve($modules);
     }
@@ -85,9 +85,9 @@ final class DependencyResolverTest extends TestCase
         return new ModuleDefinition(
             schema: 1,
             name: $name,
-            displayName: $name . ' Display',
+            displayName: $name.' Display',
             version: 'version',
-            description: $name . ' Description',
+            description: $name.' Description',
             providers: [],
             dependencies: $dependencies
         );

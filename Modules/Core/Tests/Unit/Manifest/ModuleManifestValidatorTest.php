@@ -13,7 +13,7 @@ final class ModuleManifestValidatorTest extends TestCase
 {
     public function test_can_be_instantiated(): void
     {
-        $validator = new ModuleManifestValidator();
+        $validator = new ModuleManifestValidator;
 
         $this->assertInstanceOf(
             ModuleManifestValidator::class,
@@ -23,7 +23,7 @@ final class ModuleManifestValidatorTest extends TestCase
 
     public function test_accepts_valid_manifest(): void
     {
-        $validator = new ModuleManifestValidator();
+        $validator = new ModuleManifestValidator;
 
         $manifest = ManifestBuilder::make()->build();
 
@@ -33,39 +33,38 @@ final class ModuleManifestValidatorTest extends TestCase
     }
 
     public function test_rejects_manifest_without_name(): void
-        {
-            $validator = new ModuleManifestValidator();
+    {
+        $validator = new ModuleManifestValidator;
 
-            $manifest = ManifestBuilder::make()->build();
+        $manifest = ManifestBuilder::make()->build();
 
-            unset($manifest['name']);
+        unset($manifest['name']);
 
-            $this->expectException(InvalidModuleManifestException::class);
+        $this->expectException(InvalidModuleManifestException::class);
 
-            $validator->validate($manifest);
-        }
+        $validator->validate($manifest);
+    }
 
+    public function test_rejects_invalid_field_type(): void
+    {
+        $validator = new ModuleManifestValidator;
 
-        public function test_rejects_invalid_field_type(): void
-            {
-                $validator = new ModuleManifestValidator();
+        $manifest = ManifestBuilder::make()->build();
 
-                $manifest = ManifestBuilder::make()->build();
+        $manifest['providers'] = 'invalid_type';
 
-                $manifest['providers'] = 'invalid_type';
+        $this->expectException(InvalidModuleManifestException::class);
+        $this->expectExceptionMessage(
+            "Field 'providers' must be an array."
+        );
 
-                $this->expectException(InvalidModuleManifestException::class);
-                $this->expectExceptionMessage(
-                    "Field 'providers' must be an array."
-                );
+        $validator->validate($manifest);
+    }
 
-                $validator->validate($manifest);
-            }
-
-        public function test_rejects_manifest_with_non_existent_service_provider_class(): void
+    public function test_rejects_manifest_with_non_existent_service_provider_class(): void
     {
         // 1. Inisialisasi validator lokal secara eksplisit untuk bypass null state
-        $localValidator = new \Modules\Core\Manifest\ModuleManifestValidator();
+        $localValidator = new ModuleManifestValidator;
 
         $manifestData = [
             'schema' => 1,
@@ -74,15 +73,15 @@ final class ModuleManifestValidatorTest extends TestCase
             'version' => '1.0.0',
             'description' => 'Mengelola akademik',
             'providers' => [
-                'Modules\Academic\Providers\KelasIniTidakPernahAdaServiceProvider' // Kelas fiktif
+                'Modules\Academic\Providers\KelasIniTidakPernahAdaServiceProvider', // Kelas fiktif
             ],
             'dependencies' => [],
             'metadata' => [], // Tambahkan properti wajib agar tidak memicu missing required fields
-            'extra' => []     // Tambahkan properti wajib agar tidak memicu missing required fields
+            'extra' => [],     // Tambahkan properti wajib agar tidak memicu missing required fields
         ];
 
-       // 2. Ekspektasi exception yang dilempar oleh fail-fast validator core
-        $this->expectException(\Modules\Core\Exceptions\InvalidModuleManifestException::class);
+        // 2. Ekspektasi exception yang dilempar oleh fail-fast validator core
+        $this->expectException(InvalidModuleManifestException::class);
 
         // 3. Eksekusi menggunakan variabel lokal yang sudah pasti ter-instansiasi
         $localValidator->validate($manifestData);
@@ -90,7 +89,7 @@ final class ModuleManifestValidatorTest extends TestCase
 
     public function test_rejects_existing_class_that_is_not_a_service_provider(): void
     {
-        $validator = new ModuleManifestValidator();
+        $validator = new ModuleManifestValidator;
 
         $manifest = ManifestBuilder::make()->build();
         $manifest['providers'] = [\stdClass::class];

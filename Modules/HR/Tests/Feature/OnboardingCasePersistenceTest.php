@@ -24,6 +24,7 @@ final class OnboardingCasePersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -237,7 +238,7 @@ final class OnboardingCasePersistenceTest extends TestCase
         $tenantId = (string) app(TenantContextInterface::class)->getCurrentTenantId();
 
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Onboarding Case',
             'is_active' => true,
         ])->id;
@@ -272,7 +273,7 @@ final class OnboardingCasePersistenceTest extends TestCase
         ]);
 
         $vacancyId = RecruitmentVacancy::create([
-            'code' => 'VAC-OB-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-OB-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $positionId,
             'organization_id' => $organizationId,
@@ -281,7 +282,7 @@ final class OnboardingCasePersistenceTest extends TestCase
         ])->id;
 
         $candidateId = RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Onboarding Case ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Onboarding Case '.Str::random(6),
         ])->id;
 
         return RecruitmentApplication::create([

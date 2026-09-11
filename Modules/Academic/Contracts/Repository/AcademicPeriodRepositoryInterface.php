@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Contracts\Repository;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 interface AcademicPeriodRepositoryInterface
 {
     /**
      * Mengambil daftar tahun ajaran per-tenant.
      */
-    public function getYearsPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    public function getYearsPaginated(string $tenantId, int $perPage = 15): LengthAwarePaginator;
 
     /**
      * Mendaftarkan tahun ajaran baru dan mengelola status keaktifannya.
@@ -32,5 +34,6 @@ interface AcademicPeriodRepositoryInterface
     public function activateSemester(string $tenantId, string $semesterId): bool;
 
     public function allActiveByTenant(string $tenantId): array;
+
     public function findByTenant(string $tenantId, string $id): ?object;
 }

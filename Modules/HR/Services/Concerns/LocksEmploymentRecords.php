@@ -33,7 +33,7 @@ trait LocksEmploymentRecords
             ->first();
 
         if ($employee === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Employee::class,
                 [$employeeId],
             );
@@ -55,7 +55,7 @@ trait LocksEmploymentRecords
             ->first();
 
         if ($employment === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Employment::class,
                 [$employmentId],
             );

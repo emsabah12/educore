@@ -2,24 +2,19 @@
 
 namespace Modules\Academic\Services;
 
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Exception;
 
 class ReportCardAggregationService
 {
     /**
      * Mengagregasikan nilai mentah student menjadi nilai akhir rapor per periode akademik.
      *
-     * @param string $tenantId
-     * @param string $academicPeriodId
-     * @param string $studentId
-     * @param string $academicClassId
-     * @param array $attendanceData
-     * @param string|null $teacherNotes
      * @return string ID dari AcademicReportCard yang dibuat/diperbarui
+     *
      * @throws InvalidArgumentException|Exception
      */
     public function aggregateForstudent(
@@ -32,7 +27,7 @@ class ReportCardAggregationService
     ): string {
         // 1. Validasi Input Dasar
         if (empty($tenantId) || empty($academicPeriodId) || empty($studentId) || empty($academicClassId)) {
-            throw new InvalidArgumentException("Parameter tenant, periode, student, dan kelas wajib diisi.");
+            throw new InvalidArgumentException('Parameter tenant, periode, student, dan kelas wajib diisi.');
         }
 
         return DB::transaction(function () use ($tenantId, $academicPeriodId, $studentId, $academicClassId, $attendanceData, $teacherNotes) {
@@ -45,7 +40,7 @@ class ReportCardAggregationService
                 ->groupBy('academic_subject_id');
 
             if ($assessmentSettings->isEmpty()) {
-                throw new Exception("Tidak ditemukan pengaturan bobot penilaian (assessment_settings) untuk periode akademik ini.");
+                throw new Exception('Tidak ditemukan pengaturan bobot penilaian (assessment_settings) untuk periode akademik ini.');
             }
 
             // 3. Ambil semua nilai mentah milik student pada periode ini
@@ -62,7 +57,7 @@ class ReportCardAggregationService
                 ->where('student_id', $studentId)
                 ->value('id');
 
-            if (!$reportCardId) {
+            if (! $reportCardId) {
                 $reportCardId = Str::uuid()->toString();
                 DB::table('academic_report_cards')->insert([
                     'id' => $reportCardId,
@@ -82,7 +77,7 @@ class ReportCardAggregationService
                 // Jika status sudah locked, tidak boleh di-update lewat agregasi reguler
                 $currentStatus = DB::table('academic_report_cards')->where('id', $reportCardId)->value('status');
                 if ($currentStatus === 'locked' || $currentStatus === 'published') {
-                    throw new Exception("Gagal mengagregasi nilai: Rapor student sudah dikunci (locked/published).");
+                    throw new Exception('Gagal mengagregasi nilai: Rapor student sudah dikunci (locked/published).');
                 }
 
                 DB::table('academic_report_cards')
@@ -154,10 +149,19 @@ class ReportCardAggregationService
      */
     private function calculateLetterGrade(float $score): string
     {
-        if ($score >= 85.0) return 'A';
-        if ($score >= 75.0) return 'B';
-        if ($score >= 60.0) return 'C';
-        if ($score >= 45.0) return 'D';
+        if ($score >= 85.0) {
+            return 'A';
+        }
+        if ($score >= 75.0) {
+            return 'B';
+        }
+        if ($score >= 60.0) {
+            return 'C';
+        }
+        if ($score >= 45.0) {
+            return 'D';
+        }
+
         return 'E';
     }
 
@@ -167,11 +171,11 @@ class ReportCardAggregationService
     private function generatePredicateNotes(string $letterGrade, string $subjectId): string
     {
         return match ($letterGrade) {
-            'A' => "Menunjukkan penguasaan materi yang sangat cemerlang dan istimewa.",
-            'B' => "Menunjukkan kemampuan yang baik dan tuntas dalam memahami materi.",
-            'C' => "Cukup memahami materi, disarankan meningkatkan konsistensi belajar.",
-            'D' => "Kurang menguasai materi, memerlukan bimbingan intensif tambahan.",
-            default => "Belum memenuhi standar ketuntasan minimal, wajib mengikuti remedial.",
+            'A' => 'Menunjukkan penguasaan materi yang sangat cemerlang dan istimewa.',
+            'B' => 'Menunjukkan kemampuan yang baik dan tuntas dalam memahami materi.',
+            'C' => 'Cukup memahami materi, disarankan meningkatkan konsistensi belajar.',
+            'D' => 'Kurang menguasai materi, memerlukan bimbingan intensif tambahan.',
+            default => 'Belum memenuhi standar ketuntasan minimal, wajib mengikuti remedial.',
         };
     }
 }

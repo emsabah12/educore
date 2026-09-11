@@ -18,7 +18,7 @@ final readonly class ModuleProviderRegistrar
      *
      * Core is the bootstrap root and is registered by bootstrap/providers.php.
      *
-     * @param iterable<ModuleDefinition> $definitions
+     * @param  iterable<ModuleDefinition>  $definitions
      */
     public function register(iterable $definitions): void
     {

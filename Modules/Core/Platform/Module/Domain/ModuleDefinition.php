@@ -24,7 +24,7 @@ final readonly class ModuleDefinition
     /**
      * Factory method from validated manifest.
      *
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     public static function fromArray(array $manifest): self
     {

@@ -14,8 +14,8 @@ interface RecruitmentCandidateIdentifierRepositoryInterface
      * @return array{id:string,candidate_id:string,type:string,issuing_country_code:string,status:string}
      *
      * @throws \RuntimeException Jika identifier (tenant + type + country
-     *                            + value) sudah dimiliki Candidate lain
-     *                            (INV-REC-003).
+     *                           + value) sudah dimiliki Candidate lain
+     *                           (INV-REC-003).
      */
     public function store(
         string $tenantId,

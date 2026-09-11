@@ -53,7 +53,6 @@ final readonly class WorkspaceEmployeeProvisioningService
      *     jabatan: string,
      *     employment_type_id: string,
      * } $employeeData
-     *
      * @return array{
      *     employee_id: string,
      *     membership_id: string,

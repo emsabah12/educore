@@ -52,7 +52,6 @@ final readonly class LeaveCancellationService
             $tenantId,
             $leaveRequestId,
             $actorMembershipId,
-            $reason,
         ): LeaveRequest {
             // §14.5 langkah 1.
             $request = $this->lockRequestForTenant($leaveRequestId, $tenantId);
@@ -88,7 +87,7 @@ final readonly class LeaveCancellationService
                 ->first();
 
             if ($leaveType === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     LeaveType::class,
                     [$request->leave_type_id],
                 );
@@ -152,7 +151,7 @@ final readonly class LeaveCancellationService
             ->first();
 
         if ($request === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveRequest::class,
                 [$leaveRequestId],
             );

@@ -29,7 +29,7 @@ final readonly class ModuleManifestValidator
     /**
      * Validate manifest structure.
      *
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      * @return array<string, mixed>
      *
      * @throws InvalidModuleManifestException
@@ -57,12 +57,12 @@ final readonly class ModuleManifestValidator
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     private function validateRequiredFields(array $manifest): void
     {
         foreach (self::REQUIRED_FIELDS as $field) {
-            if (!array_key_exists($field, $manifest)) {
+            if (! array_key_exists($field, $manifest)) {
                 throw new InvalidModuleManifestException(
                     sprintf("Required field '%s' is missing.", $field)
                 );
@@ -71,7 +71,7 @@ final readonly class ModuleManifestValidator
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     private function assertInteger(array $manifest, string $field): void
     {
@@ -86,56 +86,57 @@ final readonly class ModuleManifestValidator
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     private function assertString(array $manifest, string $field): void
     {
-        if (!is_string($manifest[$field])) {
+        if (! is_string($manifest[$field])) {
             throw new InvalidModuleManifestException(
                 sprintf("Field '%s' must be a string.", $field)
             );
         }
     }
 
-     /**
-     * @param array<string, mixed> $manifest
+    /**
+     * @param  array<string, mixed>  $manifest
      */
     private function assertArray(array $manifest, string $field): void
     {
-        if (!is_array($manifest[$field])) {
+        if (! is_array($manifest[$field])) {
             throw new InvalidModuleManifestException(
                 sprintf("Field '%s' must be an array.", $field)
             );
         }
     }
 
-
     /**
      * Memastikan string nama kelas Service Provider benar-benar terdaftar di autoloader PHP.
+     *
      * * @param array<string, mixed> $manifest
+     *
      * @throws InvalidModuleManifestException
      */
     private function assertValidServiceProviders(array $manifest): void
     {
         foreach ($manifest['providers'] as $providerClass) {
-            if (!is_string($providerClass)) {
+            if (! is_string($providerClass)) {
                 throw new InvalidModuleManifestException(
-                    sprintf("Module [%s] manifest error: Provider items must be strings.", $manifest['name'])
+                    sprintf('Module [%s] manifest error: Provider items must be strings.', $manifest['name'])
                 );
             }
 
             // Memicu fail-fast jika developer modul salah ketik nama kelas provider di module.yaml
-            if (!class_exists($providerClass)) {
+            if (! class_exists($providerClass)) {
                 throw new InvalidModuleManifestException(
                     sprintf(
-                        "Gagal memuat modul [%s]. Kelas Service Provider [%s] tidak ditemukan di sistem. Periksa kembali kemungkinan typo ejaan pada berkas module.yaml.",
+                        'Gagal memuat modul [%s]. Kelas Service Provider [%s] tidak ditemukan di sistem. Periksa kembali kemungkinan typo ejaan pada berkas module.yaml.',
                         $manifest['name'],
                         $providerClass
                     )
                 );
             }
 
-            if (!is_subclass_of($providerClass, ServiceProvider::class)) {
+            if (! is_subclass_of($providerClass, ServiceProvider::class)) {
                 throw new InvalidModuleManifestException(
                     sprintf(
                         'Module [%s] manifest error: Provider [%s] must extend %s.',

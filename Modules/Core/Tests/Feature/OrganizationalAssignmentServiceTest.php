@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Organization\Contracts\OrganizationalAssignmentRepositoryInterface;
@@ -444,8 +445,8 @@ final class OrganizationalAssignmentServiceTest extends TestCase
     {
         $tenant = $this->createTenant(
             'Assignment Service Tenant',
-            'assignment-service-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'assignment-service-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
         );
         $this->activateTenant($tenant);

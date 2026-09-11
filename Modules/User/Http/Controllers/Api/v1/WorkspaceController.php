@@ -35,7 +35,7 @@ final class WorkspaceController extends Controller
                         ],
                         'workspaces' => $result->workspaces
                             ->map(
-                                static fn(
+                                static fn (
                                     WorkspaceSummary $workspace,
                                 ): array => $workspace->toArray(),
                             )

@@ -89,12 +89,9 @@ final readonly class BrowserLoginController
                 null,
                 $identity->userId,
                 [
-                    'channel' =>
-                        AuthenticationChannel::BROWSER_SESSION->value,
-                    'status' =>
-                        'session_establishment_failed',
-                    'context_type' =>
-                        'identity',
+                    'channel' => AuthenticationChannel::BROWSER_SESSION->value,
+                    'status' => 'session_establishment_failed',
+                    'context_type' => 'identity',
                 ],
             );
 
@@ -117,10 +114,8 @@ final readonly class BrowserLoginController
             null,
             $identity->userId,
             [
-                'channel' =>
-                    AuthenticationChannel::BROWSER_SESSION->value,
-                'context_type' =>
-                    'identity',
+                'channel' => AuthenticationChannel::BROWSER_SESSION->value,
+                'context_type' => 'identity',
             ],
         );
 
@@ -142,8 +137,7 @@ final readonly class BrowserLoginController
                         'username' => $identity->username,
                     ],
                     'platform' => [
-                        'is_superadmin' =>
-                            $identity->isSuperadmin,
+                        'is_superadmin' => $identity->isSuperadmin,
                     ],
                 ],
             ],
@@ -159,8 +153,7 @@ final readonly class BrowserLoginController
             Log::critical(
                 'Browser credential vault cleanup failed after login failure.',
                 [
-                    'exception' =>
-                        $cleanupException::class,
+                    'exception' => $cleanupException::class,
                 ],
             );
         }

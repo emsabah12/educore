@@ -23,7 +23,9 @@ final class LeaveEntitlement extends Model
     use HasUuidV7;
 
     public const string STATUS_ACTIVE = 'ACTIVE';
+
     public const string STATUS_CLOSED = 'CLOSED';
+
     public const string STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'leave_entitlements';

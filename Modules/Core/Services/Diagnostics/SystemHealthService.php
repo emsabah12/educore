@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\Core\Services\Diagnostics;
 
-use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
 use Throwable;
 
 final class SystemHealthService implements HealthCheckerInterface
@@ -16,7 +16,7 @@ final class SystemHealthService implements HealthCheckerInterface
     {
         $components = [
             'database' => $this->checkDatabase(),
-            'storage'  => $this->checkStorage(),
+            'storage' => $this->checkStorage(),
         ];
 
         $isHealthy = ! in_array(false, array_column($components, 'healthy'), true);
@@ -24,7 +24,7 @@ final class SystemHealthService implements HealthCheckerInterface
         return [
             'status' => $isHealthy ? 'UP' : 'DOWN',
             'timestamp' => now()->toIso8601String(),
-            'components' => $components
+            'components' => $components,
         ];
     }
 
@@ -40,7 +40,7 @@ final class SystemHealthService implements HealthCheckerInterface
 
             return [
                 'healthy' => true,
-                'message' => 'PostgreSQL connection is responsive.'
+                'message' => 'PostgreSQL connection is responsive.',
             ];
         } catch (Throwable $e) {
             // GAP-024: endpoint ini publik (tidak ada middleware auth).
@@ -53,7 +53,7 @@ final class SystemHealthService implements HealthCheckerInterface
 
             return [
                 'healthy' => false,
-                'message' => 'Database connectivity check failed.'
+                'message' => 'Database connectivity check failed.',
             ];
         }
     }
@@ -61,7 +61,7 @@ final class SystemHealthService implements HealthCheckerInterface
     private function checkStorage(): array
     {
         try {
-            $testFile = 'diagnostics/health_check_' . time() . '.txt';
+            $testFile = 'diagnostics/health_check_'.time().'.txt';
             Storage::disk('local')->put($testFile, 'healthy');
             $content = Storage::disk('local')->get($testFile);
             Storage::disk('local')->delete($testFile);
@@ -72,7 +72,7 @@ final class SystemHealthService implements HealthCheckerInterface
 
             return [
                 'healthy' => true,
-                'message' => 'Local storage disk is writable and readable.'
+                'message' => 'Local storage disk is writable and readable.',
             ];
         } catch (Throwable $e) {
             // GAP-024: sama seperti database — detail asli (path filesystem
@@ -83,7 +83,7 @@ final class SystemHealthService implements HealthCheckerInterface
 
             return [
                 'healthy' => false,
-                'message' => 'Storage connectivity check failed.'
+                'message' => 'Storage connectivity check failed.',
             ];
         }
     }

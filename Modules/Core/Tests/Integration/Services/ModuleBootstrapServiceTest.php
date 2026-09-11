@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Integration\Services;
 
-use Modules\Core\Platform\Discovery\ModuleDiscovery;
+use Modules\Core\Exceptions\CircularDependencyException;
+use Modules\Core\Exceptions\MissingModuleDependencyException;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
 use Modules\Core\Manifest\ModuleManifestValidator;
-use Modules\Core\Platform\Registry\ModuleRegistry;
-use Modules\Core\Exceptions\CircularDependencyException;
-use Modules\Core\Exceptions\MissingModuleDependencyException;
-use Modules\Core\Services\ModuleBootstrapService;
-use Modules\Core\Platform\Module\Services\ModuleLoader;
 use Modules\Core\Platform\Dependency\DependencyResolver;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Registry\ModuleRegistry;
+use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
@@ -23,7 +23,9 @@ use Tests\TestCase;
 final class ModuleBootstrapServiceTest extends TestCase
 {
     private TemporaryFilesystem $filesystem;
+
     private ModuleRegistry $registryStorage;
+
     private ModuleBootstrapService $bootstrapService;
 
     /**
@@ -34,20 +36,20 @@ final class ModuleBootstrapServiceTest extends TestCase
         parent::setUp();
 
         // 1. Workspace filesystem virtual terisolasi
-        $this->filesystem = new TemporaryFilesystem();
+        $this->filesystem = new TemporaryFilesystem;
 
         // 2. Storage in-memory baru ("kertas putih" tanpa polusi state aplikasi)
-        $this->registryStorage = new ModuleRegistry();
+        $this->registryStorage = new ModuleRegistry;
 
         // 3. Bangun objek-objek prasyarat secara mandiri
-        $discovery = new ModuleDiscovery();
-        $parser = new ModuleManifestParser();
-        $validator = new ModuleManifestValidator();
+        $discovery = new ModuleDiscovery;
+        $parser = new ModuleManifestParser;
+        $validator = new ModuleManifestValidator;
         $factory = new ModuleDefinitionFactory($validator);
 
         $manifestLoader = new ModuleManifestLoader($parser, $validator, $factory);
         $moduleLoader = new ModuleLoader($this->registryStorage);
-        $dependencyResolver = new DependencyResolver();
+        $dependencyResolver = new DependencyResolver;
 
         $this->bootstrapService = new ModuleBootstrapService(
             $discovery,

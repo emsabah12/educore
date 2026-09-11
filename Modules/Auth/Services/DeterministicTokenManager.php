@@ -331,7 +331,6 @@ final class DeterministicTokenManager implements TokenManagerInterface
      * Preserve the existing Tenant-aware payload contract during migration.
      *
      * @param  array<string, mixed>  $payload
-     *
      * @return array<string, mixed>|null
      */
     private function validateLegacyTenantPayload(
@@ -425,7 +424,6 @@ final class DeterministicTokenManager implements TokenManagerInterface
 
     /**
      * @param  array<string, mixed>  $payload
-     *
      * @return array<string, mixed>
      */
     private function safeLogContext(

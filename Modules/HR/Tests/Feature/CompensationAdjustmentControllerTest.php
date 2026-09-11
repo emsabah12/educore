@@ -20,14 +20,18 @@ use Tests\TestCase;
 
 final class CompensationAdjustmentControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $secondOperatorUserId;
+
     private string $secondOperatorMembershipId;
 
     protected function setUp(): void
@@ -353,7 +357,7 @@ final class CompensationAdjustmentControllerTest extends TestCase
             'target_period_start' => '2026-01-01',
             'target_period_end' => '2026-01-31',
             'reason' => 'Uji coba HTTP layer penyesuaian kompensasi.',
-            'idempotency_key' => 'ADJ-HTTP-' . Str::upper(Str::random(12)),
+            'idempotency_key' => 'ADJ-HTTP-'.Str::upper(Str::random(12)),
         ];
     }
 

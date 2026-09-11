@@ -30,26 +30,34 @@ final class LeaveCancellationServiceTest extends TestCase
     use RefreshDatabase;
 
     private LeaveApprovalPolicyService $approvalPolicyService;
+
     private LeaveRequestService $requestService;
+
     private LeaveApprovalService $approvalService;
+
     private LeaveCancellationService $cancellationService;
+
     private LeaveBalanceService $balanceService;
 
     private string $tenantId;
+
     private string $employmentId;
+
     private string $leaveTypeId;
+
     private string $actorUserId;
+
     private string $actorMembershipId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->approvalPolicyService = new LeaveApprovalPolicyService();
+        $this->approvalPolicyService = new LeaveApprovalPolicyService;
         $this->requestService = app(LeaveRequestService::class);
         $this->approvalService = app(LeaveApprovalService::class);
         $this->cancellationService = app(LeaveCancellationService::class);
-        $this->balanceService = new LeaveBalanceService();
+        $this->balanceService = new LeaveBalanceService;
 
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
@@ -104,7 +112,7 @@ final class LeaveCancellationServiceTest extends TestCase
             'entitlement_id' => $entitlement->id,
             'entry_type' => LeaveBalanceLedger::ENTRY_GRANT,
             'units_delta' => 12,
-            'idempotency_key' => 'grant:' . $entitlement->id,
+            'idempotency_key' => 'grant:'.$entitlement->id,
             'occurred_at' => now(),
             'created_at' => now(),
         ]);
@@ -179,7 +187,7 @@ final class LeaveCancellationServiceTest extends TestCase
     private function approveRequest(string $leaveTypeId): LeaveRequest
     {
         $policy = $this->approvalPolicyService->createPolicyVersion($this->tenantId, [
-            'policy_code' => 'CANCEL-TEST-' . Str::upper(Str::random(6)),
+            'policy_code' => 'CANCEL-TEST-'.Str::upper(Str::random(6)),
             'name' => 'Kebijakan Uji Cancel',
             'decision_mode' => 'SEQUENTIAL',
             'effective_from' => '2026-01-01',
@@ -215,7 +223,7 @@ final class LeaveCancellationServiceTest extends TestCase
     private function createNoneLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'PERMIT-' . Str::upper(Str::random(6)),
+            'code' => 'PERMIT-'.Str::upper(Str::random(6)),
             'name' => 'Izin Tanpa Saldo',
             'category' => LeaveType::CATEGORY_PERMIT,
             'balance_mode' => LeaveType::BALANCE_MODE_NONE,
@@ -253,7 +261,7 @@ final class LeaveCancellationServiceTest extends TestCase
     private function createLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,
@@ -346,8 +354,7 @@ final class LeaveCancellationServiceTest extends TestCase
     }
 
     /**
-     * @param list<string> $permissions
-     *
+     * @param  list<string>  $permissions
      * @return array{0: string, 1: string} [userId, membershipId]
      */
     private function createActor(array $permissions): array
@@ -387,7 +394,7 @@ final class LeaveCancellationServiceTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'leave-cancel-test-' . Str::lower(Str::random(6)),
+            'name' => 'leave-cancel-test-'.Str::lower(Str::random(6)),
             'display_name' => 'Leave Cancellation Test Role',
             'description' => 'Test-only role.',
             'created_at' => now(),

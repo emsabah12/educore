@@ -17,7 +17,7 @@ final class TemporaryFilesystemTest extends TestCase
     {
         parent::setUp();
 
-        $this->filesystem = new TemporaryFilesystem();
+        $this->filesystem = new TemporaryFilesystem;
     }
 
     protected function tearDown(): void
@@ -59,8 +59,8 @@ final class TemporaryFilesystemTest extends TestCase
 
         $this->assertDirectoryExists(
             $this->filesystem->path()
-            . DIRECTORY_SEPARATOR
-            . $fixture->name
+            .DIRECTORY_SEPARATOR
+            .$fixture->name
         );
     }
 
@@ -79,19 +79,19 @@ final class TemporaryFilesystemTest extends TestCase
         $this->filesystem->create($fixture);
 
         $modulePath = $this->filesystem->path()
-            . DIRECTORY_SEPARATOR
-            . $fixture->name;
+            .DIRECTORY_SEPARATOR
+            .$fixture->name;
 
         $this->assertDirectoryExists(
-            $modulePath . DIRECTORY_SEPARATOR . 'Config'
+            $modulePath.DIRECTORY_SEPARATOR.'Config'
         );
 
         $this->assertDirectoryExists(
-            $modulePath . DIRECTORY_SEPARATOR . 'Providers'
+            $modulePath.DIRECTORY_SEPARATOR.'Providers'
         );
 
         $this->assertDirectoryExists(
-            $modulePath . DIRECTORY_SEPARATOR . 'Services'
+            $modulePath.DIRECTORY_SEPARATOR.'Services'
         );
     }
 
@@ -116,31 +116,31 @@ final class TemporaryFilesystemTest extends TestCase
         $this->filesystem->create($fixture);
 
         $modulePath = $this->filesystem->path()
-            . DIRECTORY_SEPARATOR
-            . $fixture->name;
+            .DIRECTORY_SEPARATOR
+            .$fixture->name;
 
         $this->assertFileExists(
-            $modulePath . DIRECTORY_SEPARATOR . 'module.yaml'
+            $modulePath.DIRECTORY_SEPARATOR.'module.yaml'
         );
 
         $this->assertFileExists(
-            $modulePath . DIRECTORY_SEPARATOR . 'composer.json'
+            $modulePath.DIRECTORY_SEPARATOR.'composer.json'
         );
 
         $this->assertFileExists(
             $modulePath
-            . DIRECTORY_SEPARATOR
-            . 'routes'
-            . DIRECTORY_SEPARATOR
-            . 'web.php'
+            .DIRECTORY_SEPARATOR
+            .'routes'
+            .DIRECTORY_SEPARATOR
+            .'web.php'
         );
 
         $this->assertSame(
             "{}\n",
             file_get_contents(
                 $modulePath
-                . DIRECTORY_SEPARATOR
-                . 'composer.json'
+                .DIRECTORY_SEPARATOR
+                .'composer.json'
             )
         );
 
@@ -148,10 +148,10 @@ final class TemporaryFilesystemTest extends TestCase
             "<?php\n",
             file_get_contents(
                 $modulePath
-                . DIRECTORY_SEPARATOR
-                . 'routes'
-                . DIRECTORY_SEPARATOR
-                . 'web.php'
+                .DIRECTORY_SEPARATOR
+                .'routes'
+                .DIRECTORY_SEPARATOR
+                .'web.php'
             )
         );
     }

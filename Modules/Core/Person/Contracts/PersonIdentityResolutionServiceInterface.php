@@ -16,7 +16,9 @@ namespace Modules\Core\Person\Contracts;
 interface PersonIdentityResolutionServiceInterface
 {
     public const string STATUS_UNRESOLVED = 'UNRESOLVED';
+
     public const string STATUS_MATCHED_EXISTING = 'MATCHED_EXISTING';
+
     public const string STATUS_CONFLICT = 'CONFLICT';
 
     /**
@@ -29,8 +31,7 @@ interface PersonIdentityResolutionServiceInterface
      * memilih salah satu (§9.2 poin 5: "detect inconsistent claims that
      * resolve to different Persons").
      *
-     * @param list<array{type: string, issuing_country_code: string, value: string}> $strongClaims
-     *
+     * @param  list<array{type: string, issuing_country_code: string, value: string}>  $strongClaims
      * @return array{status: string, person_id: string|null}
      */
     public function resolveByStrongIdentifiers(array $strongClaims): array;
@@ -44,8 +45,8 @@ interface PersonIdentityResolutionServiceInterface
      * @return string Person ID yang baru dibuat.
      *
      * @throws \RuntimeException Jika identifier sudah dimiliki Person lain
-     *                            (constraint unik DB sebagai penjaga
-     *                            konkurensi terakhir, §9.2 poin 7).
+     *                           (constraint unik DB sebagai penjaga
+     *                           konkurensi terakhir, §9.2 poin 7).
      */
     public function createPersonWithIdentifier(
         string $name,

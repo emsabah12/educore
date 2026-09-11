@@ -26,6 +26,7 @@ final class RecruitmentCandidateIdentifier extends Model
     use HasUuidV7;
 
     public const string STATUS_ACTIVE = 'ACTIVE';
+
     public const string STATUS_REVOKED = 'REVOKED';
 
     protected $table = 'recruitment_candidate_identifiers';

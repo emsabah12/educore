@@ -19,6 +19,7 @@ final class LeaveTypePersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -166,7 +167,7 @@ final class LeaveTypePersistenceTest extends TestCase
     {
         return LeaveType::create([
             'code' => $code,
-            'name' => 'Cuti Uji ' . Str::random(6),
+            'name' => 'Cuti Uji '.Str::random(6),
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,
             'unit' => LeaveType::UNIT_DAY,

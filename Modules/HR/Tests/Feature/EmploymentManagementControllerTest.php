@@ -19,12 +19,15 @@ use Tests\TestCase;
 
 final class EmploymentManagementControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $employeeId;
 
     protected function setUp(): void
@@ -160,7 +163,6 @@ final class EmploymentManagementControllerTest extends TestCase
         $employmentTypeId = $this->createEmploymentType();                      // ← BARU
         $employmentId = $this->createPlannedEmploymentViaApi($employmentTypeId); // ← diberi argumen
 
-
         $this->withToken($this->issueToken())->postJson(
             route(
                 'api.v1.hr.employments.activate',
@@ -255,7 +257,7 @@ final class EmploymentManagementControllerTest extends TestCase
             ->assertJsonPath('meta.total', 2);
     }
 
-    private function createPlannedEmploymentViaApi(?string $employmentTypeId = null,): string
+    private function createPlannedEmploymentViaApi(?string $employmentTypeId = null): string
     {
         $payload = ['start_date' => '2026-09-01'];
 

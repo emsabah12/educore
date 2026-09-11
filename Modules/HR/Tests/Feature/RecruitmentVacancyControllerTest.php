@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Support\Uuid\UuidV7;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\GrantsAuthorizationRole;
@@ -16,13 +17,17 @@ use Tests\TestCase;
 
 final class RecruitmentVacancyControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $positionId;
+
     private string $organizationId;
 
     protected function setUp(): void
@@ -42,7 +47,7 @@ final class RecruitmentVacancyControllerTest extends TestCase
         DB::table('positions')->insert([
             'id' => $this->positionId,
             'tenant_id' => $this->tenantId,
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Vacancy HTTP',
             'is_active' => true,
             'created_at' => now(),
@@ -62,7 +67,7 @@ final class RecruitmentVacancyControllerTest extends TestCase
 
     protected function tearDown(): void
     {
-        app(\Modules\Core\Tenancy\Contracts\TenantContextInterface::class)->clear();
+        app(TenantContextInterface::class)->clear();
 
         parent::tearDown();
     }
@@ -225,7 +230,7 @@ final class RecruitmentVacancyControllerTest extends TestCase
     }
 
     /**
-     * @param list<string> $permissionNames
+     * @param  list<string>  $permissionNames
      */
     private function grantSinglePermissionRole(string $roleName, array $permissionNames): void
     {
@@ -233,7 +238,7 @@ final class RecruitmentVacancyControllerTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => $roleName . '-' . Str::lower(Str::random(6)),
+            'name' => $roleName.'-'.Str::lower(Str::random(6)),
             'display_name' => 'Manage Only Test Role',
             'description' => 'Test-only role for permission-separation assertions.',
             'created_at' => now(),

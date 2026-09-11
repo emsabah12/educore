@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 final readonly class WorkspaceDiscoveryResult
 {
     /**
-     * @param Collection<int, WorkspaceSummary> $workspaces
+     * @param  Collection<int, WorkspaceSummary>  $workspaces
      */
     public function __construct(
         public string $tenantId,

@@ -42,7 +42,7 @@ final class TenantEffectiveFeaturesController extends Controller
 
         $featureCodes =
             $this->tenantSubscriptionService
-            ->effectiveFeatureCodes($tenantId);
+                ->effectiveFeatureCodes($tenantId);
 
         return response()->json([
             'status' => 'success',

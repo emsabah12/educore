@@ -23,6 +23,7 @@ final class RecruitmentHiringDecision extends Model
     use HasUuidV7;
 
     public const string DECISION_APPROVED = 'APPROVED';
+
     public const string DECISION_REJECTED = 'REJECTED';
 
     protected $table = 'recruitment_hiring_decisions';

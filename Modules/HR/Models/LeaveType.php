@@ -22,12 +22,15 @@ final class LeaveType extends Model
     use HasUuidV7;
 
     public const string CATEGORY_LEAVE = 'LEAVE';
+
     public const string CATEGORY_PERMIT = 'PERMIT';
 
     public const string BALANCE_MODE_BALANCE = 'BALANCE';
+
     public const string BALANCE_MODE_NONE = 'NONE';
 
     public const string UNIT_DAY = 'DAY';
+
     public const string UNIT_HOUR = 'HOUR';
 
     protected $table = 'leave_types';

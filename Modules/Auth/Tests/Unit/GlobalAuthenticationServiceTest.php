@@ -403,11 +403,10 @@ final class GlobalAuthenticationServiceTest extends TestCase
             ->with(
                 'auth.login_failed',
                 $this->callback(
-                    static fn(string $description): bool =>
-                        ! str_contains(
-                            $description,
-                            $forbiddenIdentifier,
-                        ),
+                    static fn (string $description): bool => ! str_contains(
+                        $description,
+                        $forbiddenIdentifier,
+                    ),
                 ),
                 null,
                 null,

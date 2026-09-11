@@ -19,12 +19,14 @@ use Tests\TestCase;
 
 final class BenefitProgramControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -228,7 +230,7 @@ final class BenefitProgramControllerTest extends TestCase
             'id' => UuidV7::generate(),
             'tenant_id' => $tenantId,
             'code' => $code,
-            'name' => 'Program Uji ' . $code,
+            'name' => 'Program Uji '.$code,
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,
             'payroll_relevance' => BenefitProgram::PAYROLL_RELEVANCE_ELIGIBILITY_INPUT,

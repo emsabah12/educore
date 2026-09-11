@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Jobs\SendAsynchronousNotificationJob;
 use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
-use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -41,8 +41,7 @@ final class RecordingNotificationChannel implements NotificationChannelInterface
     ) {}
 
     /**
-     * @param array<string, mixed> $options
-     *
+     * @param  array<string, mixed>  $options
      * @return array{
      *     success: bool,
      *     log_id: string,
@@ -182,7 +181,7 @@ final class NotificationPlatformTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ])
             ->postJson(
                 '/api/v1/core/notifications/dispatch',
@@ -257,7 +256,7 @@ final class NotificationPlatformTest extends TestCase
                     ! $queuedJob
                         instanceof SendAsynchronousNotificationJob
                 ) {
-                    throw new \RuntimeException(
+                    throw new RuntimeException(
                         'Unexpected queue job type.',
                     );
                 }
@@ -321,7 +320,7 @@ final class NotificationPlatformTest extends TestCase
             new class implements AuditTrailServiceInterface
             {
                 /**
-                 * @param array<string, mixed>|null $metadata
+                 * @param  array<string, mixed>|null  $metadata
                  */
                 public function log(
                     string $eventType,
@@ -342,7 +341,7 @@ final class NotificationPlatformTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ])
             ->postJson(
                 '/api/v1/core/notifications/dispatch',

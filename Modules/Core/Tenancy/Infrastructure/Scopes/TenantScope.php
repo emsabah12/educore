@@ -27,13 +27,12 @@ final class TenantScope implements Scope
 
         $tenantId = $tenantContext->getCurrentTenantId();
 
-
         if ($tenantId === null) {
-            throw new TenantContextNotResolvedException();
+            throw new TenantContextNotResolvedException;
         }
 
         $builder->where(
-            $model->getTable() . '.tenant_id',
+            $model->getTable().'.tenant_id',
             '=',
             $tenantId
         );

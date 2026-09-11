@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 final class ApiErrorResponse
 {
     /**
-     * @param array<string, array<int, string>>|null $errors
+     * @param  array<string, array<int, string>>|null  $errors
      */
     public static function make(
         string $code,

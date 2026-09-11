@@ -21,6 +21,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
     use RefreshDatabase;
 
     private WorkspaceEmployeeProvisioningService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
@@ -48,7 +49,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
             tenantId: $this->tenantId,
             employeeData: [
                 'nama' => 'Guru Uji Workspace',
-                'nip' => 'NIP-WS-' . Str::upper(Str::random(6)),
+                'nip' => 'NIP-WS-'.Str::upper(Str::random(6)),
                 'jabatan' => 'GURU',
                 'employment_type_id' => $employmentTypeId,
             ],
@@ -76,7 +77,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
             tenantId: $this->tenantId,
             employeeData: [
                 'nama' => 'Guru Uji Unit',
-                'nip' => 'NIP-WS-' . Str::upper(Str::random(6)),
+                'nip' => 'NIP-WS-'.Str::upper(Str::random(6)),
                 'jabatan' => 'GURU',
                 'employment_type_id' => $employmentTypeId,
             ],
@@ -100,7 +101,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
             tenantId: $this->tenantId,
             employeeData: [
                 'nama' => 'Guru Uji Idempoten Satu',
-                'nip' => 'NIP-WS-' . Str::upper(Str::random(6)),
+                'nip' => 'NIP-WS-'.Str::upper(Str::random(6)),
                 'jabatan' => 'GURU',
                 'employment_type_id' => $employmentTypeId,
             ],
@@ -117,7 +118,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
             tenantId: $this->tenantId,
             employeeData: [
                 'nama' => 'Guru Uji Idempoten Dua',
-                'nip' => 'NIP-WS-' . Str::upper(Str::random(6)),
+                'nip' => 'NIP-WS-'.Str::upper(Str::random(6)),
                 'jabatan' => 'GURU',
                 'employment_type_id' => $employmentTypeId,
             ],
@@ -142,7 +143,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
     public function test_provision_rolls_back_everything_when_a_later_step_fails(): void
     {
         $organizationId = $this->createOrganization();
-        $nip = 'NIP-WS-ROLLBACK-' . Str::upper(Str::random(6));
+        $nip = 'NIP-WS-ROLLBACK-'.Str::upper(Str::random(6));
 
         try {
             $this->service->provisionWithinWorkspace(
@@ -242,7 +243,7 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),

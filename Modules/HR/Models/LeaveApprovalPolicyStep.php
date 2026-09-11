@@ -23,7 +23,9 @@ final class LeaveApprovalPolicyStep extends Model
     use HasUuidV7;
 
     public const string SCOPE_REQUEST_PLACEMENT = 'REQUEST_PLACEMENT';
+
     public const string SCOPE_ORGANIZATION = 'ORGANIZATION';
+
     public const string SCOPE_TENANT = 'TENANT';
 
     public const ?string UPDATED_AT = null;

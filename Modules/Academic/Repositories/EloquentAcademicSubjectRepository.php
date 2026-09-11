@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Repositories;
 
-use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentAcademicSubjectRepository implements AcademicSubjectRepositoryInterface
 {
-
     public function allByTenant(string $tenantId): array
     {
         return DB::table('academic_subjects')->where('tenant_id', $tenantId)->get()->toArray();
@@ -22,8 +22,7 @@ final class EloquentAcademicSubjectRepository implements AcademicSubjectReposito
         return DB::table('academic_subjects')->where('tenant_id', $tenantId)->where('id', $id)->first();
     }
 
-
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function getByTenantPaginated(string $tenantId, int $perPage = 15): LengthAwarePaginator
     {
         return DB::table('academic_subjects')
             ->select(['id', 'tenant_id', 'name', 'code', 'category', 'is_active', 'created_at'])

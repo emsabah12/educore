@@ -38,7 +38,7 @@ final class TenantRoleController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $roles->map(
-                fn(Role $role) => $this->roleSummary($role),
+                fn (Role $role) => $this->roleSummary($role),
             ),
         ]);
     }
@@ -56,7 +56,7 @@ final class TenantRoleController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $permissions->map(fn($permission) => [
+            'data' => $permissions->map(fn ($permission) => [
                 'id' => (string) $permission->id,
                 'name' => $permission->name,
                 'display_name' => $permission->display_name,
@@ -171,7 +171,7 @@ final class TenantRoleController extends Controller
             'display_name' => $role->display_name,
             'description' => $role->description,
             'visibility_state' => $this->tenantRoleService->visibilityStateFor($role),
-            'permissions' => $role->permissions->map(fn($permission) => [
+            'permissions' => $role->permissions->map(fn ($permission) => [
                 'id' => (string) $permission->id,
                 'name' => $permission->name,
                 'display_name' => $permission->display_name,

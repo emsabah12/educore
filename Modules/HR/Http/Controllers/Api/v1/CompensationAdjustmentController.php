@@ -45,7 +45,7 @@ final class CompensationAdjustmentController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $adjustments->map(
-                fn(CompensationAdjustment $adjustment): array => $this->serialize($adjustment),
+                fn (CompensationAdjustment $adjustment): array => $this->serialize($adjustment),
             ),
         ]);
     }
@@ -106,7 +106,7 @@ final class CompensationAdjustmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): CompensationAdjustment => $this->service->submit(
+            fn (string $tenantId): CompensationAdjustment => $this->service->submit(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 adjustmentId: $adjustmentId,
@@ -119,7 +119,7 @@ final class CompensationAdjustmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId, string $actorMembershipId): CompensationAdjustment => $this->service->approve(
+            fn (string $tenantId, string $actorMembershipId): CompensationAdjustment => $this->service->approve(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 adjustmentId: $adjustmentId,
@@ -133,7 +133,7 @@ final class CompensationAdjustmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId, string $actorMembershipId): CompensationAdjustment => $this->service->reject(
+            fn (string $tenantId, string $actorMembershipId): CompensationAdjustment => $this->service->reject(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 adjustmentId: $adjustmentId,
@@ -147,7 +147,7 @@ final class CompensationAdjustmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): CompensationAdjustment => $this->service->cancel(
+            fn (string $tenantId): CompensationAdjustment => $this->service->cancel(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 adjustmentId: $adjustmentId,
@@ -156,10 +156,10 @@ final class CompensationAdjustmentController extends Controller
     }
 
     /**
-     * @param callable(string, string): CompensationAdjustment $operation
-     *     Menerima (tenantId, actorMembershipId) — parameter kedua
-     *     hanya relevan untuk approve()/reject(), disediakan seragam
-     *     supaya satu helper ini dipakai kelima aksi transisi.
+     * @param  callable(string, string): CompensationAdjustment  $operation
+     *                                                                       Menerima (tenantId, actorMembershipId) — parameter kedua
+     *                                                                       hanya relevan untuk approve()/reject(), disediakan seragam
+     *                                                                       supaya satu helper ini dipakai kelima aksi transisi.
      */
     private function transition(
         Request $request,

@@ -14,9 +14,7 @@ final class CanonicalUsername
 
     private const FORMAT_PATTERN = '/\A[a-z0-9][a-z0-9._-]*[a-z0-9]\z/D';
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function normalizeNullable(
         mixed $value,

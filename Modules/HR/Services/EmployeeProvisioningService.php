@@ -21,7 +21,7 @@ final class EmployeeProvisioningService
     ) {}
 
     /**
-     * @param array{nama:string,nip:string,jabatan:string} $data
+     * @param  array{nama:string,nip:string,jabatan:string}  $data
      * @return array<string, mixed>
      */
     public function provision(

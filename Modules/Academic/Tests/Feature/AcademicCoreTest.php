@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Modules\Core\Support\Uuid\UuidV7;
+use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
+use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
+use Tests\TestCase;
 
 final class AcademicCoreTest extends TestCase
 {
@@ -26,7 +27,7 @@ final class AcademicCoreTest extends TestCase
             'subdomain' => 'akademik-test',
             'is_active' => true,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
     }
 
@@ -35,18 +36,18 @@ final class AcademicCoreTest extends TestCase
         $classPayload = [
             'name' => 'Kelas XI-B',
             'code' => 'K11B',
-            'tingkat' => '11'
+            'tingkat' => '11',
         ];
 
         $subjectPayload = [
             'name' => 'Bahasa Indonesia',
             'code' => 'IND-01',
-            'category' => 'NASIONAL'
+            'category' => 'NASIONAL',
         ];
 
         // Jalankan pengujian via integrasi repository biner langsung
-        $classRepo = app(\Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface::class);
-        $subjectRepo = app(\Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface::class);
+        $classRepo = app(AcademicClassRepositoryInterface::class);
+        $subjectRepo = app(AcademicSubjectRepositoryInterface::class);
 
         $class = $classRepo->createForTenant($this->tenantId, $classPayload);
         $subject = $subjectRepo->createForTenant($this->tenantId, $subjectPayload);

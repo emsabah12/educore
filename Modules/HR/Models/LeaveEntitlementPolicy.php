@@ -19,10 +19,13 @@ final class LeaveEntitlementPolicy extends Model
     use HasUuidV7;
 
     public const string PERIOD_BASIS_CALENDAR_YEAR = 'CALENDAR_YEAR';
+
     public const string PERIOD_BASIS_EMPLOYMENT_ANNIVERSARY = 'EMPLOYMENT_ANNIVERSARY';
+
     public const string PERIOD_BASIS_MANUAL = 'MANUAL';
 
     public const string CARRYOVER_NONE = 'NONE';
+
     public const string CARRYOVER_LIMITED = 'LIMITED';
 
     protected $table = 'leave_entitlement_policies';

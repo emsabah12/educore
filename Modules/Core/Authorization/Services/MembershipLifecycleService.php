@@ -52,7 +52,7 @@ final readonly class MembershipLifecycleService implements MembershipLifecycleSe
                 return $membership->refresh();
             }
 
-            $membership = new Membership();
+            $membership = new Membership;
             $membership->id = UuidV7::generate();
             $membership->person_id = $personId;
             $membership->tenant_id = $tenantId;
@@ -64,7 +64,7 @@ final readonly class MembershipLifecycleService implements MembershipLifecycleSe
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     private function auditSafely(
         string $eventType,

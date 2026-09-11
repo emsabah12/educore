@@ -13,8 +13,7 @@ interface NotificationChannelInterface
      * ID tersebut dapat digunakan sebagai idempotency/reference key oleh
      * concrete gateway.
      *
-     * @param array<string, mixed> $options
-     *
+     * @param  array<string, mixed>  $options
      * @return array{
      *     success: bool,
      *     log_id: string,

@@ -58,36 +58,21 @@ final class BulkGradeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'assessment_setting_id.required' =>
-                'ID pengaturan penilaian wajib diisi.',
-            'assessment_setting_id.uuid' =>
-                'ID pengaturan penilaian harus berupa UUIDv7 yang valid.',
-            'teacher_id.prohibited' =>
-                'Teacher identity ditentukan oleh authenticated employee context.',
-            'grades.required' =>
-                'Data nilai wajib diisi.',
-            'grades.array' =>
-                'Data nilai harus berupa array.',
-            'grades.min' =>
-                'Minimal satu data nilai harus dikirim.',
-            'grades.*.student_id.required' =>
-                'ID student wajib diisi pada setiap baris nilai.',
-            'grades.*.student_id.uuid' =>
-                'ID student harus berupa UUIDv7 yang valid.',
-            'grades.*.student_id.distinct' =>
-                'Student yang sama tidak boleh dikirim lebih dari sekali.',
-            'grades.*.score.required' =>
-                'Nilai wajib diisi.',
-            'grades.*.score.numeric' =>
-                'Nilai harus berupa angka.',
-            'grades.*.score.min' =>
-                'Nilai tidak boleh kurang dari 0.',
-            'grades.*.score.max' =>
-                'Nilai tidak boleh lebih dari 100.',
-            'grades.*.notes.string' =>
-                'Catatan nilai harus berupa teks.',
-            'grades.*.notes.max' =>
-                'Catatan nilai maksimal 1000 karakter.',
+            'assessment_setting_id.required' => 'ID pengaturan penilaian wajib diisi.',
+            'assessment_setting_id.uuid' => 'ID pengaturan penilaian harus berupa UUIDv7 yang valid.',
+            'teacher_id.prohibited' => 'Teacher identity ditentukan oleh authenticated employee context.',
+            'grades.required' => 'Data nilai wajib diisi.',
+            'grades.array' => 'Data nilai harus berupa array.',
+            'grades.min' => 'Minimal satu data nilai harus dikirim.',
+            'grades.*.student_id.required' => 'ID student wajib diisi pada setiap baris nilai.',
+            'grades.*.student_id.uuid' => 'ID student harus berupa UUIDv7 yang valid.',
+            'grades.*.student_id.distinct' => 'Student yang sama tidak boleh dikirim lebih dari sekali.',
+            'grades.*.score.required' => 'Nilai wajib diisi.',
+            'grades.*.score.numeric' => 'Nilai harus berupa angka.',
+            'grades.*.score.min' => 'Nilai tidak boleh kurang dari 0.',
+            'grades.*.score.max' => 'Nilai tidak boleh lebih dari 100.',
+            'grades.*.notes.string' => 'Catatan nilai harus berupa teks.',
+            'grades.*.notes.max' => 'Catatan nilai maksimal 1000 karakter.',
         ];
     }
 }

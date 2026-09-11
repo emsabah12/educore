@@ -7,8 +7,7 @@ namespace Modules\Core\Organization\Repositories;
 use Modules\Core\Organization\Contracts\OrganizationalAssignmentRepositoryInterface;
 use Modules\Core\Organization\Models\OrganizationalAssignment;
 
-final class EloquentOrganizationalAssignmentRepository implements
-    OrganizationalAssignmentRepositoryInterface
+final class EloquentOrganizationalAssignmentRepository implements OrganizationalAssignmentRepositoryInterface
 {
     public function findOrganizationAssignment(
         string $tenantId,

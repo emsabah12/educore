@@ -29,7 +29,6 @@ final class StudentProvisioningService
      *     nis?: string|null,
      *     nisn?: string|null
      * } $data
-     *
      * @return array<string, mixed>
      */
     public function provision(

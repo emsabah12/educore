@@ -17,7 +17,7 @@ final class TenantProvisionCommand extends Command
                             {--admin-user-id= : UUIDv7 User yang menjadi initial tenant admin}';
 
     protected $description =
-    'Otomatisasi pembuatan tenant beserta initial tenant administrator';
+        'Otomatisasi pembuatan tenant beserta initial tenant administrator';
 
     public function handle(
         TenantProvisioningService $tenantProvisioningService,

@@ -6,6 +6,4 @@ namespace Modules\Core\Exceptions;
 
 use RuntimeException;
 
-final class ModuleNotFoundException extends RuntimeException
-{
-}
+final class ModuleNotFoundException extends RuntimeException {}

@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Unit\Services;
 
 use Generator;
+use Modules\Core\Entities\ModuleDefinition;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
-use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Registry\ModuleRegistry;
 use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
 use Tests\TestCase;
 
 final class ModuleLoaderTest extends TestCase
 {
     private ModuleRegistry $registryStorage;
+
     private ModuleLoader $loader;
 
     /**
@@ -24,7 +26,7 @@ final class ModuleLoaderTest extends TestCase
         parent::setUp();
 
         // Putus hubungan dari IoC Container aplikasi riil demi mengamankan memori sasis
-        $this->registryStorage = new ModuleRegistry();
+        $this->registryStorage = new ModuleRegistry;
         $this->loader = new ModuleLoader($this->registryStorage);
     }
 
@@ -72,8 +74,8 @@ final class ModuleLoaderTest extends TestCase
 
     /**
      * Penyedia data taktis menggunakan struktur Generator PHP untuk efisiensi memori.
-     * 
-     * @return Generator<int, \Modules\Core\Entities\ModuleDefinition>
+     *
+     * @return Generator<int, ModuleDefinition>
      */
     private function definitions(): Generator
     {

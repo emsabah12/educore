@@ -31,6 +31,7 @@ final class TestModuleLoaderCommand extends Command
 
         if ($totalModules === 0) {
             $this->warn('Warning: Platform kernel registry is empty. Check module discovery path.');
+
             return self::FAILURE;
         }
 

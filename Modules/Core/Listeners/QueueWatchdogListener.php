@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Modules\Core\Listeners;
 
 use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Support\Facades\Log;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Jobs\BaseTenantAwareJob;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class QueueWatchdogListener
@@ -79,7 +79,7 @@ final class QueueWatchdogListener
                 );
             }
         } catch (Throwable $e) {
-            Log::channel('single')->error('Watchdog failed to persist log: ' . $e->getMessage());
+            Log::channel('single')->error('Watchdog failed to persist log: '.$e->getMessage());
         }
     }
 }

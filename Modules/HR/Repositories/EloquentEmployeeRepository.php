@@ -34,7 +34,7 @@ final class EloquentEmployeeRepository implements EmployeeRepositoryInterface
             ->first();
 
         if ($employee === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Employee::class,
                 [$id],
             );
@@ -68,7 +68,7 @@ final class EloquentEmployeeRepository implements EmployeeRepositoryInterface
             ->exists();
 
         if (! $membershipExists) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Membership::class,
                 [$membershipId],
             );

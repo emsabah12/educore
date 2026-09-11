@@ -18,12 +18,15 @@ use Tests\TestCase;
 
 final class WorkspaceScopedEmploymentControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $organizationId;
 
     protected function setUp(): void
@@ -526,7 +529,7 @@ final class WorkspaceScopedEmploymentControllerTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),

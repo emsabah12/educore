@@ -26,7 +26,7 @@ final class PersonFactory extends Factory
         $familyName = fake()->lastName();
 
         return [
-            'name' => trim($givenName . ' ' . $familyName),
+            'name' => trim($givenName.' '.$familyName),
             'given_name' => $givenName,
             'middle_name' => null,
             'family_name' => $familyName,

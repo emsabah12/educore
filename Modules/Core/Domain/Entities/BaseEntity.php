@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Core\Domain\Entities;
 
-
 abstract class BaseEntity
 {
     protected string $name;

@@ -17,11 +17,13 @@ use Tests\TestCase;
 
 final class LeaveTypeAndEntitlementPolicyControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -201,7 +203,7 @@ final class LeaveTypeAndEntitlementPolicyControllerTest extends TestCase
     {
         return [
             'code' => $code,
-            'name' => 'Cuti Uji HTTP ' . Str::random(4),
+            'name' => 'Cuti Uji HTTP '.Str::random(4),
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,
             'unit' => LeaveType::UNIT_DAY,

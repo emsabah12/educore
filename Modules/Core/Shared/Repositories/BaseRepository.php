@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\Core\Shared\Repositories;
 
-use Illuminate\Database\Eloquent\Builder;
-use Modules\Core\Tenancy\Contracts\TenantContextInterface;
-use Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Core\Shared\Repositories\Contracts\RepositoryInterface;
+use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\Core\Tenancy\Exceptions\TenantContextNotResolvedException;
 
 /**
  * @template TModel of Model
@@ -25,7 +25,7 @@ abstract class BaseRepository implements RepositoryInterface
     protected Model $model;
 
     /**
-     * @param TModel $model
+     * @param  TModel  $model
      */
     public function __construct(Model $model)
     {
@@ -37,7 +37,7 @@ abstract class BaseRepository implements RepositoryInterface
         $tenantContext = app(TenantContextInterface::class);
 
         if ($tenantContext->getCurrentTenantId() === null) {
-            throw new TenantContextNotResolvedException();
+            throw new TenantContextNotResolvedException;
         }
     }
 
@@ -114,8 +114,7 @@ abstract class BaseRepository implements RepositoryInterface
     }
 
     /**
-     * @param array<string,mixed> $attributes
-     *
+     * @param  array<string,mixed>  $attributes
      * @return TModel
      */
     public function create(array $attributes): Model
@@ -127,8 +126,8 @@ abstract class BaseRepository implements RepositoryInterface
     }
 
     /**
-     * @param TModel $model
-     * @param array<string,mixed> $attributes
+     * @param  TModel  $model
+     * @param  array<string,mixed>  $attributes
      */
     public function update(Model $model, array $attributes): bool
     {
@@ -136,7 +135,7 @@ abstract class BaseRepository implements RepositoryInterface
     }
 
     /**
-     * @param TModel $model
+     * @param  TModel  $model
      */
     public function delete(Model $model): bool
     {

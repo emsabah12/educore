@@ -30,9 +30,13 @@ final class CompensationAssignment extends Model
     use HasUuidV7;
 
     public const STATUS_DRAFT = 'DRAFT';
+
     public const STATUS_APPROVED = 'APPROVED';
+
     public const STATUS_ENDED = 'ENDED';
+
     public const STATUS_CANCELLED = 'CANCELLED';
+
     public const STATUS_SUPERSEDED = 'SUPERSEDED';
 
     protected $table = 'compensation_assignments';

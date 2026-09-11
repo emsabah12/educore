@@ -11,17 +11,16 @@ use Modules\Core\Authorization\Http\Middleware\CheckTenantPermission;
 use Modules\Core\Authorization\Http\Middleware\CheckTenantRole;
 use Modules\Core\Authorization\Http\Middleware\EnsureUserIsSuperadmin;
 use Modules\Core\Http\Responses\ApiErrorResponse;
+use Modules\Core\Organization\Http\Middleware\CheckOrganizationalPermission;
 use Modules\Core\Subscription\Http\Middleware\CheckTenantFeature;
 use Symfony\Component\HttpFoundation\Response;
-use Modules\Core\Organization\Http\Middleware\CheckOrganizationalPermission;
-
 
 return Application::configure(
     basePath: dirname(__DIR__),
 )
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(
@@ -69,7 +68,7 @@ return Application::configure(
              * JSON exception responses.
              */
             $exceptions->shouldRenderJsonWhen(
-                static fn(
+                static fn (
                     Request $request,
                 ): bool => $request->is('api/*')
                     || $request->expectsJson(),

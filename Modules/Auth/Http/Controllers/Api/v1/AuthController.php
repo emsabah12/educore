@@ -76,8 +76,7 @@ final class AuthController extends Controller
             null,
             $identity->userId,
             [
-                'channel' =>
-                    AuthenticationChannel::MOBILE_API->value,
+                'channel' => AuthenticationChannel::MOBILE_API->value,
                 'context_type' => 'identity',
             ],
         );
@@ -86,11 +85,9 @@ final class AuthController extends Controller
             [
                 'status' => 'success',
                 'data' => [
-                    'access_token' =>
-                        $issuedCredential->bearerCredential,
+                    'access_token' => $issuedCredential->bearerCredential,
                     'token_type' => 'Bearer',
-                    'expires_in' =>
-                        $issuedCredential->expiresInSeconds,
+                    'expires_in' => $issuedCredential->expiresInSeconds,
                     'context_type' => 'identity',
                     'user' => [
                         'id' => $identity->userId,
@@ -99,8 +96,7 @@ final class AuthController extends Controller
                         'username' => $identity->username,
                     ],
                     'platform' => [
-                        'is_superadmin' =>
-                            $identity->isSuperadmin,
+                        'is_superadmin' => $identity->isSuperadmin,
                     ],
                 ],
             ],

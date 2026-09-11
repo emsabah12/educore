@@ -16,27 +16,41 @@ final class AssignMembershipRoleTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     private string $adminPersonId;
+
     private string $regularPersonId;
+
     private string $targetPersonId;
+
     private string $inactiveTargetPersonId;
+
     private string $otherTenantPersonId;
 
     private string $adminUserId;
+
     private string $regularUserId;
+
     private string $targetUserId;
+
     private string $inactiveTargetUserId;
+
     private string $otherTenantUserId;
 
     private string $adminMembershipId;
+
     private string $regularMembershipId;
+
     private string $targetMembershipId;
+
     private string $inactiveMembershipId;
+
     private string $otherTenantMembershipId;
 
     private string $adminRoleId;
+
     private string $employeeRoleId;
 
     protected function setUp(): void
@@ -156,10 +170,8 @@ final class AssignMembershipRoleTest extends TestCase
             ->assertNotFound()
             ->assertExactJson([
                 'status' => 'error',
-                'code' =>
-                'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
-                'message' =>
-                'Requested membership or role is not available.',
+                'code' => 'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
+                'message' => 'Requested membership or role is not available.',
             ]);
 
         $this->assertDatabaseMissing('membership_roles', [
@@ -190,10 +202,8 @@ final class AssignMembershipRoleTest extends TestCase
             ->assertNotFound()
             ->assertExactJson([
                 'status' => 'error',
-                'code' =>
-                'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
-                'message' =>
-                'Requested membership or role is not available.',
+                'code' => 'MEMBERSHIP_ROLE_ASSIGNMENT_REJECTED',
+                'message' => 'Requested membership or role is not available.',
             ]);
 
         $this->assertDatabaseMissing('membership_roles', [

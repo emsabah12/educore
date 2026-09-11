@@ -58,7 +58,7 @@ final class StoreEmploymentRequest extends FormRequest
                 'uuid',
                 Rule::exists('employment_types', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),
@@ -69,7 +69,7 @@ final class StoreEmploymentRequest extends FormRequest
                 'uuid',
                 Rule::exists('employment_classifications', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

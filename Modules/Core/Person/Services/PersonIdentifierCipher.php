@@ -64,9 +64,9 @@ final class PersonIdentifierCipher implements PersonIdentifierCipherInterface
 
     /**
      * @throws RuntimeException Jika PERSON_IDENTIFIER_FINGERPRINT_KEY
-     *                           belum dikonfigurasi. Sengaja fail-closed
-     *                           — tidak pernah fallback diam-diam ke
-     *                           APP_KEY atau nilai kosong.
+     *                          belum dikonfigurasi. Sengaja fail-closed
+     *                          — tidak pernah fallback diam-diam ke
+     *                          APP_KEY atau nilai kosong.
      */
     private function fingerprintKey(): string
     {
@@ -75,8 +75,8 @@ final class PersonIdentifierCipher implements PersonIdentifierCipherInterface
         if (! is_string($key) || trim($key) === '') {
             throw new RuntimeException(
                 'PERSON_IDENTIFIER_FINGERPRINT_KEY is not configured. '
-                    . 'Set it in .env before storing government/legal '
-                    . 'identifiers (NIK, passport, etc.).',
+                    .'Set it in .env before storing government/legal '
+                    .'identifiers (NIK, passport, etc.).',
             );
         }
 

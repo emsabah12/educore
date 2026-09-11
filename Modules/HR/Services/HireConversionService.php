@@ -47,13 +47,13 @@ final readonly class HireConversionService
     ) {}
 
     /**
-     * @param array{employment_type_id: string, start_date: string} $employmentInput
+     * @param  array{employment_type_id: string, start_date: string}  $employmentInput
      *
      * @throws RecruitmentLifecycleException Precondition gagal, resolusi
-     *                                         identitas UNRESOLVED/CONFLICT
-     *                                         tanpa konfirmasi eksplisit,
-     *                                         atau Employee butuh
-     *                                         recovery manual (§11).
+     *                                       identitas UNRESOLVED/CONFLICT
+     *                                       tanpa konfirmasi eksplisit,
+     *                                       atau Employee butuh
+     *                                       recovery manual (§11).
      */
     public function convert(
         string $tenantId,
@@ -372,7 +372,7 @@ final readonly class HireConversionService
             ->first();
 
         if ($application === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentApplication::class,
                 [$applicationId],
             );

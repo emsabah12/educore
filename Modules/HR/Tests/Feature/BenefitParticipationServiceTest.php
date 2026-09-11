@@ -13,8 +13,8 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Exceptions\BenefitParticipationLifecycleException;
 use Modules\HR\Models\BenefitProgram;
-use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmployeeBenefitParticipation;
+use Modules\HR\Models\Employment;
 use Modules\HR\Services\BenefitParticipationService;
 use Tests\TestCase;
 
@@ -23,13 +23,14 @@ final class BenefitParticipationServiceTest extends TestCase
     use RefreshDatabase;
 
     private BenefitParticipationService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new BenefitParticipationService();
+        $this->service = new BenefitParticipationService;
         $this->tenantId = $this->createTenant('Benefit Participation Service Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -109,7 +110,7 @@ final class BenefitParticipationServiceTest extends TestCase
     {
         $employmentId = $this->createActiveEmployment();
         $program = BenefitProgram::create([
-            'code' => 'INACTIVE-' . Str::upper(Str::random(4)),
+            'code' => 'INACTIVE-'.Str::upper(Str::random(4)),
             'name' => 'Program Nonaktif',
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,
@@ -696,7 +697,7 @@ final class BenefitParticipationServiceTest extends TestCase
     private function createProgram(string $beneficiaryScope): string
     {
         return BenefitProgram::create([
-            'code' => 'PROG-' . Str::upper(Str::random(6)),
+            'code' => 'PROG-'.Str::upper(Str::random(6)),
             'name' => 'Program Uji',
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => $beneficiaryScope,

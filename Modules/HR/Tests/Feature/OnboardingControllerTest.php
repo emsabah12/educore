@@ -17,11 +17,13 @@ use Tests\TestCase;
 
 final class OnboardingControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -223,7 +225,7 @@ final class OnboardingControllerTest extends TestCase
         DB::table('positions')->insert([
             'id' => $positionId,
             'tenant_id' => $this->tenantId,
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Onboarding HTTP',
             'is_active' => true,
             'created_at' => now(),
@@ -244,7 +246,7 @@ final class OnboardingControllerTest extends TestCase
         DB::table('recruitment_vacancies')->insert([
             'id' => $vacancyId,
             'tenant_id' => $this->tenantId,
-            'code' => 'VAC-OB-HTTP-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-OB-HTTP-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $positionId,
             'organization_id' => $organizationId,
@@ -259,7 +261,7 @@ final class OnboardingControllerTest extends TestCase
         DB::table('recruitment_candidates')->insert([
             'id' => $candidateId,
             'tenant_id' => $this->tenantId,
-            'display_name' => 'Kandidat Uji Onboarding HTTP ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Onboarding HTTP '.Str::random(6),
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
@@ -342,7 +344,7 @@ final class OnboardingControllerTest extends TestCase
     }
 
     /**
-     * @param list<string> $permissionNames
+     * @param  list<string>  $permissionNames
      */
     private function grantSinglePermissionRole(array $permissionNames): void
     {
@@ -350,7 +352,7 @@ final class OnboardingControllerTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'manage-only-' . Str::lower(Str::random(6)),
+            'name' => 'manage-only-'.Str::lower(Str::random(6)),
             'display_name' => 'Manage Only Test Role',
             'description' => 'Test-only role for permission-separation assertions.',
             'created_at' => now(),

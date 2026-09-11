@@ -6,6 +6,4 @@ namespace Modules\Core\Exceptions;
 
 use RuntimeException;
 
-final class InvalidModuleManifestException extends RuntimeException
-{
-}
+final class InvalidModuleManifestException extends RuntimeException {}

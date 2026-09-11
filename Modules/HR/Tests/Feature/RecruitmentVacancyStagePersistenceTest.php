@@ -21,6 +21,7 @@ final class RecruitmentVacancyStagePersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -196,7 +197,7 @@ final class RecruitmentVacancyStagePersistenceTest extends TestCase
     private function createVacancy(string $tenantId, string $code): string
     {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Vacancy Stage',
             'is_active' => true,
         ])->id;

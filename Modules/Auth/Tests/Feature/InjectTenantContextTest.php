@@ -151,7 +151,7 @@ final class InjectTenantContextTest extends TestCase
         $fixture = $this->createCanonicalAuthenticationFixture();
         $otherTenant = Tenant::query()->create([
             'name' => 'Other Tenant',
-            'subdomain' => 'other-' . strtolower(fake()->lexify('????????')),
+            'subdomain' => 'other-'.strtolower(fake()->lexify('????????')),
             'is_active' => true,
         ]);
 
@@ -171,7 +171,7 @@ final class InjectTenantContextTest extends TestCase
 
         $response = $this->middleware()->handle(
             $this->bearerRequest('cross-tenant-membership-token'),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
         );
@@ -195,7 +195,7 @@ final class InjectTenantContextTest extends TestCase
 
         $response = $this->middleware()->handle(
             $this->bearerRequest('suspended-user-token'),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
         );
@@ -219,7 +219,7 @@ final class InjectTenantContextTest extends TestCase
 
         $response = $this->middleware()->handle(
             $this->bearerRequest('inactive-tenant-token'),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
         );
@@ -242,7 +242,7 @@ final class InjectTenantContextTest extends TestCase
             Response::HTTP_FORBIDDEN,
             $this->middleware()->handle(
                 $this->bearerRequest('invalid-token'),
-                static fn(): Response => response()->json([]),
+                static fn (): Response => response()->json([]),
             )->getStatusCode(),
         );
 
@@ -250,7 +250,7 @@ final class InjectTenantContextTest extends TestCase
             Response::HTTP_FORBIDDEN,
             $this->middleware()->handle(
                 Request::create('/api/protected', 'GET'),
-                static fn(): Response => response()->json([]),
+                static fn (): Response => response()->json([]),
             )->getStatusCode(),
         );
     }
@@ -270,7 +270,7 @@ final class InjectTenantContextTest extends TestCase
 
         $response = $this->middleware()->handle(
             $this->bearerRequest('missing-membership-token'),
-            static fn(): Response => response()->json([]),
+            static fn (): Response => response()->json([]),
         );
 
         $this->assertSame(
@@ -303,7 +303,7 @@ final class InjectTenantContextTest extends TestCase
             Response::HTTP_FORBIDDEN,
             $this->middleware()->handle(
                 $this->bearerRequest('bad-tenant-token'),
-                static fn(): Response => response()->json([]),
+                static fn (): Response => response()->json([]),
             )->getStatusCode(),
         );
 
@@ -311,7 +311,7 @@ final class InjectTenantContextTest extends TestCase
             Response::HTTP_FORBIDDEN,
             $this->middleware()->handle(
                 $this->bearerRequest('bad-membership-token'),
-                static fn(): Response => response()->json([]),
+                static fn (): Response => response()->json([]),
             )->getStatusCode(),
         );
     }
@@ -367,7 +367,7 @@ final class InjectTenantContextTest extends TestCase
 
         $tenant = Tenant::query()->create([
             'name' => 'Inject Tenant Context Tenant',
-            'subdomain' => 'inject-' . strtolower(fake()->lexify('????????')),
+            'subdomain' => 'inject-'.strtolower(fake()->lexify('????????')),
             'is_active' => $tenantActive,
         ]);
 
@@ -386,7 +386,7 @@ final class InjectTenantContextTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $claims
+     * @param  array<string, mixed>  $claims
      */
     private function expectTokenClaims(
         string $token,
@@ -405,7 +405,7 @@ final class InjectTenantContextTest extends TestCase
             '/api/protected',
             'GET',
             server: [
-                'HTTP_AUTHORIZATION' => 'Bearer ' . $token,
+                'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             ],
         );
     }

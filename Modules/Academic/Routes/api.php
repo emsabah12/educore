@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Academic\Http\Controllers\Api\v1\AcademicClassController;
+use Modules\Academic\Http\Controllers\Api\v1\AcademicPeriodController;
 use Modules\Academic\Http\Controllers\Api\v1\AcademicSubjectController;
-use Modules\Academic\Http\Controllers\Api\v1\StudentManagementController;
+use Modules\Academic\Http\Controllers\Api\v1\BulkGradingController;
 use Modules\Academic\Http\Controllers\Api\v1\GuardianManagementController;
 use Modules\Academic\Http\Controllers\Api\v1\GuardianStudentManagementController;
-use Modules\Academic\Http\Controllers\Api\v1\AcademicPeriodController;
-use Modules\Academic\Http\Controllers\Api\v1\BulkGradingController;
+use Modules\Academic\Http\Controllers\Api\v1\StudentManagementController;
+use Modules\Auth\Http\Middleware\InjectTenantContext;
 
 /*
 |--------------------------------------------------------------------------

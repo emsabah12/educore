@@ -43,7 +43,7 @@ final readonly class LeaveTypeService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      *
      * @throws LeaveLifecycleException LEAVE_TYPE_FIELD_IMMUTABLE.
      */
@@ -91,15 +91,15 @@ final readonly class LeaveTypeService
             ->where('leave_type_id', $leaveTypeId)
             ->exists()
             || LeaveEntitlement::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->where('leave_type_id', $leaveTypeId)
-            ->exists()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->where('leave_type_id', $leaveTypeId)
+                ->exists()
             || LeaveRequest::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->where('leave_type_id', $leaveTypeId)
-            ->exists();
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->where('leave_type_id', $leaveTypeId)
+                ->exists();
     }
 
     private function findForTenant(string $leaveTypeId, string $tenantId): LeaveType
@@ -111,7 +111,7 @@ final readonly class LeaveTypeService
             ->first();
 
         if ($leaveType === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveType::class,
                 [$leaveTypeId],
             );

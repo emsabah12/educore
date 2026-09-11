@@ -28,7 +28,7 @@ final class MembershipRoleRepositoryIsolationTest extends TestCase
             $traits,
         );
 
-        $model = new MembershipRole();
+        $model = new MembershipRole;
 
         $this->assertFalse(
             $model->usesTimestamps(),

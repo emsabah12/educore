@@ -24,10 +24,15 @@ final class AuthorizationServiceCustomRoleLockTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $personId;
+
     private string $userId;
+
     private string $membershipId;
+
     private string $customRoleId;
+
     private string $customPermissionId;
 
     protected function setUp(): void

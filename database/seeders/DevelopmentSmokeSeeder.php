@@ -13,16 +13,16 @@ use RuntimeException;
 final class DevelopmentSmokeSeeder extends Seeder
 {
     public const PERSON_ID =
-    '019d1d0a-0000-7000-8000-000000000001';
+        '019d1d0a-0000-7000-8000-000000000001';
 
     public const USER_ID =
-    '019d1d0a-0000-7000-8000-000000000002';
+        '019d1d0a-0000-7000-8000-000000000002';
 
     public const TENANT_ID =
-    '019d1d0a-0000-7000-8000-000000000003';
+        '019d1d0a-0000-7000-8000-000000000003';
 
     public const MEMBERSHIP_ID =
-    '019d1d0a-0000-7000-8000-000000000004';
+        '019d1d0a-0000-7000-8000-000000000004';
 
     public function run(): void
     {
@@ -90,30 +90,22 @@ final class DevelopmentSmokeSeeder extends Seeder
                     'persons',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                        self::PERSON_ID,
+                        'id' => self::PERSON_ID,
                     ],
                     [
-                        'name' =>
-                        $personName,
+                        'name' => $personName,
 
-                        'given_name' =>
-                        'EduCore',
+                        'given_name' => 'EduCore',
 
-                        'middle_name' =>
-                        'Development',
+                        'middle_name' => 'Development',
 
-                        'family_name' =>
-                        'User',
+                        'family_name' => 'User',
 
-                        'status' =>
-                        'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'updated_at' =>
-                        $now,
+                        'updated_at' => $now,
 
-                        'created_at' =>
-                        $now,
+                        'created_at' => $now,
                     ],
                 );
 
@@ -121,40 +113,31 @@ final class DevelopmentSmokeSeeder extends Seeder
                     'users',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                        self::USER_ID,
+                        'id' => self::USER_ID,
                     ],
                     [
-                        'person_id' =>
-                        self::PERSON_ID,
+                        'person_id' => self::PERSON_ID,
 
-                        'email' =>
-                        $email,
+                        'email' => $email,
 
-                        'email_verified_at' =>
-                        $now,
+                        'email_verified_at' => $now,
 
-                        'password' =>
-                        Hash::make(
+                        'password' => Hash::make(
                             $password,
                         ),
 
-                        'status' =>
-                        'ACTIVE',
+                        'status' => 'ACTIVE',
 
                         /*
                          * This fixture represents a normal Tenant
                          * account. It must never receive global
                          * superadmin authority merely for smoke tests.
                          */
-                        'is_superadmin' =>
-                        false,
+                        'is_superadmin' => false,
 
-                        'updated_at' =>
-                        $now,
+                        'updated_at' => $now,
 
-                        'created_at' =>
-                        $now,
+                        'created_at' => $now,
                     ],
                 );
 
@@ -162,30 +145,22 @@ final class DevelopmentSmokeSeeder extends Seeder
                     'tenants',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                        self::TENANT_ID,
+                        'id' => self::TENANT_ID,
                     ],
                     [
-                        'name' =>
-                        $tenantName,
+                        'name' => $tenantName,
 
-                        'subdomain' =>
-                        $tenantSubdomain,
+                        'subdomain' => $tenantSubdomain,
 
-                        'domain' =>
-                        null,
+                        'domain' => null,
 
-                        'is_active' =>
-                        true,
+                        'is_active' => true,
 
-                        'settings' =>
-                        null,
+                        'settings' => null,
 
-                        'updated_at' =>
-                        $now,
+                        'updated_at' => $now,
 
-                        'created_at' =>
-                        $now,
+                        'created_at' => $now,
                     ],
                 );
 
@@ -193,24 +168,18 @@ final class DevelopmentSmokeSeeder extends Seeder
                     'memberships',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                        self::MEMBERSHIP_ID,
+                        'id' => self::MEMBERSHIP_ID,
                     ],
                     [
-                        'person_id' =>
-                        self::PERSON_ID,
+                        'person_id' => self::PERSON_ID,
 
-                        'tenant_id' =>
-                        self::TENANT_ID,
+                        'tenant_id' => self::TENANT_ID,
 
-                        'status' =>
-                        'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'updated_at' =>
-                        $now,
+                        'updated_at' => $now,
 
-                        'created_at' =>
-                        $now,
+                        'created_at' => $now,
                     ],
                 );
             },
@@ -325,8 +294,7 @@ final class DevelopmentSmokeSeeder extends Seeder
                 self::USER_ID,
                 self::TENANT_ID,
                 self::MEMBERSHIP_ID,
-            ]
-            as $identifier
+            ] as $identifier
         ) {
             if (
                 ! UuidV7::validate(
@@ -351,17 +319,17 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'users',
             )
-            ->whereRaw(
-                'LOWER(email) = ?',
-                [
-                    $email,
-                ],
-            )
-            ->first([
-                'id',
-                'person_id',
-                'is_superadmin',
-            ]);
+                ->whereRaw(
+                    'LOWER(email) = ?',
+                    [
+                        $email,
+                    ],
+                )
+                ->first([
+                    'id',
+                    'person_id',
+                    'is_superadmin',
+                ]);
 
         if (
             $userForEmail !== null
@@ -383,15 +351,15 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'users',
             )
-            ->where(
-                'id',
-                self::USER_ID,
-            )
-            ->first([
-                'email',
-                'person_id',
-                'is_superadmin',
-            ]);
+                ->where(
+                    'id',
+                    self::USER_ID,
+                )
+                ->first([
+                    'email',
+                    'person_id',
+                    'is_superadmin',
+                ]);
 
         if (
             $userForFixtureId !== null
@@ -416,16 +384,16 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'users',
             )
-            ->where(
-                'person_id',
-                self::PERSON_ID,
-            )
-            ->where(
-                'id',
-                '<>',
-                self::USER_ID,
-            )
-            ->exists();
+                ->where(
+                    'person_id',
+                    self::PERSON_ID,
+                )
+                ->where(
+                    'id',
+                    '<>',
+                    self::USER_ID,
+                )
+                ->exists();
 
         if (
             $otherUserForPerson
@@ -439,13 +407,13 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'tenants',
             )
-            ->where(
-                'subdomain',
-                $tenantSubdomain,
-            )
-            ->first([
-                'id',
-            ]);
+                ->where(
+                    'subdomain',
+                    $tenantSubdomain,
+                )
+                ->first([
+                    'id',
+                ]);
 
         if (
             $tenantForSubdomain !== null
@@ -461,13 +429,13 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'tenants',
             )
-            ->where(
-                'id',
-                self::TENANT_ID,
-            )
-            ->first([
-                'subdomain',
-            ]);
+                ->where(
+                    'id',
+                    self::TENANT_ID,
+                )
+                ->first([
+                    'subdomain',
+                ]);
 
         if (
             $tenantForFixtureId !== null
@@ -486,14 +454,14 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'memberships',
             )
-            ->where(
-                'id',
-                self::MEMBERSHIP_ID,
-            )
-            ->first([
-                'person_id',
-                'tenant_id',
-            ]);
+                ->where(
+                    'id',
+                    self::MEMBERSHIP_ID,
+                )
+                ->first([
+                    'person_id',
+                    'tenant_id',
+                ]);
 
         if (
             $membershipForFixtureId !== null
@@ -513,17 +481,17 @@ final class DevelopmentSmokeSeeder extends Seeder
             DB::table(
                 'memberships',
             )
-            ->where(
-                'person_id',
-                self::PERSON_ID,
-            )
-            ->where(
-                'tenant_id',
-                self::TENANT_ID,
-            )
-            ->first([
-                'id',
-            ]);
+                ->where(
+                    'person_id',
+                    self::PERSON_ID,
+                )
+                ->where(
+                    'tenant_id',
+                    self::TENANT_ID,
+                )
+                ->first([
+                    'id',
+                ]);
 
         if (
             $membershipForPair !== null

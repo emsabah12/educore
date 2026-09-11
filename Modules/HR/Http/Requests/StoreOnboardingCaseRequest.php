@@ -31,7 +31,7 @@ final class StoreOnboardingCaseRequest extends FormRequest
                 'uuid',
                 Rule::exists('onboarding_templates', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query
+                        static fn (Builder $query): Builder => $query
                             ->where('tenant_id', $tenantId)
                             ->where('is_active', true),
                     ),

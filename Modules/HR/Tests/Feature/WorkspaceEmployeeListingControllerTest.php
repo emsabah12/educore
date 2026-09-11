@@ -19,13 +19,17 @@ use Tests\TestCase;
 
 final class WorkspaceEmployeeListingControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $organizationId;
+
     private string $operatorEmail;
 
     protected function setUp(): void
@@ -144,7 +148,7 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
                 InjectOrganizationalContext::HEADER => $operatorAssignmentId,
             ])
             ->getJson(
-                route('api.v1.hr.workspace.employees.index', [], false) . '?per_page=1&page=2',
+                route('api.v1.hr.workspace.employees.index', [], false).'?per_page=1&page=2',
             );
 
         $secondPageResponse
@@ -165,7 +169,7 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
                 InjectOrganizationalContext::HEADER => $operatorAssignmentId,
             ])
             ->getJson(
-                route('api.v1.hr.workspace.employees.index', [], false) . '?per_page=1&page=1',
+                route('api.v1.hr.workspace.employees.index', [], false).'?per_page=1&page=1',
             );
 
         $firstPageResponse->assertOk();
@@ -194,7 +198,7 @@ final class WorkspaceEmployeeListingControllerTest extends TestCase
                 InjectOrganizationalContext::HEADER => $operatorAssignmentId,
             ])
             ->getJson(
-                route('api.v1.hr.workspace.employees.index', [], false) . '?per_page=100',
+                route('api.v1.hr.workspace.employees.index', [], false).'?per_page=100',
             );
 
         $response

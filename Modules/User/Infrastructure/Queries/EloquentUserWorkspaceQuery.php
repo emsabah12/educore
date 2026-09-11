@@ -10,8 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\User\Application\DTO\WorkspaceSummary;
 use Modules\User\Application\Queries\UserWorkspaceQueryInterface;
 
-final class EloquentUserWorkspaceQuery implements
-    UserWorkspaceQueryInterface
+final class EloquentUserWorkspaceQuery implements UserWorkspaceQueryInterface
 {
     /**
      * @return Collection<int, WorkspaceSummary>

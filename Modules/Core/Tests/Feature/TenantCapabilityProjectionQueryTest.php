@@ -64,7 +64,7 @@ final class TenantCapabilityProjectionQueryTest extends TestCase
             ->method('resolve')
             ->willReturn($context);
 
-        $user = new User();
+        $user = new User;
 
         $user->forceFill([
             'id' => $userId,
@@ -94,8 +94,7 @@ final class TenantCapabilityProjectionQueryTest extends TestCase
             ->expects($this->exactly(3))
             ->method('hasPermission')
             ->willReturnCallback(
-                static fn(string $permissionName): bool =>
-                in_array(
+                static fn (string $permissionName): bool => in_array(
                     $permissionName,
                     [
                         'academic.grades.write',
@@ -173,7 +172,7 @@ final class TenantCapabilityProjectionQueryTest extends TestCase
             ->method('resolve')
             ->willReturn($context);
 
-        $user = new User();
+        $user = new User;
 
         $user->forceFill([
             'id' => $userId,

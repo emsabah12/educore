@@ -17,13 +17,17 @@ use Tests\TestCase;
 
 final class EmploymentPlacementAndPositionAssignmentControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $employeeId;
+
     private string $employeeMembershipId;
 
     protected function setUp(): void
@@ -297,7 +301,7 @@ final class EmploymentPlacementAndPositionAssignmentControllerTest extends TestC
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),
@@ -342,7 +346,7 @@ final class EmploymentPlacementAndPositionAssignmentControllerTest extends TestC
         DB::table('positions')->insert([
             'id' => $positionId,
             'tenant_id' => $this->tenantId,
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji HTTP',
             'is_active' => true,
             'created_at' => now(),

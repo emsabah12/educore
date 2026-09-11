@@ -27,8 +27,8 @@ final class TemporaryFilesystem
         $this->workspace = $this->createWorkspace();
 
         $this->modulesPath = $this->workspace
-            . DIRECTORY_SEPARATOR
-            . 'Modules';
+            .DIRECTORY_SEPARATOR
+            .'Modules';
     }
 
     /**
@@ -85,12 +85,12 @@ final class TemporaryFilesystem
     private function createWorkspace(): string
     {
         $workspace = sys_get_temp_dir()
-            . DIRECTORY_SEPARATOR
-            . $this->generateDirectoryName();
+            .DIRECTORY_SEPARATOR
+            .$this->generateDirectoryName();
 
         $modulesPath = $workspace
-            . DIRECTORY_SEPARATOR
-            . 'Modules';
+            .DIRECTORY_SEPARATOR
+            .'Modules';
 
         if (! mkdir($modulesPath, 0777, true) && ! is_dir($modulesPath)) {
             throw new RuntimeException(
@@ -123,8 +123,8 @@ final class TemporaryFilesystem
         ModuleFixture $fixture
     ): string {
         $modulePath = $this->modulesPath
-            . DIRECTORY_SEPARATOR
-            . $fixture->name;
+            .DIRECTORY_SEPARATOR
+            .$fixture->name;
 
         if (! mkdir($modulePath, 0777, true) && ! is_dir($modulePath)) {
             throw new RuntimeException(
@@ -147,8 +147,8 @@ final class TemporaryFilesystem
     ): void {
         foreach ($fixture->directories as $directory) {
             $path = $modulePath
-                . DIRECTORY_SEPARATOR
-                . $directory;
+                .DIRECTORY_SEPARATOR
+                .$directory;
 
             if (! mkdir($path, 0777, true) && ! is_dir($path)) {
                 throw new RuntimeException(
@@ -170,8 +170,8 @@ final class TemporaryFilesystem
     ): void {
         foreach ($fixture->files as $relativePath => $contents) {
             $path = $modulePath
-                . DIRECTORY_SEPARATOR
-                . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+                .DIRECTORY_SEPARATOR
+                .str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
 
             $directory = dirname($path);
 

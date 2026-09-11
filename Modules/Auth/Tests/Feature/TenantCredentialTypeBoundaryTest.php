@@ -203,7 +203,7 @@ final class TenantCredentialTypeBoundaryTest extends TestCase
 
         $tenant = Tenant::query()->create([
             'name' => 'Typed Credential Boundary Tenant',
-            'subdomain' => 'typed-' . strtolower(
+            'subdomain' => 'typed-'.strtolower(
                 fake()->lexify('????????'),
             ),
             'is_active' => true,
@@ -223,7 +223,7 @@ final class TenantCredentialTypeBoundaryTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $claims
+     * @param  array<string, mixed>  $claims
      */
     private function expectTokenClaims(
         string $token,
@@ -243,7 +243,7 @@ final class TenantCredentialTypeBoundaryTest extends TestCase
             '/api/protected',
             'GET',
             server: [
-                'HTTP_AUTHORIZATION' => 'Bearer ' . $token,
+                'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             ],
         );
     }

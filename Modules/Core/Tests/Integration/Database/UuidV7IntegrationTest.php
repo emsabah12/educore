@@ -2,10 +2,10 @@
 
 namespace Modules\Core\Tests\Integration\Database;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -51,10 +51,10 @@ class UuidV7IntegrationTest extends TestCase
 
         // Assert 1: Pastikan data berhasil masuk dan mengembalikan ID numerik
         $this->assertIsNumeric($insertedId);
-        
+
         // Assert 2: Ambil kembali data segar dari database pgsql
         $model = DB::connection('pgsql')->table('test_uuid_models')->find($insertedId);
-        
+
         // Assert 3: Validasi integritas format dan nilai UUID v7
         $this->assertNotNull($model);
         $this->assertEquals($uuidV7, $model->uuid_v7);
@@ -67,10 +67,10 @@ class UuidV7IntegrationTest extends TestCase
     public function test_it_generates_chronologically_sortable_uuids(): void
     {
         $uuid1 = (string) Str::uuid7();
-        
+
         // Beri jeda 2 milidetik agar komponen timestamp internal UUID v7 bergerak maju
-        usleep(2000); 
-        
+        usleep(2000);
+
         $uuid2 = (string) Str::uuid7();
 
         // Sesuai spesifikasi RFC 9562, UUID v7 yang dibuat belakangan harus secara leksikografis lebih besar

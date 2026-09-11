@@ -21,12 +21,14 @@ use Tests\TestCase;
 
 final class EmployeeBenefitParticipationControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -420,7 +422,7 @@ final class EmployeeBenefitParticipationControllerTest extends TestCase
         app(TenantContextInterface::class)->setCurrentTenant($tenant);
 
         $program = BenefitProgram::create([
-            'code' => 'BPJS-' . Str::upper(Str::random(4)),
+            'code' => 'BPJS-'.Str::upper(Str::random(4)),
             'name' => 'BPJS Kesehatan',
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,

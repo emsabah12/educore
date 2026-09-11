@@ -103,7 +103,7 @@ final class PlatformAuthController extends Controller
     private function throttleKey(string $identifier, ?string $ip): string
     {
         return Str::transliterate(
-            Str::lower($identifier) . '|' . ($ip ?? 'unknown'),
+            Str::lower($identifier).'|'.($ip ?? 'unknown'),
         );
     }
 }

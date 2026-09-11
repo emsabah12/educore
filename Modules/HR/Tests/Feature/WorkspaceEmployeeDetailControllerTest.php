@@ -19,13 +19,17 @@ use Tests\TestCase;
 
 final class WorkspaceEmployeeDetailControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $organizationId;
+
     private string $operatorEmail;
 
     protected function setUp(): void

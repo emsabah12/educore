@@ -54,12 +54,9 @@ final class ListTenantsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'per_page.integer' =>
-            'The per page value must be an integer.',
-            'per_page.min' =>
-            'The per page value must be at least 1.',
-            'per_page.max' =>
-            'The per page value may not exceed 100.',
+            'per_page.integer' => 'The per page value must be an integer.',
+            'per_page.min' => 'The per page value must be at least 1.',
+            'per_page.max' => 'The per page value may not exceed 100.',
         ];
     }
 }

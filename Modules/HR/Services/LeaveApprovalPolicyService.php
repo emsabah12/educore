@@ -6,6 +6,7 @@ namespace Modules\HR\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\HR\Exceptions\LeaveLifecycleException;
 use Modules\HR\Models\Employment;
@@ -71,8 +72,8 @@ final readonly class LeaveApprovalPolicyService
      * endpoint POST, tanpa endpoint step terpisah) — policy dan seluruh
      * step-nya dibuat dalam satu transaksi, semua-atau-tidak-sama-sekali.
      *
-     * @param array<string, mixed> $policyData
-     * @param list<array{step_order: int, required_permission: string, scope_strategy: string, independent_approver?: bool}> $steps
+     * @param  array<string, mixed>  $policyData
+     * @param  list<array{step_order: int, required_permission: string, scope_strategy: string, independent_approver?: bool}>  $steps
      */
     public function createPolicyVersionWithSteps(
         string $tenantId,
@@ -106,7 +107,7 @@ final readonly class LeaveApprovalPolicyService
             ->first();
 
         if ($policy === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveApprovalPolicy::class,
                 [$approvalPolicyId],
             );
@@ -133,7 +134,7 @@ final readonly class LeaveApprovalPolicyService
             ->first();
 
         if ($policy === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveApprovalPolicy::class,
                 [$approvalPolicyId],
             );
@@ -155,7 +156,7 @@ final readonly class LeaveApprovalPolicyService
      * spesifisitas scope dan employment-filter, dan priority.
      *
      * @throws LeaveLifecycleException LEAVE_APPROVAL_POLICY_NOT_FOUND
-     *                                   atau LEAVE_APPROVAL_POLICY_AMBIGUOUS.
+     *                                 atau LEAVE_APPROVAL_POLICY_AMBIGUOUS.
      */
     public function resolve(
         string $tenantId,
@@ -170,7 +171,7 @@ final readonly class LeaveApprovalPolicyService
             ->first();
 
         if ($employment === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Employment::class,
                 [$employmentId],
             );
@@ -192,40 +193,40 @@ final readonly class LeaveApprovalPolicyService
 
         $submissionDateOnly = Carbon::parse($submissionDate)->toDateString();
 
-        /** @var \Illuminate\Support\Collection<int, LeaveApprovalPolicy> $candidates */
+        /** @var Collection<int, LeaveApprovalPolicy> $candidates */
         $candidates = LeaveApprovalPolicy::query()
             ->withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->where('effective_from', '<=', $submissionDateOnly)
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('effective_to')
                     ->orWhere('effective_to', '>=', $submissionDateOnly),
             )
             // §10 langkah 6: Leave Type spesifik ATAU generic fallback (NULL).
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('leave_type_id')
                     ->orWhere('leave_type_id', $leaveTypeId),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('organization_id')
                     ->orWhere('organization_id', $placementOrganizationId),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('organization_unit_id')
                     ->orWhere('organization_unit_id', $placementOrganizationUnitId),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('employment_type_id')
                     ->orWhere('employment_type_id', $employment->employment_type_id),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('employment_classification_id')
                     ->orWhere('employment_classification_id', $employment->employment_classification_id),
             )
@@ -247,7 +248,7 @@ final readonly class LeaveApprovalPolicyService
         // yang disebut eksplisit dokumen, ditambah priority sebagai
         // pemutus akhir.
         $ranked = $candidates
-            ->sortByDesc(fn(LeaveApprovalPolicy $policy): array => [
+            ->sortByDesc(fn (LeaveApprovalPolicy $policy): array => [
                 $policy->scopeSpecificity(),
                 $policy->employmentFilterSpecificity(),
                 $policy->priority,

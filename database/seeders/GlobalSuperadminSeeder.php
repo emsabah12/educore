@@ -34,7 +34,7 @@ final class GlobalSuperadminSeeder extends Seeder
                     'status' => 'ACTIVE',
                 ]);
 
-                $user = new User();
+                $user = new User;
                 $user->forceFill([
                     'person_id' => (string) $person->getKey(),
                     'email' => $superadminEmail,

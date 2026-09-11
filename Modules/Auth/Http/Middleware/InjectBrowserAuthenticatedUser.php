@@ -29,7 +29,7 @@ final class InjectBrowserAuthenticatedUser
      * Browser authentication is identity-first and therefore must not require
      * a Membership credential, Tenant context, or browser-provided bearer.
      *
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,

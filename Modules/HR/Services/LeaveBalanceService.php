@@ -67,7 +67,7 @@ final readonly class LeaveBalanceService
                 ->first();
 
             if ($entitlement === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     LeaveEntitlement::class,
                     [$entitlementId],
                 );
@@ -148,7 +148,7 @@ final readonly class LeaveBalanceService
                 ->first();
 
             if ($entitlement === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     LeaveEntitlement::class,
                     [$entitlementId],
                 );
@@ -170,7 +170,7 @@ final readonly class LeaveBalanceService
             return LeaveBalanceLedger::create([
                 'entitlement_id' => $entitlementId,
                 'entry_type' => LeaveBalanceLedger::ENTRY_CONSUME,
-                'units_delta' => '-' . $unitsToConsume,
+                'units_delta' => '-'.$unitsToConsume,
                 'leave_request_id' => $leaveRequestId,
                 'idempotency_key' => $idempotencyKey,
                 'occurred_at' => now(),

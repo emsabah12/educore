@@ -213,8 +213,7 @@ final class CanonicalBrowserMembershipDiscoveryTest extends TestCase
                 'tenant_id' => $this->tenantBId,
             ])
             ->assertJsonMissing([
-                'membership_id' =>
-                    $this->otherUserMembershipId,
+                'membership_id' => $this->otherUserMembershipId,
             ]);
     }
 

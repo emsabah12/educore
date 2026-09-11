@@ -217,7 +217,7 @@ final readonly class RecruitmentVacancyLifecycleService
     }
 
     /**
-     * @param list<string> $allowedStatuses
+     * @param  list<string>  $allowedStatuses
      */
     private function requireStatus(
         RecruitmentVacancy $vacancy,
@@ -249,7 +249,7 @@ final readonly class RecruitmentVacancyLifecycleService
             ->first();
 
         if ($vacancy === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentVacancy::class,
                 [$vacancyId],
             );

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\HR\Tests\Feature;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,9 +13,9 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Contracts\EmployeeBenefitIdentifierRepositoryInterface;
 use Modules\HR\Models\BenefitProgram;
-use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmployeeBenefitIdentifier;
 use Modules\HR\Models\EmployeeBenefitParticipation;
+use Modules\HR\Models\Employment;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -25,6 +24,7 @@ final class BenefitIdentifierPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private EmployeeBenefitIdentifierRepositoryInterface $identifierRepository;
+
     private string $tenantId;
 
     protected function setUp(): void
@@ -266,8 +266,8 @@ final class BenefitIdentifierPersistenceTest extends TestCase
     private function createProgram(string $code): string
     {
         return BenefitProgram::create([
-            'code' => $code . '-' . Str::upper(Str::random(4)),
-            'name' => 'Program Uji ' . $code,
+            'code' => $code.'-'.Str::upper(Str::random(4)),
+            'name' => 'Program Uji '.$code,
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,
             'payroll_relevance' => BenefitProgram::PAYROLL_RELEVANCE_ELIGIBILITY_INPUT,

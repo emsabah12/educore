@@ -12,7 +12,7 @@ final class PersonIdentifierCipherTest extends TestCase
 {
     public function test_encrypt_then_decrypt_returns_original_value(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $original = '3201234567890001';
 
@@ -24,7 +24,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_encrypted_value_never_contains_raw_value_substring(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $original = '3201234567890001';
 
@@ -40,7 +40,7 @@ final class PersonIdentifierCipherTest extends TestCase
     {
         // Laravel Crypt menggunakan random IV per panggilan — ciphertext
         // harus berbeda meski plaintext sama (mencegah pattern leakage).
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $original = '3201234567890001';
 
@@ -61,7 +61,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_fingerprint_is_deterministic_for_same_value(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $original = '3201234567890001';
 
@@ -73,7 +73,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_fingerprint_differs_for_different_values(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $this->assertNotSame(
             $cipher->fingerprint('3201234567890001'),
@@ -83,7 +83,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_fingerprint_is_sixty_four_character_hex(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $fingerprint = $cipher->fingerprint('3201234567890001');
 
@@ -96,7 +96,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_fingerprint_does_not_reveal_raw_value_as_substring(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $original = '3201234567890001';
 
@@ -110,7 +110,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_encrypt_rejects_empty_value(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $this->expectException(RuntimeException::class);
 
@@ -119,7 +119,7 @@ final class PersonIdentifierCipherTest extends TestCase
 
     public function test_fingerprint_rejects_empty_value(): void
     {
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $this->expectException(RuntimeException::class);
 
@@ -130,7 +130,7 @@ final class PersonIdentifierCipherTest extends TestCase
     {
         config(['person-identifier.fingerprint_key' => null]);
 
-        $cipher = new PersonIdentifierCipher();
+        $cipher = new PersonIdentifierCipher;
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage(

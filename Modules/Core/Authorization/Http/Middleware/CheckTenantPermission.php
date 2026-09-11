@@ -20,7 +20,7 @@ final class CheckTenantPermission
     ) {}
 
     /**
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,
@@ -46,9 +46,9 @@ final class CheckTenantPermission
         try {
             $hasRequiredPermission =
                 $this->authorizationService
-                ->hasPermission(
-                    $permission,
-                );
+                    ->hasPermission(
+                        $permission,
+                    );
         } catch (
             MembershipContextResolutionException $exception
         ) {

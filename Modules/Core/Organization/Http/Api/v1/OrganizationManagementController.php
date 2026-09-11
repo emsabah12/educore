@@ -40,7 +40,7 @@ final class OrganizationManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $organizations->map(
-                fn(Organization $organization) => $this->summary($organization),
+                fn (Organization $organization) => $this->summary($organization),
             ),
         ]);
     }

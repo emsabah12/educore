@@ -13,15 +13,14 @@ declare(strict_types=1);
  * Usage:
  * php scripts/audit-psr4.php
  */
-
 $projectRoot = dirname(__DIR__);
-$modulesPath = $projectRoot . DIRECTORY_SEPARATOR . 'Modules';
+$modulesPath = $projectRoot.DIRECTORY_SEPARATOR.'Modules';
 
-if (!is_dir($modulesPath)) {
+if (! is_dir($modulesPath)) {
     fwrite(
         STDERR,
         sprintf(
-            "ERROR: Directory Modules tidak ditemukan: %s%s",
+            'ERROR: Directory Modules tidak ditemukan: %s%s',
             $modulesPath,
             PHP_EOL
         )
@@ -42,19 +41,19 @@ $phpFiles = 0;
 $checkedClasses = 0;
 $errors = 0;
 
-echo "========================================" . PHP_EOL;
-echo "EduCore PSR-4 Audit" . PHP_EOL;
-echo "========================================" . PHP_EOL;
-echo "Project : {$projectRoot}" . PHP_EOL;
-echo "Target  : {$modulesPath}" . PHP_EOL;
+echo '========================================'.PHP_EOL;
+echo 'EduCore PSR-4 Audit'.PHP_EOL;
+echo '========================================'.PHP_EOL;
+echo "Project : {$projectRoot}".PHP_EOL;
+echo "Target  : {$modulesPath}".PHP_EOL;
 echo PHP_EOL;
 
 foreach ($iterator as $file) {
-    if (!$file instanceof SplFileInfo) {
+    if (! $file instanceof SplFileInfo) {
         continue;
     }
 
-    if (!$file->isFile()) {
+    if (! $file->isFile()) {
         continue;
     }
 
@@ -80,8 +79,9 @@ foreach ($iterator as $file) {
     $content = file_get_contents($absolutePath);
 
     if ($content === false) {
-        echo "[ERROR] Tidak dapat membaca: {$relativePath}" . PHP_EOL;
+        echo "[ERROR] Tidak dapat membaca: {$relativePath}".PHP_EOL;
         $errors++;
+
         continue;
     }
 
@@ -134,9 +134,9 @@ foreach ($iterator as $file) {
                 DIRECTORY_SEPARATOR,
                 $namespace
             )
-            . DIRECTORY_SEPARATOR
-            . $expectedClass
-            . '.php';
+            .DIRECTORY_SEPARATOR
+            .$expectedClass
+            .'.php';
 
         $actualRelativePath = str_replace(
             DIRECTORY_SEPARATOR,
@@ -151,39 +151,39 @@ foreach ($iterator as $file) {
         );
 
         $actualFullyQualifiedClass =
-            $namespace . '\\' . $expectedClass;
+            $namespace.'\\'.$expectedClass;
 
         if ($actualRelativePath !== $expectedRelativePathNormalized) {
             echo PHP_EOL;
-            echo "[FAIL] PSR-4 mismatch" . PHP_EOL;
-            echo "  Type      : {$declaration['type']}" . PHP_EOL;
-            echo "  Class     : {$actualFullyQualifiedClass}" . PHP_EOL;
-            echo "  Actual    : Modules/{$actualRelativePath}" . PHP_EOL;
-            echo "  Expected  : Modules/{$expectedRelativePathNormalized}" . PHP_EOL;
+            echo '[FAIL] PSR-4 mismatch'.PHP_EOL;
+            echo "  Type      : {$declaration['type']}".PHP_EOL;
+            echo "  Class     : {$actualFullyQualifiedClass}".PHP_EOL;
+            echo "  Actual    : Modules/{$actualRelativePath}".PHP_EOL;
+            echo "  Expected  : Modules/{$expectedRelativePathNormalized}".PHP_EOL;
 
             $errors++;
 
             continue;
         }
 
-        echo "[PASS] {$actualFullyQualifiedClass}" . PHP_EOL;
+        echo "[PASS] {$actualFullyQualifiedClass}".PHP_EOL;
     }
 }
 
 echo PHP_EOL;
-echo "========================================" . PHP_EOL;
-echo "Audit Summary" . PHP_EOL;
-echo "========================================" . PHP_EOL;
-echo "Total files scanned : {$totalFiles}" . PHP_EOL;
-echo "PHP files scanned   : {$phpFiles}" . PHP_EOL;
-echo "Declarations checked: {$checkedClasses}" . PHP_EOL;
-echo "Problems found      : {$errors}" . PHP_EOL;
+echo '========================================'.PHP_EOL;
+echo 'Audit Summary'.PHP_EOL;
+echo '========================================'.PHP_EOL;
+echo "Total files scanned : {$totalFiles}".PHP_EOL;
+echo "PHP files scanned   : {$phpFiles}".PHP_EOL;
+echo "Declarations checked: {$checkedClasses}".PHP_EOL;
+echo "Problems found      : {$errors}".PHP_EOL;
 echo PHP_EOL;
 
 if ($errors > 0) {
-    echo "RESULT: PSR-4 AUDIT FAILED" . PHP_EOL;
+    echo 'RESULT: PSR-4 AUDIT FAILED'.PHP_EOL;
     exit(1);
 }
 
-echo "RESULT: PSR-4 AUDIT PASSED" . PHP_EOL;
+echo 'RESULT: PSR-4 AUDIT PASSED'.PHP_EOL;
 exit(0);

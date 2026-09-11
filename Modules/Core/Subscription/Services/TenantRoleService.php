@@ -34,10 +34,10 @@ final class TenantRoleService
 
     /**
      * @throws CustomRoleFeatureNotAvailableException kalau tenant
-     *                                                 sedang tidak
-     *                                                 punya fitur
-     *                                                 `custom_roles`
-     *                                                 efektif.
+     *                                                sedang tidak
+     *                                                punya fitur
+     *                                                `custom_roles`
+     *                                                efektif.
      */
     public function createCustomRole(
         string $tenantId,

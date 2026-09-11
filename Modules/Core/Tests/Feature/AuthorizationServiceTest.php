@@ -21,14 +21,23 @@ final class AuthorizationServiceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
+
     private string $personAId;
+
     private string $personBId;
+
     private string $userAId;
+
     private string $userBId;
+
     private string $membershipAId;
+
     private string $membershipBId;
+
     private string $adminRoleId;
+
     private string $notificationPermissionId;
 
     protected function setUp(): void

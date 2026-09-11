@@ -34,8 +34,7 @@ final class TenantProvisioningService
      * canonical Person. Tenant creation, Membership creation, and admin role
      * assignment are committed atomically.
      *
-     * @param array<string, mixed> $tenantData
-     *
+     * @param  array<string, mixed>  $tenantData
      * @return array{
      *     tenant: array<string, mixed>,
      *     initial_admin: array{
@@ -69,7 +68,7 @@ final class TenantProvisioningService
         $adminRole = $this->requireAdminRole();
 
         return DB::transaction(
-            fn(): array => $this->provisionTenantForPerson(
+            fn (): array => $this->provisionTenantForPerson(
                 $tenantData,
                 $person,
                 $adminRole,
@@ -91,9 +90,8 @@ final class TenantProvisioningService
      * "tenant+membership+role admin selalu tercipta bersamaan" tetap satu
      * sumber kebenaran, bukan duplikat logika yang bisa menyimpang.
      *
-     * @param array<string, mixed> $tenantData
-     * @param array{name: string, email: string, password: string} $adminData
-     *
+     * @param  array<string, mixed>  $tenantData
+     * @param  array{name: string, email: string, password: string}  $adminData
      * @return array{
      *     tenant: array<string, mixed>,
      *     initial_admin: array{
@@ -165,8 +163,7 @@ final class TenantProvisioningService
      * tempat yang benar-benar membuat Tenant, Membership, dan menetapkan
      * role admin.
      *
-     * @param array<string, mixed> $tenantData
-     *
+     * @param  array<string, mixed>  $tenantData
      * @return array{
      *     tenant: array<string, mixed>,
      *     initial_admin: array{

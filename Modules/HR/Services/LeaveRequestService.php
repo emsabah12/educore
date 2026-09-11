@@ -54,7 +54,7 @@ final readonly class LeaveRequestService
             ->first();
 
         if ($leaveType === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveType::class,
                 [$leaveTypeId],
             );
@@ -111,7 +111,7 @@ final readonly class LeaveRequestService
                 ->first();
 
             if ($leaveType === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     LeaveType::class,
                     [$data['leave_type_id']],
                 );
@@ -130,9 +130,9 @@ final readonly class LeaveRequestService
      * §10 langkah 1-13 (decision_mode=SEQUENTIAL).
      *
      * @throws LeaveLifecycleException LEAVE_EMPLOYMENT_NOT_ACTIVE,
-     *                                   LEAVE_TYPE_INACTIVE, atau apa
-     *                                   pun yang dilempar resolusi
-     *                                   Approval Policy.
+     *                                 LEAVE_TYPE_INACTIVE, atau apa
+     *                                 pun yang dilempar resolusi
+     *                                 Approval Policy.
      */
     public function submit(
         string $tenantId,
@@ -166,7 +166,7 @@ final readonly class LeaveRequestService
                 ->first();
 
             if ($employment === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     Employment::class,
                     [$request->employment_id],
                 );
@@ -318,7 +318,7 @@ final readonly class LeaveRequestService
             ->first();
 
         if ($request === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveRequest::class,
                 [$leaveRequestId],
             );

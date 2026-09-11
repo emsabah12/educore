@@ -18,7 +18,7 @@ final readonly class ModuleRepository
 
     /**
      * Mengambil seluruh koleksi objek ModuleDefinition yang terdaftar
-     * 
+     *
      * @return array<string, ModuleDefinition>
      */
     public function all(): array

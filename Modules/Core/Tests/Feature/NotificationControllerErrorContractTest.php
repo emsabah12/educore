@@ -17,10 +17,10 @@ use Tests\TestCase;
 final class NotificationControllerErrorContractTest extends TestCase
 {
     private const TENANT_ID =
-    '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
+        '019f62f3-f5b5-7216-9578-0af9cb3b5b54';
 
     private const USER_ID =
-    '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
+        '019f62f3-f5b5-7216-9578-0af9cb3b5b55';
 
     public function test_missing_tenant_context_uses_canonical_context_error(): void
     {
@@ -53,10 +53,8 @@ final class NotificationControllerErrorContractTest extends TestCase
         $this->assertSame(
             [
                 'status' => 'error',
-                'code' =>
-                'AUTHENTICATION_CONTEXT_DENIED',
-                'message' =>
-                'Authentication context missing or invalid.',
+                'code' => 'AUTHENTICATION_CONTEXT_DENIED',
+                'message' => 'Authentication context missing or invalid.',
             ],
             $response->getData(true),
         );
@@ -98,10 +96,8 @@ final class NotificationControllerErrorContractTest extends TestCase
         $this->assertSame(
             [
                 'status' => 'error',
-                'code' =>
-                'AUTHENTICATION_CONTEXT_DENIED',
-                'message' =>
-                'Authentication context missing or invalid.',
+                'code' => 'AUTHENTICATION_CONTEXT_DENIED',
+                'message' => 'Authentication context missing or invalid.',
             ],
             $response->getData(true),
         );
@@ -130,10 +126,9 @@ final class NotificationControllerErrorContractTest extends TestCase
             ->method('dispatch')
             ->with(
                 $this->callback(
-                    static fn(
+                    static fn (
                         mixed $job,
-                    ): bool =>
-                    $job instanceof SendAsynchronousNotificationJob
+                    ): bool => $job instanceof SendAsynchronousNotificationJob
                         && $job->getTenantId()
                         === self::TENANT_ID,
                 ),
@@ -164,13 +159,10 @@ final class NotificationControllerErrorContractTest extends TestCase
             ->expects($this->once())
             ->method('validated')
             ->willReturn([
-                'recipient' =>
-                '089987654321',
-                'body' =>
-                'Queue failure contract.',
+                'recipient' => '089987654321',
+                'body' => 'Queue failure contract.',
                 'options' => [
-                    'title' =>
-                    'Queue Failure',
+                    'title' => 'Queue Failure',
                 ],
             ]);
 
@@ -209,10 +201,8 @@ final class NotificationControllerErrorContractTest extends TestCase
         $this->assertSame(
             [
                 'status' => 'error',
-                'code' =>
-                'NOTIFICATION_DISPATCH_FAILED',
-                'message' =>
-                'Failed to queue notification.',
+                'code' => 'NOTIFICATION_DISPATCH_FAILED',
+                'message' => 'Failed to queue notification.',
             ],
             $response->getData(true),
         );

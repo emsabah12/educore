@@ -68,21 +68,16 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'persons',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::PERSON_ID,
+                        'id' => self::PERSON_ID,
                     ],
                     [
-                        'name' =>
-                            'EduCore Browser E2E User',
+                        'name' => 'EduCore Browser E2E User',
 
-                        'status' =>
-                            'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -90,32 +85,24 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'users',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::USER_ID,
+                        'id' => self::USER_ID,
                     ],
                     [
-                        'person_id' =>
-                            self::PERSON_ID,
+                        'person_id' => self::PERSON_ID,
 
-                        'email' =>
-                            self::EMAIL,
+                        'email' => self::EMAIL,
 
-                        'password' =>
-                            Hash::make(
-                                self::PASSWORD,
-                            ),
+                        'password' => Hash::make(
+                            self::PASSWORD,
+                        ),
 
-                        'status' =>
-                            'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'is_superadmin' =>
-                            false,
+                        'is_superadmin' => false,
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -123,24 +110,18 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'tenants',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::TENANT_ID,
+                        'id' => self::TENANT_ID,
                     ],
                     [
-                        'name' =>
-                            'EduCore Browser E2E Tenant',
+                        'name' => 'EduCore Browser E2E Tenant',
 
-                        'subdomain' =>
-                            self::TENANT_SUBDOMAIN,
+                        'subdomain' => self::TENANT_SUBDOMAIN,
 
-                        'is_active' =>
-                            true,
+                        'is_active' => true,
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -148,24 +129,18 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'tenants',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::SECOND_TENANT_ID,
+                        'id' => self::SECOND_TENANT_ID,
                     ],
                     [
-                        'name' =>
-                            'EduCore Browser E2E Tenant Secondary',
+                        'name' => 'EduCore Browser E2E Tenant Secondary',
 
-                        'subdomain' =>
-                            self::SECOND_TENANT_SUBDOMAIN,
+                        'subdomain' => self::SECOND_TENANT_SUBDOMAIN,
 
-                        'is_active' =>
-                            true,
+                        'is_active' => true,
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -173,24 +148,18 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'memberships',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::MEMBERSHIP_ID,
+                        'id' => self::MEMBERSHIP_ID,
                     ],
                     [
-                        'person_id' =>
-                            self::PERSON_ID,
+                        'person_id' => self::PERSON_ID,
 
-                        'tenant_id' =>
-                            self::TENANT_ID,
+                        'tenant_id' => self::TENANT_ID,
 
-                        'status' =>
-                            'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -198,24 +167,18 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'memberships',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::SECOND_MEMBERSHIP_ID,
+                        'id' => self::SECOND_MEMBERSHIP_ID,
                     ],
                     [
-                        'person_id' =>
-                            self::PERSON_ID,
+                        'person_id' => self::PERSON_ID,
 
-                        'tenant_id' =>
-                            self::SECOND_TENANT_ID,
+                        'tenant_id' => self::SECOND_TENANT_ID,
 
-                        'status' =>
-                            'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -231,30 +194,22 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'organizations',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::ORGANIZATION_ID,
+                        'id' => self::ORGANIZATION_ID,
                     ],
                     [
-                        'tenant_id' =>
-                            self::TENANT_ID,
+                        'tenant_id' => self::TENANT_ID,
 
-                        'name' =>
-                            self::ORGANIZATION_NAME,
+                        'name' => self::ORGANIZATION_NAME,
 
-                        'code' =>
-                            self::ORGANIZATION_CODE,
+                        'code' => self::ORGANIZATION_CODE,
 
-                        'is_active' =>
-                            true,
+                        'is_active' => true,
 
-                        'deleted_at' =>
-                            null,
+                        'deleted_at' => null,
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
 
@@ -262,30 +217,22 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                     'organizational_assignments',
                 )->updateOrInsert(
                     [
-                        'id' =>
-                            self::ORGANIZATIONAL_ASSIGNMENT_ID,
+                        'id' => self::ORGANIZATIONAL_ASSIGNMENT_ID,
                     ],
                     [
-                        'tenant_id' =>
-                            self::TENANT_ID,
+                        'tenant_id' => self::TENANT_ID,
 
-                        'membership_id' =>
-                            self::MEMBERSHIP_ID,
+                        'membership_id' => self::MEMBERSHIP_ID,
 
-                        'organization_id' =>
-                            self::ORGANIZATION_ID,
+                        'organization_id' => self::ORGANIZATION_ID,
 
-                        'organization_unit_id' =>
-                            null,
+                        'organization_unit_id' => null,
 
-                        'status' =>
-                            'ACTIVE',
+                        'status' => 'ACTIVE',
 
-                        'created_at' =>
-                            $now,
+                        'created_at' => $now,
 
-                        'updated_at' =>
-                            $now,
+                        'updated_at' => $now,
                     ],
                 );
             },
@@ -357,8 +304,7 @@ final class E2EBrowserAuthenticationSeeder extends Seeder
                 self::SECOND_MEMBERSHIP_ID,
                 self::ORGANIZATION_ID,
                 self::ORGANIZATIONAL_ASSIGNMENT_ID,
-            ]
-            as $identifier
+            ] as $identifier
         ) {
             if (
                 ! UuidV7::validate(

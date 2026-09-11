@@ -51,7 +51,7 @@ final class RecordingWhatsAppGateway implements WhatsAppGatewayInterface
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param  array<string, mixed>  $options
      */
     public function send(
         string $tenantId,
@@ -197,8 +197,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
                 'tenant_id' => $tenantId,
                 'status' => 'FAILED',
                 'failure_code' => 'provider_rejected',
-                'failure_reason' =>
-                'WhatsApp provider rejected the delivery request.',
+                'failure_reason' => 'WhatsApp provider rejected the delivery request.',
             ],
         );
 
@@ -239,8 +238,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
                 'tenant_id' => $tenantId,
                 'status' => 'FAILED',
                 'failure_code' => 'gateway_not_configured',
-                'failure_reason' =>
-                'WhatsApp gateway is not configured.',
+                'failure_reason' => 'WhatsApp gateway is not configured.',
             ],
         );
     }
@@ -251,7 +249,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
         $notificationId = UuidV7::generate();
 
         $result = $this->channel(
-            new ThrowingWhatsAppGateway(),
+            new ThrowingWhatsAppGateway,
         )->send(
             tenantId: $tenantId,
             notificationId: $notificationId,
@@ -296,8 +294,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
                 'provider_rejected',
             ),
             WhatsAppGatewayResult::success([
-                'provider_message_id' =>
-                'provider-retry-success',
+                'provider_message_id' => 'provider-retry-success',
             ]),
         );
 
@@ -347,8 +344,7 @@ final class WhatsAppNotificationChannelTest extends TestCase
 
         $gateway = new RecordingWhatsAppGateway(
             WhatsAppGatewayResult::success([
-                'provider_message_id' =>
-                'provider-idempotent-success',
+                'provider_message_id' => 'provider-idempotent-success',
             ]),
         );
 

@@ -50,7 +50,7 @@ final class StoreEmploymentPositionAssignmentRequest extends FormRequest
                 'uuid',
                 Rule::exists('positions', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),
@@ -61,7 +61,7 @@ final class StoreEmploymentPositionAssignmentRequest extends FormRequest
                 'uuid',
                 Rule::exists('employment_placements', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

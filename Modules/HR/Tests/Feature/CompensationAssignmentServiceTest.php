@@ -25,13 +25,14 @@ final class CompensationAssignmentServiceTest extends TestCase
     use RefreshDatabase;
 
     private CompensationAssignmentService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new CompensationAssignmentService();
+        $this->service = new CompensationAssignmentService;
         $this->tenantId = $this->createTenant('Compensation Service Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -881,8 +882,8 @@ final class CompensationAssignmentServiceTest extends TestCase
     private function createFixedComponent(string $code): CompensationComponent
     {
         return CompensationComponent::create([
-            'code' => $code . '-' . Str::upper(Str::random(4)),
-            'name' => 'Komponen Uji ' . $code,
+            'code' => $code.'-'.Str::upper(Str::random(4)),
+            'name' => 'Komponen Uji '.$code,
             'category' => CompensationComponent::CATEGORY_BASE_PAY,
             'value_mode' => CompensationComponent::VALUE_MODE_FIXED_AMOUNT,
             'unit_code' => null,
@@ -893,8 +894,8 @@ final class CompensationAssignmentServiceTest extends TestCase
     private function createRateComponent(string $code): CompensationComponent
     {
         return CompensationComponent::create([
-            'code' => $code . '-' . Str::upper(Str::random(4)),
-            'name' => 'Komponen Uji ' . $code,
+            'code' => $code.'-'.Str::upper(Str::random(4)),
+            'name' => 'Komponen Uji '.$code,
             'category' => CompensationComponent::CATEGORY_RATE,
             'value_mode' => CompensationComponent::VALUE_MODE_RATE_PER_UNIT,
             'unit_code' => 'HOUR',
@@ -905,7 +906,7 @@ final class CompensationAssignmentServiceTest extends TestCase
     private function createPositionAssignment(string $employmentId): string
     {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Kompensasi',
             'is_active' => true,
         ])->id;

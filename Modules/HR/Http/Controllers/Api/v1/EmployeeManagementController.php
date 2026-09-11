@@ -133,7 +133,7 @@ final class EmployeeManagementController extends Controller
         $employee = $this->hrWorkforceScopeService
             ->visibleEmployeesQuery($tenantId)
             ->with([
-                'employments' => fn($query) => $query
+                'employments' => fn ($query) => $query
                     ->with('employmentType')
                     ->orderByDesc('start_date'),
             ])
@@ -152,7 +152,7 @@ final class EmployeeManagementController extends Controller
                 'created_at' => $employee->created_at,
                 'updated_at' => $employee->updated_at,
                 'employments' => $employee->employments->map(
-                    fn($employment) => [
+                    fn ($employment) => [
                         'id' => (string) $employment->id,
                         'employment_type' => $employment->employmentType?->name,
                         'status' => $employment->status,

@@ -15,15 +15,13 @@ use Modules\Core\Organization\Models\OrganizationUnit;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 
-final readonly class OrganizationalAssignmentService implements
-    OrganizationalAssignmentServiceInterface
+final readonly class OrganizationalAssignmentService implements OrganizationalAssignmentServiceInterface
 {
     public function __construct(
         private TenantContextInterface $tenantContext,
         private MembershipRepositoryInterface $membershipRepository,
         private OrganizationalAssignmentRepositoryInterface $assignmentRepository,
-    ) {
-    }
+    ) {}
 
     public function assignToOrganization(
         string $membershipId,

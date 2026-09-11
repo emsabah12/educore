@@ -132,7 +132,7 @@ final readonly class CompensationAssignmentService
                 ->first();
 
             if ($original === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     CompensationAssignment::class,
                     [$originalAssignmentId],
                 );
@@ -241,7 +241,7 @@ final readonly class CompensationAssignmentService
             ->first();
 
         if ($component === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 CompensationComponent::class,
                 [$data['compensation_component_id']],
             );
@@ -299,7 +299,7 @@ final readonly class CompensationAssignmentService
                 ->first();
 
             if ($positionAssignment === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     EmploymentPositionAssignment::class,
                     [$employmentPositionAssignmentId],
                 );
@@ -409,7 +409,7 @@ final readonly class CompensationAssignmentService
                 ->first();
 
             if ($assignment === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     CompensationAssignment::class,
                     [$assignmentId],
                 );
@@ -510,7 +510,7 @@ final readonly class CompensationAssignmentService
                 ->first();
 
             if ($assignment === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     CompensationAssignment::class,
                     [$assignmentId],
                 );

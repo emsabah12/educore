@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Modules\HR\Services;
 
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Modules\HR\Exceptions\EmploymentLifecycleException;
 use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmploymentClassification;
-use Modules\HR\Models\EmploymentType;
-use Modules\HR\Services\Concerns\LocksEmploymentRecords;
-use Carbon\Carbon;
 use Modules\HR\Models\EmploymentPlacement;
 use Modules\HR\Models\EmploymentPositionAssignment;
+use Modules\HR\Models\EmploymentType;
+use Modules\HR\Services\Concerns\LocksEmploymentRecords;
 
 /**
  * Implementasi algoritma transaksi Employment lifecycle dari HR-002 §9.
@@ -362,7 +362,7 @@ final readonly class EmploymentLifecycleService
     }
 
     /**
-     * @param class-string<EmploymentType>|class-string<EmploymentClassification> $modelClass
+     * @param  class-string<EmploymentType>|class-string<EmploymentClassification>  $modelClass
      */
     private function requireActiveCatalogEntry(
         string $modelClass,

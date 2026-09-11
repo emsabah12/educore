@@ -87,7 +87,7 @@ final readonly class PersonLifecycleService implements PersonLifecycleServiceInt
     }
 
     /**
-     * @param callable(Person): void $transition
+     * @param  callable(Person): void  $transition
      */
     private function transition(
         string $personId,
@@ -155,7 +155,7 @@ final readonly class PersonLifecycleService implements PersonLifecycleServiceInt
                 id: UuidV7::generate(),
                 personId: $personId,
                 type: $eventType,
-                occurredAt: new DateTimeImmutable(),
+                occurredAt: new DateTimeImmutable,
                 actorUserId: $actorUserId,
                 reason: $reason,
             );

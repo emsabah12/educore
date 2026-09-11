@@ -171,7 +171,7 @@ final readonly class LeaveApprovalService
             ->first();
 
         if ($leaveType === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveType::class,
                 [$request->leave_type_id],
             );
@@ -331,11 +331,11 @@ final readonly class LeaveApprovalService
 
         $placement = $request->approval_context_placement_id !== null
             ? EmploymentPlacement::query()
-            ->withoutGlobalScope('tenant')
-            ->where('id', $request->approval_context_placement_id)
-            ->where('tenant_id', $tenantId)
-            ->with('organizationalAssignment')
-            ->first()
+                ->withoutGlobalScope('tenant')
+                ->where('id', $request->approval_context_placement_id)
+                ->where('tenant_id', $tenantId)
+                ->with('organizationalAssignment')
+                ->first()
             : null;
 
         $placementOrganizationId = $placement?->organizationalAssignment?->organization_id;
@@ -457,7 +457,7 @@ final readonly class LeaveApprovalService
             ->first();
 
         if ($request === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveRequest::class,
                 [$leaveRequestId],
             );

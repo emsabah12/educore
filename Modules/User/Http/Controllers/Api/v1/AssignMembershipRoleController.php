@@ -38,8 +38,7 @@ final class AssignMembershipRoleController extends Controller
                     'actor_user_id' => $result->actorUserId,
                     'actor_membership_id' => $result->actorMembershipId,
                     'tenant_id' => $result->tenantId,
-                    'target_membership_id' =>
-                    $result->targetMembershipId,
+                    'target_membership_id' => $result->targetMembershipId,
                     'role_id' => $result->roleId,
                 ],
             );
@@ -47,11 +46,9 @@ final class AssignMembershipRoleController extends Controller
             return response()->json(
                 [
                     'status' => 'success',
-                    'message' =>
-                    'Role berhasil ditetapkan pada target membership.',
+                    'message' => 'Role berhasil ditetapkan pada target membership.',
                     'data' => [
-                        'target_membership_id' =>
-                        $result->targetMembershipId,
+                        'target_membership_id' => $result->targetMembershipId,
                         'role_id' => $result->roleId,
                     ],
                 ],
@@ -65,10 +62,8 @@ final class AssignMembershipRoleController extends Controller
             Log::warning(
                 'Membership role assignment rejected.',
                 [
-                    'target_membership_id' =>
-                    $target_membership_id,
-                    'reason' =>
-                    $exception->getMessage(),
+                    'target_membership_id' => $target_membership_id,
+                    'reason' => $exception->getMessage(),
                 ],
             );
 
@@ -81,11 +76,9 @@ final class AssignMembershipRoleController extends Controller
             Log::error(
                 'Membership role assignment failed.',
                 [
-                    'target_membership_id' =>
-                    $target_membership_id,
+                    'target_membership_id' => $target_membership_id,
                     'exception' => $exception::class,
-                    'message' =>
-                    $exception->getMessage(),
+                    'message' => $exception->getMessage(),
                 ],
             );
 

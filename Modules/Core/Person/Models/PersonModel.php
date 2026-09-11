@@ -41,9 +41,9 @@ final class PersonModel extends Model
         'created_at' => 'immutable_datetime',
         'updated_at' => 'immutable_datetime',
     ];
+
     protected static function newFactory(): PersonFactory
     {
         return PersonFactory::new();
     }
-
 }

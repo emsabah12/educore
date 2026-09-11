@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Academic\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Throwable;
@@ -14,6 +14,7 @@ use Throwable;
 final class AcademicPeriodController extends Controller
 {
     private AcademicPeriodRepositoryInterface $periodRepository;
+
     private AuditTrailServiceInterface $auditTrail;
 
     public function __construct(
@@ -40,13 +41,13 @@ final class AcademicPeriodController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $years->items(),
-            'meta'   => [
+            'data' => $years->items(),
+            'meta' => [
                 'current_page' => $years->currentPage(),
-                'last_page'    => $years->lastPage(),
-                'per_page'     => $years->perPage(),
-                'total'        => $years->total(),
-            ]
+                'last_page' => $years->lastPage(),
+                'per_page' => $years->perPage(),
+                'total' => $years->total(),
+            ],
         ], 200);
     }
 
@@ -63,10 +64,10 @@ final class AcademicPeriodController extends Controller
         }
 
         $payload = $request->validate([
-            'name'       => ['required', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:50'],
             'start_date' => ['required', 'date'],
-            'end_date'   => ['required', 'date', 'after:start_date'],
-            'is_active'  => ['nullable', 'boolean']
+            'end_date' => ['required', 'date', 'after:start_date'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -81,9 +82,9 @@ final class AcademicPeriodController extends Controller
             );
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Academic year established successfully.',
-                'data'    => $year
+                'data' => $year,
             ], 201);
         } catch (Throwable $e) {
             return response()->json(['status' => 'error', 'message' => 'Failed to create academic year.'], 500);
@@ -103,9 +104,9 @@ final class AcademicPeriodController extends Controller
         }
 
         $payload = $request->validate([
-            'name'      => ['required', 'string', 'max:50'],
-            'type'      => ['required', 'string', 'in:GANJIL,GENAP,ganjil,genap'],
-            'is_active' => ['nullable', 'boolean']
+            'name' => ['required', 'string', 'max:50'],
+            'type' => ['required', 'string', 'in:GANJIL,GENAP,ganjil,genap'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -120,9 +121,9 @@ final class AcademicPeriodController extends Controller
             );
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Academic semester established successfully.',
-                'data'    => $semester
+                'data' => $semester,
             ], 201);
         } catch (Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 404);

@@ -28,7 +28,7 @@ final class GenerateLeaveEntitlementRequest extends FormRequest
                 'required',
                 'uuid',
                 Rule::exists('leave_types', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'period_start' => [
                 'required',

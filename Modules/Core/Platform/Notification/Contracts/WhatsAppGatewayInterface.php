@@ -14,7 +14,7 @@ interface WhatsAppGatewayInterface
      * Notification ID dapat digunakan sebagai idempotency key atau
      * reference ID ketika provider mendukungnya.
      *
-     * @param array<string, mixed> $options
+     * @param  array<string, mixed>  $options
      */
     public function send(
         string $tenantId,

@@ -118,7 +118,7 @@ final readonly class LeaveEntitlementService
                 ->first();
 
             if ($leaveType === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     LeaveType::class,
                     [$leaveTypeId],
                 );

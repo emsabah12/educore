@@ -28,7 +28,7 @@ final class TenantBackfillDefaultOrganizationCommand extends Command
                             {--dry-run : Tampilkan tenant yang akan diproses tanpa benar-benar membuat apa pun}';
 
     protected $description =
-    'Backfill Organization default + assign admin untuk tenant aktif yang belum pernah punya Organization sama sekali';
+        'Backfill Organization default + assign admin untuk tenant aktif yang belum pernah punya Organization sama sekali';
 
     public function handle(
         TenantActivationService $tenantActivationService,
@@ -44,7 +44,7 @@ final class TenantBackfillDefaultOrganizationCommand extends Command
             ->orderBy('created_at')
             ->pluck('id')
             ->map(
-                fn($id): string => (string) $id,
+                fn ($id): string => (string) $id,
             );
 
         $inactiveTenantCount = $totalTenantCount - $activeTenantIds->count();

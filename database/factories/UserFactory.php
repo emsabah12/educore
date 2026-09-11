@@ -31,7 +31,7 @@ final class UserFactory extends Factory
             'person_id' => PersonModel::factory(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'password' => self::$password ??= Hash::make('password'),
             'status' => 'ACTIVE',
             'is_superadmin' => false,
             'remember_token' => Str::random(10),
@@ -41,7 +41,7 @@ final class UserFactory extends Factory
     public function unverified(): static
     {
         return $this->state(
-            static fn(array $attributes): array => [
+            static fn (array $attributes): array => [
                 'email_verified_at' => null,
             ],
         );

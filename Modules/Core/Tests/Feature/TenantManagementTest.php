@@ -6,17 +6,16 @@ namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
-use Modules\Auth\Token\Contracts\TokenManagerInterface;
-use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
-use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
-use Modules\Core\Support\Uuid\UuidV7;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 use RuntimeException;
-
+use Tests\TestCase;
 
 final class TenantManagementTest extends TestCase
 {
@@ -25,12 +24,17 @@ final class TenantManagementTest extends TestCase
     private const TENANTS_ENDPOINT = '/api/v1/core/tenants';
 
     private string $superadminId;
+
     private string $superadminPersonId;
+
     private string $pegawaiId;
+
     private string $pegawaiPersonId;
+
     private string $tenantId;
 
     private string $superadminMembershipId;
+
     private string $pegawaiMembershipId;
 
     private TokenManagerInterface $tokenManager;
@@ -306,7 +310,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->postJson(
-                self::TENANTS_ENDPOINT . '/with-new-admin',
+                self::TENANTS_ENDPOINT.'/with-new-admin',
                 $payload,
             );
 
@@ -372,7 +376,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->postJson(
-                self::TENANTS_ENDPOINT . '/with-new-admin',
+                self::TENANTS_ENDPOINT.'/with-new-admin',
                 [
                     'name' => 'Tenant Email Duplikat',
                     'subdomain' => 'tenant-email-duplikat',
@@ -399,7 +403,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->postJson(
-                self::TENANTS_ENDPOINT . '/with-new-admin',
+                self::TENANTS_ENDPOINT.'/with-new-admin',
                 [
                     'name' => 'Tenant Tidak Berwenang',
                     'subdomain' => 'tenant-tidak-berwenang',
@@ -491,12 +495,9 @@ final class TenantManagementTest extends TestCase
             ->postJson(
                 self::TENANTS_ENDPOINT,
                 [
-                    'name' =>
-                    'Tenant Inactive Person',
-                    'subdomain' =>
-                    'inactive-person-http',
-                    'initial_admin_user_id' =>
-                    $this->pegawaiId,
+                    'name' => 'Tenant Inactive Person',
+                    'subdomain' => 'inactive-person-http',
+                    'initial_admin_user_id' => $this->pegawaiId,
                 ],
             );
 
@@ -552,8 +553,7 @@ final class TenantManagementTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHORIZATION_DENIED',
-                'message' =>
-                'You are not allowed to perform this operation.',
+                'message' => 'You are not allowed to perform this operation.',
             ]);
 
         $this->assertDatabaseMissing('tenants', [
@@ -576,8 +576,7 @@ final class TenantManagementTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ]);
 
         $this->assertDatabaseMissing('tenants', [
@@ -595,7 +594,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->putJson(
-                self::TENANTS_ENDPOINT . '/not-a-uuid',
+                self::TENANTS_ENDPOINT.'/not-a-uuid',
                 [
                     'name' => 'Nama Tenant Baru',
                 ],
@@ -624,7 +623,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->putJson(
-                self::TENANTS_ENDPOINT . '/' . $uuidV4,
+                self::TENANTS_ENDPOINT.'/'.$uuidV4,
                 [
                     'name' => 'Nama Tenant Baru',
                 ],
@@ -655,7 +654,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->putJson(
-                self::TENANTS_ENDPOINT . '/' . $this->tenantId,
+                self::TENANTS_ENDPOINT.'/'.$this->tenantId,
                 [],
             );
 
@@ -689,7 +688,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->putJson(
-                self::TENANTS_ENDPOINT . '/' . $this->tenantId,
+                self::TENANTS_ENDPOINT.'/'.$this->tenantId,
                 [
                     'is_active' => false,
                 ],
@@ -862,7 +861,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->getJson(
-                self::TENANTS_ENDPOINT . '?per_page=101',
+                self::TENANTS_ENDPOINT.'?per_page=101',
             );
 
         $response
@@ -905,7 +904,7 @@ final class TenantManagementTest extends TestCase
                 ),
             )
             ->getJson(
-                self::TENANTS_ENDPOINT . '?per_page=2',
+                self::TENANTS_ENDPOINT.'?per_page=2',
             );
 
         $response
@@ -930,7 +929,7 @@ final class TenantManagementTest extends TestCase
                 [
                     'name' => '  Sekolah Normalisasi  ',
                     'subdomain' => '  SEKOLAH-NORMALISASI  ',
-                    'initial_admin_user_id' => '  ' . $this->pegawaiId . '  ',
+                    'initial_admin_user_id' => '  '.$this->pegawaiId.'  ',
                 ],
             );
 
@@ -1001,11 +1000,10 @@ final class TenantManagementTest extends TestCase
             )
             ->putJson(
                 self::TENANTS_ENDPOINT
-                    . '/'
-                    . $unknownTenantId,
+                    .'/'
+                    .$unknownTenantId,
                 [
-                    'name' =>
-                    'Unknown Tenant Update',
+                    'name' => 'Unknown Tenant Update',
                 ],
             );
 

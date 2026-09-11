@@ -14,8 +14,7 @@ use Modules\Core\Organization\Contracts\OrganizationalContextResolverInterface;
 use Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface;
 use Modules\Core\Organization\Exceptions\OrganizationalContextException;
 
-final readonly class OrganizationalAuthorizationService implements
-    OrganizationalAuthorizationServiceInterface
+final readonly class OrganizationalAuthorizationService implements OrganizationalAuthorizationServiceInterface
 {
     public function __construct(
         private OrganizationalContextInterface $organizationalContext,
@@ -23,8 +22,7 @@ final readonly class OrganizationalAuthorizationService implements
         private MembershipRoleRepositoryInterface $membershipRoleRepository,
         private OrganizationalScopedRoleRepositoryInterface $scopedRoleRepository,
         private RolePermissionRepositoryInterface $rolePermissionRepository,
-    ) {
-    }
+    ) {}
 
     public function hasRole(
         string $roleName,
@@ -42,8 +40,7 @@ final readonly class OrganizationalAuthorizationService implements
         }
 
         return $roles->contains(
-            static fn (Role $role): bool =>
-                (string) $role->name === $roleName,
+            static fn (Role $role): bool => (string) $role->name === $roleName,
         );
     }
 
@@ -118,8 +115,7 @@ final readonly class OrganizationalAuthorizationService implements
         return $tenantRoles
             ->merge($scopedRoles)
             ->unique(
-                static fn (Role $role): string =>
-                    (string) $role->getKey(),
+                static fn (Role $role): string => (string) $role->getKey(),
             )
             ->values();
     }

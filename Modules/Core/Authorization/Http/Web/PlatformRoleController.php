@@ -133,7 +133,7 @@ final class PlatformRoleController extends Controller
         ]);
 
         $role = DB::transaction(
-            fn() => Role::query()->create($validated),
+            fn () => Role::query()->create($validated),
         );
 
         return redirect()

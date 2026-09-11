@@ -21,14 +21,16 @@ final class RecruitmentVacancyLifecycleServiceTest extends TestCase
     use RefreshDatabase;
 
     private RecruitmentVacancyLifecycleService $service;
+
     private string $tenantId;
+
     private string $membershipId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new RecruitmentVacancyLifecycleService();
+        $this->service = new RecruitmentVacancyLifecycleService;
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
         $this->membershipId = $this->createMembership();
@@ -215,7 +217,7 @@ final class RecruitmentVacancyLifecycleServiceTest extends TestCase
     private function createDraftVacancy(): RecruitmentVacancy
     {
         return $this->service->createDraft($this->tenantId, [
-            'code' => 'VAC-SVC-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-SVC-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $this->createPosition(),
             'organization_id' => $this->createOrganization(),
@@ -254,7 +256,7 @@ final class RecruitmentVacancyLifecycleServiceTest extends TestCase
     private function createPosition(bool $isActive = true): string
     {
         return Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Vacancy Service',
             'is_active' => $isActive,
         ])->id;

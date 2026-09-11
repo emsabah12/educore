@@ -497,7 +497,7 @@ final class CompensationPersistenceTest extends TestCase
     {
         return CompensationComponent::create([
             'code' => $code,
-            'name' => 'Komponen Uji ' . $code,
+            'name' => 'Komponen Uji '.$code,
             'category' => CompensationComponent::CATEGORY_BASE_PAY,
             'value_mode' => CompensationComponent::VALUE_MODE_FIXED_AMOUNT,
             'unit_code' => null,
@@ -565,7 +565,7 @@ final class CompensationPersistenceTest extends TestCase
     private function createPositionAssignment(string $employmentId): string
     {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Kompensasi',
             'is_active' => true,
         ])->id;

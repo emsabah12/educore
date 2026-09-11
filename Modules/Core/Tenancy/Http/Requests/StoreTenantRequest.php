@@ -116,35 +116,22 @@ final class StoreTenantRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' =>
-            'The tenant name is required.',
-            'name.string' =>
-            'The tenant name must be a string.',
-            'name.min' =>
-            'The tenant name must contain at least 3 characters.',
-            'name.max' =>
-            'The tenant name may not exceed 255 characters.',
+            'name.required' => 'The tenant name is required.',
+            'name.string' => 'The tenant name must be a string.',
+            'name.min' => 'The tenant name must contain at least 3 characters.',
+            'name.max' => 'The tenant name may not exceed 255 characters.',
 
-            'subdomain.required' =>
-            'The tenant subdomain is required.',
-            'subdomain.string' =>
-            'The tenant subdomain must be a string.',
-            'subdomain.max' =>
-            'The tenant subdomain may not exceed 50 characters.',
-            'subdomain.regex' =>
-            'The tenant subdomain may only contain lowercase letters, numbers, and hyphens.',
-            'subdomain.unique' =>
-            'The tenant subdomain has already been registered.',
+            'subdomain.required' => 'The tenant subdomain is required.',
+            'subdomain.string' => 'The tenant subdomain must be a string.',
+            'subdomain.max' => 'The tenant subdomain may not exceed 50 characters.',
+            'subdomain.regex' => 'The tenant subdomain may only contain lowercase letters, numbers, and hyphens.',
+            'subdomain.unique' => 'The tenant subdomain has already been registered.',
 
-            'is_active.boolean' =>
-            'The tenant active status must be boolean.',
+            'is_active.boolean' => 'The tenant active status must be boolean.',
 
-            'initial_admin_user_id.required' =>
-            'The initial admin user id is required.',
-            'initial_admin_user_id.string' =>
-            'The initial admin user id must be a string.',
-            'initial_admin_user_id.uuid' =>
-            'The initial admin user id must be a valid UUIDv7.',
+            'initial_admin_user_id.required' => 'The initial admin user id is required.',
+            'initial_admin_user_id.string' => 'The initial admin user id must be a string.',
+            'initial_admin_user_id.uuid' => 'The initial admin user id must be a valid UUIDv7.',
         ];
     }
 }

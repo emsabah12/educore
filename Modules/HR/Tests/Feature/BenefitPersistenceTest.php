@@ -12,8 +12,8 @@ use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Models\BenefitProgram;
-use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmployeeBenefitParticipation;
+use Modules\HR\Models\Employment;
 use Tests\TestCase;
 
 final class BenefitPersistenceTest extends TestCase
@@ -350,7 +350,7 @@ final class BenefitPersistenceTest extends TestCase
     {
         return BenefitProgram::create([
             'code' => $code,
-            'name' => 'Program Uji ' . $code,
+            'name' => 'Program Uji '.$code,
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,
             'payroll_relevance' => BenefitProgram::PAYROLL_RELEVANCE_ELIGIBILITY_INPUT,

@@ -34,7 +34,7 @@ final class StoreSelfLeaveRequestRequest extends FormRequest
                 'required',
                 'uuid',
                 Rule::exists('leave_types', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'starts_at' => [
                 'required',

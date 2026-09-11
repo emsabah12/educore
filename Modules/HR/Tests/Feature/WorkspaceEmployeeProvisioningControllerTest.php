@@ -18,13 +18,17 @@ use Tests\TestCase;
 
 final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $organizationId;
+
     private string $employmentTypeId;
 
     protected function setUp(): void
@@ -66,7 +70,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Baru Workspace',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $this->employmentTypeId,
                 ],
@@ -103,7 +107,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Baru Unit',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $this->employmentTypeId,
                 ],
@@ -134,7 +138,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Baru Konflik',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $inactiveEmploymentTypeId,
                 ],
@@ -153,7 +157,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Baru Tanpa Header',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $this->employmentTypeId,
                 ],
@@ -178,7 +182,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Baru Tanpa Izin',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $this->employmentTypeId,
                 ],
@@ -203,7 +207,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Guru Tanpa Employment Type',
-                    'nip' => 'NIP-HTTP-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-HTTP-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                 ],
             );
@@ -310,7 +314,7 @@ final class WorkspaceEmployeeProvisioningControllerTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => $isActive,
             'created_at' => now(),

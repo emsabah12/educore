@@ -11,7 +11,7 @@ final class ModuleManifestParserTest extends TestCase
 {
     public function test_can_be_instantiated(): void
     {
-        $parser = new ModuleManifestParser();
+        $parser = new ModuleManifestParser;
 
         $this->assertInstanceOf(
             ModuleManifestParser::class,
@@ -20,8 +20,8 @@ final class ModuleManifestParserTest extends TestCase
     }
 
     public function test_parses_valid_yaml_manifest(): void
-        {
-            $yaml = <<<'YAML'
+    {
+        $yaml = <<<'YAML'
         name: Core
         description: Core Module
         version: 1.0.0
@@ -31,67 +31,67 @@ final class ModuleManifestParserTest extends TestCase
         dependencies: []
         YAML;
 
-            $parser = new ModuleManifestParser();
+        $parser = new ModuleManifestParser;
 
-            $manifest = $parser->parse($yaml);
+        $manifest = $parser->parse($yaml);
 
-            $this->assertIsArray($manifest);
+        $this->assertIsArray($manifest);
 
-            $this->assertSame('Core', $manifest['name']);
-            $this->assertSame('Core Module', $manifest['description']);
-            $this->assertSame('1.0.0', $manifest['version']);
-            $this->assertSame(0, $manifest['priority']);
+        $this->assertSame('Core', $manifest['name']);
+        $this->assertSame('Core Module', $manifest['description']);
+        $this->assertSame('1.0.0', $manifest['version']);
+        $this->assertSame(0, $manifest['priority']);
 
-            $this->assertSame(
-                [
-                    'Modules\Core\Providers\CoreServiceProvider',
-                ],
-                $manifest['providers']
-            );
+        $this->assertSame(
+            [
+                'Modules\Core\Providers\CoreServiceProvider',
+            ],
+            $manifest['providers']
+        );
 
-            $this->assertSame(
-                [],
-                $manifest['dependencies']
-            );
-      }
+        $this->assertSame(
+            [],
+            $manifest['dependencies']
+        );
+    }
 
-      // public function test_throws_exception_for_invalid_yaml(): void
-      //   {
-      //       $yaml = <<<'YAML'
-      //   name: Core
-      //   description: Core Module
-      //   version:
-      //     - invalid:
-      //   priority: 0
-      //   YAML;
+    // public function test_throws_exception_for_invalid_yaml(): void
+    //   {
+    //       $yaml = <<<'YAML'
+    //   name: Core
+    //   description: Core Module
+    //   version:
+    //     - invalid:
+    //   priority: 0
+    //   YAML;
 
-      //       $parser = new ModuleManifestParser();
+    //       $parser = new ModuleManifestParser();
 
-      //       $this->expectException(\InvalidArgumentException::class);
-      //       $this->expectExceptionMessage(
-      //           'Invalid module manifest YAML.'
-      //       );
+    //       $this->expectException(\InvalidArgumentException::class);
+    //       $this->expectExceptionMessage(
+    //           'Invalid module manifest YAML.'
+    //       );
 
-      //       $parser->parse($yaml);
-      //   }
+    //       $parser->parse($yaml);
+    //   }
 
-      public function test_throws_exception_for_invalid_yaml(): void
-      {
-            $yaml = <<<'YAML'
+    public function test_throws_exception_for_invalid_yaml(): void
+    {
+        $yaml = <<<'YAML'
         name: Core
         description: Core Module
         providers: [
         YAML;
 
-            $parser = new ModuleManifestParser();
+        $parser = new ModuleManifestParser;
 
-            $this->expectException(\InvalidArgumentException::class);
-            $this->expectExceptionMessage('Invalid module manifest YAML.');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid module manifest YAML.');
 
-            $parser->parse($yaml);
-      }
+        $parser->parse($yaml);
+    }
 
-  public function test_parses_complex_manifest(): void
+    public function test_parses_complex_manifest(): void
     {
         $yaml = <<<'YAML'
     name: Core
@@ -108,7 +108,7 @@ final class ModuleManifestParserTest extends TestCase
       - Auth
     YAML;
 
-        $parser = new ModuleManifestParser();
+        $parser = new ModuleManifestParser;
 
         $manifest = $parser->parse($yaml);
 

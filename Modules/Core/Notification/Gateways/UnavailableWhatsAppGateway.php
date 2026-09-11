@@ -10,7 +10,7 @@ use Modules\Core\Platform\Notification\DTO\WhatsAppGatewayResult;
 final class UnavailableWhatsAppGateway implements WhatsAppGatewayInterface
 {
     /**
-     * @param array<string, mixed> $options
+     * @param  array<string, mixed>  $options
      */
     public function send(
         string $tenantId,

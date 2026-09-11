@@ -24,11 +24,17 @@ final class LeaveRequest extends Model
     use HasUuidV7;
 
     public const string STATUS_DRAFT = 'DRAFT';
+
     public const string STATUS_SUBMITTED = 'SUBMITTED';
+
     public const string STATUS_IN_REVIEW = 'IN_REVIEW';
+
     public const string STATUS_APPROVED = 'APPROVED';
+
     public const string STATUS_REJECTED = 'REJECTED';
+
     public const string STATUS_WITHDRAWN = 'WITHDRAWN';
+
     public const string STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'leave_requests';

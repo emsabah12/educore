@@ -38,7 +38,7 @@ abstract class BaseTenantAwareJob implements ShouldQueue
     public int $backoff = 30;
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function __construct(
         string $tenantId,

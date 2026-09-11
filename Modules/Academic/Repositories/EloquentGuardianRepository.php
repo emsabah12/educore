@@ -34,7 +34,7 @@ final class EloquentGuardianRepository implements GuardianRepositoryInterface
             ->first();
 
         if ($guardian === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Guardian::class,
                 [$id],
             );
@@ -54,7 +54,7 @@ final class EloquentGuardianRepository implements GuardianRepositoryInterface
             ->exists();
 
         if (! $membershipExists) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Membership::class,
                 [$membershipId],
             );

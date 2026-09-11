@@ -46,7 +46,7 @@ final class StoreOrganizationUnitRequest extends FormRequest
                 'max:100',
                 Rule::unique('organization_units', 'code')
                     ->where(
-                        fn($query) => $query
+                        fn ($query) => $query
                             ->where(
                                 'tenant_id',
                                 $tenantId,

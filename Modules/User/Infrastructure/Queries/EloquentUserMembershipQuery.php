@@ -62,8 +62,7 @@ final class EloquentUserMembershipQuery implements UserMembershipQueryInterface
             ->orderBy('tenants.name')
             ->get()
             ->map(
-                static fn(object $row): MembershipSummary =>
-                new MembershipSummary(
+                static fn (object $row): MembershipSummary => new MembershipSummary(
                     membershipId: (string) $row->membership_id,
                     membershipStatus: (string) $row->membership_status,
                     tenantId: (string) $row->tenant_id,

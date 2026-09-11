@@ -33,8 +33,6 @@ use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
 use Modules\HR\Http\Controllers\Api\v1\WorkspaceEmployeeProvisioningController;
 
-
-
 /*
 |--------------------------------------------------------------------------
 | HR Module API Routes

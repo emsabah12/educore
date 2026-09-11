@@ -16,13 +16,21 @@ final class RoleCatalogApiTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $adminPersonId;
+
     private string $regularPersonId;
+
     private string $adminUserId;
+
     private string $regularUserId;
+
     private string $adminMembershipId;
+
     private string $regularMembershipId;
+
     private string $adminRoleId;
+
     private string $customRoleId;
 
     protected function setUp(): void

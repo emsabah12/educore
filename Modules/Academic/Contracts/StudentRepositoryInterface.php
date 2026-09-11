@@ -34,7 +34,6 @@ interface StudentRepositoryInterface
      *     nisn?: string|null,
      *     status?: string
      * } $data
-     *
      * @return array<string, mixed>
      */
     public function createProfileForTenant(

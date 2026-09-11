@@ -22,8 +22,11 @@ final class LeaveRequestApprovalStep extends Model
     use HasUuidV7;
 
     public const string STATUS_PENDING = 'PENDING';
+
     public const string STATUS_APPROVED = 'APPROVED';
+
     public const string STATUS_REJECTED = 'REJECTED';
+
     public const string STATUS_SKIPPED = 'SKIPPED';
 
     protected $table = 'leave_request_approval_steps';

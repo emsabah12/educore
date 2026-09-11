@@ -151,7 +151,7 @@ final class InjectOrganizationalContextTest extends TestCase
             $this->requestWithAssignment(
                 'not-a-uuid-v7',
             ),
-            static fn(): Response => response()->json([]),
+            static fn (): Response => response()->json([]),
         );
 
         $this->assertSame(
@@ -191,7 +191,7 @@ final class InjectOrganizationalContextTest extends TestCase
             $this->requestWithAssignment(
                 $assignmentId,
             ),
-            static fn(): Response => response()->json([]),
+            static fn (): Response => response()->json([]),
         );
 
         $payload = $response->getData(true);
@@ -234,7 +234,7 @@ final class InjectOrganizationalContextTest extends TestCase
             $this->requestWithAssignment(
                 $assignmentId,
             ),
-            static fn(): Response => response()->json([]),
+            static fn (): Response => response()->json([]),
         );
 
         $payload = $response->getData(true);
@@ -324,8 +324,7 @@ final class InjectOrganizationalContextTest extends TestCase
             '/api/protected',
             'GET',
             server: [
-                'HTTP_X_EDUCORE_ORGANIZATIONAL_ASSIGNMENT_ID' =>
-                $assignmentId,
+                'HTTP_X_EDUCORE_ORGANIZATIONAL_ASSIGNMENT_ID' => $assignmentId,
             ],
         );
     }

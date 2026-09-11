@@ -227,7 +227,7 @@ final class EloquentGuardianStudentRepository implements GuardianStudentReposito
             ->exists();
 
         if (! $exists) {
-            throw (new ModelNotFoundException())
+            throw (new ModelNotFoundException)
                 ->setModel(
                     'Modules\\Academic\\Models\\Guardian',
                     [$guardianId],
@@ -253,7 +253,7 @@ final class EloquentGuardianStudentRepository implements GuardianStudentReposito
             ->exists();
 
         if (! $exists) {
-            throw (new ModelNotFoundException())
+            throw (new ModelNotFoundException)
                 ->setModel(
                     'Modules\\Academic\\Models\\Student',
                     [$studentId],

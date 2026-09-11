@@ -234,8 +234,7 @@ final class BrowserLoginTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_FAILED',
-                'message' =>
-                    'Invalid authentication credentials.',
+                'message' => 'Invalid authentication credentials.',
             ]);
 
         $this->assertNull(
@@ -321,8 +320,7 @@ final class BrowserLoginTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'BROWSER_SESSION_UNAVAILABLE',
-                'message' =>
-                    'Unable to establish a secure browser session.',
+                'message' => 'Unable to establish a secure browser session.',
             ]);
 
         $this->assertStringNotContainsString(

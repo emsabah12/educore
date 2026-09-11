@@ -6,8 +6,8 @@ namespace Modules\HR\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany; // ditambahkan ke daftar use di atas
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes; // ditambahkan ke daftar use di atas
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Support\Uuid\HasUuidV7;
 use Modules\Core\Tenancy\Traits\BelongsToTenant;

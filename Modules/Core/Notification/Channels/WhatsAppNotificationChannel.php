@@ -21,8 +21,7 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
     ) {}
 
     /**
-     * @param array<string, mixed> $options
-     *
+     * @param  array<string, mixed>  $options
      * @return array{
      *     success: bool,
      *     log_id: string,
@@ -193,18 +192,13 @@ final readonly class WhatsAppNotificationChannel implements NotificationChannelI
         ?string $failureCode,
     ): string {
         return match ($failureCode) {
-            'gateway_not_configured' =>
-            'WhatsApp gateway is not configured.',
+            'gateway_not_configured' => 'WhatsApp gateway is not configured.',
 
-            'invalid_recipient' =>
-            'WhatsApp recipient was rejected by the provider.',
+            'invalid_recipient' => 'WhatsApp recipient was rejected by the provider.',
 
-            'provider_rejected' =>
-            'WhatsApp provider rejected the delivery request.',
+            'provider_rejected' => 'WhatsApp provider rejected the delivery request.',
 
-            default =>
-            'WhatsApp delivery failed.',
+            default => 'WhatsApp delivery failed.',
         };
     }
-
 }

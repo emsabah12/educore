@@ -48,7 +48,7 @@ final class AuthorizationErrorContractTest extends TestCase
                 '/test/tenant-role',
                 'GET',
             ),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
             'admin',
@@ -63,8 +63,7 @@ final class AuthorizationErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ],
             $response->getData(true),
         );
@@ -99,7 +98,7 @@ final class AuthorizationErrorContractTest extends TestCase
                 '/test/tenant-role',
                 'GET',
             ),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
             'admin',
@@ -114,8 +113,7 @@ final class AuthorizationErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHORIZATION_DENIED',
-                'message' =>
-                'You are not allowed to perform this operation.',
+                'message' => 'You are not allowed to perform this operation.',
             ],
             $response->getData(true),
         );
@@ -150,7 +148,7 @@ final class AuthorizationErrorContractTest extends TestCase
                 '/test/tenant-permission',
                 'GET',
             ),
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
             'example.permission',
@@ -165,8 +163,7 @@ final class AuthorizationErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHORIZATION_DENIED',
-                'message' =>
-                'You are not allowed to perform this operation.',
+                'message' => 'You are not allowed to perform this operation.',
             ],
             $response->getData(true),
         );
@@ -204,7 +201,7 @@ final class AuthorizationErrorContractTest extends TestCase
 
         $response = $middleware->handle(
             $request,
-            static fn(): Response => response()->json([
+            static fn (): Response => response()->json([
                 'status' => 'success',
             ]),
         );
@@ -218,8 +215,7 @@ final class AuthorizationErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHORIZATION_DENIED',
-                'message' =>
-                'You are not allowed to perform this operation.',
+                'message' => 'You are not allowed to perform this operation.',
             ],
             $response->getData(true),
         );

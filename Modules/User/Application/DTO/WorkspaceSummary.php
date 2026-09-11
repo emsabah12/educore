@@ -33,12 +33,9 @@ final readonly class WorkspaceSummary
     {
         return [
             'type' => $this->type,
-            'organizational_assignment_id' =>
-            $this->organizationalAssignmentId,
-            'organization_id' =>
-            $this->organizationId,
-            'organization_unit_id' =>
-            $this->organizationUnitId,
+            'organizational_assignment_id' => $this->organizationalAssignmentId,
+            'organization_id' => $this->organizationId,
+            'organization_unit_id' => $this->organizationUnitId,
             'label' => $this->label,
         ];
     }

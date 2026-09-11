@@ -9,7 +9,7 @@ use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 final class ModuleDefinitionBuilder
 {
     /**
-     * @param array<string,mixed> $attributes
+     * @param  array<string,mixed>  $attributes
      */
     private function __construct(
         private array $attributes,
@@ -63,7 +63,7 @@ final class ModuleDefinitionBuilder
     }
 
     /**
-     * @param array<int,string> $providers
+     * @param  array<int,string>  $providers
      */
     public function providers(array $providers): self
     {
@@ -74,7 +74,7 @@ final class ModuleDefinitionBuilder
     }
 
     /**
-     * @param array<int,string> $dependencies
+     * @param  array<int,string>  $dependencies
      */
     public function dependencies(array $dependencies): self
     {
@@ -85,7 +85,7 @@ final class ModuleDefinitionBuilder
     }
 
     /**
-     * @param array<string,mixed> $metadata
+     * @param  array<string,mixed>  $metadata
      */
     public function metadata(array $metadata): self
     {
@@ -96,7 +96,7 @@ final class ModuleDefinitionBuilder
     }
 
     /**
-     * @param array<string,mixed> $extra
+     * @param  array<string,mixed>  $extra
      */
     public function extra(array $extra): self
     {

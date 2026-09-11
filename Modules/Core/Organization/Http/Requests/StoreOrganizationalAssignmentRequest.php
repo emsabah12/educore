@@ -47,7 +47,7 @@ final class StoreOrganizationalAssignmentRequest extends FormRequest
                 'uuid',
                 Rule::exists('memberships', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query
+                        static fn (Builder $query): Builder => $query
                             ->where('tenant_id', $tenantId)
                             ->where('status', 'ACTIVE'),
                     ),
@@ -57,7 +57,7 @@ final class StoreOrganizationalAssignmentRequest extends FormRequest
                 'uuid',
                 Rule::exists('organization_units', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query
+                        static fn (Builder $query): Builder => $query
                             ->where('tenant_id', $tenantId)
                             ->where('organization_id', $organizationId)
                             ->where('is_active', true)

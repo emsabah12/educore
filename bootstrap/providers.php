@@ -1,8 +1,9 @@
 <?php
 
 use App\Providers\AppServiceProvider;
+use Modules\Core\Providers\CoreServiceProvider;
 
 return [
     AppServiceProvider::class,
-    Modules\Core\Providers\CoreServiceProvider::class,
+    CoreServiceProvider::class,
 ];

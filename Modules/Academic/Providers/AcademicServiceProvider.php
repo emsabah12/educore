@@ -6,8 +6,8 @@ namespace Modules\Academic\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
 use Modules\Academic\Contracts\GuardianRepositoryInterface;
+use Modules\Academic\Contracts\GuardianStudentRepositoryInterface;
 use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
 use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
 use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
@@ -95,7 +95,7 @@ final class AcademicServiceProvider extends ServiceProvider
          * Register Academic database migrations.
          */
         $this->loadMigrationsFrom(
-            __DIR__ . '/../Database/Migrations'
+            __DIR__.'/../Database/Migrations'
         );
     }
 }

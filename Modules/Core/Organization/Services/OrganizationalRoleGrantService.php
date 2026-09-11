@@ -19,16 +19,14 @@ use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 
-final readonly class OrganizationalRoleGrantService implements
-    OrganizationalRoleGrantServiceInterface
+final readonly class OrganizationalRoleGrantService implements OrganizationalRoleGrantServiceInterface
 {
     public function __construct(
         private TenantContextInterface $tenantContext,
         private MembershipRepositoryInterface $membershipRepository,
         private OrganizationalAssignmentRepositoryInterface $assignmentRepository,
         private OrganizationalAssignmentRoleRepositoryInterface $grantRepository,
-    ) {
-    }
+    ) {}
 
     public function assignRole(
         string $organizationalAssignmentId,

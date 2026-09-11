@@ -23,8 +23,11 @@ final class OnboardingTemplateTask extends Model
     use HasUuidV7;
 
     public const string CATEGORY_DOCUMENT = 'DOCUMENT';
+
     public const string CATEGORY_ORIENTATION = 'ORIENTATION';
+
     public const string CATEGORY_CONTRACT = 'CONTRACT';
+
     public const string CATEGORY_ADMIN = 'ADMIN';
 
     protected $table = 'onboarding_template_tasks';

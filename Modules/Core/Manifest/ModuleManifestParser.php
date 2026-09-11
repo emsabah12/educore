@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Core\Manifest;
 
+use InvalidArgumentException;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
-use InvalidArgumentException;
 
 final readonly class ModuleManifestParser
 {
@@ -15,7 +15,6 @@ final readonly class ModuleManifestParser
      *
      * @throws InvalidArgumentException
      */
-    
     public function parse(string $content): array
     {
         try {
@@ -35,6 +34,4 @@ final readonly class ModuleManifestParser
 
         return $manifest;
     }
-
-    
 }

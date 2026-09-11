@@ -54,11 +54,9 @@ final class E2EStaleWorkspaceSeeder extends Seeder
                     'ACTIVE',
                 )
                 ->update([
-                    'status' =>
-                        'INACTIVE',
+                    'status' => 'INACTIVE',
 
-                    'updated_at' =>
-                        now(),
+                    'updated_at' => now(),
                 ]);
 
         if (

@@ -55,7 +55,7 @@ final class OrganizationUnitManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $units->map(
-                fn(OrganizationUnit $unit) => $this->summary($unit),
+                fn (OrganizationUnit $unit) => $this->summary($unit),
             ),
         ]);
     }

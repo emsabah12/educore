@@ -7,7 +7,7 @@ namespace Modules\Core\Authorization\DTO;
 final readonly class WorkspaceCapabilityProjection
 {
     /**
-     * @param array<int, string> $permissions
+     * @param  array<int, string>  $permissions
      */
     public function __construct(
         public string $tenantId,
@@ -37,25 +37,17 @@ final readonly class WorkspaceCapabilityProjection
     {
         return [
             'scope' => [
-                'type' =>
-                $this->organizationUnitId === null
+                'type' => $this->organizationUnitId === null
                     ? 'organization'
                     : 'organization_unit',
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->membershipId,
-                'organizational_assignment_id' =>
-                $this->organizationalAssignmentId,
-                'organization_id' =>
-                $this->organizationId,
-                'organization_unit_id' =>
-                $this->organizationUnitId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->membershipId,
+                'organizational_assignment_id' => $this->organizationalAssignmentId,
+                'organization_id' => $this->organizationId,
+                'organization_unit_id' => $this->organizationUnitId,
             ],
-            'is_global_superadmin' =>
-            $this->isGlobalSuperadmin,
-            'permissions' =>
-            $this->permissions,
+            'is_global_superadmin' => $this->isGlobalSuperadmin,
+            'permissions' => $this->permissions,
         ];
     }
 }

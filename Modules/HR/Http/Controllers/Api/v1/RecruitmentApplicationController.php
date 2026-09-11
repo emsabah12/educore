@@ -115,7 +115,7 @@ final class RecruitmentApplicationController extends Controller
         return $this->transition(
             $request,
             $applicationId,
-            fn(string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
+            fn (string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
                 ->startProcessing($tenantId, $applicationId),
         );
     }
@@ -125,7 +125,7 @@ final class RecruitmentApplicationController extends Controller
         return $this->transitionWithDecision(
             $request,
             $applicationId,
-            fn(string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
+            fn (string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
                 ->reject($tenantId, $applicationId, $membershipId, $reason),
         );
     }
@@ -135,7 +135,7 @@ final class RecruitmentApplicationController extends Controller
         return $this->transition(
             $request,
             $applicationId,
-            fn(string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
+            fn (string $tenantId): RecruitmentApplication => $this->applicationLifecycleService
                 ->withdraw($tenantId, $applicationId),
         );
     }
@@ -145,13 +145,13 @@ final class RecruitmentApplicationController extends Controller
         return $this->transitionWithDecision(
             $request,
             $applicationId,
-            fn(string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
+            fn (string $tenantId, string $membershipId, ?string $reason): RecruitmentApplication => $this->applicationLifecycleService
                 ->approveForHiring($tenantId, $applicationId, $membershipId, $reason),
         );
     }
 
     /**
-     * @param callable(string): RecruitmentApplication $operation
+     * @param  callable(string): RecruitmentApplication  $operation
      */
     private function transition(
         Request $request,
@@ -198,7 +198,7 @@ final class RecruitmentApplicationController extends Controller
     }
 
     /**
-     * @param callable(string, string, ?string): RecruitmentApplication $operation
+     * @param  callable(string, string, ?string): RecruitmentApplication  $operation
      */
     private function transitionWithDecision(
         Request $request,

@@ -514,7 +514,7 @@ final class OpenApiRouteCoverageTest extends TestCase
 
                 $key = $this->operationKey(
                     $method,
-                    '/' . $uri,
+                    '/'.$uri,
                 );
 
                 $this->assertArrayNotHasKey(
@@ -546,7 +546,7 @@ final class OpenApiRouteCoverageTest extends TestCase
             strtoupper(
                 trim($method),
             ),
-            '/' . ltrim(
+            '/'.ltrim(
                 trim($path),
                 '/',
             ),

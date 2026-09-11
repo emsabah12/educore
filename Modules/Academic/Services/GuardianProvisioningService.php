@@ -21,7 +21,7 @@ final class GuardianProvisioningService
     ) {}
 
     /**
-     * @param array{nama:string,no_hp?:string|null} $data
+     * @param  array{nama:string,no_hp?:string|null}  $data
      * @return array<string, mixed>
      */
     public function provision(
