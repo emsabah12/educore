@@ -7,6 +7,7 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+use Modules\HR\Http\Controllers\Api\v1\BenefitIdentifierController;
 use Modules\HR\Http\Controllers\Api\v1\BenefitProgramController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationComponentController;
@@ -203,6 +204,30 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.benefit.participations.enroll')
         ->name('api.v1.hr.employments.benefit-participations.enroll');
+
+    // HR-006 §7.7 — Employee Benefit Identifier (nomor BPJS, dst.).
+    // Nested langsung di bawah participationId (bukan employmentId)
+    // karena repository tidak butuh employmentId sama sekali —
+    // benefit_program_id diturunkan server-side dari participation
+    // yang direferensikan, tidak pernah dari input client, jadi FK
+    // komposit tidak pernah bisa "dipaksa" mismatch lewat endpoint ini.
+    //
+    // `index` (membaca value TERDEKRIPSI) digerbang permission
+    // TERPISAH dari `store` (menulis) — membaca identifier mentah
+    // secara operasional lebih sensitif daripada mendaftarkannya.
+    Route::get(
+        '/v1/hr/benefit-participations/{participationId}/identifiers',
+        [BenefitIdentifierController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.benefit.identifiers.view')
+        ->name('api.v1.hr.benefit-participations.identifiers.index');
+
+    Route::post(
+        '/v1/hr/benefit-participations/{participationId}/identifiers',
+        [BenefitIdentifierController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.benefit.identifiers.manage')
+        ->name('api.v1.hr.benefit-participations.identifiers.store');
 
     // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
     Route::get(

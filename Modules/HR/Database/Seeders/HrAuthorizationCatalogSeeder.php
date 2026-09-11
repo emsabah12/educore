@@ -76,6 +76,10 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.benefit.participations.view' => 'View Benefit Participation records for an Employment',
         'hr.benefit.participations.manage' => 'Create Benefit Participation records',
         'hr.benefit.participations.enroll' => 'Enroll (verify + activate) a Benefit Participation (higher-impact operation)',
+
+        // HR-006 §7.7 — Employee Benefit Identifier (sensitive, encrypted).
+        'hr.benefit.identifiers.view' => 'View decrypted Benefit Identifier values (highly sensitive — BPJS numbers etc.)',
+        'hr.benefit.identifiers.manage' => 'Register a new Benefit Identifier for a Participation',
     ];
 
     /**

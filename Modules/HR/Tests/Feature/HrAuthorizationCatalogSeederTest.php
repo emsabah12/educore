@@ -33,6 +33,8 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             'benefit participations view' => ['hr.benefit.participations.view'],
             'benefit participations manage' => ['hr.benefit.participations.manage'],
             'benefit participations enroll' => ['hr.benefit.participations.enroll'],
+            'benefit identifiers view' => ['hr.benefit.identifiers.view'],
+            'benefit identifiers manage' => ['hr.benefit.identifiers.manage'],
         ];
     }
 
@@ -65,6 +67,8 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
 
         $this->assertSame(
             [
+                'hr.benefit.identifiers.manage',
+                'hr.benefit.identifiers.view',
                 'hr.benefit.participations.enroll',
                 'hr.benefit.participations.manage',
                 'hr.benefit.participations.view',
