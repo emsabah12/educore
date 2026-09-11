@@ -13,6 +13,7 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Modules\HR\Models\CompensationAdjustment;
 use Modules\HR\Models\Employment;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\GrantsAuthorizationRole;
 use Tests\Support\GrantsSubscriptionFeature;
@@ -112,6 +113,49 @@ final class CompensationAdjustmentControllerTest extends TestCase
             );
 
         $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
+    /**
+     * Regression: 'currency_code' sebelumnya hanya divalidasi
+     * 'size:3', jadi nilai seperti '12A' lolos FormRequest lalu
+     * ditolak DB CHECK constraint (chk_compensation_adjustments_currency_code)
+     * lewat QueryException mentah -> HTTP 500. Sekarang harus gagal
+     * di FormRequest -> HTTP 422, sebelum sempat menyentuh service/DB.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidCurrencyCodeProvider(): iterable
+    {
+        yield 'contains digits' => ['12A'];
+        yield 'lowercase' => ['idr'];
+        yield 'too short' => ['ID'];
+        yield 'too long' => ['IDRR'];
+    }
+
+    #[DataProvider('invalidCurrencyCodeProvider')]
+    public function test_store_rejects_invalid_currency_code_with_unprocessable_entity(
+        string $invalidCurrencyCode,
+    ): void {
+        $employmentId = $this->createActiveEmploymentFixture();
+
+        $response = $this
+            ->withToken($this->issueToken($this->operatorUserId, $this->operatorMembershipId))
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.compensation-adjustments.store',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+                [
+                    ...$this->validPayload(),
+                    'currency_code' => $invalidCurrencyCode,
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonValidationErrors(['currency_code']);
+
+        $this->assertDatabaseCount('compensation_adjustments', 0);
     }
 
     public function test_full_maker_checker_workflow_end_to_end(): void
