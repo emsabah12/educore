@@ -322,6 +322,7 @@ final class CoreServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Modules\Core\Tenancy\Console\TenantProvisionCommand::class,
+                \Modules\Core\Tenancy\Console\TenantBackfillDefaultOrganizationCommand::class,
             ]);
         }
     }
