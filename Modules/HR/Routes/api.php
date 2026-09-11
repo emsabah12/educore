@@ -206,6 +206,27 @@ Route::middleware([
         ->middleware('tenant.permission:hr.benefit.participations.enroll')
         ->name('api.v1.hr.employments.benefit-participations.enroll');
 
+    Route::post(
+        '/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/suspend',
+        [EmployeeBenefitParticipationController::class, 'suspend']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.manage')
+        ->name('api.v1.hr.employments.benefit-participations.suspend');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/reinstate',
+        [EmployeeBenefitParticipationController::class, 'reinstate']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.manage')
+        ->name('api.v1.hr.employments.benefit-participations.reinstate');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/end',
+        [EmployeeBenefitParticipationController::class, 'end']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.manage')
+        ->name('api.v1.hr.employments.benefit-participations.end');
+
     // HR-006 §7.7 — Employee Benefit Identifier (nomor BPJS, dst.).
     // Nested langsung di bawah participationId (bukan employmentId)
     // karena repository tidak butuh employmentId sama sekali —

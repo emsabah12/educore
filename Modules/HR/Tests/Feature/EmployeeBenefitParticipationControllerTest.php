@@ -219,6 +219,138 @@ final class EmployeeBenefitParticipationControllerTest extends TestCase
         $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
+    public function test_suspend_transitions_enrolled_to_suspended(): void
+    {
+        $employmentId = $this->createActiveEmploymentFixture();
+        $programId = $this->createProgramFixture()->id;
+
+        $participationId = $this->createEnrolledParticipation($employmentId, $programId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.suspend',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+            );
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'SUSPENDED');
+    }
+
+    public function test_reinstate_transitions_suspended_back_to_enrolled(): void
+    {
+        $employmentId = $this->createActiveEmploymentFixture();
+        $programId = $this->createProgramFixture()->id;
+
+        $participationId = $this->createEnrolledParticipation($employmentId, $programId);
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.suspend',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+            )->assertOk();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.reinstate',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+            );
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'ENROLLED');
+    }
+
+    public function test_end_closes_open_participation(): void
+    {
+        $employmentId = $this->createActiveEmploymentFixture();
+        $programId = $this->createProgramFixture()->id;
+
+        $participationId = $this->createEnrolledParticipation($employmentId, $programId);
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.end',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+                ['end_date' => '2026-06-30'],
+            );
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'ENDED');
+        $response->assertJsonPath('data.effective_to', '2026-06-30');
+    }
+
+    public function test_suspend_is_forbidden_without_manage_permission(): void
+    {
+        $employmentId = $this->createActiveEmploymentFixture();
+        $programId = $this->createProgramFixture()->id;
+
+        $participationId = $this->createEnrolledParticipation($employmentId, $programId);
+
+        DB::table('membership_roles')
+            ->where('membership_id', $this->operatorMembershipId)
+            ->delete();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.suspend',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+            );
+
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
+    private function createEnrolledParticipation(
+        string $employmentId,
+        string $programId,
+    ): string {
+        $storeResponse = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.store',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+                [
+                    'benefit_program_id' => $programId,
+                    'effective_from' => '2026-01-01',
+                ],
+            );
+
+        $participationId = $storeResponse->json('data.id');
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.benefit-participations.enroll',
+                    ['employmentId' => $employmentId, 'participationId' => $participationId],
+                    false,
+                ),
+            )->assertOk();
+
+        return $participationId;
+    }
+
     private function issueToken(): string
     {
         return app(TokenManagerInterface::class)

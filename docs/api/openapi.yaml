@@ -5096,6 +5096,24 @@ x-educore-deferred-routes:
     owner: HR
     reason: domain-api-hardening-deferred
 
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/suspend
+    route_name: api.v1.hr.employments.benefit-participations.suspend
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/reinstate
+    route_name: api.v1.hr.employments.benefit-participations.reinstate
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/end
+    route_name: api.v1.hr.employments.benefit-participations.end
+    owner: HR
+    reason: domain-api-hardening-deferred
+
   - method: GET
     path: /api/v1/hr/benefit-participations/{participationId}/identifiers
     route_name: api.v1.hr.benefit-participations.identifiers.index

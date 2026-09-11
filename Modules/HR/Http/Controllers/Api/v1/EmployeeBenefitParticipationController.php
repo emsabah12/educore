@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\HR\Exceptions\BenefitParticipationLifecycleException;
+use Modules\HR\Http\Requests\EndBenefitParticipationRequest;
 use Modules\HR\Http\Requests\StoreBenefitParticipationRequest;
 use Modules\HR\Models\EmployeeBenefitParticipation;
 use Modules\HR\Services\BenefitParticipationService;
@@ -99,6 +100,75 @@ final class EmployeeBenefitParticipationController extends Controller
 
     public function enroll(Request $request, string $employmentId, string $participationId): JsonResponse
     {
+        return $this->transition(
+            $request,
+            $employmentId,
+            fn(string $tenantId, string $actorMembershipId): EmployeeBenefitParticipation => $this->service->enroll(
+                tenantId: $tenantId,
+                employmentId: $employmentId,
+                participationId: $participationId,
+                verifierMembershipId: $actorMembershipId,
+            ),
+        );
+    }
+
+    public function suspend(Request $request, string $employmentId, string $participationId): JsonResponse
+    {
+        return $this->transition(
+            $request,
+            $employmentId,
+            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->suspend(
+                $tenantId,
+                $employmentId,
+                $participationId,
+            ),
+        );
+    }
+
+    public function reinstate(Request $request, string $employmentId, string $participationId): JsonResponse
+    {
+        return $this->transition(
+            $request,
+            $employmentId,
+            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->reinstate(
+                $tenantId,
+                $employmentId,
+                $participationId,
+            ),
+        );
+    }
+
+    public function end(
+        EndBenefitParticipationRequest $request,
+        string $employmentId,
+        string $participationId,
+    ): JsonResponse {
+        /** @var array{end_date: string} $payload */
+        $payload = $request->validated();
+
+        return $this->transition(
+            $request,
+            $employmentId,
+            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->end(
+                $tenantId,
+                $employmentId,
+                $participationId,
+                $payload['end_date'],
+            ),
+        );
+    }
+
+    /**
+     * @param callable(string, string): EmployeeBenefitParticipation $operation
+     *     Menerima (tenantId, actorMembershipId) — parameter kedua
+     *     hanya relevan untuk enroll(), disediakan seragam supaya
+     *     satu helper ini dipakai keempat aksi transisi.
+     */
+    private function transition(
+        Request $request,
+        string $employmentId,
+        callable $operation,
+    ): JsonResponse {
         $tenantId = $request->attributes->get('authenticated_tenant_id');
         $membershipId = $request->attributes->get('authenticated_membership_id');
 
@@ -107,12 +177,7 @@ final class EmployeeBenefitParticipationController extends Controller
         }
 
         try {
-            $participation = $this->service->enroll(
-                tenantId: $tenantId,
-                employmentId: $employmentId,
-                participationId: $participationId,
-                verifierMembershipId: $membershipId,
-            );
+            $participation = $operation($tenantId, $membershipId);
         } catch (ModelNotFoundException) {
             return $this->notFoundResponse(
                 sprintf(
