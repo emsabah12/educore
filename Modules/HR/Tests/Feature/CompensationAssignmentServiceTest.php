@@ -411,6 +411,231 @@ final class CompensationAssignmentServiceTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // end
+    // ---------------------------------------------------------------
+
+    public function test_end_transitions_approved_to_ended_and_sets_effective_to(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $approved = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $ended = $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $approved->id,
+            endDate: '2026-06-30',
+        );
+
+        $this->assertSame(CompensationAssignment::STATUS_ENDED, $ended->status);
+        $this->assertSame('2026-06-30', $ended->effective_to->toDateString());
+        $this->assertNotNull($ended->ended_at);
+    }
+
+    public function test_end_rejects_non_approved_assignment(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            endDate: '2026-06-30',
+        );
+    }
+
+    public function test_end_rejects_assignment_with_already_fixed_effective_to(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+                'effective_to' => '2026-12-31',
+            ],
+        );
+
+        $approved = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $approved->id,
+            endDate: '2026-06-30',
+        );
+    }
+
+    public function test_end_rejects_end_date_before_effective_from(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-06-01',
+            ],
+        );
+
+        $approved = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $approved->id,
+            endDate: '2026-01-01',
+        );
+    }
+
+    public function test_end_rejects_assignment_from_different_employment(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $otherEmploymentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $approved = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $otherEmploymentId,
+            assignmentId: $approved->id,
+            endDate: '2026-06-30',
+        );
+    }
+
+    public function test_ended_assignment_frees_up_period_for_new_approved_assignment(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $first = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $approvedFirst = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $first->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->service->end(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $approvedFirst->id,
+            endDate: '2026-06-30',
+        );
+
+        $second = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '6000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-07-01',
+            ],
+        );
+
+        $approvedSecond = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $second->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->assertSame(
+            CompensationAssignment::STATUS_APPROVED,
+            $approvedSecond->status,
+        );
+    }
+
+    // ---------------------------------------------------------------
     // Fixtures
     // ---------------------------------------------------------------
 

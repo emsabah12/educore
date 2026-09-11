@@ -17,10 +17,10 @@ use Modules\HR\Services\Concerns\LocksEmploymentRecords;
 
 /**
  * Implementasi algoritma transaksi Compensation Assignment dari
- * HR-006 §7.3 — createDraft (belum menyentuh transisi
- * approve/end/correct, itu step berikutnya karena masing-masing
- * punya invariant sendiri yang lebih baik ditulis terpisah daripada
- * satu method raksasa).
+ * HR-006 §7.3 — createDraft, approve, end. Alur koreksi/supersede
+ * (`supersedes_assignment_id`) BELUM disertakan di sini — itu step
+ * berikutnya karena punya invariant sendiri yang lebih baik ditulis
+ * terpisah daripada satu method raksasa.
  *
  * Model ini murni struktur data (lihat CompensationAssignment) —
  * kelas ini satu-satunya tempat yang boleh menulis transisi status
@@ -311,6 +311,116 @@ final readonly class CompensationAssignmentService
 
                 throw $exception;
             }
+
+            return $assignment->refresh();
+        });
+    }
+
+    /**
+     * HR-006 §7.3 — End an open APPROVED Compensation Assignment.
+     *
+     * "Open" berarti `effective_to IS NULL` (belum punya batas akhir
+     * tetap) — assignment yang effective_to-nya SUDAH ditentukan
+     * sejak awal (mis. tunjangan sementara berdurasi tetap) tidak
+     * relevan untuk `end()`, batasnya memang sudah didefinisikan
+     * sejak APPROVED.
+     *
+     * Transisi status ke ENDED (bukan tetap APPROVED) — konsisten
+     * dengan CHECK constraint `chk_compensation_assignments_approval_fields`
+     * yang mengelompokkan ENDED sebagai status "pasca-approval", dan
+     * membebaskannya dari exclusion constraint overlap (yang hanya
+     * berlaku untuk status APPROVED) begitu ditutup.
+     */
+    public function end(
+        string $tenantId,
+        string $employmentId,
+        string $assignmentId,
+        string $endDate,
+    ): CompensationAssignment {
+        return DB::transaction(function () use (
+            $tenantId,
+            $employmentId,
+            $assignmentId,
+            $endDate,
+        ): CompensationAssignment {
+            // Employment sengaja TIDAK diwajibkan ACTIVE di sini —
+            // menutup fakta kompensasi adalah tindakan administratif
+            // yang berdiri sendiri, sah dilakukan kapan pun
+            // (termasuk setelah Employment sendiri sudah ENDED).
+            // Method ini murni memverifikasi Employment benar-benar
+            // ada di tenant yang sama (tenant-safety).
+            $employment = $this->lockEmploymentForTenant(
+                $employmentId,
+                $tenantId,
+            );
+
+            /** @var CompensationAssignment|null $assignment */
+            $assignment = CompensationAssignment::query()
+                ->withoutGlobalScope('tenant')
+                ->where('id', $assignmentId)
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($assignment === null) {
+                throw (new ModelNotFoundException())->setModel(
+                    CompensationAssignment::class,
+                    [$assignmentId],
+                );
+            }
+
+            if ($assignment->employment_id !== $employment->id) {
+                throw new CompensationLifecycleException(
+                    sprintf(
+                        'CompensationAssignment [%s] does not belong to Employment [%s].',
+                        $assignmentId,
+                        $employmentId,
+                    ),
+                );
+            }
+
+            if ($assignment->status !== CompensationAssignment::STATUS_APPROVED) {
+                throw new CompensationLifecycleException(
+                    sprintf(
+                        'CompensationAssignment [%s] cannot be ended from status [%s]. Only APPROVED assignments may be ended.',
+                        $assignmentId,
+                        $assignment->status,
+                    ),
+                );
+            }
+
+            if ($assignment->effective_to !== null) {
+                throw new CompensationLifecycleException(
+                    sprintf(
+                        'CompensationAssignment [%s] already has a fixed effective_to [%s] and is not open-ended.',
+                        $assignmentId,
+                        $assignment->effective_to->toDateString(),
+                    ),
+                );
+            }
+
+            $endDateParsed = Carbon::parse($endDate);
+
+            if ($endDateParsed->lt($assignment->effective_from)) {
+                throw new CompensationLifecycleException(
+                    sprintf(
+                        'end date [%s] cannot be earlier than the assignment effective_from [%s].',
+                        $endDateParsed->toDateString(),
+                        $assignment->effective_from->toDateString(),
+                    ),
+                );
+            }
+
+            if ($endDateParsed->gt(Carbon::today())) {
+                throw new CompensationLifecycleException(
+                    'end date cannot be in the future. Scheduled/future ending is not supported in this phase.',
+                );
+            }
+
+            $assignment->status = CompensationAssignment::STATUS_ENDED;
+            $assignment->effective_to = $endDateParsed->toDateString();
+            $assignment->ended_at = now();
+            $assignment->save();
 
             return $assignment->refresh();
         });
