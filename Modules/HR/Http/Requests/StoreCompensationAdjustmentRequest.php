@@ -41,7 +41,7 @@ final class StoreCompensationAdjustmentRequest extends FormRequest
             'currency_code' => [
                 'required',
                 'string',
-                'size:3',
+                'regex:/^[A-Z]{3}$/',
             ],
             'target_period_start' => [
                 'required',

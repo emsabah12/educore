@@ -14,6 +14,7 @@ use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Modules\HR\Models\CompensationComponent;
 use Modules\HR\Models\Employment;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\GrantsAuthorizationRole;
 use Tests\Support\GrantsSubscriptionFeature;
@@ -139,6 +140,53 @@ final class CompensationAssignmentControllerTest extends TestCase
             );
 
         $response->assertStatus(Response::HTTP_NOT_FOUND);
+    }
+
+    /**
+     * Regression: 'currency_code' sebelumnya hanya divalidasi
+     * 'size:3', jadi nilai seperti '12A' lolos FormRequest lalu
+     * ditolak DB CHECK constraint
+     * (chk_compensation_assignments_currency_code) lewat
+     * QueryException mentah -> HTTP 500. Sekarang harus gagal di
+     * FormRequest -> HTTP 422, sebelum sempat menyentuh service/DB.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidCurrencyCodeProvider(): iterable
+    {
+        yield 'contains digits' => ['12A'];
+        yield 'lowercase' => ['idr'];
+        yield 'too short' => ['ID'];
+        yield 'too long' => ['IDRR'];
+    }
+
+    #[DataProvider('invalidCurrencyCodeProvider')]
+    public function test_store_rejects_invalid_currency_code_with_unprocessable_entity(
+        string $invalidCurrencyCode,
+    ): void {
+        $employmentId = $this->createActiveEmploymentFixture();
+        $componentId = $this->createComponentFixture()->id;
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route(
+                    'api.v1.hr.employments.compensation-assignments.store',
+                    ['employmentId' => $employmentId],
+                    false,
+                ),
+                [
+                    'compensation_component_id' => $componentId,
+                    'amount' => '5000000',
+                    'currency_code' => $invalidCurrencyCode,
+                    'effective_from' => '2026-01-01',
+                ],
+            );
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonValidationErrors(['currency_code']);
+
+        $this->assertDatabaseCount('compensation_assignments', 0);
     }
 
     public function test_index_lists_assignments_for_employment(): void
