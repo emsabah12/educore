@@ -67,6 +67,15 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.compensation.assignments.view' => 'View Compensation Assignment records for an Employment',
         'hr.compensation.assignments.manage' => 'Create draft / end Compensation Assignment records',
         'hr.compensation.assignments.approve' => 'Approve or correct a Compensation Assignment (higher-impact operation)',
+
+        // HR-006 §7.5 — Benefit Program catalog.
+        'hr.benefit.programs.view' => 'View Benefit Program catalog',
+        'hr.benefit.programs.manage' => 'Create/update Benefit Program catalog',
+
+        // HR-006 §7.6 — Employee Benefit Participation lifecycle.
+        'hr.benefit.participations.view' => 'View Benefit Participation records for an Employment',
+        'hr.benefit.participations.manage' => 'Create Benefit Participation records',
+        'hr.benefit.participations.enroll' => 'Enroll (verify + activate) a Benefit Participation (higher-impact operation)',
     ];
 
     /**

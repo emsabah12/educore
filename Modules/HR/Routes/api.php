@@ -7,8 +7,10 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+use Modules\HR\Http\Controllers\Api\v1\BenefitProgramController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationComponentController;
+use Modules\HR\Http\Controllers\Api\v1\EmployeeBenefitParticipationController;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
@@ -161,6 +163,46 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.compensation.assignments.approve')
         ->name('api.v1.hr.employments.compensation-assignments.correct');
+
+    // HR-006 §7.5 — Benefit Program catalog.
+    Route::get(
+        '/v1/hr/benefits/programs',
+        [BenefitProgramController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.benefit.programs.view')
+        ->name('api.v1.hr.benefits.programs.index');
+
+    Route::post(
+        '/v1/hr/benefits/programs',
+        [BenefitProgramController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.benefit.programs.manage')
+        ->name('api.v1.hr.benefits.programs.store');
+
+    // HR-006 §7.6 — Employee Benefit Participation lifecycle.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/benefit-participations',
+        [EmployeeBenefitParticipationController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.view')
+        ->name('api.v1.hr.employments.benefit-participations.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/benefit-participations',
+        [EmployeeBenefitParticipationController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.manage')
+        ->name('api.v1.hr.employments.benefit-participations.store');
+
+    // enroll SENGAJA memakai permission terpisah (higher-impact
+    // operation — sekaligus tindakan verifikasi administratif),
+    // konsisten dengan pola hr.compensation.assignments.approve.
+    Route::post(
+        '/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/enroll',
+        [EmployeeBenefitParticipationController::class, 'enroll']
+    )
+        ->middleware('tenant.permission:hr.benefit.participations.enroll')
+        ->name('api.v1.hr.employments.benefit-participations.enroll');
 
     // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
     Route::get(

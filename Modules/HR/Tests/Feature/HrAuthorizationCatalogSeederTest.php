@@ -28,6 +28,11 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             'compensation assignments view' => ['hr.compensation.assignments.view'],
             'compensation assignments manage' => ['hr.compensation.assignments.manage'],
             'compensation assignments approve' => ['hr.compensation.assignments.approve'],
+            'benefit programs view' => ['hr.benefit.programs.view'],
+            'benefit programs manage' => ['hr.benefit.programs.manage'],
+            'benefit participations view' => ['hr.benefit.participations.view'],
+            'benefit participations manage' => ['hr.benefit.participations.manage'],
+            'benefit participations enroll' => ['hr.benefit.participations.enroll'],
         ];
     }
 
@@ -60,6 +65,11 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
 
         $this->assertSame(
             [
+                'hr.benefit.participations.enroll',
+                'hr.benefit.participations.manage',
+                'hr.benefit.participations.view',
+                'hr.benefit.programs.manage',
+                'hr.benefit.programs.view',
                 'hr.compensation.assignments.approve',
                 'hr.compensation.assignments.manage',
                 'hr.compensation.assignments.view',

@@ -5065,6 +5065,36 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.employments.compensation-assignments.correct
     owner: HR
     reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/benefits/programs
+    route_name: api.v1.hr.benefits.programs.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/benefits/programs
+    route_name: api.v1.hr.benefits.programs.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: GET
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations
+    route_name: api.v1.hr.employments.benefit-participations.index
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations
+    route_name: api.v1.hr.employments.benefit-participations.store
+    owner: HR
+    reason: domain-api-hardening-deferred
+
+  - method: POST
+    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/enroll
+    route_name: api.v1.hr.employments.benefit-participations.enroll
+    owner: HR
+    reason: domain-api-hardening-deferred
   - method: POST
     path: /api/v1/core/tenants/with-new-admin
     route_name: api.v1.core.tenants.store-with-new-admin
