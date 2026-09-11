@@ -47,8 +47,8 @@ final class TenantActivationService
 
     /**
      * @return Organization|null Organization default yang baru
-     *     dibuat, atau null kalau tenant sudah punya Organization
-     *     sebelumnya (no-op, lihat catatan kelas).
+     *                           dibuat, atau null kalau tenant sudah punya Organization
+     *                           sebelumnya (no-op, lihat catatan kelas).
      */
     public function activate(string $tenantId): ?Organization
     {
@@ -76,7 +76,7 @@ final class TenantActivationService
 
         try {
             return DB::transaction(
-                fn(): ?Organization => $this->activateWithinTransaction(
+                fn (): ?Organization => $this->activateWithinTransaction(
                     $tenantId,
                     (string) $tenant->name,
                 ),
@@ -125,13 +125,13 @@ final class TenantActivationService
             ->where('status', 'ACTIVE')
             ->whereHas(
                 'roles',
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('roles.tenant_id')
                     ->where('roles.name', self::ADMIN_ROLE_NAME),
             )
             ->pluck('id')
             ->map(
-                fn($id): string => (string) $id,
+                fn ($id): string => (string) $id,
             )
             ->all();
     }

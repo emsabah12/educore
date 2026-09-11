@@ -33,7 +33,7 @@ final class TenantAwareJobMiddlewareTest extends TestCase
         );
 
         $result = $middleware->handle(
-            new stdClass(),
+            new stdClass,
             function (
                 object $job,
             ) use (
@@ -96,7 +96,7 @@ final class TenantAwareJobMiddlewareTest extends TestCase
 
         try {
             $middleware->handle(
-                new stdClass(),
+                new stdClass,
                 function () use (
                     $tenantContext,
                     $tenantId,
@@ -149,7 +149,7 @@ final class TenantAwareJobMiddlewareTest extends TestCase
 
         try {
             $middleware->handle(
-                new stdClass(),
+                new stdClass,
                 function () use (
                     &$jobWasExecuted,
                 ): void {
@@ -186,7 +186,7 @@ final class TenantAwareJobMiddlewareTest extends TestCase
 
         try {
             $middleware->handle(
-                new stdClass(),
+                new stdClass,
                 function () use (
                     &$jobWasExecuted,
                 ): void {

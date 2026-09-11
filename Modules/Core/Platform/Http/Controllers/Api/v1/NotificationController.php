@@ -111,12 +111,9 @@ final class NotificationController extends Controller
                 $tenantId,
                 $operatorId,
                 [
-                    'recipient' =>
-                    $payload['recipient'],
-                    'body' =>
-                    $payload['body'],
-                    'options' =>
-                    $options,
+                    'recipient' => $payload['recipient'],
+                    'body' => $payload['body'],
+                    'options' => $options,
                 ],
             )->onConnection(
                 'database',
@@ -156,10 +153,8 @@ final class NotificationController extends Controller
                 $tenantId,
                 $operatorId,
                 [
-                    'recipient' =>
-                    $payload['recipient'],
-                    'channel' =>
-                    'WHATSAPP',
+                    'recipient' => $payload['recipient'],
+                    'channel' => 'WHATSAPP',
                 ],
             );
         } catch (Throwable $auditException) {
@@ -171,8 +166,7 @@ final class NotificationController extends Controller
         return response()->json(
             [
                 'status' => 'success',
-                'message' =>
-                'Notification dispatch has been accepted and queued for transmission.',
+                'message' => 'Notification dispatch has been accepted and queued for transmission.',
             ],
             Response::HTTP_ACCEPTED,
         );

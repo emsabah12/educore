@@ -19,14 +19,19 @@ use Tests\TestCase;
 
 final class LeaveEntitlementAndApprovalPolicyControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $employeeId;
+
     private string $employmentId;
+
     private string $leaveTypeId;
 
     protected function setUp(): void
@@ -309,7 +314,7 @@ final class LeaveEntitlementAndApprovalPolicyControllerTest extends TestCase
     private function createLeaveTypeFixture(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji HTTP',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,

@@ -110,8 +110,7 @@ final class GlobalApiLoginContractTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_FAILED',
-                'message' =>
-                    'Invalid authentication credentials.',
+                'message' => 'Invalid authentication credentials.',
             ]);
 
         $this->assertNull(

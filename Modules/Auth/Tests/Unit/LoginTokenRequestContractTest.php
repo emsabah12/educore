@@ -13,7 +13,7 @@ final class LoginTokenRequestContractTest extends TestCase
 {
     public function test_login_request_declares_identifier_as_required_string(): void
     {
-        $rules = (new LoginTokenRequest())->rules();
+        $rules = (new LoginTokenRequest)->rules();
 
         $this->assertArrayHasKey(
             'identifier',
@@ -34,7 +34,7 @@ final class LoginTokenRequestContractTest extends TestCase
 
     public function test_login_request_does_not_require_legacy_tenant_aware_fields(): void
     {
-        $rules = (new LoginTokenRequest())->rules();
+        $rules = (new LoginTokenRequest)->rules();
 
         $legacyCredentialFields = array_values(
             array_intersect(

@@ -25,7 +25,7 @@ interface NotificationAttemptStoreInterface
     /**
      * Menandai durable attempt sebagai berhasil terkirim.
      *
-     * @param array<string, mixed> $providerMetadata
+     * @param  array<string, mixed>  $providerMetadata
      */
     public function markSent(
         string $tenantId,
@@ -36,7 +36,7 @@ interface NotificationAttemptStoreInterface
     /**
      * Menandai durable attempt sebagai gagal.
      *
-     * @param array<string, mixed> $providerMetadata
+     * @param  array<string, mixed>  $providerMetadata
      */
     public function markFailed(
         string $tenantId,

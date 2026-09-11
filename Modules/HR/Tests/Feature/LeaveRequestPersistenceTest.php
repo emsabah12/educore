@@ -20,6 +20,7 @@ final class LeaveRequestPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -204,7 +205,7 @@ final class LeaveRequestPersistenceTest extends TestCase
     private function createLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,
@@ -223,8 +224,8 @@ final class LeaveRequestPersistenceTest extends TestCase
             'employment_id' => $employmentId,
             'leave_type_id' => $leaveTypeId,
             'status' => $status,
-            'starts_at' => $startsAt . ' 00:00:00',
-            'ends_at' => $endsAt . ' 00:00:00',
+            'starts_at' => $startsAt.' 00:00:00',
+            'ends_at' => $endsAt.' 00:00:00',
             'request_timezone' => 'Asia/Jakarta',
             'requested_units' => 2,
             'unit' => LeaveType::UNIT_DAY,

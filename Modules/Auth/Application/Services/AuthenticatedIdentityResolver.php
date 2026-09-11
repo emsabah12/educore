@@ -71,7 +71,7 @@ final readonly class AuthenticatedIdentityResolver
     }
 
     /**
-     * @param array<string, mixed> $claims
+     * @param  array<string, mixed>  $claims
      */
     private function extractStringClaim(
         array $claims,

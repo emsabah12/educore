@@ -29,7 +29,7 @@ final class PlatformTenantControllerTest extends TestCase
 
         Tenant::query()->create([
             'name' => 'Sekolah Contoh',
-            'subdomain' => 'sekolah-contoh-' . uniqid(),
+            'subdomain' => 'sekolah-contoh-'.uniqid(),
             'is_active' => true,
         ]);
 

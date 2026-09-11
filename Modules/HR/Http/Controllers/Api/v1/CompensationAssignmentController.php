@@ -53,7 +53,7 @@ final class CompensationAssignmentController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $assignments->map(
-                fn(CompensationAssignment $assignment): array => $this->serialize($assignment),
+                fn (CompensationAssignment $assignment): array => $this->serialize($assignment),
             ),
         ]);
     }
@@ -112,7 +112,7 @@ final class CompensationAssignmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId, string $approverMembershipId): CompensationAssignment => $this->service->approve(
+            fn (string $tenantId, string $approverMembershipId): CompensationAssignment => $this->service->approve(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 assignmentId: $assignmentId,
@@ -132,7 +132,7 @@ final class CompensationAssignmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): CompensationAssignment => $this->service->end(
+            fn (string $tenantId): CompensationAssignment => $this->service->end(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 assignmentId: $assignmentId,
@@ -163,7 +163,7 @@ final class CompensationAssignmentController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): CompensationAssignment => $this->service->correct(
+            fn (string $tenantId): CompensationAssignment => $this->service->correct(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 originalAssignmentId: $assignmentId,
@@ -173,10 +173,10 @@ final class CompensationAssignmentController extends Controller
     }
 
     /**
-     * @param callable(string, string): CompensationAssignment $operation
-     *     Menerima (tenantId, approverMembershipId) — parameter kedua
-     *     HANYA relevan untuk `approve()`, tapi disediakan seragam
-     *     supaya satu helper ini bisa dipakai ketiga aksi transisi.
+     * @param  callable(string, string): CompensationAssignment  $operation
+     *                                                                       Menerima (tenantId, approverMembershipId) — parameter kedua
+     *                                                                       HANYA relevan untuk `approve()`, tapi disediakan seragam
+     *                                                                       supaya satu helper ini bisa dipakai ketiga aksi transisi.
      */
     private function transition(
         Request $request,

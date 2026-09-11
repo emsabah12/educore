@@ -13,7 +13,7 @@ final class ModuleRepositoryTest extends TestCase
 {
     public function test_returns_all_modules(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $registry->register(
             ModuleDefinitionBuilder::make()
@@ -36,7 +36,7 @@ final class ModuleRepositoryTest extends TestCase
 
     public function test_finds_module_by_name(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $definition = ModuleDefinitionBuilder::make()
             ->name('Core')
@@ -53,7 +53,7 @@ final class ModuleRepositoryTest extends TestCase
 
     public function test_checks_module_exists(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $registry->register(
             ModuleDefinitionBuilder::make()
@@ -74,7 +74,7 @@ final class ModuleRepositoryTest extends TestCase
 
     public function test_returns_module_count(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $registry->register(
             ModuleDefinitionBuilder::make()

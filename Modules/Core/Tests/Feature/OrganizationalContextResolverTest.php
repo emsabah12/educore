@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Organization\Context\OrganizationalContext;
@@ -264,7 +265,7 @@ final class OrganizationalContextResolverTest extends TestCase
 
     public function test_rejects_assignment_from_another_tenant(): void
     {
-        [$tenantA, , , ] =
+        [$tenantA] =
             $this->createAuthenticatedPlacement(
                 withUnit: false,
             );
@@ -494,8 +495,8 @@ final class OrganizationalContextResolverTest extends TestCase
     ): array {
         $tenant = $this->createTenant(
             'Organizational Context Tenant',
-            'organizational-context-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'organizational-context-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
         );
         $this->activateTenant($tenant);

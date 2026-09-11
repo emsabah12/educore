@@ -38,8 +38,7 @@ final readonly class TenantCapabilityProjectionQuery
         );
 
         if ($user === null) {
-            throw CapabilityProjectionContextException
-                ::unresolvedAuthenticatedUser();
+            throw CapabilityProjectionContextException::unresolvedAuthenticatedUser();
         }
 
         $permissionCatalog = $this->permissionCatalogQuery

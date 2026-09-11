@@ -20,16 +20,23 @@ final class BenefitProgram extends Model
     use HasUuidV7;
 
     public const CATEGORY_STATUTORY = 'STATUTORY';
+
     public const CATEGORY_GOVERNMENT = 'GOVERNMENT';
+
     public const CATEGORY_INSTITUTIONAL = 'INSTITUTIONAL';
+
     public const CATEGORY_OTHER = 'OTHER';
 
     public const BENEFICIARY_SCOPE_EMPLOYEE = 'EMPLOYEE';
+
     public const BENEFICIARY_SCOPE_DEPENDENT = 'DEPENDENT';
+
     public const BENEFICIARY_SCOPE_EITHER = 'EITHER';
 
     public const PAYROLL_RELEVANCE_NONE = 'NONE';
+
     public const PAYROLL_RELEVANCE_ELIGIBILITY_INPUT = 'ELIGIBILITY_INPUT';
+
     public const PAYROLL_RELEVANCE_EXTERNAL_PAYMENT_TRACKING = 'EXTERNAL_PAYMENT_TRACKING';
 
     protected $table = 'benefit_programs';

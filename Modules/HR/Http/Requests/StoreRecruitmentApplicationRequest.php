@@ -31,7 +31,7 @@ final class StoreRecruitmentApplicationRequest extends FormRequest
                 'uuid',
                 Rule::exists('recruitment_candidates', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query
+                        static fn (Builder $query): Builder => $query
                             ->where('tenant_id', $tenantId)
                             ->where('status', 'ACTIVE'),
                     ),

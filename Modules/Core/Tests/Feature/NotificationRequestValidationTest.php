@@ -109,7 +109,7 @@ final class NotificationRequestValidationTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ])
             ->postJson(
                 '/api/v1/core/notifications/dispatch',
@@ -118,8 +118,7 @@ final class NotificationRequestValidationTest extends TestCase
                     'body' => 'Notification identity spoofing attempt.',
                     'options' => [
                         'title' => 'Identity Spoof Test',
-                        'user_id' =>
-                        '019f62f3-f5b5-7216-9578-0af9cb3b5b99',
+                        'user_id' => '019f62f3-f5b5-7216-9578-0af9cb3b5b99',
                     ],
                 ],
             );
@@ -144,7 +143,7 @@ final class NotificationRequestValidationTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ])
             ->postJson(
                 '/api/v1/core/notifications/dispatch',
@@ -178,7 +177,7 @@ final class NotificationRequestValidationTest extends TestCase
         $response = $this
             ->withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ])
             ->postJson(
                 '/api/v1/core/notifications/dispatch',

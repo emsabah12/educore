@@ -31,9 +31,13 @@ final class EmployeeBenefitParticipation extends Model
     use HasUuidV7;
 
     public const STATUS_ELIGIBLE = 'ELIGIBLE';
+
     public const STATUS_ENROLLED = 'ENROLLED';
+
     public const STATUS_SUSPENDED = 'SUSPENDED';
+
     public const STATUS_ENDED = 'ENDED';
+
     public const STATUS_INELIGIBLE = 'INELIGIBLE';
 
     protected $table = 'employee_benefit_participations';

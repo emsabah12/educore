@@ -23,11 +23,15 @@ final class CompensationComponent extends Model
     use HasUuidV7;
 
     public const CATEGORY_BASE_PAY = 'BASE_PAY';
+
     public const CATEGORY_ALLOWANCE = 'ALLOWANCE';
+
     public const CATEGORY_RATE = 'RATE';
+
     public const CATEGORY_OTHER_EARNING_INPUT = 'OTHER_EARNING_INPUT';
 
     public const VALUE_MODE_FIXED_AMOUNT = 'FIXED_AMOUNT';
+
     public const VALUE_MODE_RATE_PER_UNIT = 'RATE_PER_UNIT';
 
     protected $table = 'compensation_components';

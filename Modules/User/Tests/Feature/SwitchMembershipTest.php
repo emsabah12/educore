@@ -280,8 +280,7 @@ final class SwitchMembershipTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'MEMBERSHIP_SWITCH_DENIED',
-                'message' =>
-                'Requested membership is not available for this user.',
+                'message' => 'Requested membership is not available for this user.',
             ]);
 
         $this->assertStatelessSwitchContext();
@@ -303,8 +302,7 @@ final class SwitchMembershipTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'MEMBERSHIP_SWITCH_DENIED',
-                'message' =>
-                'Requested membership is not available for this user.',
+                'message' => 'Requested membership is not available for this user.',
             ]);
     }
 
@@ -324,8 +322,7 @@ final class SwitchMembershipTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'MEMBERSHIP_SWITCH_DENIED',
-                'message' =>
-                'Requested membership is not available for this user.',
+                'message' => 'Requested membership is not available for this user.',
             ]);
     }
 

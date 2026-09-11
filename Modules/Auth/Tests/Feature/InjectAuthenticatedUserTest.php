@@ -9,9 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Token\Contracts\TokenManagerInterface;
+use Modules\Core\Support\Uuid\UuidV7;
 use Tests\TestCase;
 
 final class InjectAuthenticatedUserTest extends TestCase
@@ -19,7 +19,9 @@ final class InjectAuthenticatedUserTest extends TestCase
     use RefreshDatabase;
 
     private string $activeUserId;
+
     private string $suspendedUserId;
+
     private string $tenantId;
 
     protected function setUp(): void

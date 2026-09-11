@@ -22,12 +22,15 @@ use Tests\TestCase;
 
 final class HireConversionControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $employmentTypeId;
 
     protected function setUp(): void
@@ -111,7 +114,7 @@ final class HireConversionControllerTest extends TestCase
         $candidateId = $this->createCandidateWithIdentifierFixture('3223333333333333');
 
         $this->activateTenantContext();
-        $applicationService = new RecruitmentApplicationLifecycleService();
+        $applicationService = new RecruitmentApplicationLifecycleService;
         $applicationId = $applicationService->submitApplication($this->tenantId, $vacancyId, $candidateId)->id;
         app(TenantContextInterface::class)->clear();
 
@@ -178,7 +181,7 @@ final class HireConversionControllerTest extends TestCase
         $candidateId = $this->createCandidateWithIdentifierFixture($nationalId);
 
         $this->activateTenantContext();
-        $applicationService = new RecruitmentApplicationLifecycleService();
+        $applicationService = new RecruitmentApplicationLifecycleService;
         $application = $applicationService->submitApplication($this->tenantId, $vacancyId, $candidateId);
         $applicationService->startProcessing($this->tenantId, $application->id);
         $applicationService->approveForHiring($this->tenantId, $application->id, $this->operatorMembershipId);
@@ -192,7 +195,7 @@ final class HireConversionControllerTest extends TestCase
         $this->activateTenantContext();
 
         $candidateId = RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Hire Conversion HTTP ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Hire Conversion HTTP '.Str::random(6),
         ])->id;
 
         app(RecruitmentCandidateIdentifierRepositoryInterface::class)->store(
@@ -214,7 +217,7 @@ final class HireConversionControllerTest extends TestCase
         DB::table('positions')->insert([
             'id' => $positionId,
             'tenant_id' => $this->tenantId,
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Hire Conversion HTTP',
             'is_active' => true,
             'created_at' => now(),
@@ -233,9 +236,9 @@ final class HireConversionControllerTest extends TestCase
 
         $this->activateTenantContext();
 
-        $vacancyService = new RecruitmentVacancyLifecycleService();
+        $vacancyService = new RecruitmentVacancyLifecycleService;
         $vacancy = $vacancyService->createDraft($this->tenantId, [
-            'code' => 'VAC-HIRE-HTTP-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-HIRE-HTTP-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $positionId,
             'organization_id' => $organizationId,
@@ -320,7 +323,7 @@ final class HireConversionControllerTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),
@@ -331,7 +334,7 @@ final class HireConversionControllerTest extends TestCase
     }
 
     /**
-     * @param list<string> $permissionNames
+     * @param  list<string>  $permissionNames
      */
     private function grantSinglePermissionRole(array $permissionNames): void
     {
@@ -339,7 +342,7 @@ final class HireConversionControllerTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'manage-only-' . Str::lower(Str::random(6)),
+            'name' => 'manage-only-'.Str::lower(Str::random(6)),
             'display_name' => 'Manage Only Test Role',
             'description' => 'Test-only role for permission-separation assertions.',
             'created_at' => now(),

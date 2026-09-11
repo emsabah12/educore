@@ -14,7 +14,7 @@ interface PersonIdentifierRepositoryInterface
      * @return array{id:string,person_id:string,type:string,issuing_country_code:string,issuer:?string,status:string}
      *
      * @throws \RuntimeException Jika identifier (type + country + value)
-     *                            sudah dimiliki Person lain.
+     *                           sudah dimiliki Person lain.
      */
     public function store(
         string $personId,

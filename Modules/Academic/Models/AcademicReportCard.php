@@ -11,8 +11,8 @@ use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 class AcademicReportCard extends Model
 {
-    use HasUuids;
     use BelongsToTenant;
+    use HasUuids;
 
     protected $table = 'academic_report_cards';
 
@@ -36,8 +36,6 @@ class AcademicReportCard extends Model
         'attendance_absent' => 'integer',
         'locked_at' => 'datetime',
     ];
-
-
 
     public function details(): HasMany
     {

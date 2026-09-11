@@ -7,7 +7,7 @@ namespace Modules\Core\Platform\Notification\DTO;
 final readonly class WhatsAppGatewayResult
 {
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     private function __construct(
         public bool $successful,
@@ -16,7 +16,7 @@ final readonly class WhatsAppGatewayResult
     ) {}
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     public static function success(
         array $metadata = [],
@@ -29,7 +29,7 @@ final readonly class WhatsAppGatewayResult
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     public static function failure(
         string $failureCode,

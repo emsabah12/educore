@@ -39,11 +39,10 @@ final readonly class WorkspaceCapabilityProjectionQuery
          */
         $currentOrganizationalContext =
             $this->organizationalContext
-            ->getCurrentContext();
+                ->getCurrentContext();
 
         if ($currentOrganizationalContext === null) {
-            throw CapabilityProjectionContextException
-                ::missingOrganizationalContext();
+            throw CapabilityProjectionContextException::missingOrganizationalContext();
         }
 
         /*
@@ -54,13 +53,12 @@ final readonly class WorkspaceCapabilityProjectionQuery
         try {
             $resolvedOrganizationalContext =
                 $this->organizationalContextResolver
-                ->resolve(
-                    $currentOrganizationalContext
-                        ->assignmentId,
-                );
+                    ->resolve(
+                        $currentOrganizationalContext
+                            ->assignmentId,
+                    );
         } catch (OrganizationalContextException) {
-            throw CapabilityProjectionContextException
-                ::unresolvedOrganizationalContext();
+            throw CapabilityProjectionContextException::unresolvedOrganizationalContext();
         }
 
         /*
@@ -75,8 +73,7 @@ final readonly class WorkspaceCapabilityProjectionQuery
             || $resolvedOrganizationalContext->membershipId
             !== $authorizationContext->membershipId()
         ) {
-            throw CapabilityProjectionContextException
-                ::organizationalContextMismatch();
+            throw CapabilityProjectionContextException::organizationalContextMismatch();
         }
 
         /*
@@ -89,8 +86,7 @@ final readonly class WorkspaceCapabilityProjectionQuery
             );
 
         if ($user === null) {
-            throw CapabilityProjectionContextException
-                ::unresolvedAuthenticatedUser();
+            throw CapabilityProjectionContextException::unresolvedAuthenticatedUser();
         }
 
         $permissionCatalog =
@@ -108,9 +104,9 @@ final readonly class WorkspaceCapabilityProjectionQuery
         foreach ($permissionCatalog as $permissionName) {
             if (
                 $this->organizationalAuthorizationService
-                ->hasPermission(
-                    $permissionName,
-                )
+                    ->hasPermission(
+                        $permissionName,
+                    )
             ) {
                 $effectivePermissions[] =
                     $permissionName;

@@ -24,6 +24,7 @@ final class RecruitmentCandidate extends Model
     use HasUuidV7;
 
     public const string STATUS_ACTIVE = 'ACTIVE';
+
     public const string STATUS_ARCHIVED = 'ARCHIVED';
 
     protected $table = 'recruitment_candidates';

@@ -6,8 +6,11 @@ namespace Modules\Academic\Repositories;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Modules\Academic\Contracts\StudentRepositoryInterface;
+use Modules\Academic\Models\Student;
+use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentStudentRepository implements StudentRepositoryInterface
@@ -31,8 +34,8 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             ->first();
 
         if ($student === null) {
-            throw (new ModelNotFoundException())->setModel(
-                \Modules\Academic\Models\Student::class,
+            throw (new ModelNotFoundException)->setModel(
+                Student::class,
                 [$id],
             );
         }
@@ -52,8 +55,8 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             ->exists();
 
         if (! $membershipExists) {
-            throw (new ModelNotFoundException())->setModel(
-                \Modules\Core\Authorization\Models\Membership::class,
+            throw (new ModelNotFoundException)->setModel(
+                Membership::class,
                 [$membershipId],
             );
         }
@@ -78,7 +81,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         );
     }
 
-    private function baseTenantQuery(string $tenantId): \Illuminate\Database\Query\Builder
+    private function baseTenantQuery(string $tenantId): Builder
     {
         return DB::table('students')
             ->join(

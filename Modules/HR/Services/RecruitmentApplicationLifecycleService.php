@@ -83,8 +83,7 @@ final readonly class RecruitmentApplicationLifecycleService
 
             /** @var RecruitmentVacancyStage $vacancyStage */
             foreach (
-                $vacancy->stages()->where('is_active', true)->orderBy('sequence')->get()
-                as $vacancyStage
+                $vacancy->stages()->where('is_active', true)->orderBy('sequence')->get() as $vacancyStage
             ) {
                 RecruitmentApplicationStage::create([
                     'application_id' => $application->id,
@@ -201,7 +200,7 @@ final readonly class RecruitmentApplicationLifecycleService
     }
 
     /**
-     * @param list<string> $allowedStatuses
+     * @param  list<string>  $allowedStatuses
      */
     private function transition(
         string $tenantId,
@@ -211,7 +210,7 @@ final readonly class RecruitmentApplicationLifecycleService
         string $actionLabel,
         bool $isFinal,
     ): RecruitmentApplication {
-        return DB::transaction(fn(): RecruitmentApplication => $this->transitionLocked(
+        return DB::transaction(fn (): RecruitmentApplication => $this->transitionLocked(
             tenantId: $tenantId,
             applicationId: $applicationId,
             allowedStatuses: $allowedStatuses,
@@ -228,7 +227,7 @@ final readonly class RecruitmentApplicationLifecycleService
      * approveForHiring() (yang perlu menulis RecruitmentHiringDecision
      * dalam transaksi atomik YANG SAMA, §7.9).
      *
-     * @param list<string> $allowedStatuses
+     * @param  list<string>  $allowedStatuses
      */
     private function transitionLocked(
         string $tenantId,
@@ -275,7 +274,7 @@ final readonly class RecruitmentApplicationLifecycleService
             ->first();
 
         if ($vacancy === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentVacancy::class,
                 [$vacancyId],
             );
@@ -297,7 +296,7 @@ final readonly class RecruitmentApplicationLifecycleService
             ->first();
 
         if ($application === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentApplication::class,
                 [$applicationId],
             );
@@ -318,7 +317,7 @@ final readonly class RecruitmentApplicationLifecycleService
             ->exists();
 
         if (! $exists) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentCandidate::class,
                 [$candidateId],
             );

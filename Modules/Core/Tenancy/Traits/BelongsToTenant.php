@@ -45,7 +45,7 @@ trait BelongsToTenant
         $activeTenantId = $tenantContext->getCurrentTenantId();
 
         if ($activeTenantId === null) {
-            throw new TenantContextNotResolvedException();
+            throw new TenantContextNotResolvedException;
         }
 
         $modelTenantId = $model->getAttribute('tenant_id');

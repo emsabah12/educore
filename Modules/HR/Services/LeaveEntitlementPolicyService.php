@@ -6,6 +6,7 @@ namespace Modules\HR\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Modules\HR\Exceptions\LeaveLifecycleException;
 use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmploymentPlacement;
@@ -45,7 +46,7 @@ final readonly class LeaveEntitlementPolicyService
             ->first();
 
         if ($leaveType === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveType::class,
                 [$data['leave_type_id']],
             );
@@ -81,7 +82,7 @@ final readonly class LeaveEntitlementPolicyService
             ->first();
 
         if ($policy === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 LeaveEntitlementPolicy::class,
                 [$entitlementPolicyId],
             );
@@ -98,8 +99,8 @@ final readonly class LeaveEntitlementPolicyService
      * kebijakan (langkah 1).
      *
      * @throws LeaveLifecycleException Kalau tidak ada kandidat
-     *                                   (NOT_FOUND) atau ada tie yang
-     *                                   tidak terselesaikan (AMBIGUOUS).
+     *                                 (NOT_FOUND) atau ada tie yang
+     *                                 tidak terselesaikan (AMBIGUOUS).
      */
     public function resolve(
         string $tenantId,
@@ -114,7 +115,7 @@ final readonly class LeaveEntitlementPolicyService
             ->first();
 
         if ($employment === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 Employment::class,
                 [$employmentId],
             );
@@ -136,7 +137,7 @@ final readonly class LeaveEntitlementPolicyService
 
         $periodStartDate = Carbon::parse($periodStart)->toDateString();
 
-        /** @var \Illuminate\Support\Collection<int, LeaveEntitlementPolicy> $candidates */
+        /** @var Collection<int, LeaveEntitlementPolicy> $candidates */
         $candidates = LeaveEntitlementPolicy::query()
             ->withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
@@ -144,27 +145,27 @@ final readonly class LeaveEntitlementPolicyService
             ->where('is_active', true)
             ->where('effective_from', '<=', $periodStartDate)
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('effective_to')
                     ->orWhere('effective_to', '>=', $periodStartDate),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('organization_id')
                     ->orWhere('organization_id', $placementOrganizationId),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('organization_unit_id')
                     ->orWhere('organization_unit_id', $placementOrganizationUnitId),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('employment_type_id')
                     ->orWhere('employment_type_id', $employment->employment_type_id),
             )
             ->where(
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereNull('employment_classification_id')
                     ->orWhere('employment_classification_id', $employment->employment_classification_id),
             )
@@ -184,7 +185,7 @@ final readonly class LeaveEntitlementPolicyService
         // §7.2 langkah 5-7: rank berdasarkan (scope specificity,
         // employment-filter specificity, priority) — dalam urutan itu.
         $ranked = $candidates
-            ->sortByDesc(fn(LeaveEntitlementPolicy $policy): array => [
+            ->sortByDesc(fn (LeaveEntitlementPolicy $policy): array => [
                 $policy->scopeSpecificity(),
                 $policy->employmentFilterSpecificity(),
                 $policy->priority,

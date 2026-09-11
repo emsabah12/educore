@@ -23,12 +23,19 @@ final class LeaveBalanceLedger extends Model
     use HasUuidV7;
 
     public const string ENTRY_GRANT = 'GRANT';
+
     public const string ENTRY_CARRYOVER_IN = 'CARRYOVER_IN';
+
     public const string ENTRY_CARRYOVER_OUT = 'CARRYOVER_OUT';
+
     public const string ENTRY_ADJUSTMENT = 'ADJUSTMENT';
+
     public const string ENTRY_CONSUME = 'CONSUME';
+
     public const string ENTRY_RESTORE = 'RESTORE';
+
     public const string ENTRY_EXPIRE = 'EXPIRE';
+
     public const string ENTRY_REVERSAL = 'REVERSAL';
 
     public const ?string UPDATED_AT = null;

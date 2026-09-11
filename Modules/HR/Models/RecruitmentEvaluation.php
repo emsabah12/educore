@@ -20,7 +20,9 @@ final class RecruitmentEvaluation extends Model
     use HasUuidV7;
 
     public const string RECOMMENDATION_PASS = 'PASS';
+
     public const string RECOMMENDATION_FAIL = 'FAIL';
+
     public const string RECOMMENDATION_HOLD = 'HOLD';
 
     protected $table = 'recruitment_evaluations';

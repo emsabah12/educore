@@ -63,7 +63,7 @@ final class AcademicAuthorizationCatalogSeederTest extends TestCase
             ->all();
 
         $expected = collect(self::resourcePermissionProvider())
-            ->map(static fn(array $case): string => $case[0])
+            ->map(static fn (array $case): string => $case[0])
             ->sort()
             ->values()
             ->all();

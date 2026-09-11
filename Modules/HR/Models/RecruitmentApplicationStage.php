@@ -24,9 +24,13 @@ final class RecruitmentApplicationStage extends Model
     use HasUuidV7;
 
     public const string STATUS_PENDING = 'PENDING';
+
     public const string STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
     public const string STATUS_PASSED = 'PASSED';
+
     public const string STATUS_FAILED = 'FAILED';
+
     public const string STATUS_SKIPPED = 'SKIPPED';
 
     protected $table = 'recruitment_application_stages';

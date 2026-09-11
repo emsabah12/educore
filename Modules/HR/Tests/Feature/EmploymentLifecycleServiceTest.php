@@ -21,13 +21,14 @@ final class EmploymentLifecycleServiceTest extends TestCase
     use RefreshDatabase;
 
     private EmploymentLifecycleService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new EmploymentLifecycleService();
+        $this->service = new EmploymentLifecycleService;
         $this->tenantId = $this->createTenant('Lifecycle Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -291,7 +292,7 @@ final class EmploymentLifecycleServiceTest extends TestCase
         bool $isActive = true,
     ): string {
         return EmploymentType::create([
-            'code' => 'TIPE-' . Str::upper(Str::random(6)),
+            'code' => 'TIPE-'.Str::upper(Str::random(6)),
             'name' => 'Tipe Kepegawaian Uji',
             'is_active' => $isActive,
         ])->id;

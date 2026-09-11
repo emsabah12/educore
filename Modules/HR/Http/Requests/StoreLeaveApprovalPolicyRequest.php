@@ -56,31 +56,31 @@ final class StoreLeaveApprovalPolicyRequest extends FormRequest
                 'nullable',
                 'uuid',
                 Rule::exists('leave_types', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'organization_id' => [
                 'nullable',
                 'uuid',
                 Rule::exists('organizations', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'organization_unit_id' => [
                 'nullable',
                 'uuid',
                 Rule::exists('organization_units', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'employment_type_id' => [
                 'nullable',
                 'uuid',
                 Rule::exists('employment_types', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'employment_classification_id' => [
                 'nullable',
                 'uuid',
                 Rule::exists('employment_classifications', 'id')
-                    ->where(static fn(Builder $query): Builder => $query->where('tenant_id', $tenantId)),
+                    ->where(static fn (Builder $query): Builder => $query->where('tenant_id', $tenantId)),
             ],
             'decision_mode' => [
                 'required',

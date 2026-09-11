@@ -29,10 +29,15 @@ final class RecruitmentVacancy extends Model
     use HasUuidV7;
 
     public const string STATUS_DRAFT = 'DRAFT';
+
     public const string STATUS_PENDING_APPROVAL = 'PENDING_APPROVAL';
+
     public const string STATUS_APPROVED = 'APPROVED';
+
     public const string STATUS_OPEN = 'OPEN';
+
     public const string STATUS_CLOSED = 'CLOSED';
+
     public const string STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'recruitment_vacancies';

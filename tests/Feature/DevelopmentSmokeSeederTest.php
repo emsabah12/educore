@@ -18,17 +18,13 @@ final class DevelopmentSmokeSeederTest extends TestCase
     public function test_it_refuses_to_run_outside_local_environment(): void
     {
         config([
-            'development-smoke.enabled' =>
-            true,
+            'development-smoke.enabled' => true,
 
-            'development-smoke.database' =>
-            $this->currentDatabaseName(),
+            'development-smoke.database' => $this->currentDatabaseName(),
 
-            'development-smoke.tenant_user.email' =>
-            'tenant.dev@educore.test',
+            'development-smoke.tenant_user.email' => 'tenant.dev@educore.test',
 
-            'development-smoke.tenant_user.password' =>
-            'DevelopmentOnly!2026',
+            'development-smoke.tenant_user.password' => 'DevelopmentOnly!2026',
         ]);
 
         $this->expectException(
@@ -39,7 +35,7 @@ final class DevelopmentSmokeSeederTest extends TestCase
             'outside the local environment',
         );
 
-        (new DevelopmentSmokeSeeder())
+        (new DevelopmentSmokeSeeder)
             ->run();
     }
 
@@ -48,17 +44,13 @@ final class DevelopmentSmokeSeederTest extends TestCase
         $this->forceLocalEnvironment();
 
         config([
-            'development-smoke.enabled' =>
-            false,
+            'development-smoke.enabled' => false,
 
-            'development-smoke.database' =>
-            $this->currentDatabaseName(),
+            'development-smoke.database' => $this->currentDatabaseName(),
 
-            'development-smoke.tenant_user.email' =>
-            'tenant.dev@educore.test',
+            'development-smoke.tenant_user.email' => 'tenant.dev@educore.test',
 
-            'development-smoke.tenant_user.password' =>
-            'DevelopmentOnly!2026',
+            'development-smoke.tenant_user.password' => 'DevelopmentOnly!2026',
         ]);
 
         $this->expectException(
@@ -69,7 +61,7 @@ final class DevelopmentSmokeSeederTest extends TestCase
             'Development smoke seeding is disabled',
         );
 
-        (new DevelopmentSmokeSeeder())
+        (new DevelopmentSmokeSeeder)
             ->run();
     }
 
@@ -78,17 +70,13 @@ final class DevelopmentSmokeSeederTest extends TestCase
         $this->forceLocalEnvironment();
 
         config([
-            'development-smoke.enabled' =>
-            true,
+            'development-smoke.enabled' => true,
 
-            'development-smoke.database' =>
-            'definitely-not-the-current-database',
+            'development-smoke.database' => 'definitely-not-the-current-database',
 
-            'development-smoke.tenant_user.email' =>
-            'tenant.dev@educore.test',
+            'development-smoke.tenant_user.email' => 'tenant.dev@educore.test',
 
-            'development-smoke.tenant_user.password' =>
-            'DevelopmentOnly!2026',
+            'development-smoke.tenant_user.password' => 'DevelopmentOnly!2026',
         ]);
 
         $this->expectException(
@@ -99,7 +87,7 @@ final class DevelopmentSmokeSeederTest extends TestCase
             'expected database',
         );
 
-        (new DevelopmentSmokeSeeder())
+        (new DevelopmentSmokeSeeder)
             ->run();
     }
 
@@ -114,30 +102,23 @@ final class DevelopmentSmokeSeederTest extends TestCase
             'DevelopmentOnly!2026';
 
         config([
-            'development-smoke.enabled' =>
-            true,
+            'development-smoke.enabled' => true,
 
-            'development-smoke.database' =>
-            $this->currentDatabaseName(),
+            'development-smoke.database' => $this->currentDatabaseName(),
 
-            'development-smoke.tenant.name' =>
-            'EduCore Development School',
+            'development-smoke.tenant.name' => 'EduCore Development School',
 
-            'development-smoke.tenant.subdomain' =>
-            'educore-development',
+            'development-smoke.tenant.subdomain' => 'educore-development',
 
-            'development-smoke.tenant_user.name' =>
-            'EduCore Development User',
+            'development-smoke.tenant_user.name' => 'EduCore Development User',
 
-            'development-smoke.tenant_user.email' =>
-            $email,
+            'development-smoke.tenant_user.email' => $email,
 
-            'development-smoke.tenant_user.password' =>
-            $password,
+            'development-smoke.tenant_user.password' => $password,
         ]);
 
         $seeder =
-            new DevelopmentSmokeSeeder();
+            new DevelopmentSmokeSeeder;
 
         $seeder->run();
         $seeder->run();
@@ -186,11 +167,11 @@ final class DevelopmentSmokeSeederTest extends TestCase
             DB::table(
                 'users',
             )
-            ->where(
-                'id',
-                DevelopmentSmokeSeeder::USER_ID,
-            )
-            ->first();
+                ->where(
+                    'id',
+                    DevelopmentSmokeSeeder::USER_ID,
+                )
+                ->first();
 
         $this->assertNotNull(
             $user,
@@ -226,11 +207,11 @@ final class DevelopmentSmokeSeederTest extends TestCase
             DB::table(
                 'tenants',
             )
-            ->where(
-                'id',
-                DevelopmentSmokeSeeder::TENANT_ID,
-            )
-            ->first();
+                ->where(
+                    'id',
+                    DevelopmentSmokeSeeder::TENANT_ID,
+                )
+                ->first();
 
         $this->assertNotNull(
             $tenant,
@@ -254,11 +235,11 @@ final class DevelopmentSmokeSeederTest extends TestCase
             DB::table(
                 'memberships',
             )
-            ->where(
-                'id',
-                DevelopmentSmokeSeeder::MEMBERSHIP_ID,
-            )
-            ->first();
+                ->where(
+                    'id',
+                    DevelopmentSmokeSeeder::MEMBERSHIP_ID,
+                )
+                ->first();
 
         $this->assertNotNull(
             $membership,
@@ -283,8 +264,7 @@ final class DevelopmentSmokeSeederTest extends TestCase
     private function forceLocalEnvironment(): void
     {
         app()->detectEnvironment(
-            static fn(): string =>
-            'local',
+            static fn (): string => 'local',
         );
     }
 

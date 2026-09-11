@@ -108,7 +108,7 @@ final readonly class GlobalAuthenticationService
     }
 
     /**
-     * @param array<string, mixed> $projection
+     * @param  array<string, mixed>  $projection
      */
     private function hasCanonicalPasswordHash(
         array $projection,
@@ -121,7 +121,7 @@ final readonly class GlobalAuthenticationService
     }
 
     /**
-     * @param array<string, mixed> $projection
+     * @param  array<string, mixed>  $projection
      */
     private function mapIdentity(
         array $projection,
@@ -182,7 +182,7 @@ final readonly class GlobalAuthenticationService
     }
 
     /**
-     * @param array<string, mixed> $projection
+     * @param  array<string, mixed>  $projection
      */
     private function requiredString(
         array $projection,
@@ -214,7 +214,7 @@ final readonly class GlobalAuthenticationService
     }
 
     /**
-     * @param array<string, mixed> $projection
+     * @param  array<string, mixed>  $projection
      */
     private function nullableString(
         array $projection,
@@ -243,7 +243,7 @@ final readonly class GlobalAuthenticationService
     }
 
     /**
-     * @param array<string, mixed> $projection
+     * @param  array<string, mixed>  $projection
      */
     private function requiredBool(
         array $projection,

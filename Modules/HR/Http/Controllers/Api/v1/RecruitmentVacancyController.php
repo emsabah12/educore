@@ -118,7 +118,7 @@ final class RecruitmentVacancyController extends Controller
         return $this->transition(
             request: $request,
             vacancyId: $vacancyId,
-            operation: fn(string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
+            operation: fn (string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->submit($tenantId, $vacancyId),
         );
     }
@@ -131,7 +131,7 @@ final class RecruitmentVacancyController extends Controller
         return $this->transitionWithDecision(
             $request,
             $vacancyId,
-            fn(string $tenantId, string $membershipId): RecruitmentVacancy => $this->vacancyLifecycleService
+            fn (string $tenantId, string $membershipId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->approve($tenantId, $vacancyId, $membershipId, $payload['reason'] ?? null),
         );
     }
@@ -144,7 +144,7 @@ final class RecruitmentVacancyController extends Controller
         return $this->transitionWithDecision(
             $request,
             $vacancyId,
-            fn(string $tenantId, string $membershipId): RecruitmentVacancy => $this->vacancyLifecycleService
+            fn (string $tenantId, string $membershipId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->reject($tenantId, $vacancyId, $membershipId, $payload['reason'] ?? null),
         );
     }
@@ -154,7 +154,7 @@ final class RecruitmentVacancyController extends Controller
         return $this->transition(
             request: $request,
             vacancyId: $vacancyId,
-            operation: fn(string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
+            operation: fn (string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->open($tenantId, $vacancyId),
         );
     }
@@ -164,7 +164,7 @@ final class RecruitmentVacancyController extends Controller
         return $this->transition(
             request: $request,
             vacancyId: $vacancyId,
-            operation: fn(string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
+            operation: fn (string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->close($tenantId, $vacancyId),
         );
     }
@@ -174,13 +174,13 @@ final class RecruitmentVacancyController extends Controller
         return $this->transition(
             request: $request,
             vacancyId: $vacancyId,
-            operation: fn(string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
+            operation: fn (string $tenantId): RecruitmentVacancy => $this->vacancyLifecycleService
                 ->cancel($tenantId, $vacancyId),
         );
     }
 
     /**
-     * @param callable(string): RecruitmentVacancy $operation
+     * @param  callable(string): RecruitmentVacancy  $operation
      */
     private function transition(
         Request $request,
@@ -225,7 +225,7 @@ final class RecruitmentVacancyController extends Controller
     }
 
     /**
-     * @param callable(string, string): RecruitmentVacancy $operation
+     * @param  callable(string, string): RecruitmentVacancy  $operation
      */
     private function transitionWithDecision(
         Request $request,

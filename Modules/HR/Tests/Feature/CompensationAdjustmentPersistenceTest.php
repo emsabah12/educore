@@ -21,8 +21,11 @@ final class CompensationAdjustmentPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $employmentId;
+
     private string $requesterMembershipId;
+
     private string $approverMembershipId;
 
     protected function setUp(): void
@@ -313,7 +316,7 @@ final class CompensationAdjustmentPersistenceTest extends TestCase
     private function createComponent(): CompensationComponent
     {
         return CompensationComponent::create([
-            'code' => 'COMP-' . Str::upper(Str::random(6)),
+            'code' => 'COMP-'.Str::upper(Str::random(6)),
             'name' => 'Komponen Uji Adjustment',
             'category' => CompensationComponent::CATEGORY_OTHER_EARNING_INPUT,
             'value_mode' => CompensationComponent::VALUE_MODE_FIXED_AMOUNT,
@@ -324,7 +327,7 @@ final class CompensationAdjustmentPersistenceTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function createAdjustment(array $overrides = []): CompensationAdjustment
     {
@@ -338,7 +341,7 @@ final class CompensationAdjustmentPersistenceTest extends TestCase
             'status' => CompensationAdjustment::STATUS_DRAFT,
             'reason' => 'Uji coba penyesuaian kompensasi.',
             'requested_by_membership_id' => $this->requesterMembershipId,
-            'idempotency_key' => 'ADJ-' . Str::upper(Str::random(12)),
+            'idempotency_key' => 'ADJ-'.Str::upper(Str::random(12)),
         ], $overrides));
     }
 }

@@ -25,7 +25,9 @@ final class LeaveRequestAllocationAndApprovalStepPersistenceTest extends TestCas
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $employmentId;
+
     private string $leaveTypeId;
 
     protected function setUp(): void
@@ -206,7 +208,7 @@ final class LeaveRequestAllocationAndApprovalStepPersistenceTest extends TestCas
     private function createApprovalPolicyStep(): string
     {
         $policyId = LeaveApprovalPolicy::create([
-            'policy_code' => 'FIXTURE-' . Str::upper(Str::random(6)),
+            'policy_code' => 'FIXTURE-'.Str::upper(Str::random(6)),
             'version_no' => 1,
             'name' => 'Kebijakan Uji',
             'decision_mode' => LeaveApprovalPolicy::DECISION_MODE_SEQUENTIAL,
@@ -269,7 +271,7 @@ final class LeaveRequestAllocationAndApprovalStepPersistenceTest extends TestCas
         ]);
 
         $leaveTypeId = LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,

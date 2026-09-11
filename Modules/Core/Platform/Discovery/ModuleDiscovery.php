@@ -26,7 +26,7 @@ final class ModuleDiscovery
                 continue;
             }
 
-            $manifest = $directory->getPathname() . DIRECTORY_SEPARATOR . 'module.yaml';
+            $manifest = $directory->getPathname().DIRECTORY_SEPARATOR.'module.yaml';
 
             if (is_file($manifest)) {
                 $manifests[] = $manifest;

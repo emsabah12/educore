@@ -39,8 +39,7 @@ final class ApiValidationErrorContractTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'VALIDATION_FAILED',
-                'message' =>
-                'The submitted data is invalid.',
+                'message' => 'The submitted data is invalid.',
                 'errors' => [
                     'name' => [
                         'The contract name is required.',
@@ -123,12 +122,9 @@ final class ApiValidationContractRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' =>
-            'The contract name is required.',
-            'name.string' =>
-            'The contract name must be a string.',
-            'name.min' =>
-            'The contract name must contain at least 3 characters.',
+            'name.required' => 'The contract name is required.',
+            'name.string' => 'The contract name must be a string.',
+            'name.min' => 'The contract name must contain at least 3 characters.',
         ];
     }
 }

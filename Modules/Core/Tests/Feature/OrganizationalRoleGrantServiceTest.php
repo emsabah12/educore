@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Identity\Models\User;
@@ -17,6 +18,7 @@ use Modules\Core\Organization\Models\OrganizationalAssignmentRole;
 use Modules\Core\Organization\Models\OrganizationUnit;
 use Modules\Core\Organization\Repositories\EloquentOrganizationalAssignmentRoleRepository;
 use Modules\Core\Organization\Services\OrganizationalRoleGrantService;
+use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
@@ -267,7 +269,7 @@ final class OrganizationalRoleGrantServiceTest extends TestCase
             $this->createActiveAssignmentFixture();
 
         $missingRoleId =
-            \Modules\Core\Support\Uuid\UuidV7::generate();
+            UuidV7::generate();
 
         $this->expectException(
             OrganizationalRoleGrantException::class,
@@ -404,8 +406,8 @@ final class OrganizationalRoleGrantServiceTest extends TestCase
     ): array {
         $tenant = $this->createTenant(
             'Organizational Role Grant Tenant',
-            'organizational-role-grant-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'organizational-role-grant-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
         );
         $this->activateTenant($tenant);
@@ -444,8 +446,8 @@ final class OrganizationalRoleGrantServiceTest extends TestCase
         ]);
 
         $role = Role::query()->create([
-            'name' => 'grant-role-' . strtolower(
-                substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'name' => 'grant-role-'.strtolower(
+                substr((string) Str::uuid(), 0, 8),
             ),
             'display_name' => 'Grant Role',
             'description' => 'Scoped grant service test role.',

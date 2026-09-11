@@ -262,7 +262,7 @@ final class DatabaseNotificationAttemptStore implements NotificationAttemptStore
     }
 
     /**
-     * @param array<string, mixed> $providerMetadata
+     * @param  array<string, mixed>  $providerMetadata
      */
     private function encodeProviderMetadata(
         array $providerMetadata,

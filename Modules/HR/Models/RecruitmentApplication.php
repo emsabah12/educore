@@ -30,10 +30,15 @@ final class RecruitmentApplication extends Model
     use HasUuidV7;
 
     public const string STATUS_SUBMITTED = 'SUBMITTED';
+
     public const string STATUS_IN_PROCESS = 'IN_PROCESS';
+
     public const string STATUS_HIRING_APPROVED = 'HIRING_APPROVED';
+
     public const string STATUS_REJECTED = 'REJECTED';
+
     public const string STATUS_WITHDRAWN = 'WITHDRAWN';
+
     public const string STATUS_HIRED = 'HIRED';
 
     protected $table = 'recruitment_applications';

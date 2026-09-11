@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Repositories;
 
-use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Modules\Academic\Contracts\Repository\AcademicPeriodRepositoryInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentAcademicPeriodRepository implements AcademicPeriodRepositoryInterface
 {
-
     public function allActiveByTenant(string $tenantId): array
     {
         return DB::table('academic_semesters')
@@ -28,7 +28,7 @@ final class EloquentAcademicPeriodRepository implements AcademicPeriodRepository
         return DB::table('academic_semesters')->where('tenant_id', $tenantId)->where('id', $id)->first();
     }
 
-    public function getYearsPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function getYearsPaginated(string $tenantId, int $perPage = 15): LengthAwarePaginator
     {
         return DB::table('academic_years')
             ->where('tenant_id', '=', $tenantId)

@@ -22,13 +22,14 @@ final class EmploymentPlacementServiceTest extends TestCase
     use RefreshDatabase;
 
     private EmploymentPlacementService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new EmploymentPlacementService();
+        $this->service = new EmploymentPlacementService;
         $this->tenantId = $this->createTenant('Placement Service Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -288,12 +289,12 @@ final class EmploymentPlacementServiceTest extends TestCase
     {
         [$employeeId, $membershipId] = $this->createEmployee();
         $employmentTypeId = EmploymentType::create([
-            'code' => 'TIPE-' . Str::upper(Str::random(6)),
+            'code' => 'TIPE-'.Str::upper(Str::random(6)),
             'name' => 'Tipe Uji Placement',
             'is_active' => true,
         ])->id;
 
-        $lifecycleService = new EmploymentLifecycleService();
+        $lifecycleService = new EmploymentLifecycleService;
 
         $planned = $lifecycleService->createPlanned(
             tenantId: $this->tenantId,
@@ -316,7 +317,7 @@ final class EmploymentPlacementServiceTest extends TestCase
     {
         [$employeeId, $membershipId] = $this->createEmployee();
 
-        $planned = (new EmploymentLifecycleService())->createPlanned(
+        $planned = (new EmploymentLifecycleService)->createPlanned(
             tenantId: $this->tenantId,
             employeeId: $employeeId,
             data: ['start_date' => '2026-01-01'],

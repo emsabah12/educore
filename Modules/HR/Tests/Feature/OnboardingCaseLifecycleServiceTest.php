@@ -27,14 +27,16 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
     use RefreshDatabase;
 
     private OnboardingCaseLifecycleService $service;
+
     private string $tenantId;
+
     private string $membershipId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new OnboardingCaseLifecycleService();
+        $this->service = new OnboardingCaseLifecycleService;
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
         $this->membershipId = $this->createMembership();
@@ -86,7 +88,7 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
     {
         $applicationId = $this->createRecruitmentApplicationFixture();
         $inactiveTemplateId = OnboardingTemplate::create([
-            'code' => 'INACTIVE-' . Str::upper(Str::random(6)),
+            'code' => 'INACTIVE-'.Str::upper(Str::random(6)),
             'name' => 'Template Tidak Aktif',
             'is_active' => false,
         ])->id;
@@ -266,7 +268,7 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
     private function createTemplateWithTasks(): string
     {
         $templateId = OnboardingTemplate::create([
-            'code' => 'TPL-' . Str::upper(Str::random(6)),
+            'code' => 'TPL-'.Str::upper(Str::random(6)),
             'name' => 'Template Uji Onboarding Service',
         ])->id;
 
@@ -291,7 +293,7 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
     private function createRecruitmentApplicationFixture(): string
     {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Onboarding Case Service',
             'is_active' => true,
         ])->id;
@@ -307,7 +309,7 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
         ]);
 
         $vacancyId = RecruitmentVacancy::create([
-            'code' => 'VAC-OBSVC-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-OBSVC-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $positionId,
             'organization_id' => $organizationId,
@@ -316,7 +318,7 @@ final class OnboardingCaseLifecycleServiceTest extends TestCase
         ])->id;
 
         $candidateId = RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Onboarding Case Service ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Onboarding Case Service '.Str::random(6),
         ])->id;
 
         return RecruitmentApplication::create([

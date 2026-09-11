@@ -298,7 +298,7 @@ final class EmploymentPositionAssignmentPersistenceTest extends TestCase
     private function createPosition(): string
     {
         return Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji',
             'is_active' => true,
         ])->id;

@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
-use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 final class AuthenticationErrorContractTest extends TestCase
@@ -30,8 +29,7 @@ final class AuthenticationErrorContractTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ]);
     }
 
@@ -62,10 +60,8 @@ final class AuthenticationErrorContractTest extends TestCase
             ->assertForbidden()
             ->assertExactJson([
                 'status' => 'error',
-                'code' =>
-                'AUTHENTICATION_CONTEXT_DENIED',
-                'message' =>
-                'Authentication context missing or invalid.',
+                'code' => 'AUTHENTICATION_CONTEXT_DENIED',
+                'message' => 'Authentication context missing or invalid.',
             ]);
     }
 
@@ -75,7 +71,7 @@ final class AuthenticationErrorContractTest extends TestCase
             InjectAuthenticatedUser::class,
         ])->get(
             '/test-auth/error-contract/identity',
-            static fn(Request $request): array => [
+            static fn (Request $request): array => [
                 'status' => 'success',
                 'user_id' => $request->user()?->getAuthIdentifier(),
             ],
@@ -85,7 +81,7 @@ final class AuthenticationErrorContractTest extends TestCase
             InjectTenantContext::class,
         ])->get(
             '/test-auth/error-contract/tenant',
-            static fn(): array => [
+            static fn (): array => [
                 'status' => 'success',
             ],
         );

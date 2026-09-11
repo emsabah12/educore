@@ -4,52 +4,89 @@ declare(strict_types=1);
 
 namespace Modules\Core\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Database\Schema\Blueprint;
-use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 use Modules\Core\Authorization\Context\AuthorizationContext;
 use Modules\Core\Authorization\Contracts\AuthorizationContextInterface;
-use Modules\Core\Authorization\Services\AuthorizationService;
-use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
 use Modules\Core\Authorization\Contracts\AuthorizationContextResolverInterface;
-use Modules\Core\Authorization\Services\AuthorizationContextResolver;
-use Modules\Core\Authorization\Repositories\EloquentMembershipRepository;
-use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
-use Modules\Core\Authorization\Repositories\EloquentMembershipRoleRepository;
-use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
-use Modules\Core\Authorization\Repositories\EloquentRolePermissionRepository;
+use Modules\Core\Authorization\Contracts\AuthorizationServiceInterface;
 use Modules\Core\Authorization\Contracts\MembershipContextResolverInterface;
+use Modules\Core\Authorization\Contracts\MembershipLifecycleServiceInterface;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRepositoryInterface;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use Modules\Core\Authorization\Repositories\Contracts\RolePermissionRepositoryInterface;
+use Modules\Core\Authorization\Repositories\EloquentMembershipRepository;
+use Modules\Core\Authorization\Repositories\EloquentMembershipRoleRepository;
+use Modules\Core\Authorization\Repositories\EloquentRolePermissionRepository;
+use Modules\Core\Authorization\Services\AuthorizationContextResolver;
+use Modules\Core\Authorization\Services\AuthorizationService;
 use Modules\Core\Authorization\Services\MembershipContextResolver;
-use Modules\Core\Platform\Discovery\ModuleDiscovery;
+use Modules\Core\Authorization\Services\MembershipLifecycleService;
+use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Governance\Audit\Persistence\DatabaseAuditTrailService;
+use Modules\Core\Identity\Contracts\ActiveUserResolverInterface;
+use Modules\Core\Identity\Infrastructure\EloquentActiveUserResolver;
+use Modules\Core\Listeners\QueueWatchdogListener;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestLoader;
 use Modules\Core\Manifest\ModuleManifestParser;
-use Modules\Core\Platform\Registry\ModuleRegistry;
-use Modules\Core\Services\ModuleBootstrapService;
-use Modules\Core\Platform\Module\Services\ModuleLoader;
-use Modules\Core\Platform\Module\Services\ModuleProviderRegistrar;
-use Modules\Core\Services\ModuleRepository;
-use Modules\Core\Services\DependencyResolver;
-use Modules\Core\Person\Repositories\EloquentPersonRepository;
-use Modules\Core\Person\Contracts\PersonRepositoryInterface;
-use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
-use Modules\Core\Person\Repositories\EloquentPersonLifecycleEventRepository;
+use Modules\Core\Notification\Channels\WhatsAppNotificationChannel;
+use Modules\Core\Notification\Gateways\UnavailableWhatsAppGateway;
+use Modules\Core\Notification\Persistence\DatabaseNotificationAttemptStore;
+use Modules\Core\Organization\Contracts\OrganizationalAssignmentRepositoryInterface;
+use Modules\Core\Organization\Contracts\OrganizationalAssignmentRoleRepositoryInterface;
+use Modules\Core\Organization\Contracts\OrganizationalAssignmentServiceInterface;
+use Modules\Core\Organization\Contracts\OrganizationalAuthorizationServiceInterface;
+use Modules\Core\Organization\Contracts\OrganizationalContextInterface;
+use Modules\Core\Organization\Contracts\OrganizationalContextResolverInterface;
+use Modules\Core\Organization\Contracts\OrganizationalRoleGrantServiceInterface;
+use Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface;
+use Modules\Core\Organization\Repositories\EloquentOrganizationalAssignmentRepository;
+use Modules\Core\Organization\Repositories\EloquentOrganizationalAssignmentRoleRepository;
+use Modules\Core\Organization\Repositories\EloquentOrganizationalScopedRoleRepository;
+use Modules\Core\Organization\Services\OrganizationalAssignmentService;
+use Modules\Core\Organization\Services\OrganizationalAuthorizationService;
+use Modules\Core\Organization\Services\OrganizationalContextResolver;
+use Modules\Core\Organization\Services\OrganizationalContextState;
+use Modules\Core\Organization\Services\OrganizationalRoleGrantService;
 use Modules\Core\Person\Contracts\PersonIdentifierCipherInterface;
-use Modules\Core\Person\Services\PersonIdentifierCipher;
 use Modules\Core\Person\Contracts\PersonIdentifierRepositoryInterface;
+use Modules\Core\Person\Contracts\PersonIdentityResolutionServiceInterface;
+use Modules\Core\Person\Contracts\PersonLifecycleEventRepositoryInterface;
+use Modules\Core\Person\Contracts\PersonLifecycleServiceInterface;
+use Modules\Core\Person\Contracts\PersonRepositoryInterface;
 use Modules\Core\Person\Repositories\EloquentPersonIdentifierRepository;
+use Modules\Core\Person\Repositories\EloquentPersonLifecycleEventRepository;
+use Modules\Core\Person\Repositories\EloquentPersonRepository;
+use Modules\Core\Person\Services\PersonIdentifierCipher;
+use Modules\Core\Person\Services\PersonIdentityResolutionService;
+use Modules\Core\Person\Services\PersonLifecycleService;
+use Modules\Core\Platform\Console\KernelHealthCheckCommand;
 use Modules\Core\Platform\Console\ModuleListCommand;
 use Modules\Core\Platform\Console\ModuleStatusCommand;
-use Modules\Core\Tests\Console\TestModuleLoaderCommand;
-use Modules\Core\Platform\Console\KernelHealthCheckCommand;
+use Modules\Core\Platform\Discovery\ModuleDiscovery;
+use Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface;
+use Modules\Core\Platform\Module\Services\ModuleLoader;
+use Modules\Core\Platform\Module\Services\ModuleProviderRegistrar;
+use Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface;
+use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
+use Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface;
+use Modules\Core\Platform\Registry\ModuleRegistry;
+use Modules\Core\Repositories\EloquentTenantRepository;
+use Modules\Core\Services\Diagnostics\SystemHealthService;
+use Modules\Core\Services\ModuleBootstrapService;
+use Modules\Core\Services\ModuleRepository;
+use Modules\Core\Support\Uuid\UuidBlueprintMacro;
+use Modules\Core\Tenancy\Console\TenantBackfillDefaultOrganizationCommand;
+use Modules\Core\Tenancy\Console\TenantProvisionCommand;
+use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 use Modules\Core\Tenancy\Contracts\TenantRuntimeResolverInterface;
 use Modules\Core\Tenancy\Infrastructure\EloquentTenantRuntimeResolver;
-use Modules\Core\Listeners\QueueWatchdogListener;
-use Modules\Core\Support\Uuid\UuidBlueprintMacro;
-use Illuminate\Support\Facades\Log;
+use Modules\Core\Tests\Console\TestModuleLoaderCommand;
 
 final class CoreServiceProvider extends ServiceProvider
 {
@@ -70,7 +107,7 @@ final class CoreServiceProvider extends ServiceProvider
 
         // 3. Source of Truth Metadata - Di-resolve murni sebagai objek kosong terlebih dahulu
         $this->app->singleton(ModuleRegistry::class, function (): ModuleRegistry {
-            return new ModuleRegistry();
+            return new ModuleRegistry;
         });
 
         // 4. Abstraksi Lapisan Baca (Query Model) dengan Lazy Bootstrap Injection
@@ -92,7 +129,7 @@ final class CoreServiceProvider extends ServiceProvider
                         ? $moduleDefinition->getName()
                         : $moduleDefinition->name;
 
-                    if (!$registry->has($moduleName)) {
+                    if (! $registry->has($moduleName)) {
                         $registry->register($moduleDefinition);
                     }
                 }
@@ -103,7 +140,7 @@ final class CoreServiceProvider extends ServiceProvider
 
         if (method_exists($this, 'registerBlueprintMacros')) {
             $this->registerBlueprintMacros();
-        };
+        }
         // Register installed non-Core module providers from their manifests.
         $this->registerManifestModuleProviders();
         $this->registerCorePlatformBindings();
@@ -137,15 +174,14 @@ final class CoreServiceProvider extends ServiceProvider
             AuthorizationService::class,
         );
 
-
         $this->app->bind(
             AuthorizationContextInterface::class,
             AuthorizationContext::class,
         );
 
         $this->app->bind(
-            \Modules\Core\Tenancy\Contracts\TenantRepositoryInterface::class,
-            \Modules\Core\Repositories\EloquentTenantRepository::class,
+            TenantRepositoryInterface::class,
+            EloquentTenantRepository::class,
         );
 
         $this->app->bind(
@@ -154,43 +190,43 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
-            \Modules\Core\Organization\Contracts\OrganizationalAssignmentRepositoryInterface::class,
-            \Modules\Core\Organization\Repositories\EloquentOrganizationalAssignmentRepository::class,
+            OrganizationalAssignmentRepositoryInterface::class,
+            EloquentOrganizationalAssignmentRepository::class,
         );
 
         $this->app->scoped(
-            \Modules\Core\Organization\Contracts\OrganizationalAssignmentServiceInterface::class,
-            \Modules\Core\Organization\Services\OrganizationalAssignmentService::class,
+            OrganizationalAssignmentServiceInterface::class,
+            OrganizationalAssignmentService::class,
         );
 
         $this->app->scoped(
-            \Modules\Core\Organization\Contracts\OrganizationalContextInterface::class,
-            \Modules\Core\Organization\Services\OrganizationalContextState::class,
+            OrganizationalContextInterface::class,
+            OrganizationalContextState::class,
         );
 
         $this->app->scoped(
-            \Modules\Core\Organization\Contracts\OrganizationalContextResolverInterface::class,
-            \Modules\Core\Organization\Services\OrganizationalContextResolver::class,
+            OrganizationalContextResolverInterface::class,
+            OrganizationalContextResolver::class,
         );
 
         $this->app->bind(
-            \Modules\Core\Organization\Contracts\OrganizationalAssignmentRoleRepositoryInterface::class,
-            \Modules\Core\Organization\Repositories\EloquentOrganizationalAssignmentRoleRepository::class,
+            OrganizationalAssignmentRoleRepositoryInterface::class,
+            EloquentOrganizationalAssignmentRoleRepository::class,
         );
 
         $this->app->scoped(
-            \Modules\Core\Organization\Contracts\OrganizationalRoleGrantServiceInterface::class,
-            \Modules\Core\Organization\Services\OrganizationalRoleGrantService::class,
+            OrganizationalRoleGrantServiceInterface::class,
+            OrganizationalRoleGrantService::class,
         );
 
         $this->app->bind(
-            \Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface::class,
-            \Modules\Core\Organization\Repositories\EloquentOrganizationalScopedRoleRepository::class,
+            OrganizationalScopedRoleRepositoryInterface::class,
+            EloquentOrganizationalScopedRoleRepository::class,
         );
 
         $this->app->scoped(
-            \Modules\Core\Organization\Contracts\OrganizationalAuthorizationServiceInterface::class,
-            \Modules\Core\Organization\Services\OrganizationalAuthorizationService::class,
+            OrganizationalAuthorizationServiceInterface::class,
+            OrganizationalAuthorizationService::class,
         );
 
         $this->app->bind(
@@ -201,8 +237,8 @@ final class CoreServiceProvider extends ServiceProvider
         // HR-003 §10 — ensure/reaktivasi Membership untuk Hiring
         // Conversion (RM-HR-03 Fase E).
         $this->app->singleton(
-            \Modules\Core\Authorization\Contracts\MembershipLifecycleServiceInterface::class,
-            \Modules\Core\Authorization\Services\MembershipLifecycleService::class,
+            MembershipLifecycleServiceInterface::class,
+            MembershipLifecycleService::class,
         );
 
         $this->app->bind(
@@ -231,8 +267,8 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
-            \Modules\Core\Person\Contracts\PersonLifecycleServiceInterface::class,
-            \Modules\Core\Person\Services\PersonLifecycleService::class,
+            PersonLifecycleServiceInterface::class,
+            PersonLifecycleService::class,
         );
 
         // HR-003 §9.2 — resolusi identitas Candidate -> Person canonical
@@ -240,8 +276,8 @@ final class CoreServiceProvider extends ServiceProvider
         // copies the canonical Person identifier table" — HR memanggil
         // kontrak ini, bukan query person_identifiers langsung.
         $this->app->singleton(
-            \Modules\Core\Person\Contracts\PersonIdentityResolutionServiceInterface::class,
-            \Modules\Core\Person\Services\PersonIdentityResolutionService::class,
+            PersonIdentityResolutionServiceInterface::class,
+            PersonIdentityResolutionService::class,
         );
 
         $this->app->singleton(
@@ -270,33 +306,33 @@ final class CoreServiceProvider extends ServiceProvider
     private function registerCorePlatformBindings(): void
     {
         $this->app->singleton(
-            \Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface::class,
-            \Modules\Core\Governance\Audit\Persistence\DatabaseAuditTrailService::class
+            AuditTrailServiceInterface::class,
+            DatabaseAuditTrailService::class
         );
 
         $this->app->singleton(
-            \Modules\Core\Platform\Notification\Contracts\WhatsAppGatewayInterface::class,
-            \Modules\Core\Notification\Gateways\UnavailableWhatsAppGateway::class,
+            WhatsAppGatewayInterface::class,
+            UnavailableWhatsAppGateway::class,
         );
 
         $this->app->singleton(
-            \Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface::class,
-            \Modules\Core\Notification\Channels\WhatsAppNotificationChannel::class,
+            NotificationChannelInterface::class,
+            WhatsAppNotificationChannel::class,
         );
 
         $this->app->singleton(
-            \Modules\Core\Platform\Notification\Contracts\NotificationAttemptStoreInterface::class,
-            \Modules\Core\Notification\Persistence\DatabaseNotificationAttemptStore::class,
+            NotificationAttemptStoreInterface::class,
+            DatabaseNotificationAttemptStore::class,
         );
 
         $this->app->singleton(
-            \Modules\Core\Identity\Contracts\ActiveUserResolverInterface::class,
-            \Modules\Core\Identity\Infrastructure\EloquentActiveUserResolver::class,
+            ActiveUserResolverInterface::class,
+            EloquentActiveUserResolver::class,
         );
 
         $this->app->singleton(
-            \Modules\Core\Platform\Health\Contracts\Diagnostics\HealthCheckerInterface::class,
-            \Modules\Core\Services\Diagnostics\SystemHealthService::class
+            HealthCheckerInterface::class,
+            SystemHealthService::class
         );
     }
 
@@ -307,7 +343,6 @@ final class CoreServiceProvider extends ServiceProvider
 
         // Daftarkan sistem macro UUID v7 database secara global
         UuidBlueprintMacro::register();
-
 
         // Daftarkan seluruh perintah Artisan khusus milik modul Core jika berjalan di CLI
         if ($this->app->runningInConsole()) {
@@ -321,8 +356,8 @@ final class CoreServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Modules\Core\Tenancy\Console\TenantProvisionCommand::class,
-                \Modules\Core\Tenancy\Console\TenantBackfillDefaultOrganizationCommand::class,
+                TenantProvisionCommand::class,
+                TenantBackfillDefaultOrganizationCommand::class,
             ]);
         }
     }
@@ -335,6 +370,7 @@ final class CoreServiceProvider extends ServiceProvider
         Blueprint::macro('uuidV7', function (string $column = 'id') {
             /** @var Blueprint $this */
             $blueprint = $this;
+
             return $this->uuid($column);
         });
     }
@@ -353,7 +389,7 @@ final class CoreServiceProvider extends ServiceProvider
         ];
 
         foreach ($migrationPaths as $migrationPath) {
-            if (!is_dir($migrationPath)) {
+            if (! is_dir($migrationPath)) {
                 Log::warning(
                     'Migration directory not found.',
                     [
@@ -381,7 +417,7 @@ class RouteServiceProvider extends ServiceProvider
 
     protected function mapApiRoutes(): void
     {
-        \Illuminate\Support\Facades\Route::prefix('api')
+        Route::prefix('api')
             ->middleware('api')
             ->namespace($this->moduleNamespace ?? 'Modules\Core\Http\Controllers')
             ->group(base_path('Modules/Core/Routes/api.php')); // <-- DIUBAH MENJADI BASE_PATH
@@ -394,7 +430,7 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapWebRoutes(): void
     {
-        \Illuminate\Support\Facades\Route::middleware('web')
+        Route::middleware('web')
             ->group(base_path('Modules/Core/Routes/web.php'));
     }
 }

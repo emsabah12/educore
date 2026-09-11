@@ -18,7 +18,7 @@ use Throwable;
 final class InjectOrganizationalContext
 {
     public const HEADER =
-    'X-EduCore-Organizational-Assignment-Id';
+        'X-EduCore-Organizational-Assignment-Id';
 
     public function __construct(
         private readonly OrganizationalContextResolverInterface $resolver,
@@ -34,7 +34,7 @@ final class InjectOrganizationalContext
      * Header hanyalah locator dan tidak pernah menjadi
      * authorization authority.
      *
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,
@@ -94,20 +94,16 @@ final class InjectOrganizationalContext
             Log::warning(
                 'Organizational context resolution denied.',
                 [
-                    'organizational_assignment_id' =>
-                    $assignmentId,
-                    'authenticated_membership_id' =>
-                    $request->attributes->get(
+                    'organizational_assignment_id' => $assignmentId,
+                    'authenticated_membership_id' => $request->attributes->get(
                         'authenticated_membership_id',
                     ),
-                    'authenticated_tenant_id' =>
-                    $request->attributes->get(
+                    'authenticated_tenant_id' => $request->attributes->get(
                         'authenticated_tenant_id',
                     ),
                     'path' => $request->path(),
                     'method' => $request->method(),
-                    'reason' =>
-                    $exception->getMessage(),
+                    'reason' => $exception->getMessage(),
                 ],
             );
 
@@ -122,22 +118,17 @@ final class InjectOrganizationalContext
             Log::error(
                 'Organizational context resolution failed unexpectedly.',
                 [
-                    'organizational_assignment_id' =>
-                    $assignmentId,
-                    'authenticated_membership_id' =>
-                    $request->attributes->get(
+                    'organizational_assignment_id' => $assignmentId,
+                    'authenticated_membership_id' => $request->attributes->get(
                         'authenticated_membership_id',
                     ),
-                    'authenticated_tenant_id' =>
-                    $request->attributes->get(
+                    'authenticated_tenant_id' => $request->attributes->get(
                         'authenticated_tenant_id',
                     ),
                     'path' => $request->path(),
                     'method' => $request->method(),
-                    'exception' =>
-                    $exception::class,
-                    'message' =>
-                    $exception->getMessage(),
+                    'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
                 ],
             );
 

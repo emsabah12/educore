@@ -20,6 +20,7 @@ final class TenantSubscriptionServiceTest extends TestCase
     use RefreshDatabase;
 
     private TenantSubscriptionService $service;
+
     private string $tenantId;
 
     protected function setUp(): void

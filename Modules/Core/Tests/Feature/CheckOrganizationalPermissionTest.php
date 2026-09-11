@@ -45,7 +45,7 @@ final class CheckOrganizationalPermissionTest extends TestCase
 
         $response = $this->middleware()->handle(
             Request::create('/api/protected', 'GET'),
-            static fn(Request $request): Response => response()->json([]),
+            static fn (Request $request): Response => response()->json([]),
             'hr.workforce.manage',
         );
 
@@ -98,7 +98,7 @@ final class CheckOrganizationalPermissionTest extends TestCase
 
         $response = $this->middleware()->handle(
             Request::create('/api/protected', 'GET'),
-            static fn(Request $request): Response => response()->json(['status' => 'success']),
+            static fn (Request $request): Response => response()->json(['status' => 'success']),
             'hr.workforce.manage',
         );
 

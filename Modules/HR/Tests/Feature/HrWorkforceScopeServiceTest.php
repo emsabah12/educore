@@ -19,6 +19,7 @@ final class HrWorkforceScopeServiceTest extends TestCase
     use RefreshDatabase;
 
     private HrWorkforceScopeService $service;
+
     private string $tenantId;
 
     protected function setUp(): void

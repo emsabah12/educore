@@ -39,7 +39,7 @@ final class UpdateLeaveTypeRequest extends FormRequest
                 'max:50',
                 Rule::unique('leave_types', 'code')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

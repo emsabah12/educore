@@ -11,8 +11,8 @@ use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 final class StudentGrade extends Model
 {
-    use HasUuidV7;
     use BelongsToTenant;
+    use HasUuidV7;
 
     protected $table = 'student_grades';
 

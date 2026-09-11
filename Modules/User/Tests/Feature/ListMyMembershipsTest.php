@@ -17,12 +17,19 @@ final class ListMyMembershipsTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private User $otherUser;
+
     private string $tenantAId;
+
     private string $tenantBId;
+
     private string $inactiveTenantId;
+
     private string $suspendedMembershipTenantId;
+
     private string $membershipAId;
+
     private string $membershipBId;
 
     protected function setUp(): void
@@ -160,10 +167,8 @@ final class ListMyMembershipsTest extends TestCase
                 'data',
             )
             ->assertJsonFragment([
-                'membership_id' =>
-                    $this->membershipAId,
-                'tenant_id' =>
-                    $this->tenantAId,
+                'membership_id' => $this->membershipAId,
+                'tenant_id' => $this->tenantAId,
             ]);
 
         $this->assertStringNotContainsString(

@@ -59,7 +59,7 @@ final class StoreWorkspaceEmployeeRequest extends FormRequest
                 'uuid',
                 Rule::exists('employment_types', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

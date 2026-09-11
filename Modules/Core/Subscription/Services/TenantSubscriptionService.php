@@ -164,7 +164,7 @@ final class TenantSubscriptionService
             ->where('tenant_id', $tenantId)
             ->whereHas(
                 'addon.feature',
-                fn($query) => $query->where('code', $featureCode),
+                fn ($query) => $query->where('code', $featureCode),
             )
             ->value('status');
     }

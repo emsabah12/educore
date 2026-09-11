@@ -6,6 +6,4 @@ namespace Modules\Core\Exceptions;
 
 use RuntimeException;
 
-final class ModuleAlreadyRegisteredException extends RuntimeException
-{
-}
+final class ModuleAlreadyRegisteredException extends RuntimeException {}

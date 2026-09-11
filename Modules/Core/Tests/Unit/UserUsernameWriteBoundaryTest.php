@@ -12,7 +12,7 @@ final class UserUsernameWriteBoundaryTest extends TestCase
 {
     public function test_username_is_explicitly_fillable_on_canonical_user(): void
     {
-        $user = new User();
+        $user = new User;
 
         $this->assertTrue(
             $user->isFillable('username'),
@@ -22,7 +22,7 @@ final class UserUsernameWriteBoundaryTest extends TestCase
 
     public function test_username_is_trimmed_and_lowercased_on_assignment(): void
     {
-        $user = new User();
+        $user = new User;
 
         $user->username = '  Admin.User-01  ';
 
@@ -35,7 +35,7 @@ final class UserUsernameWriteBoundaryTest extends TestCase
 
     public function test_null_username_remains_null(): void
     {
-        $user = new User();
+        $user = new User;
 
         $user->username = null;
 
@@ -57,7 +57,7 @@ final class UserUsernameWriteBoundaryTest extends TestCase
         ];
 
         foreach ($validUsernames as $username) {
-            $user = new User();
+            $user = new User;
 
             $user->username = $username;
 
@@ -94,7 +94,7 @@ final class UserUsernameWriteBoundaryTest extends TestCase
         $unexpectedlyAccepted = [];
 
         foreach ($invalidUsernames as $username) {
-            $user = new User();
+            $user = new User;
 
             try {
                 $user->username = $username;

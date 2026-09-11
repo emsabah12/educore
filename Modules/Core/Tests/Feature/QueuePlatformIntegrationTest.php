@@ -50,7 +50,9 @@ final class QueuePlatformIntegrationTest extends TestCase
     use RefreshDatabase;
 
     private string $personId;
+
     private string $tenantId;
+
     private string $operatorId;
 
     protected function setUp(): void

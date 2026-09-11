@@ -19,12 +19,15 @@ use Tests\TestCase;
 
 final class OrganizationManagementControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $operatorEmail;
 
     protected function setUp(): void

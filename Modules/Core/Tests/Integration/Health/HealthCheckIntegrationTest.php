@@ -17,7 +17,7 @@ class HealthCheckIntegrationTest extends TestCase
     public function test_database_health_checker_returns_healthy_state_on_active_connection(): void
     {
         // 1. Instansiasi service secara konkret
-        $checker = new DatabaseHealthChecker();
+        $checker = new DatabaseHealthChecker;
 
         // 2. Eksekusi pengecekan ke database pgsql riil (educore_testing)
         $result = $checker->check();
@@ -27,7 +27,7 @@ class HealthCheckIntegrationTest extends TestCase
         $this->assertArrayHasKey('status', $result);
         $this->assertArrayHasKey('latency_ms', $result);
         $this->assertArrayHasKey('error', $result);
-        
+
         $this->assertEquals('healthy', $result['status']);
         $this->assertIsFloat($result['latency_ms']);
         $this->assertNull($result['error']);
@@ -38,7 +38,7 @@ class HealthCheckIntegrationTest extends TestCase
      */
     public function test_kernel_health_check_command_executes_successfully(): void
     {
-        // Jalankan artisan command, tegaskan status sukses (exit code 0), 
+        // Jalankan artisan command, tegaskan status sukses (exit code 0),
         // dan pastikan potongan teks utama yang statis terdeteksi dengan aman.
         $this->artisan('kernel:health-check')
             ->assertSuccessful()

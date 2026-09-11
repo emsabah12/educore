@@ -6,6 +6,4 @@ namespace Modules\Core\Organization\Exceptions;
 
 use RuntimeException;
 
-final class OrganizationalRoleGrantException extends RuntimeException
-{
-}
+final class OrganizationalRoleGrantException extends RuntimeException {}

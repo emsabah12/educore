@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Manifest;
 
+use Modules\Core\Exceptions\InvalidModuleManifestException;
 use Modules\Core\Manifest\ModuleDefinitionFactory;
 use Modules\Core\Manifest\ModuleManifestValidator;
-use Modules\Core\Exceptions\InvalidModuleManifestException;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 use Modules\Core\Tests\Builders\ManifestBuilder;
-use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
-use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
-
 use PHPUnit\Framework\TestCase;
 
 final class ModuleDefinitionFactoryTest extends TestCase
@@ -18,7 +16,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
     public function test_can_be_instantiated(): void
     {
         $factory = new ModuleDefinitionFactory(
-            new ModuleManifestValidator(),
+            new ModuleManifestValidator,
         );
 
         $this->assertInstanceOf(
@@ -30,7 +28,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
     public function test_creates_module_definition_from_valid_manifest(): void
     {
         $factory = new ModuleDefinitionFactory(
-            new ModuleManifestValidator(),
+            new ModuleManifestValidator,
         );
 
         $manifest = ManifestBuilder::make()
@@ -43,7 +41,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
         $definition = $factory->make($manifest);
 
         $this->assertInstanceOf(
-            \Modules\Core\Platform\Module\Domain\ModuleDefinition::class,
+            ModuleDefinition::class,
             $definition
         );
 
@@ -59,7 +57,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
     public function test_preserves_all_manifest_values(): void
     {
         $factory = new ModuleDefinitionFactory(
-            new ModuleManifestValidator(),
+            new ModuleManifestValidator,
         );
 
         $manifest = ManifestBuilder::make()
@@ -93,7 +91,7 @@ final class ModuleDefinitionFactoryTest extends TestCase
     public function test_rejects_invalid_manifest(): void
     {
         $factory = new ModuleDefinitionFactory(
-            new ModuleManifestValidator(),
+            new ModuleManifestValidator,
         );
 
         $manifest = ManifestBuilder::make()

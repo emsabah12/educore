@@ -25,7 +25,7 @@ final class MembershipRoleRepositoryContractTest extends TestCase
             ) as $method
         ) {
             $methods[$method->getName()] = array_map(
-                static fn(
+                static fn (
                     \ReflectionParameter $parameter,
                 ): string => $parameter->getName(),
                 $method->getParameters(),

@@ -38,7 +38,7 @@ final class GlobalAuthenticationRepositoryUsernameTest extends TestCase
             status: 'ACTIVE',
         );
 
-        $repository = new AuthenticationRepository();
+        $repository = new AuthenticationRepository;
 
         $identity = $repository->findActiveByLoginIdentifier(
             $username,
@@ -84,7 +84,7 @@ final class GlobalAuthenticationRepositoryUsernameTest extends TestCase
             status: 'ACTIVE',
         );
 
-        $repository = new AuthenticationRepository();
+        $repository = new AuthenticationRepository;
 
         $identity = $repository->findActiveByLoginIdentifier(
             sprintf(
@@ -150,7 +150,7 @@ final class GlobalAuthenticationRepositoryUsernameTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $repository = new AuthenticationRepository();
+        $repository = new AuthenticationRepository;
 
         $identity = $repository->findActiveByLoginIdentifier(
             $username,

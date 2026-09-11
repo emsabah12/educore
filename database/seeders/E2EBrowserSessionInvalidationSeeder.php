@@ -146,14 +146,11 @@ final class E2EBrowserSessionInvalidationSeeder extends Seeder
         Log::info(
             'e2e.browser_session_store_invalidated',
             [
-                'deleted_sessions' =>
-                    $deletedSessions,
+                'deleted_sessions' => $deletedSessions,
 
-                'session_driver' =>
-                    self::EXPECTED_SESSION_DRIVER,
+                'session_driver' => self::EXPECTED_SESSION_DRIVER,
 
-                'session_table' =>
-                    self::EXPECTED_SESSION_TABLE,
+                'session_table' => self::EXPECTED_SESSION_TABLE,
             ],
         );
     }

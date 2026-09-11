@@ -22,16 +22,20 @@ final class CompensationAdjustmentServiceTest extends TestCase
     use RefreshDatabase;
 
     private CompensationAdjustmentService $service;
+
     private string $tenantId;
+
     private string $employmentId;
+
     private string $requesterMembershipId;
+
     private string $approverMembershipId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new CompensationAdjustmentService();
+        $this->service = new CompensationAdjustmentService;
         $this->tenantId = $this->createTenant('Compensation Adjustment Service Tenant');
         $this->activateTenantContext($this->tenantId);
 
@@ -424,12 +428,12 @@ final class CompensationAdjustmentServiceTest extends TestCase
             'target_period_start' => '2026-01-01',
             'target_period_end' => '2026-01-31',
             'reason' => 'Uji coba layanan penyesuaian kompensasi.',
-            'idempotency_key' => 'ADJ-SVC-' . Str::upper(Str::random(12)),
+            'idempotency_key' => 'ADJ-SVC-'.Str::upper(Str::random(12)),
         ];
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function createAdjustmentViaService(array $overrides = []): CompensationAdjustment
     {

@@ -117,10 +117,8 @@ final class ListMyWorkspacesTest extends TestCase
          */
         $response->assertJsonFragment([
             'type' => 'ORGANIZATION',
-            'organizational_assignment_id' =>
-            $this->organizationAssignmentId,
-            'organization_id' =>
-            $this->organizationId,
+            'organizational_assignment_id' => $this->organizationAssignmentId,
+            'organization_id' => $this->organizationId,
             'organization_unit_id' => null,
             'label' => 'SMA Workspace',
         ]);
@@ -130,12 +128,9 @@ final class ListMyWorkspacesTest extends TestCase
          */
         $response->assertJsonFragment([
             'type' => 'ORGANIZATION_UNIT',
-            'organizational_assignment_id' =>
-            $this->unitAssignmentId,
-            'organization_id' =>
-            $this->organizationId,
-            'organization_unit_id' =>
-            $this->unitId,
+            'organizational_assignment_id' => $this->unitAssignmentId,
+            'organization_id' => $this->organizationId,
+            'organization_unit_id' => $this->unitId,
             'label' => 'Unit Kurikulum',
         ]);
 
@@ -182,8 +177,7 @@ final class ListMyWorkspacesTest extends TestCase
                 (string) $this->user->getKey(),
                 $this->otherTenantId,
                 [
-                    'membership_id' =>
-                    $this->otherTenantMembershipId,
+                    'membership_id' => $this->otherTenantMembershipId,
                 ],
             );
 
@@ -225,8 +219,7 @@ final class ListMyWorkspacesTest extends TestCase
                 (string) $this->user->getKey(),
                 $this->tenantId,
                 [
-                    'membership_id' =>
-                    $this->membershipId,
+                    'membership_id' => $this->membershipId,
                 ],
             );
     }
@@ -258,8 +251,7 @@ final class ListMyWorkspacesTest extends TestCase
         DB::table('memberships')->insert([
             [
                 'id' => $this->membershipId,
-                'person_id' =>
-                (string) $this->user->person_id,
+                'person_id' => (string) $this->user->person_id,
                 'tenant_id' => $this->tenantId,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
@@ -267,8 +259,7 @@ final class ListMyWorkspacesTest extends TestCase
             ],
             [
                 'id' => $this->otherMembershipId,
-                'person_id' =>
-                (string) $this->otherUser->person_id,
+                'person_id' => (string) $this->otherUser->person_id,
                 'tenant_id' => $this->tenantId,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
@@ -276,8 +267,7 @@ final class ListMyWorkspacesTest extends TestCase
             ],
             [
                 'id' => $this->otherTenantMembershipId,
-                'person_id' =>
-                (string) $this->user->person_id,
+                'person_id' => (string) $this->user->person_id,
                 'tenant_id' => $this->otherTenantId,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
@@ -340,8 +330,7 @@ final class ListMyWorkspacesTest extends TestCase
             [
                 'id' => $this->unitId,
                 'tenant_id' => $this->tenantId,
-                'organization_id' =>
-                $this->organizationId,
+                'organization_id' => $this->organizationId,
                 'name' => 'Unit Kurikulum',
                 'code' => 'KURIKULUM',
                 'is_active' => true,
@@ -352,8 +341,7 @@ final class ListMyWorkspacesTest extends TestCase
             [
                 'id' => $this->inactiveUnitId,
                 'tenant_id' => $this->tenantId,
-                'organization_id' =>
-                $this->organizationId,
+                'organization_id' => $this->organizationId,
                 'name' => 'Inactive Unit',
                 'code' => 'INACTIVE',
                 'is_active' => false,
@@ -371,14 +359,10 @@ final class ListMyWorkspacesTest extends TestCase
              * Current Membership — active organization workspace.
              */
             [
-                'id' =>
-                $this->organizationAssignmentId,
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->membershipId,
-                'organization_id' =>
-                $this->organizationId,
+                'id' => $this->organizationAssignmentId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->membershipId,
+                'organization_id' => $this->organizationId,
                 'organization_unit_id' => null,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
@@ -389,21 +373,15 @@ final class ListMyWorkspacesTest extends TestCase
              * Current Membership — active unit workspace.
              */
             [
-                'id' =>
-                $this->unitAssignmentId,
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->membershipId,
-                'organization_id' =>
-                $this->organizationId,
-                'organization_unit_id' =>
-                $this->unitId,
+                'id' => $this->unitAssignmentId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->membershipId,
+                'organization_id' => $this->organizationId,
+                'organization_unit_id' => $this->unitId,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-
 
             /*
              * Active assignment tetapi Organization inactive.
@@ -416,12 +394,9 @@ final class ListMyWorkspacesTest extends TestCase
                 * melanggar unique organization-level assignment invariant.
                 */
                 'id' => UuidV7::generate(),
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->membershipId,
-                'organization_id' =>
-                $this->inactiveAssignmentOrganizationId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->membershipId,
+                'organization_id' => $this->inactiveAssignmentOrganizationId,
                 'organization_unit_id' => null,
                 'status' => 'INACTIVE',
                 'created_at' => now(),
@@ -433,14 +408,10 @@ final class ListMyWorkspacesTest extends TestCase
              */
             [
                 'id' => UuidV7::generate(),
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->membershipId,
-                'organization_id' =>
-                $this->organizationId,
-                'organization_unit_id' =>
-                $this->inactiveUnitId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->membershipId,
+                'organization_id' => $this->organizationId,
+                'organization_unit_id' => $this->inactiveUnitId,
                 'status' => 'ACTIVE',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -451,12 +422,9 @@ final class ListMyWorkspacesTest extends TestCase
              */
             [
                 'id' => UuidV7::generate(),
-                'tenant_id' =>
-                $this->tenantId,
-                'membership_id' =>
-                $this->otherMembershipId,
-                'organization_id' =>
-                $this->organizationId,
+                'tenant_id' => $this->tenantId,
+                'membership_id' => $this->otherMembershipId,
+                'organization_id' => $this->organizationId,
                 'organization_unit_id' => null,
                 'status' => 'ACTIVE',
                 'created_at' => now(),

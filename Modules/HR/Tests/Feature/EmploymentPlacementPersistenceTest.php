@@ -20,6 +20,7 @@ final class EmploymentPlacementPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void

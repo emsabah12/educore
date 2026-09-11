@@ -24,12 +24,17 @@ final class RecruitmentHireConversion extends Model
     use HasUuidV7;
 
     public const string RESOLUTION_UNRESOLVED = 'UNRESOLVED';
+
     public const string RESOLUTION_MATCHED_EXISTING = 'MATCHED_EXISTING';
+
     public const string RESOLUTION_CREATE_NEW_CONFIRMED = 'CREATE_NEW_CONFIRMED';
+
     public const string RESOLUTION_CONFLICT = 'CONFLICT';
 
     public const string CONVERSION_PENDING = 'PENDING';
+
     public const string CONVERSION_SUCCEEDED = 'SUCCEEDED';
+
     public const string CONVERSION_CANCELLED = 'CANCELLED';
 
     protected $table = 'recruitment_hire_conversions';

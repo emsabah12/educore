@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Modules\Academic\Repositories;
 
-use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Modules\Academic\Contracts\Repository\AcademicClassRepositoryInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 
 final class EloquentAcademicClassRepository implements AcademicClassRepositoryInterface
 {
-    public function getByTenantPaginated(string $tenantId, int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function getByTenantPaginated(string $tenantId, int $perPage = 15): LengthAwarePaginator
     {
         return DB::table('academic_classes')
             ->select(['id', 'tenant_id', 'name', 'code', 'tingkat', 'is_active', 'created_at'])

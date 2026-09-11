@@ -21,8 +21,8 @@ interface EmployeeBenefitIdentifierRepositoryInterface
      * @return array{id:string,employee_benefit_participation_id:string,identifier_type:string,status:string}
      *
      * @throws \RuntimeException Jika identifier (tenant + program +
-     *                            tipe + value) sudah terdaftar (HR-006
-     *                            §7.7 "Recommended uniqueness").
+     *                           tipe + value) sudah terdaftar (HR-006
+     *                           §7.7 "Recommended uniqueness").
      */
     public function store(
         string $tenantId,

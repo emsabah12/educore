@@ -16,7 +16,6 @@ use Modules\HR\Exceptions\OnboardingLifecycleException;
 use Modules\HR\Http\Requests\CancelOnboardingCaseRequest;
 use Modules\HR\Http\Requests\FinalizeOnboardingTaskRequest;
 use Modules\HR\Http\Requests\StoreOnboardingCaseRequest;
-use Modules\HR\Models\OnboardingCase;
 use Modules\HR\Models\OnboardingTask;
 use Modules\HR\Services\OnboardingCaseLifecycleService;
 use Symfony\Component\HttpFoundation\Response;
@@ -196,7 +195,7 @@ final class OnboardingCaseController extends Controller
         return $this->finalizeTask(
             $request,
             $taskId,
-            fn(string $tenantId, string $membershipId, ?string $note): OnboardingTask => $this->onboardingCaseLifecycleService
+            fn (string $tenantId, string $membershipId, ?string $note): OnboardingTask => $this->onboardingCaseLifecycleService
                 ->completeTask($tenantId, $taskId, $membershipId, $note),
         );
     }
@@ -206,13 +205,13 @@ final class OnboardingCaseController extends Controller
         return $this->finalizeTask(
             $request,
             $taskId,
-            fn(string $tenantId, string $membershipId, ?string $note): OnboardingTask => $this->onboardingCaseLifecycleService
+            fn (string $tenantId, string $membershipId, ?string $note): OnboardingTask => $this->onboardingCaseLifecycleService
                 ->waiveTask($tenantId, $taskId, $membershipId, $note),
         );
     }
 
     /**
-     * @param callable(string, string, ?string): OnboardingTask $operation
+     * @param  callable(string, string, ?string): OnboardingTask  $operation
      */
     private function finalizeTask(
         Request $request,

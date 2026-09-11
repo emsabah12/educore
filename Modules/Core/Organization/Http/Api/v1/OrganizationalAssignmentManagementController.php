@@ -39,8 +39,7 @@ final class OrganizationalAssignmentManagementController extends Controller
 {
     public function __construct(
         private readonly OrganizationalAssignmentServiceInterface $assignmentService,
-    ) {
-    }
+    ) {}
 
     public function index(
         Request $request,
@@ -70,7 +69,7 @@ final class OrganizationalAssignmentManagementController extends Controller
             ->where('organization_id', $organizationModel->id)
             ->when(
                 $unitFilter !== '' && Str::isUuid($unitFilter),
-                fn($query) => $query->where(
+                fn ($query) => $query->where(
                     'organization_unit_id',
                     $unitFilter,
                 ),
@@ -81,7 +80,7 @@ final class OrganizationalAssignmentManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $assignments->map(
-                fn(OrganizationalAssignment $assignment) => $this->summary(
+                fn (OrganizationalAssignment $assignment) => $this->summary(
                     $assignment,
                 ),
             ),
@@ -159,7 +158,7 @@ final class OrganizationalAssignmentManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $memberships->map(
-                fn(Membership $membership) => $this->candidateSummary(
+                fn (Membership $membership) => $this->candidateSummary(
                     $membership,
                 ),
             ),

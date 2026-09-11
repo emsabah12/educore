@@ -34,7 +34,7 @@ final class CheckTenantFeature
     ) {}
 
     /**
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,
@@ -62,7 +62,7 @@ final class CheckTenantFeature
 
         $effectiveFeatureCodes =
             $this->tenantSubscriptionService
-            ->effectiveFeatureCodes($tenantId);
+                ->effectiveFeatureCodes($tenantId);
 
         if (
             ! in_array(

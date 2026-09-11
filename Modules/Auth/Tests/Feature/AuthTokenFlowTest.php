@@ -358,8 +358,7 @@ final class AuthTokenFlowTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_FAILED',
-                'message' =>
-                    'Invalid authentication credentials.',
+                'message' => 'Invalid authentication credentials.',
             ]);
     }
 
@@ -379,8 +378,7 @@ final class AuthTokenFlowTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'MEMBERSHIP_SWITCH_DENIED',
-                'message' =>
-                    'Requested membership is not available for this user.',
+                'message' => 'Requested membership is not available for this user.',
             ]);
     }
 

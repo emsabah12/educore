@@ -271,7 +271,7 @@ final readonly class OnboardingCaseLifecycleService
             ->first();
 
         if ($case === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 OnboardingCase::class,
                 [$caseId],
             );
@@ -293,7 +293,7 @@ final readonly class OnboardingCaseLifecycleService
             ->first();
 
         if ($task === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 OnboardingTask::class,
                 [$taskId],
             );
@@ -313,7 +313,7 @@ final readonly class OnboardingCaseLifecycleService
             ->exists();
 
         if (! $exists) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 RecruitmentApplication::class,
                 [$applicationId],
             );

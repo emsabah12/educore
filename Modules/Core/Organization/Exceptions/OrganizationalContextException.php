@@ -6,6 +6,4 @@ namespace Modules\Core\Organization\Exceptions;
 
 use RuntimeException;
 
-final class OrganizationalContextException extends RuntimeException
-{
-}
+final class OrganizationalContextException extends RuntimeException {}

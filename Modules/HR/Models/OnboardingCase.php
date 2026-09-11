@@ -24,9 +24,13 @@ final class OnboardingCase extends Model
     use HasUuidV7;
 
     public const string STATUS_NOT_STARTED = 'NOT_STARTED';
+
     public const string STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
     public const string STATUS_READY_FOR_ACTIVATION = 'READY_FOR_ACTIVATION';
+
     public const string STATUS_COMPLETED = 'COMPLETED';
+
     public const string STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'onboarding_cases';

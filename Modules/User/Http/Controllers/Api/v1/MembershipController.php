@@ -46,7 +46,7 @@ final class MembershipController extends Controller
             $memberships = $this->listMyMemberships
                 ->execute($userId)
                 ->map(
-                    static fn(
+                    static fn (
                         MembershipSummary $membership,
                     ): array => $membership->toArray(),
                 )

@@ -19,13 +19,16 @@ use Tests\TestCase;
 
 final class EmploymentCatalogControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $operatorEmail;
 
     protected function setUp(): void

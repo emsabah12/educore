@@ -24,6 +24,7 @@ final class RecruitmentApplicationPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -250,14 +251,14 @@ final class RecruitmentApplicationPersistenceTest extends TestCase
     private function createCandidate(): string
     {
         return RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Application ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Application '.Str::random(6),
         ])->id;
     }
 
     private function createVacancy(?string $code = null): string
     {
         $positionId = Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Application',
             'is_active' => true,
         ])->id;
@@ -294,7 +295,7 @@ final class RecruitmentApplicationPersistenceTest extends TestCase
         ]);
 
         return RecruitmentVacancy::create([
-            'code' => $code ?? ('VAC-APP-' . Str::upper(Str::random(6))),
+            'code' => $code ?? ('VAC-APP-'.Str::upper(Str::random(6))),
             'title' => 'Guru Matematika',
             'position_id' => $positionId,
             'organization_id' => $organizationId,

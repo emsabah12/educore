@@ -19,13 +19,17 @@ use Tests\TestCase;
 
 final class OrganizationalAssignmentManagementControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $organizationId;
+
     private string $unitId;
 
     protected function setUp(): void
@@ -195,7 +199,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.index',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?organization_unit_id=' . $this->unitId,
+                ).'?organization_unit_id='.$this->unitId,
             );
 
         $response->assertOk();
@@ -741,7 +745,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=santoso',
+                ).'?q=santoso',
             );
 
         $response->assertOk();
@@ -763,7 +767,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=a',
+                ).'?q=a',
             );
 
         $response->assertOk();
@@ -792,7 +796,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=nonaktif',
+                ).'?q=nonaktif',
             );
 
         $response->assertOk();
@@ -815,7 +819,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=budi',
+                ).'?q=budi',
             );
 
         $response->assertOk();
@@ -836,7 +840,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=b',
+                ).'?q=b',
             );
 
         $response->assertOk();
@@ -855,7 +859,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?' . http_build_query(['q' => '%_']),
+                ).'?'.http_build_query(['q' => '%_']),
             );
 
         $response->assertOk();
@@ -882,7 +886,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $foreignOrganizationId],
                     false,
-                ) . '?q=budi',
+                ).'?q=budi',
             );
 
         $response->assertStatus(Response::HTTP_NOT_FOUND);
@@ -901,7 +905,7 @@ final class OrganizationalAssignmentManagementControllerTest extends TestCase
                     'api.v1.core.organizations.assignments.candidate-memberships',
                     ['organization' => $this->organizationId],
                     false,
-                ) . '?q=budi',
+                ).'?q=budi',
             );
 
         $response->assertStatus(Response::HTTP_FORBIDDEN);

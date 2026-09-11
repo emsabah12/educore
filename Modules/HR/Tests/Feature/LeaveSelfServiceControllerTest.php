@@ -21,6 +21,7 @@ final class LeaveSelfServiceControllerTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $leaveTypeId;
 
     protected function setUp(): void
@@ -34,7 +35,7 @@ final class LeaveSelfServiceControllerTest extends TestCase
         $this->activateTenantContext($this->tenantId);
 
         $this->leaveTypeId = LeaveType::create([
-            'code' => 'SELF-' . Str::upper(Str::random(6)),
+            'code' => 'SELF-'.Str::upper(Str::random(6)),
             'name' => 'Izin Uji Self-Service',
             'category' => LeaveType::CATEGORY_PERMIT,
             'balance_mode' => LeaveType::BALANCE_MODE_NONE,
@@ -165,7 +166,7 @@ final class LeaveSelfServiceControllerTest extends TestCase
         DB::table('leave_approval_policies')->insert([
             'id' => UuidV7::generate(),
             'tenant_id' => $this->tenantId,
-            'policy_code' => 'SELF-AUTO-' . Str::upper(Str::random(6)),
+            'policy_code' => 'SELF-AUTO-'.Str::upper(Str::random(6)),
             'version_no' => 1,
             'name' => 'Kebijakan Auto Self-Service',
             'decision_mode' => 'AUTO',
@@ -184,7 +185,7 @@ final class LeaveSelfServiceControllerTest extends TestCase
         DB::table('leave_approval_policies')->insert([
             'id' => $policyId,
             'tenant_id' => $this->tenantId,
-            'policy_code' => 'SELF-SEQ-' . Str::upper(Str::random(6)),
+            'policy_code' => 'SELF-SEQ-'.Str::upper(Str::random(6)),
             'version_no' => 1,
             'name' => 'Kebijakan Sequential Self-Service',
             'decision_mode' => 'SEQUENTIAL',
@@ -254,7 +255,7 @@ final class LeaveSelfServiceControllerTest extends TestCase
         // diselesaikan aktor yang sama tanpa approver terpisah.
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'self-service-test-' . Str::lower(Str::random(6)),
+            'name' => 'self-service-test-'.Str::lower(Str::random(6)),
             'display_name' => 'Self Service Test Role',
             'description' => 'Test-only role granting self-service and approve permissions.',
             'created_at' => now(),

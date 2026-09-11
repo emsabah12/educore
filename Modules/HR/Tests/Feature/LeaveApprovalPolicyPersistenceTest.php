@@ -20,6 +20,7 @@ final class LeaveApprovalPolicyPersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -266,7 +267,7 @@ final class LeaveApprovalPolicyPersistenceTest extends TestCase
         return LeaveApprovalPolicy::create([
             'policy_code' => $code,
             'version_no' => $versionNo,
-            'name' => 'Kebijakan Uji ' . Str::random(6),
+            'name' => 'Kebijakan Uji '.Str::random(6),
             'decision_mode' => LeaveApprovalPolicy::DECISION_MODE_SEQUENTIAL,
             'effective_from' => '2026-01-01',
         ]);

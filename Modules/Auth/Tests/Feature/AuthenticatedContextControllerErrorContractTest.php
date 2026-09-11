@@ -45,10 +45,8 @@ final class AuthenticatedContextControllerErrorContractTest extends TestCase
         $this->assertSame(
             [
                 'status' => 'error',
-                'code' =>
-                'AUTHENTICATION_CONTEXT_DENIED',
-                'message' =>
-                'Authentication context missing or invalid.',
+                'code' => 'AUTHENTICATION_CONTEXT_DENIED',
+                'message' => 'Authentication context missing or invalid.',
             ],
             $response->getData(true),
         );

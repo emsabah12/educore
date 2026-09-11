@@ -77,19 +77,15 @@ final class PermissionCatalogQueryTest extends TestCase
         DB::table('roles')->insert([
             'id' => $roleId,
             'name' => 'catalog-test-role',
-            'display_name' =>
-            'Catalog Test Role',
-            'description' =>
-            'Role used only by permission catalog test.',
+            'display_name' => 'Catalog Test Role',
+            'description' => 'Role used only by permission catalog test.',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         DB::table('role_permissions')->insert([
-            'role_id' =>
-            $roleId,
-            'permission_id' =>
-            $assignedPermissionId,
+            'role_id' => $roleId,
+            'permission_id' => $assignedPermissionId,
         ]);
 
         $permissions = app(
@@ -115,20 +111,13 @@ final class PermissionCatalogQueryTest extends TestCase
         ?string $id = null,
     ): array {
         return [
-            'id' =>
-            $id ?? UuidV7::generate(),
-            'name' =>
-            $name,
-            'display_name' =>
-            $displayName,
-            'description' =>
-            null,
-            'module' =>
-            $module,
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'id' => $id ?? UuidV7::generate(),
+            'name' => $name,
+            'display_name' => $displayName,
+            'description' => null,
+            'module' => $module,
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 }

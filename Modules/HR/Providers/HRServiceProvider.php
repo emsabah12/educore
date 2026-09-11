@@ -61,7 +61,7 @@ final class HRServiceProvider extends ServiceProvider
          * Register HR database migrations.
          */
         $this->loadMigrationsFrom(
-            __DIR__ . '/../Database/Migrations'
+            __DIR__.'/../Database/Migrations'
         );
     }
 }

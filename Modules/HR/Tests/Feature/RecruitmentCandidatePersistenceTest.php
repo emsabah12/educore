@@ -23,7 +23,9 @@ final class RecruitmentCandidatePersistenceTest extends TestCase
     use RefreshDatabase;
 
     private RecruitmentCandidateIdentifierRepositoryInterface $identifierRepository;
+
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -234,7 +236,7 @@ final class RecruitmentCandidatePersistenceTest extends TestCase
     private function createCandidate(): string
     {
         return RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji ' . Str::random(6),
+            'display_name' => 'Kandidat Uji '.Str::random(6),
             'source' => 'MANUAL',
         ])->id;
     }

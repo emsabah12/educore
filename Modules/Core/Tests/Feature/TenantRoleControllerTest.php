@@ -22,10 +22,15 @@ final class TenantRoleControllerTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantId;
+
     private string $personId;
+
     private string $userId;
+
     private string $membershipId;
+
     private string $email;
+
     private string $managePermissionId;
 
     protected function setUp(): void
@@ -103,7 +108,7 @@ final class TenantRoleControllerTest extends TestCase
 
         $this
             ->withToken($this->issueToken())
-            ->getJson('/api/v1/core/tenant-roles/' . $otherRole->id)
+            ->getJson('/api/v1/core/tenant-roles/'.$otherRole->id)
             ->assertNotFound();
     }
 
@@ -125,7 +130,7 @@ final class TenantRoleControllerTest extends TestCase
 
         $response = $this
             ->withToken($this->issueToken())
-            ->putJson('/api/v1/core/tenant-roles/' . $role->id, [
+            ->putJson('/api/v1/core/tenant-roles/'.$role->id, [
                 'permission_ids' => [$permissionId],
             ]);
 
@@ -158,7 +163,7 @@ final class TenantRoleControllerTest extends TestCase
 
         $this
             ->withToken($this->issueToken())
-            ->putJson('/api/v1/core/tenant-roles/' . $role->id, [
+            ->putJson('/api/v1/core/tenant-roles/'.$role->id, [
                 'permission_ids' => [],
             ])
             ->assertStatus(409)

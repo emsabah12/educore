@@ -209,7 +209,7 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
             )
             ->withHeader(
                 'Authorization',
-                'Bearer ' . $forgedBearer,
+                'Bearer '.$forgedBearer,
             )
             ->getJson('/api/v1/core/authorization/capabilities')
             ->assertOk()
@@ -296,7 +296,7 @@ final class CanonicalBrowserCapabilityProjectionTest extends TestCase
             )
             ->withHeader(
                 'Authorization',
-                'Bearer ' . $bearerCredential,
+                'Bearer '.$bearerCredential,
             )
             ->getJson('/api/v1/core/authorization/capabilities')
             ->assertUnauthorized()

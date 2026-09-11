@@ -16,7 +16,7 @@ final readonly class ModuleLoader
     /**
      * Register all module definitions into the registry.
      *
-     * @param iterable<ModuleDefinition> $definitions
+     * @param  iterable<ModuleDefinition>  $definitions
      */
     public function load(iterable $definitions): ModuleRegistry
     {

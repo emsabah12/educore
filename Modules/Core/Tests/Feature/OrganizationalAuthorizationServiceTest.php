@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Authorization\Models\Permission;
 use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
+use Modules\Core\Identity\Models\User;
 use Modules\Core\Organization\Contracts\OrganizationalAuthorizationServiceInterface;
 use Modules\Core\Organization\Contracts\OrganizationalContextResolverInterface;
 use Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface;
@@ -254,7 +257,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
             withUnit: false,
         );
 
-        $otherUser = \Modules\Core\Identity\Models\User::factory()
+        $otherUser = User::factory()
             ->create();
 
         $otherMembership = Membership::query()->create([
@@ -404,7 +407,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
             'report-card.publish',
         );
 
-        \Illuminate\Support\Facades\DB::table(
+        DB::table(
             'role_permissions',
         )->insert([
             'role_id' => (string) $role->getKey(),
@@ -447,7 +450,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
             'report-card.publish',
         );
 
-        \Illuminate\Support\Facades\DB::table(
+        DB::table(
             'role_permissions',
         )->insert([
             'role_id' => (string) $role->getKey(),
@@ -482,9 +485,9 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
     ): array {
         $tenant = Tenant::query()->create([
             'name' => 'Scoped Authorization Tenant',
-            'subdomain' => 'scoped-auth-' . strtolower(
+            'subdomain' => 'scoped-auth-'.strtolower(
                 substr(
-                    (string) \Illuminate\Support\Str::uuid(),
+                    (string) Str::uuid(),
                     0,
                     8,
                 ),
@@ -496,7 +499,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
             TenantContextInterface::class,
         )->setCurrentTenant($tenant);
 
-        $user = \Modules\Core\Identity\Models\User::factory()
+        $user = User::factory()
             ->create();
 
         $membership = Membership::query()->create([
@@ -612,8 +615,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
             'display_name' => ucwords(
                 str_replace(['.', '-'], ' ', $name),
             ),
-            'description' =>
-                'Scoped authorization test permission.',
+            'description' => 'Scoped authorization test permission.',
         ]);
     }
 
@@ -622,8 +624,7 @@ final class OrganizationalAuthorizationServiceTest extends TestCase
         Role $role,
     ): void {
         OrganizationalAssignmentRole::query()->create([
-            'organizational_assignment_id' =>
-                (string) $assignment->getKey(),
+            'organizational_assignment_id' => (string) $assignment->getKey(),
             'role_id' => (string) $role->getKey(),
         ]);
     }

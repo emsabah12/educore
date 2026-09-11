@@ -104,7 +104,7 @@ final readonly class EmploymentPlacementService
                 ->first();
 
             if ($assignment === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     OrganizationalAssignment::class,
                     [$data['organizational_assignment_id']],
                 );

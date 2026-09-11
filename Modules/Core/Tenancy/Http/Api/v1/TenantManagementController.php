@@ -10,15 +10,15 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
+use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\Core\Tenancy\Contracts\TenantRepositoryInterface;
 use Modules\Core\Tenancy\Exceptions\InvalidInitialTenantAdminException;
-use Modules\Core\Tenancy\Services\TenantProvisioningService;
-use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
 use Modules\Core\Tenancy\Http\Requests\ListTenantsRequest;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantRequest;
 use Modules\Core\Tenancy\Http\Requests\StoreTenantWithNewAdminRequest;
+use Modules\Core\Tenancy\Http\Requests\UpdateTenantRequest;
+use Modules\Core\Tenancy\Services\TenantProvisioningService;
 use Symfony\Component\HttpFoundation\Response;
-use Modules\Core\Http\Responses\ApiErrorResponse;
 use Throwable;
 
 final class TenantManagementController extends Controller
@@ -104,12 +104,9 @@ final class TenantManagementController extends Controller
             Log::warning(
                 'Initial tenant administrator selection was rejected.',
                 [
-                    'initial_admin_user_id' =>
-                    $initialAdminUserId,
-                    'operator_id' =>
-                    $operatorId,
-                    'reason' =>
-                    $exception->getMessage(),
+                    'initial_admin_user_id' => $initialAdminUserId,
+                    'operator_id' => $operatorId,
+                    'reason' => $exception->getMessage(),
                 ],
             );
 
@@ -317,7 +314,7 @@ final class TenantManagementController extends Controller
      * Operasi bisnis yang sudah berhasil tidak boleh dilaporkan gagal
      * hanya karena media penyimpanan audit mengalami gangguan.
      *
-     * @param array<string, mixed>|null $payload
+     * @param  array<string, mixed>|null  $payload
      */
     private function recordAuditSafely(
         string $eventType,

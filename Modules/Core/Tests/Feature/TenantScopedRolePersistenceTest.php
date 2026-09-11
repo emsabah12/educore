@@ -103,7 +103,7 @@ final class TenantScopedRolePersistenceTest extends TestCase
     private function createTenant(string $subdomain): Tenant
     {
         return Tenant::query()->create([
-            'name' => 'Tenant ' . $subdomain,
+            'name' => 'Tenant '.$subdomain,
             'subdomain' => $subdomain,
             'is_active' => true,
         ]);

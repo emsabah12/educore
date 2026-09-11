@@ -40,7 +40,7 @@ final class StoreOrganizationRequest extends FormRequest
                 'max:100',
                 Rule::unique('organizations', 'code')
                     ->where(
-                        fn($query) => $query->where(
+                        fn ($query) => $query->where(
                             'tenant_id',
                             $tenantId,
                         )->whereNull('deleted_at'),

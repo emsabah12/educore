@@ -31,7 +31,7 @@ final class StoreBenefitProgramRequest extends FormRequest
                 'max:60',
                 Rule::unique('benefit_programs', 'code')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

@@ -9,7 +9,7 @@ interface AuditTrailServiceInterface
     /**
      * Rekam jejak aktivitas operasional aplikasi ke media penyimpanan immutable.
      *
-     * @param array<string, mixed>|null $metadata
+     * @param  array<string, mixed>|null  $metadata
      */
     public function log(
         string $eventType,

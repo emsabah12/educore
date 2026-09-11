@@ -38,6 +38,7 @@ final class KernelHealthCheckCommand extends Command
             );
 
             $this->components->info('Seluruh sistem infrastruktur inti dalam kondisi optimal.');
+
             return Command::SUCCESS;
         }
 

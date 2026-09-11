@@ -19,12 +19,14 @@ use Tests\TestCase;
 
 final class CompensationComponentControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -251,7 +253,7 @@ final class CompensationComponentControllerTest extends TestCase
             'id' => UuidV7::generate(),
             'tenant_id' => $tenantId,
             'code' => $code,
-            'name' => 'Komponen Uji ' . $code,
+            'name' => 'Komponen Uji '.$code,
             'category' => CompensationComponent::CATEGORY_BASE_PAY,
             'value_mode' => CompensationComponent::VALUE_MODE_FIXED_AMOUNT,
             'unit_code' => null,

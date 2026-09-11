@@ -21,7 +21,9 @@ final class TenantRoleServiceTest extends TestCase
     use RefreshDatabase;
 
     private TenantRoleService $service;
+
     private TenantSubscriptionService $subscriptionService;
+
     private string $tenantId;
 
     protected function setUp(): void

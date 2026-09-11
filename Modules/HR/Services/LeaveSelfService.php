@@ -44,7 +44,7 @@ final readonly class LeaveSelfService
             ->where('employment_id', $employmentId)
             ->orderByDesc('period_start')
             ->get()
-            ->map(fn(LeaveEntitlement $entitlement): array => [
+            ->map(fn (LeaveEntitlement $entitlement): array => [
                 'entitlement_id' => $entitlement->id,
                 'leave_type_id' => $entitlement->leave_type_id,
                 'period_start' => $entitlement->period_start->toDateString(),
@@ -90,8 +90,8 @@ final readonly class LeaveSelfService
 
     /**
      * @throws LeaveLifecycleException LEAVE_SELF_REQUEST_NOT_OWNED kalau
-     *                                   Leave Request bukan milik
-     *                                   Employment si aktor.
+     *                                 Leave Request bukan milik
+     *                                 Employment si aktor.
      */
     public function submitOwn(string $tenantId, string $membershipId, string $leaveRequestId): LeaveRequest
     {

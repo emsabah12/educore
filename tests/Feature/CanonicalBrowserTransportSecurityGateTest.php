@@ -221,7 +221,7 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
 
         $this->withHeader(
             'Authorization',
-            'Bearer ' . $forgedBearer,
+            'Bearer '.$forgedBearer,
         );
 
         $this
@@ -344,13 +344,13 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
             Route::getRoutes()->getRoutes(),
         )
             ->filter(
-                static fn(IlluminateRoute $route): bool => str_starts_with(
+                static fn (IlluminateRoute $route): bool => str_starts_with(
                     $route->uri(),
                     'api/v1/browser/',
                 ),
             )
             ->mapWithKeys(
-                static fn(IlluminateRoute $route): array => [
+                static fn (IlluminateRoute $route): array => [
                     (string) $route->getName() => $route->uri(),
                 ],
             )

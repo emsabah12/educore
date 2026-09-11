@@ -91,7 +91,7 @@ final readonly class CompensationAdjustmentService
                     ->exists();
 
                 if (! $componentExists) {
-                    throw (new ModelNotFoundException())->setModel(
+                    throw (new ModelNotFoundException)->setModel(
                         CompensationComponent::class,
                         [$componentId],
                     );
@@ -363,7 +363,7 @@ final readonly class CompensationAdjustmentService
             ->first();
 
         if ($adjustment === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 CompensationAdjustment::class,
                 [$adjustmentId],
             );

@@ -68,10 +68,8 @@ final class SwitchMembershipController extends Controller
                 'User membership context switched successfully.',
                 [
                     'user_id' => $userId,
-                    'selected_membership_id' =>
-                    $result->membershipId,
-                    'selected_tenant_id' =>
-                    $result->tenantId,
+                    'selected_membership_id' => $result->membershipId,
+                    'selected_tenant_id' => $result->tenantId,
                 ],
             );
 
@@ -83,18 +81,13 @@ final class SwitchMembershipController extends Controller
                         $result->tenantName,
                     ),
                     'data' => [
-                        'access_token' =>
-                        $result->accessToken,
+                        'access_token' => $result->accessToken,
                         'token_type' => 'Bearer',
-                        'expires_in' =>
-                        $result->expiresIn,
+                        'expires_in' => $result->expiresIn,
                         'context' => [
-                            'membership_id' =>
-                            $result->membershipId,
-                            'tenant_id' =>
-                            $result->tenantId,
-                            'tenant_name' =>
-                            $result->tenantName,
+                            'membership_id' => $result->membershipId,
+                            'tenant_id' => $result->tenantId,
+                            'tenant_name' => $result->tenantName,
                         ],
                     ],
                 ],
@@ -108,10 +101,8 @@ final class SwitchMembershipController extends Controller
                 'User membership context switch rejected.',
                 [
                     'user_id' => $userId,
-                    'target_membership_id' =>
-                    $membership_id,
-                    'reason' =>
-                    $exception->getMessage(),
+                    'target_membership_id' => $membership_id,
+                    'reason' => $exception->getMessage(),
                 ],
             );
 
@@ -125,12 +116,9 @@ final class SwitchMembershipController extends Controller
                 'User membership context switch failed.',
                 [
                     'user_id' => $userId,
-                    'target_membership_id' =>
-                    $membership_id,
-                    'exception' =>
-                    $exception::class,
-                    'message' =>
-                    $exception->getMessage(),
+                    'target_membership_id' => $membership_id,
+                    'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
                 ],
             );
 

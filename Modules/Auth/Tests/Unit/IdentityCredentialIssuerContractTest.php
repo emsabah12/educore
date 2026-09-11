@@ -93,8 +93,7 @@ final class IdentityCredentialIssuerContractTest extends TestCase
         );
 
         $parameterNames = array_map(
-            static fn($parameter): string =>
-                $parameter->getName(),
+            static fn ($parameter): string => $parameter->getName(),
             $constructor->getParameters(),
         );
 

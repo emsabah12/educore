@@ -72,11 +72,9 @@ final class WorkspaceCapabilityProjectionQueryTest extends TestCase
                     'type' => 'organization',
                     'tenant_id' => $tenantId,
                     'membership_id' => $membershipId,
-                    'organizational_assignment_id' =>
-                    $organizationalContext
+                    'organizational_assignment_id' => $organizationalContext
                         ->assignmentId,
-                    'organization_id' =>
-                    $organizationalContext
+                    'organization_id' => $organizationalContext
                         ->organizationId,
                     'organization_unit_id' => null,
                 ],
@@ -463,7 +461,7 @@ final class WorkspaceCapabilityProjectionQueryTest extends TestCase
     }
 
     /**
-     * @param array<int, string> $names
+     * @param  array<int, string>  $names
      */
     private function seedPermissions(
         array $names,
@@ -471,8 +469,7 @@ final class WorkspaceCapabilityProjectionQueryTest extends TestCase
         foreach ($names as $name) {
             Permission::query()->create([
                 'name' => $name,
-                'display_name' =>
-                ucwords(
+                'display_name' => ucwords(
                     str_replace(
                         '.',
                         ' ',
@@ -489,20 +486,19 @@ final class WorkspaceCapabilityProjectionQueryTest extends TestCase
         string $id,
         bool $isGlobalSuperadmin,
     ): User {
-        $user = new User();
+        $user = new User;
 
         $user->forceFill([
             'id' => $id,
             'status' => 'ACTIVE',
-            'is_superadmin' =>
-            $isGlobalSuperadmin,
+            'is_superadmin' => $isGlobalSuperadmin,
         ]);
 
         return $user;
     }
 
     /**
-     * @param array<int, string> $effectivePermissions
+     * @param  array<int, string>  $effectivePermissions
      */
     private function makeQuery(
         AuthorizationContext $authorizationContext,
@@ -583,7 +579,7 @@ final class WorkspaceCapabilityProjectionQueryTest extends TestCase
             )
             ->method('hasPermission')
             ->willReturnCallback(
-                static fn(
+                static fn (
                     string $permissionName,
                 ): bool => in_array(
                     $permissionName,

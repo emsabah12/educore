@@ -19,16 +19,14 @@ use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 
-final readonly class OrganizationalContextResolver implements
-    OrganizationalContextResolverInterface
+final readonly class OrganizationalContextResolver implements OrganizationalContextResolverInterface
 {
     public function __construct(
         private TenantContextInterface $tenantContext,
         private MembershipContextResolverInterface $membershipContextResolver,
         private OrganizationalAssignmentRepositoryInterface $assignmentRepository,
         private OrganizationalContextInterface $organizationalContext,
-    ) {
-    }
+    ) {}
 
     public function resolve(
         string $organizationalAssignmentId,

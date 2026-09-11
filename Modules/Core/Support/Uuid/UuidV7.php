@@ -22,7 +22,7 @@ final class UuidV7
     /**
      * Validate whether a given string is a valid UUID v7 format.
      *
-     * @param string $uuid The UUID string to validate
+     * @param  string  $uuid  The UUID string to validate
      * @return bool True if valid UUID v7, false otherwise
      */
     public static function validate(string $uuid): bool

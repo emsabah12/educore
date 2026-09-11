@@ -30,11 +30,17 @@ final class HireConversionServiceTest extends TestCase
     use RefreshDatabase;
 
     private HireConversionService $service;
+
     private RecruitmentVacancyLifecycleService $vacancyService;
+
     private RecruitmentApplicationLifecycleService $applicationService;
+
     private RecruitmentCandidateIdentifierRepositoryInterface $identifierRepository;
+
     private string $tenantId;
+
     private string $actorMembershipId;
+
     private string $employmentTypeId;
 
     protected function setUp(): void
@@ -42,8 +48,8 @@ final class HireConversionServiceTest extends TestCase
         parent::setUp();
 
         $this->service = app(HireConversionService::class);
-        $this->vacancyService = new RecruitmentVacancyLifecycleService();
-        $this->applicationService = new RecruitmentApplicationLifecycleService();
+        $this->vacancyService = new RecruitmentVacancyLifecycleService;
+        $this->applicationService = new RecruitmentApplicationLifecycleService;
         $this->identifierRepository = app(RecruitmentCandidateIdentifierRepositoryInterface::class);
 
         $this->tenantId = $this->createTenant();
@@ -193,7 +199,7 @@ final class HireConversionServiceTest extends TestCase
     public function test_convert_links_onboarding_case_to_employee_and_employment(): void
     {
         $applicationId = $this->createHiringApprovedApplication('3216666666666666');
-        $onboardingCase = (new OnboardingCaseLifecycleService())->createCase($this->tenantId, $applicationId);
+        $onboardingCase = (new OnboardingCaseLifecycleService)->createCase($this->tenantId, $applicationId);
 
         $conversion = $this->service->convert(
             tenantId: $this->tenantId,
@@ -223,7 +229,7 @@ final class HireConversionServiceTest extends TestCase
     private function createCandidateWithIdentifier(string $nationalId): string
     {
         $candidateId = RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Hire Conversion ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Hire Conversion '.Str::random(6),
         ])->id;
 
         $this->identifierRepository->store(
@@ -246,7 +252,7 @@ final class HireConversionServiceTest extends TestCase
 
         DB::table('persons')->insert([
             'id' => $personId,
-            'name' => 'Person Fixture Sudah Ada ' . Str::random(6),
+            'name' => 'Person Fixture Sudah Ada '.Str::random(6),
             'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
@@ -261,7 +267,7 @@ final class HireConversionServiceTest extends TestCase
     private function createOpenVacancy(): string
     {
         $vacancy = $this->vacancyService->createDraft($this->tenantId, [
-            'code' => 'VAC-HIRE-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-HIRE-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $this->createPosition(),
             'organization_id' => $this->createOrganization(),
@@ -330,7 +336,7 @@ final class HireConversionServiceTest extends TestCase
     private function createPosition(): string
     {
         return Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Guru Matematika',
             'is_active' => true,
         ])->id;
@@ -359,7 +365,7 @@ final class HireConversionServiceTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),

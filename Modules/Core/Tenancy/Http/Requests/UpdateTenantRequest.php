@@ -104,18 +104,12 @@ final class UpdateTenantRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'id.required' =>
-            'The tenant id is required.',
-            'id.uuid' =>
-            'The tenant id must be a valid UUIDv7.',
-            'name.string' =>
-            'The tenant name must be a string.',
-            'name.min' =>
-            'The tenant name must contain at least 3 characters.',
-            'name.max' =>
-            'The tenant name may not exceed 255 characters.',
-            'is_active.boolean' =>
-            'The tenant active status must be boolean.',
+            'id.required' => 'The tenant id is required.',
+            'id.uuid' => 'The tenant id must be a valid UUIDv7.',
+            'name.string' => 'The tenant name must be a string.',
+            'name.min' => 'The tenant name must contain at least 3 characters.',
+            'name.max' => 'The tenant name may not exceed 255 characters.',
+            'is_active.boolean' => 'The tenant active status must be boolean.',
         ];
     }
 }

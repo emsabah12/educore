@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Modules\Core\Platform\Dependency;
 
-use Modules\Core\Manifest\ModuleDefinition;
 use Modules\Core\Exceptions\CircularDependencyException;
 use Modules\Core\Exceptions\MissingModuleDependencyException;
+use Modules\Core\Manifest\ModuleDefinition;
 
 final readonly class DependencyResolver
 {
     /**
      * Menyelesaikan urutan dependensi menggunakan algoritma Topological Sort (Kahn's / DFS Post-Order).
      *
-     * @param array<string, ModuleDefinition> $modules Array berisi seluruh ModuleDefinition terdaftar, berindeks nama modul.
+     * @param  array<string, ModuleDefinition>  $modules  Array berisi seluruh ModuleDefinition terdaftar, berindeks nama modul.
      * @return array<int, ModuleDefinition> List urutan ModuleDefinition yang siap di-boot dengan aman.
      *
      * @throws MissingModuleDependencyException
@@ -38,9 +38,9 @@ final readonly class DependencyResolver
     }
 
     /**
-     * @param array<string, ModuleDefinition> $modules
-     * @param array<string, ModuleDefinition> $resolved
-     * @param array<string, bool> $visiting
+     * @param  array<string, ModuleDefinition>  $modules
+     * @param  array<string, ModuleDefinition>  $resolved
+     * @param  array<string, bool>  $visiting
      */
     private function visit(
         string $moduleName,
@@ -55,7 +55,7 @@ final readonly class DependencyResolver
 
         // Jika modul sedang dalam proses pengecekan di cabang yang sama, artinya ada Circular Dependency!
         if (isset($visiting[$moduleName])) {
-            $cyclePath = implode(' -> ', array_keys($visiting)) . ' -> ' . $moduleName;
+            $cyclePath = implode(' -> ', array_keys($visiting)).' -> '.$moduleName;
             throw CircularDependencyException::forModule($moduleName, $cyclePath);
         }
 
@@ -72,7 +72,7 @@ final readonly class DependencyResolver
 
         foreach ($definition->dependencies as $dependency) {
             // Fail-Fast: Cek jika modul prasyarat tidak ada di daftar modul yang aktif/ditemukan
-            if (!isset($modules[$dependency])) {
+            if (! isset($modules[$dependency])) {
                 throw MissingModuleDependencyException::forModule($moduleName, $dependency);
             }
 

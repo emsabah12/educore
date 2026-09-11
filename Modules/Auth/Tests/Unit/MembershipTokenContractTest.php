@@ -60,8 +60,7 @@ final class MembershipTokenContractTest extends TestCase
         ];
 
         foreach (
-            $method->getParameters()
-            as $index => $parameter
+            $method->getParameters() as $index => $parameter
         ) {
             $this->assertSame(
                 $expectedParameters[$index],

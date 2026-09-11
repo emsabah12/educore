@@ -36,7 +36,7 @@ final class RoleCatalogQuery
             ])
             ->orderBy('name')
             ->get()
-            ->map(static fn(Role $role): array => [
+            ->map(static fn (Role $role): array => [
                 'id' => (string) $role->id,
                 'name' => (string) $role->name,
                 'display_name' => (string) $role->display_name,

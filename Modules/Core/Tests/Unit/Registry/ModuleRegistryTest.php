@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Unit\Registry;
 
-use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
 use Modules\Core\Exceptions\ModuleNotFoundException;
 use Modules\Core\Platform\Registry\ModuleRegistry;
-use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleDefinitionBuilder;
-use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class ModuleRegistryTest extends TestCase
 {
     public function test_can_be_instantiated(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $this->assertInstanceOf(
             ModuleRegistry::class,
@@ -27,7 +24,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_registers_module(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $module = ModuleDefinitionBuilder::make()->build();
 
@@ -46,7 +43,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_prevents_duplicate_module_names(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $module = ModuleDefinitionBuilder::make()->build();
 
@@ -65,7 +62,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_has_registered_module(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $module = ModuleDefinitionBuilder::make()->build();
 
@@ -82,7 +79,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_gets_module_by_name(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $module = ModuleDefinitionBuilder::make()->build();
 
@@ -95,7 +92,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_throws_when_module_not_found(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $this->expectException(
             ModuleNotFoundException::class
@@ -110,7 +107,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_returns_all_modules(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $core = ModuleDefinitionBuilder::make()
             ->name('core')
@@ -136,7 +133,7 @@ final class ModuleRegistryTest extends TestCase
 
     public function test_returns_registry_count(): void
     {
-        $registry = new ModuleRegistry();
+        $registry = new ModuleRegistry;
 
         $this->assertSame(0, $registry->count());
 

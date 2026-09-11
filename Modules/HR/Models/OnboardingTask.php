@@ -23,7 +23,9 @@ final class OnboardingTask extends Model
     use HasUuidV7;
 
     public const string STATUS_PENDING = 'PENDING';
+
     public const string STATUS_COMPLETED = 'COMPLETED';
+
     public const string STATUS_WAIVED = 'WAIVED';
 
     protected $table = 'onboarding_tasks';

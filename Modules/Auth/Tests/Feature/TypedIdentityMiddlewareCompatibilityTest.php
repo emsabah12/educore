@@ -121,7 +121,7 @@ final class TypedIdentityMiddlewareCompatibilityTest extends TestCase
 
         $this->tenant = Tenant::query()->create([
             'name' => 'Typed Identity Middleware Tenant',
-            'subdomain' => 'typed-identity-' . strtolower(
+            'subdomain' => 'typed-identity-'.strtolower(
                 fake()->lexify('????????'),
             ),
             'is_active' => true,

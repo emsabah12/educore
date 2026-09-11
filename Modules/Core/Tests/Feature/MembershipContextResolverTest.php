@@ -19,8 +19,11 @@ final class MembershipContextResolverTest extends TestCase
     use RefreshDatabase;
 
     private Tenant $tenantA;
+
     private Tenant $tenantB;
+
     private User $user;
+
     private Membership $membershipA;
 
     protected function setUp(): void

@@ -32,7 +32,7 @@ interface EmployeeRepositoryInterface
     ): ?array;
 
     /**
-     * @param array{nip:string|null,jabatan:string} $data
+     * @param  array{nip:string|null,jabatan:string}  $data
      * @return array<string, mixed>
      */
     public function createProfileForTenant(

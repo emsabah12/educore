@@ -58,7 +58,7 @@ final class LeaveEntitlementController extends Controller
             ->orderByDesc('period_start')
             ->get();
 
-        $balances = $entitlements->map(fn(LeaveEntitlement $entitlement): array => [
+        $balances = $entitlements->map(fn (LeaveEntitlement $entitlement): array => [
             'entitlement_id' => $entitlement->id,
             'employment_id' => $entitlement->employment_id,
             'leave_type_id' => $entitlement->leave_type_id,

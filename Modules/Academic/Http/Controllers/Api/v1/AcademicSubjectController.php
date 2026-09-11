@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Academic\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Modules\Academic\Contracts\Repository\AcademicSubjectRepositoryInterface;
 use Throwable;
 
@@ -38,7 +38,7 @@ final class AcademicSubjectController extends Controller
                 'last_page' => $subjects->lastPage(),
                 'per_page' => $subjects->perPage(),
                 'total' => $subjects->total(),
-            ]
+            ],
         ], 200);
     }
 
@@ -54,7 +54,7 @@ final class AcademicSubjectController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'code' => ['required', 'string', 'max:50'],
             'category' => ['required', 'string', 'in:NASIONAL,MUATAN_LOKAL,PESANTREN'],
-            'is_active' => ['boolean']
+            'is_active' => ['boolean'],
         ]);
 
         try {
@@ -63,7 +63,7 @@ final class AcademicSubjectController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Academic subject created successfully.',
-                'data' => $subject
+                'data' => $subject,
             ], 201);
         } catch (Throwable $e) {
             return response()->json(['status' => 'error', 'message' => 'Failed to create academic subject.'], 500);

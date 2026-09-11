@@ -30,7 +30,7 @@ final class StoreTenantRoleRequest extends FormRequest
                 'regex:/^[a-z0-9](?:[a-z0-9._-]{0,148}[a-z0-9])?$/',
                 Rule::unique('roles', 'name')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             is_string($tenantId) ? $tenantId : '',
                         ),

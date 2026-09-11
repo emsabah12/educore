@@ -22,14 +22,14 @@ final class ModuleFixtureBuilder
 
     public static function make(): self
     {
-        return new self();
+        return new self;
     }
 
     public function manifest(ManifestBuilder $manifest): self
     {
         $clone = clone $this;
-        $clone->name = $manifest->moduleName();    
-    
+        $clone->name = $manifest->moduleName();
+
         $clone->files['module.yaml'] = $manifest->toYaml();
 
         return $clone;

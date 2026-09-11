@@ -29,12 +29,17 @@ final class CompensationAdjustment extends Model
     use HasUuidV7;
 
     public const TYPE_ONE_TIME_EARNING = 'ONE_TIME_EARNING';
+
     public const TYPE_COMPENSATION_CORRECTION = 'COMPENSATION_CORRECTION';
 
     public const STATUS_DRAFT = 'DRAFT';
+
     public const STATUS_SUBMITTED = 'SUBMITTED';
+
     public const STATUS_APPROVED = 'APPROVED';
+
     public const STATUS_REJECTED = 'REJECTED';
+
     public const STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'compensation_adjustments';

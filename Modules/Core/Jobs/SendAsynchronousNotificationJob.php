@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Core\Jobs;
 
-use RuntimeException;
-use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Platform\Notification\Contracts\NotificationChannelInterface;
+use Modules\Core\Support\Uuid\UuidV7;
+use RuntimeException;
 
 final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
 {
@@ -19,7 +19,7 @@ final class SendAsynchronousNotificationJob extends BaseTenantAwareJob
     private string $notificationId;
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function __construct(
         string $tenantId,

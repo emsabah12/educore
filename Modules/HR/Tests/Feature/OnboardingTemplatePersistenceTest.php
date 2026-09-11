@@ -20,6 +20,7 @@ final class OnboardingTemplatePersistenceTest extends TestCase
     use RefreshDatabase;
 
     private string $tenantAId;
+
     private string $tenantBId;
 
     protected function setUp(): void
@@ -230,7 +231,7 @@ final class OnboardingTemplatePersistenceTest extends TestCase
     private function createTemplate(): string
     {
         return OnboardingTemplate::create([
-            'code' => 'TPL-' . Str::upper(Str::random(6)),
+            'code' => 'TPL-'.Str::upper(Str::random(6)),
             'name' => 'Template Uji Onboarding',
         ])->id;
     }

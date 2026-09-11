@@ -35,8 +35,7 @@ final class MembershipControllerErrorContractTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ],
             $response->getData(true),
         );

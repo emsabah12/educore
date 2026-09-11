@@ -18,6 +18,5 @@ final readonly class OrganizationalContext
         public string $assignmentId,
         public string $organizationId,
         public ?string $organizationUnitId,
-    ) {
-    }
+    ) {}
 }

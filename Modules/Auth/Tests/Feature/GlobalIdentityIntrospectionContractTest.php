@@ -257,8 +257,7 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
             ->assertExactJson([
                 'status' => 'error',
                 'code' => 'AUTHENTICATION_REQUIRED',
-                'message' =>
-                    'Unauthenticated. Invalid or missing identity context.',
+                'message' => 'Unauthenticated. Invalid or missing identity context.',
             ]);
     }
 
@@ -276,10 +275,8 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
             ->assertUnauthorized()
             ->assertExactJson([
                 'status' => 'error',
-                'code' =>
-                    'BROWSER_SESSION_AUTHENTICATION_REQUIRED',
-                'message' =>
-                    'Authenticated browser session is required.',
+                'code' => 'BROWSER_SESSION_AUTHENTICATION_REQUIRED',
+                'message' => 'Authenticated browser session is required.',
             ]);
     }
 
@@ -358,10 +355,8 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
             ->postJson(
                 '/api/v1/browser/auth/login',
                 [
-                    'identifier' =>
-                        $this->email,
-                    'password' =>
-                        'secret123',
+                    'identifier' => $this->email,
+                    'password' => 'secret123',
                 ],
             )
             ->assertOk()
@@ -412,14 +407,10 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
             'data' => [
                 'context_type' => 'identity',
                 'user' => [
-                    'id' =>
-                        $this->userId,
-                    'name' =>
-                        'Identity Introspection Person',
-                    'email' =>
-                        $this->email,
-                    'username' =>
-                        $this->username,
+                    'id' => $this->userId,
+                    'name' => 'Identity Introspection Person',
+                    'email' => $this->email,
+                    'username' => $this->username,
                 ],
                 'platform' => [
                     'is_superadmin' => true,
@@ -429,7 +420,7 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $response
+     * @param  array<string, mixed>  $response
      */
     private function assertIdentityResponseHasNoTenantContext(
         array $response,
@@ -489,74 +480,48 @@ final class GlobalIdentityIntrospectionContractTest extends TestCase
     private function createFixture(): void
     {
         DB::table('persons')->insert([
-            'id' =>
-                $this->personId,
-            'name' =>
-                'Identity Introspection Person',
-            'status' =>
-                'ACTIVE',
-            'created_at' =>
-                now(),
-            'updated_at' =>
-                now(),
+            'id' => $this->personId,
+            'name' => 'Identity Introspection Person',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('users')->insert([
-            'id' =>
-                $this->userId,
-            'person_id' =>
-                $this->personId,
-            'email' =>
-                $this->email,
-            'username' =>
-                $this->username,
-            'password' =>
-                bcrypt(
-                    'secret123',
-                ),
-            'status' =>
-                'ACTIVE',
-            'is_superadmin' =>
-                true,
-            'created_at' =>
-                now(),
-            'updated_at' =>
-                now(),
+            'id' => $this->userId,
+            'person_id' => $this->personId,
+            'email' => $this->email,
+            'username' => $this->username,
+            'password' => bcrypt(
+                'secret123',
+            ),
+            'status' => 'ACTIVE',
+            'is_superadmin' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('tenants')->insert([
-            'id' =>
-                $this->tenantId,
-            'name' =>
-                'Identity Introspection Tenant',
-            'subdomain' =>
-                sprintf(
-                    'identity-introspection-%s',
-                    Str::lower(
-                        Str::random(8),
-                    ),
+            'id' => $this->tenantId,
+            'name' => 'Identity Introspection Tenant',
+            'subdomain' => sprintf(
+                'identity-introspection-%s',
+                Str::lower(
+                    Str::random(8),
                 ),
-            'is_active' =>
-                true,
-            'created_at' =>
-                now(),
-            'updated_at' =>
-                now(),
+            ),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('memberships')->insert([
-            'id' =>
-                $this->membershipId,
-            'person_id' =>
-                $this->personId,
-            'tenant_id' =>
-                $this->tenantId,
-            'status' =>
-                'ACTIVE',
-            'created_at' =>
-                now(),
-            'updated_at' =>
-                now(),
+            'id' => $this->membershipId,
+            'person_id' => $this->personId,
+            'tenant_id' => $this->tenantId,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }

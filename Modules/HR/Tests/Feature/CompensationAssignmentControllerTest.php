@@ -21,12 +21,14 @@ use Tests\TestCase;
 
 final class CompensationAssignmentControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -434,7 +436,7 @@ final class CompensationAssignmentControllerTest extends TestCase
         app(TenantContextInterface::class)->setCurrentTenant($tenant);
 
         $component = CompensationComponent::create([
-            'code' => 'BASE_SALARY-' . Str::upper(Str::random(4)),
+            'code' => 'BASE_SALARY-'.Str::upper(Str::random(4)),
             'name' => 'Gaji Pokok',
             'category' => CompensationComponent::CATEGORY_BASE_PAY,
             'value_mode' => CompensationComponent::VALUE_MODE_FIXED_AMOUNT,

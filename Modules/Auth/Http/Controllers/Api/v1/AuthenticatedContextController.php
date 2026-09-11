@@ -89,16 +89,12 @@ final class AuthenticatedContextController extends Controller
                 'status' => 'success',
                 'data' => [
                     'user' => [
-                        'id' =>
-                        (string) $user->getKey(),
-                        'email' =>
-                        (string) $user->email,
+                        'id' => (string) $user->getKey(),
+                        'email' => (string) $user->email,
                     ],
                     'person' => [
-                        'id' =>
-                        (string) $person->getKey(),
-                        'name' =>
-                        (string) $person->name,
+                        'id' => (string) $person->getKey(),
+                        'name' => (string) $person->name,
                     ],
                     'membership' => [
                         'id' => $membershipId,
@@ -106,10 +102,8 @@ final class AuthenticatedContextController extends Controller
                     ],
                     'tenant' => [
                         'id' => $tenantId,
-                        'name' =>
-                        (string) $tenant->name,
-                        'subdomain' =>
-                        $tenant->subdomain !== null
+                        'name' => (string) $tenant->name,
+                        'subdomain' => $tenant->subdomain !== null
                             ? (string) $tenant->subdomain
                             : null,
                     ],

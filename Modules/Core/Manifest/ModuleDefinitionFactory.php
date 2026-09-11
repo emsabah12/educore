@@ -15,7 +15,7 @@ final readonly class ModuleDefinitionFactory
     /**
      * Create ModuleDefinition from validated manifest.
      *
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     public function make(array $manifest): ModuleDefinition
     {

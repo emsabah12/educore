@@ -88,10 +88,10 @@ final class AuthorizationService implements AuthorizationServiceInterface
 
             if (
                 $this->rolePermissionRepository
-                ->roleHasPermission(
-                    (string) $role->id,
-                    $permissionName,
-                )
+                    ->roleHasPermission(
+                        (string) $role->id,
+                        $permissionName,
+                    )
             ) {
                 return true;
             }

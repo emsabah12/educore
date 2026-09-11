@@ -15,8 +15,8 @@ use Tests\TestCase;
 
 final class TenantBackfillDefaultOrganizationCommandTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

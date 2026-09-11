@@ -31,7 +31,7 @@ final class StoreCompensationComponentRequest extends FormRequest
                 'max:60',
                 Rule::unique('compensation_components', 'code')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

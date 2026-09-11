@@ -27,8 +27,7 @@ final class ApiErrorResponseTest extends TestCase
             [
                 'status' => 'error',
                 'code' => 'AUTHORIZATION_DENIED',
-                'message' =>
-                'You are not allowed to perform this operation.',
+                'message' => 'You are not allowed to perform this operation.',
             ],
             $response->getData(true),
         );

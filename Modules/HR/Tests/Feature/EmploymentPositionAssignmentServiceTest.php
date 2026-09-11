@@ -23,13 +23,14 @@ final class EmploymentPositionAssignmentServiceTest extends TestCase
     use RefreshDatabase;
 
     private EmploymentPositionAssignmentService $service;
+
     private string $tenantId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new EmploymentPositionAssignmentService();
+        $this->service = new EmploymentPositionAssignmentService;
         $this->tenantId = $this->createTenant('Position Assignment Service Tenant');
         $this->activateTenantContext($this->tenantId);
     }
@@ -245,12 +246,12 @@ final class EmploymentPositionAssignmentServiceTest extends TestCase
     {
         [$employeeId, $membershipId] = $this->createEmployee();
         $employmentTypeId = EmploymentType::create([
-            'code' => 'TIPE-' . Str::upper(Str::random(6)),
+            'code' => 'TIPE-'.Str::upper(Str::random(6)),
             'name' => 'Tipe Uji Posisi',
             'is_active' => true,
         ])->id;
 
-        $lifecycleService = new EmploymentLifecycleService();
+        $lifecycleService = new EmploymentLifecycleService;
 
         $planned = $lifecycleService->createPlanned(
             tenantId: $this->tenantId,
@@ -273,7 +274,7 @@ final class EmploymentPositionAssignmentServiceTest extends TestCase
     {
         [$employeeId, $membershipId] = $this->createEmployee();
 
-        $planned = (new EmploymentLifecycleService())->createPlanned(
+        $planned = (new EmploymentLifecycleService)->createPlanned(
             tenantId: $this->tenantId,
             employeeId: $employeeId,
             data: ['start_date' => '2026-01-01'],
@@ -325,7 +326,7 @@ final class EmploymentPositionAssignmentServiceTest extends TestCase
     private function createPosition(bool $isActive = true): string
     {
         return Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Layanan',
             'is_active' => $isActive,
         ])->id;
@@ -336,7 +337,7 @@ final class EmploymentPositionAssignmentServiceTest extends TestCase
         string $membershipId,
         string $effectiveFrom = '2026-01-01',
     ): string {
-        return (new EmploymentPlacementService())->createPlacement(
+        return (new EmploymentPlacementService)->createPlacement(
             tenantId: $this->tenantId,
             employmentId: $employmentId,
             data: [

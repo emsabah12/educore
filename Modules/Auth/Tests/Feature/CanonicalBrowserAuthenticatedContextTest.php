@@ -372,12 +372,9 @@ final class CanonicalBrowserAuthenticatedContextTest extends TestCase
             ->assertExactJson([
                 'status' => 'success',
                 'data' => [
-                    'membership_id' =>
-                        $this->membershipId,
-                    'tenant_id' =>
-                        $this->tenantId,
-                    'tenant_name' =>
-                        'Canonical Browser Context Tenant',
+                    'membership_id' => $this->membershipId,
+                    'tenant_id' => $this->tenantId,
+                    'tenant_name' => 'Canonical Browser Context Tenant',
                 ],
             ]);
 

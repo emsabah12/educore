@@ -47,7 +47,7 @@ final class EmployeeBenefitParticipationController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $participations->map(
-                fn(EmployeeBenefitParticipation $participation): array => $this->serialize($participation),
+                fn (EmployeeBenefitParticipation $participation): array => $this->serialize($participation),
             ),
         ]);
     }
@@ -103,7 +103,7 @@ final class EmployeeBenefitParticipationController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId, string $actorMembershipId): EmployeeBenefitParticipation => $this->service->enroll(
+            fn (string $tenantId, string $actorMembershipId): EmployeeBenefitParticipation => $this->service->enroll(
                 tenantId: $tenantId,
                 employmentId: $employmentId,
                 participationId: $participationId,
@@ -117,7 +117,7 @@ final class EmployeeBenefitParticipationController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->suspend(
+            fn (string $tenantId): EmployeeBenefitParticipation => $this->service->suspend(
                 $tenantId,
                 $employmentId,
                 $participationId,
@@ -130,7 +130,7 @@ final class EmployeeBenefitParticipationController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->reinstate(
+            fn (string $tenantId): EmployeeBenefitParticipation => $this->service->reinstate(
                 $tenantId,
                 $employmentId,
                 $participationId,
@@ -149,7 +149,7 @@ final class EmployeeBenefitParticipationController extends Controller
         return $this->transition(
             $request,
             $employmentId,
-            fn(string $tenantId): EmployeeBenefitParticipation => $this->service->end(
+            fn (string $tenantId): EmployeeBenefitParticipation => $this->service->end(
                 $tenantId,
                 $employmentId,
                 $participationId,
@@ -159,10 +159,10 @@ final class EmployeeBenefitParticipationController extends Controller
     }
 
     /**
-     * @param callable(string, string): EmployeeBenefitParticipation $operation
-     *     Menerima (tenantId, actorMembershipId) — parameter kedua
-     *     hanya relevan untuk enroll(), disediakan seragam supaya
-     *     satu helper ini dipakai keempat aksi transisi.
+     * @param  callable(string, string): EmployeeBenefitParticipation  $operation
+     *                                                                             Menerima (tenantId, actorMembershipId) — parameter kedua
+     *                                                                             hanya relevan untuk enroll(), disediakan seragam supaya
+     *                                                                             satu helper ini dipakai keempat aksi transisi.
      */
     private function transition(
         Request $request,

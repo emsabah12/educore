@@ -26,6 +26,7 @@ final class EmployeeBenefitIdentifier extends Model
     use HasUuidV7;
 
     public const STATUS_ACTIVE = 'ACTIVE';
+
     public const STATUS_INACTIVE = 'INACTIVE';
 
     protected $table = 'employee_benefit_identifiers';

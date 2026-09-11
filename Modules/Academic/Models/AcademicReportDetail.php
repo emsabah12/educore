@@ -11,8 +11,8 @@ use Modules\Core\Tenancy\Traits\BelongsToTenant;
 
 class AcademicReportDetail extends Model
 {
-    use HasUuids;
     use BelongsToTenant;
+    use HasUuids;
 
     protected $table = 'academic_report_details';
 

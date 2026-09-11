@@ -30,25 +30,33 @@ final class LeaveApprovalServiceTest extends TestCase
     use RefreshDatabase;
 
     private LeaveApprovalPolicyService $approvalPolicyService;
+
     private LeaveRequestService $requestService;
+
     private LeaveApprovalService $approvalService;
+
     private LeaveBalanceService $balanceService;
 
     private string $tenantId;
+
     private string $employeeMembershipId;
+
     private string $approverUserId;
+
     private string $approverMembershipId;
+
     private string $employmentId;
+
     private string $leaveTypeId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->approvalPolicyService = new LeaveApprovalPolicyService();
+        $this->approvalPolicyService = new LeaveApprovalPolicyService;
         $this->requestService = app(LeaveRequestService::class);
         $this->approvalService = app(LeaveApprovalService::class);
-        $this->balanceService = new LeaveBalanceService();
+        $this->balanceService = new LeaveBalanceService;
 
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
@@ -87,7 +95,7 @@ final class LeaveApprovalServiceTest extends TestCase
             'entitlement_id' => $entitlement->id,
             'entry_type' => LeaveBalanceLedger::ENTRY_GRANT,
             'units_delta' => 12,
-            'idempotency_key' => 'grant:' . $entitlement->id,
+            'idempotency_key' => 'grant:'.$entitlement->id,
             'occurred_at' => now(),
             'created_at' => now(),
         ]);
@@ -198,7 +206,7 @@ final class LeaveApprovalServiceTest extends TestCase
             'entitlement_id' => $entitlement->id,
             'entry_type' => LeaveBalanceLedger::ENTRY_GRANT,
             'units_delta' => 12,
-            'idempotency_key' => 'grant:' . $entitlement->id,
+            'idempotency_key' => 'grant:'.$entitlement->id,
             'occurred_at' => now(),
             'created_at' => now(),
         ]);
@@ -233,7 +241,7 @@ final class LeaveApprovalServiceTest extends TestCase
             'entitlement_id' => $entitlement->id,
             'entry_type' => LeaveBalanceLedger::ENTRY_GRANT,
             'units_delta' => 1,
-            'idempotency_key' => 'grant:' . $entitlement->id,
+            'idempotency_key' => 'grant:'.$entitlement->id,
             'occurred_at' => now(),
             'created_at' => now(),
         ]);
@@ -273,7 +281,7 @@ final class LeaveApprovalServiceTest extends TestCase
         // LeaveType di sini NONE (permit) supaya tidak perlu setup
         // entitlement — fokus murni ke exclusion constraint overlap.
         $noneTypeId = LeaveType::create([
-            'code' => 'PERMIT-' . Str::upper(Str::random(6)),
+            'code' => 'PERMIT-'.Str::upper(Str::random(6)),
             'name' => 'Izin Tanpa Saldo',
             'category' => LeaveType::CATEGORY_PERMIT,
             'balance_mode' => LeaveType::BALANCE_MODE_NONE,
@@ -379,7 +387,7 @@ final class LeaveApprovalServiceTest extends TestCase
     private function createLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,
@@ -511,7 +519,7 @@ final class LeaveApprovalServiceTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'leave-approver-' . Str::lower(Str::random(6)),
+            'name' => 'leave-approver-'.Str::lower(Str::random(6)),
             'display_name' => 'Leave Approver Test Role',
             'description' => 'Test-only role granting leave approval permission.',
             'created_at' => now(),
@@ -574,7 +582,7 @@ final class LeaveApprovalServiceTest extends TestCase
 
         DB::table('roles')->insert([
             'id' => $roleId,
-            'name' => 'self-approve-test-' . Str::lower(Str::random(6)),
+            'name' => 'self-approve-test-'.Str::lower(Str::random(6)),
             'display_name' => 'Self Approval Test Role',
             'description' => 'Test-only role granting leave approval permission to the leave subject.',
             'created_at' => now(),

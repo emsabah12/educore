@@ -138,7 +138,7 @@ final class EloquentEmployeeBenefitIdentifierRepository implements EmployeeBenef
             ->where('status', EmployeeBenefitIdentifier::STATUS_ACTIVE)
             ->orderBy('created_at')
             ->get()
-            ->map(fn(EmployeeBenefitIdentifier $record): array => [
+            ->map(fn (EmployeeBenefitIdentifier $record): array => [
                 'identifier_type' => (string) $record->identifier_type,
                 'value' => $this->cipher->decrypt(
                     (string) $record->getAttribute('encrypted_value'),

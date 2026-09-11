@@ -10,8 +10,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Modules\HR\Exceptions\BenefitParticipationLifecycleException;
 use Modules\HR\Models\BenefitProgram;
-use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmployeeBenefitParticipation;
+use Modules\HR\Models\Employment;
 use Modules\HR\Services\Concerns\LocksEmploymentRecords;
 
 /**
@@ -88,7 +88,7 @@ final readonly class BenefitParticipationService
                 ->first();
 
             if ($program === null) {
-                throw (new ModelNotFoundException())->setModel(
+                throw (new ModelNotFoundException)->setModel(
                     BenefitProgram::class,
                     [$data['benefit_program_id']],
                 );
@@ -460,7 +460,7 @@ final readonly class BenefitParticipationService
             ->first();
 
         if ($participation === null) {
-            throw (new ModelNotFoundException())->setModel(
+            throw (new ModelNotFoundException)->setModel(
                 EmployeeBenefitParticipation::class,
                 [$participationId],
             );

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Core\Platform\Registry;
 
-use Modules\Core\Platform\Module\Domain\ModuleDefinition;
-use Modules\Core\Services\ModuleBootstrapService;
 use Modules\Core\Exceptions\ModuleAlreadyRegisteredException;
 use Modules\Core\Exceptions\ModuleNotFoundException;
+use Modules\Core\Platform\Module\Domain\ModuleDefinition;
 
 final class ModuleRegistry
 {

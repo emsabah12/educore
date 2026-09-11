@@ -45,20 +45,19 @@ interface RepositoryInterface
     public function paginate(int $perPage = 15): LengthAwarePaginator;
 
     /**
-     * @param array<string,mixed> $attributes
-     *
+     * @param  array<string,mixed>  $attributes
      * @return TModel
      */
     public function create(array $attributes): Model;
 
     /**
-     * @param TModel $model
-     * @param array<string,mixed> $attributes
+     * @param  TModel  $model
+     * @param  array<string,mixed>  $attributes
      */
     public function update(Model $model, array $attributes): bool;
 
     /**
-     * @param TModel $model
+     * @param  TModel  $model
      */
     public function delete(Model $model): bool;
 

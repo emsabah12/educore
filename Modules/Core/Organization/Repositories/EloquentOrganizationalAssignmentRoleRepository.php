@@ -7,8 +7,7 @@ namespace Modules\Core\Organization\Repositories;
 use Modules\Core\Organization\Contracts\OrganizationalAssignmentRoleRepositoryInterface;
 use Modules\Core\Organization\Models\OrganizationalAssignmentRole;
 
-final class EloquentOrganizationalAssignmentRoleRepository implements
-    OrganizationalAssignmentRoleRepositoryInterface
+final class EloquentOrganizationalAssignmentRoleRepository implements OrganizationalAssignmentRoleRepositoryInterface
 {
     public function findGrant(
         string $organizationalAssignmentId,
@@ -29,8 +28,7 @@ final class EloquentOrganizationalAssignmentRoleRepository implements
     ): OrganizationalAssignmentRole {
         return OrganizationalAssignmentRole::query()
             ->firstOrCreate([
-                'organizational_assignment_id' =>
-                    $organizationalAssignmentId,
+                'organizational_assignment_id' => $organizationalAssignmentId,
                 'role_id' => $roleId,
             ]);
     }

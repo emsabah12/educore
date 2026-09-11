@@ -19,8 +19,7 @@ final class TenantManager
      * Service ini digunakan oleh jalur non-HTTP seperti Artisan command,
      * sehingga tetap melakukan validasi input internal.
      *
-     * @param array<string, mixed> $data
-     *
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public function createTenant(array $data): array
@@ -35,8 +34,7 @@ final class TenantManager
     }
 
     /**
-     * @param array<string, mixed> $data
-     *
+     * @param  array<string, mixed>  $data
      * @return array{
      *     name: string,
      *     subdomain: string,

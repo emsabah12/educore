@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Modules\Core\Support\Uuid\HasUuidV7;
 
-
 final class SubscriptionPlan extends Model
 {
     use HasUuidV7;

@@ -24,16 +24,19 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
     use RefreshDatabase;
 
     private RecruitmentApplicationLifecycleService $service;
+
     private RecruitmentVacancyLifecycleService $vacancyService;
+
     private string $tenantId;
+
     private string $membershipId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new RecruitmentApplicationLifecycleService();
-        $this->vacancyService = new RecruitmentVacancyLifecycleService();
+        $this->service = new RecruitmentApplicationLifecycleService;
+        $this->vacancyService = new RecruitmentVacancyLifecycleService;
         $this->tenantId = $this->createTenant();
         $this->activateTenantContext($this->tenantId);
         $this->membershipId = $this->createMembership();
@@ -181,7 +184,7 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
     private function createOpenVacancy(): string
     {
         $vacancy = $this->vacancyService->createDraft($this->tenantId, [
-            'code' => 'VAC-APPSVC-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-APPSVC-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $this->createPosition(),
             'organization_id' => $this->createOrganization(),
@@ -198,7 +201,7 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
     private function createDraftVacancy(): string
     {
         return $this->vacancyService->createDraft($this->tenantId, [
-            'code' => 'VAC-APPSVC-' . Str::upper(Str::random(6)),
+            'code' => 'VAC-APPSVC-'.Str::upper(Str::random(6)),
             'title' => 'Guru Matematika',
             'position_id' => $this->createPosition(),
             'organization_id' => $this->createOrganization(),
@@ -210,7 +213,7 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
     private function createCandidate(): string
     {
         return RecruitmentCandidate::create([
-            'display_name' => 'Kandidat Uji Application Service ' . Str::random(6),
+            'display_name' => 'Kandidat Uji Application Service '.Str::random(6),
         ])->id;
     }
 
@@ -244,7 +247,7 @@ final class RecruitmentApplicationLifecycleServiceTest extends TestCase
     private function createPosition(): string
     {
         return Position::create([
-            'code' => 'POS-' . Str::upper(Str::random(6)),
+            'code' => 'POS-'.Str::upper(Str::random(6)),
             'name' => 'Posisi Uji Application Service',
             'is_active' => true,
         ])->id;

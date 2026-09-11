@@ -13,9 +13,9 @@ final class ManifestBuilder
     private string $name = 'Core';
 
     private string $displayName = 'Core';
-    
+
     private string $version = '1.0.0';
-    
+
     private string $description = 'Core Module';
 
     /**
@@ -38,13 +38,11 @@ final class ManifestBuilder
      */
     private array $extra = [];
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function make(): self
     {
-        return new self();
+        return new self;
     }
 
     public function schema(int $schema): self
@@ -93,19 +91,19 @@ final class ManifestBuilder
     }
 
     /**
-     * @param list<string> $providers
+     * @param  list<string>  $providers
      */
     public function providers(array $providers): self
     {
         $clone = clone $this;
-        $clone ->providers = $providers;
+        $clone->providers = $providers;
 
         return $clone;
     }
 
     /**
 }
-     * @param list<string, mixed> $metadata
+     * @param  list<string, mixed>  $metadata
      */
     public function metadata(array $metadata): self
     {
@@ -116,7 +114,7 @@ final class ManifestBuilder
     }
 
     /**
-     * @param list<string, mixed> $dependencies
+     * @param  list<string, mixed>  $dependencies
      */
     public function dependencies(array $dependencies): self
     {
@@ -127,10 +125,10 @@ final class ManifestBuilder
     }
 
     /**
-     * @param list<string, mixed> $extra
+     * @param  list<string, mixed>  $extra
      */
     public function extra(array $extra): self
-    {   
+    {
         $clone = clone $this;
         $clone->extra = $extra;
 
@@ -138,22 +136,22 @@ final class ManifestBuilder
     }
 
     /**
- * @return array<string, mixed>
- */
-public function build(): array
-{
-    return [
-        'schema' => $this->schema,
-        'name' => $this->name,
-        'display_name' => $this->displayName,
-        'version' => $this->version,
-        'description' => $this->description,
-        'providers' => $this->providers,
-        'dependencies' => $this->dependencies,
-        'metadata' => $this->metadata,
-        'extra' => $this->extra,
-    ];
-}
+     * @return array<string, mixed>
+     */
+    public function build(): array
+    {
+        return [
+            'schema' => $this->schema,
+            'name' => $this->name,
+            'display_name' => $this->displayName,
+            'version' => $this->version,
+            'description' => $this->description,
+            'providers' => $this->providers,
+            'dependencies' => $this->dependencies,
+            'metadata' => $this->metadata,
+            'extra' => $this->extra,
+        ];
+    }
 
     public function toYaml(): string
     {

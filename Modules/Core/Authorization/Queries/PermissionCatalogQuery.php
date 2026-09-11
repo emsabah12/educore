@@ -28,12 +28,10 @@ final class PermissionCatalogQuery
             ->orderBy('name')
             ->pluck('name')
             ->map(
-                static fn(mixed $name): string =>
-                trim((string) $name),
+                static fn (mixed $name): string => trim((string) $name),
             )
             ->filter(
-                static fn(string $name): bool =>
-                $name !== '',
+                static fn (string $name): bool => $name !== '',
             )
             ->unique()
             ->values()

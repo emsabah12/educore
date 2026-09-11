@@ -256,226 +256,145 @@ final class CapabilityProjectionApiTest extends TestCase
     private function createFixture(): void
     {
         DB::table('tenants')->insert([
-            'id' =>
-            $this->tenantId,
-            'name' =>
-            'Capability Projection Tenant',
-            'subdomain' =>
-            sprintf(
+            'id' => $this->tenantId,
+            'name' => 'Capability Projection Tenant',
+            'subdomain' => sprintf(
                 'capability-%s',
                 Str::lower(
                     Str::random(8),
                 ),
             ),
-            'is_active' =>
-            true,
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('persons')->insert([
-            'id' =>
-            $this->personId,
-            'name' =>
-            'Capability Projection User',
-            'status' =>
-            'ACTIVE',
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'id' => $this->personId,
+            'name' => 'Capability Projection User',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('users')->insert([
-            'id' =>
-            $this->userId,
-            'person_id' =>
-            $this->personId,
-            'email' =>
-            sprintf(
+            'id' => $this->userId,
+            'person_id' => $this->personId,
+            'email' => sprintf(
                 'capability-%s@educore.test',
                 Str::lower(
                     Str::random(10),
                 ),
             ),
-            'password' =>
-            bcrypt('secret123'),
-            'status' =>
-            'ACTIVE',
-            'is_superadmin' =>
-            false,
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'password' => bcrypt('secret123'),
+            'status' => 'ACTIVE',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('memberships')->insert([
-            'id' =>
-            $this->membershipId,
-            'person_id' =>
-            $this->personId,
-            'tenant_id' =>
-            $this->tenantId,
-            'status' =>
-            'ACTIVE',
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'id' => $this->membershipId,
+            'person_id' => $this->personId,
+            'tenant_id' => $this->tenantId,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('organizations')->insert([
-            'id' =>
-            $this->organizationId,
-            'tenant_id' =>
-            $this->tenantId,
-            'name' =>
-            'Capability Organization',
-            'code' =>
-            'CAPABILITY-ORG',
-            'is_active' =>
-            true,
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'id' => $this->organizationId,
+            'tenant_id' => $this->tenantId,
+            'name' => 'Capability Organization',
+            'code' => 'CAPABILITY-ORG',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table(
             'organizational_assignments',
         )->insert([
-            'id' =>
-            $this->assignmentId,
-            'tenant_id' =>
-            $this->tenantId,
-            'membership_id' =>
-            $this->membershipId,
-            'organization_id' =>
-            $this->organizationId,
-            'organization_unit_id' =>
-            null,
-            'status' =>
-            'ACTIVE',
-            'created_at' =>
-            now(),
-            'updated_at' =>
-            now(),
+            'id' => $this->assignmentId,
+            'tenant_id' => $this->tenantId,
+            'membership_id' => $this->membershipId,
+            'organization_id' => $this->organizationId,
+            'organization_unit_id' => null,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('roles')->insert([
             [
-                'id' =>
-                $this->tenantRoleId,
-                'name' =>
-                'capability-tenant-role',
-                'display_name' =>
-                'Capability Tenant Role',
-                'description' =>
-                'Tenant role used by capability API test.',
-                'created_at' =>
-                now(),
-                'updated_at' =>
-                now(),
+                'id' => $this->tenantRoleId,
+                'name' => 'capability-tenant-role',
+                'display_name' => 'Capability Tenant Role',
+                'description' => 'Tenant role used by capability API test.',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
-                'id' =>
-                $this->workspaceRoleId,
-                'name' =>
-                'capability-workspace-role',
-                'display_name' =>
-                'Capability Workspace Role',
-                'description' =>
-                'Workspace role used by capability API test.',
-                'created_at' =>
-                now(),
-                'updated_at' =>
-                now(),
+                'id' => $this->workspaceRoleId,
+                'name' => 'capability-workspace-role',
+                'display_name' => 'Capability Workspace Role',
+                'description' => 'Workspace role used by capability API test.',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ]);
 
         DB::table('permissions')->insert([
             [
-                'id' =>
-                $this->tenantPermissionId,
-                'name' =>
-                'academic.grades.write',
-                'display_name' =>
-                'Write Academic Grades',
-                'description' =>
-                null,
-                'module' =>
-                'Academic',
-                'created_at' =>
-                now(),
-                'updated_at' =>
-                now(),
+                'id' => $this->tenantPermissionId,
+                'name' => 'academic.grades.write',
+                'display_name' => 'Write Academic Grades',
+                'description' => null,
+                'module' => 'Academic',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
-                'id' =>
-                $this->workspacePermissionId,
-                'name' =>
-                'dormitory.rooms.manage',
-                'display_name' =>
-                'Manage Dormitory Rooms',
-                'description' =>
-                null,
-                'module' =>
-                'Dormitory',
-                'created_at' =>
-                now(),
-                'updated_at' =>
-                now(),
+                'id' => $this->workspacePermissionId,
+                'name' => 'dormitory.rooms.manage',
+                'display_name' => 'Manage Dormitory Rooms',
+                'description' => null,
+                'module' => 'Dormitory',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
-                'id' =>
-                $this->deniedPermissionId,
-                'name' =>
-                'dormitory.rooms.view',
-                'display_name' =>
-                'View Dormitory Rooms',
-                'description' =>
-                null,
-                'module' =>
-                'Dormitory',
-                'created_at' =>
-                now(),
-                'updated_at' =>
-                now(),
+                'id' => $this->deniedPermissionId,
+                'name' => 'dormitory.rooms.view',
+                'display_name' => 'View Dormitory Rooms',
+                'description' => null,
+                'module' => 'Dormitory',
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ]);
 
         DB::table('role_permissions')->insert([
             [
-                'role_id' =>
-                $this->tenantRoleId,
-                'permission_id' =>
-                $this->tenantPermissionId,
+                'role_id' => $this->tenantRoleId,
+                'permission_id' => $this->tenantPermissionId,
             ],
             [
-                'role_id' =>
-                $this->workspaceRoleId,
-                'permission_id' =>
-                $this->workspacePermissionId,
+                'role_id' => $this->workspaceRoleId,
+                'permission_id' => $this->workspacePermissionId,
             ],
         ]);
 
         DB::table('membership_roles')->insert([
-            'membership_id' =>
-            $this->membershipId,
-            'role_id' =>
-            $this->tenantRoleId,
+            'membership_id' => $this->membershipId,
+            'role_id' => $this->tenantRoleId,
         ]);
 
         DB::table(
             'organizational_assignment_roles',
         )->insert([
-            'organizational_assignment_id' =>
-            $this->assignmentId,
-            'role_id' =>
-            $this->workspaceRoleId,
+            'organizational_assignment_id' => $this->assignmentId,
+            'role_id' => $this->workspaceRoleId,
         ]);
     }
 
@@ -487,8 +406,7 @@ final class CapabilityProjectionApiTest extends TestCase
             $this->userId,
             $this->tenantId,
             [
-                'membership_id' =>
-                $this->membershipId,
+                'membership_id' => $this->membershipId,
             ],
         );
     }

@@ -30,7 +30,7 @@ final class RequireGlobalSuperadmin
      * Middleware tidak menggunakan Membership role,
      * tenant role, request role, atau token role claim.
      *
-     * @param Closure(Request): Response $next
+     * @param  Closure(Request): Response  $next
      */
     public function handle(
         Request $request,

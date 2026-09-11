@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\Core\Tests\Unit\Discovery;
 
 use Modules\Core\Platform\Discovery\ModuleDiscovery;
-use Modules\Core\Tests\Builders\ModuleBuilder;
 use Modules\Core\Tests\Builders\ManifestBuilder;
 use Modules\Core\Tests\Builders\ModuleFixtureBuilder;
 use Modules\Core\Tests\Filesystem\TemporaryFilesystem;
@@ -19,7 +18,7 @@ final class ModuleDiscoveryTest extends TestCase
     {
         parent::setUp();
 
-        $this->filesystem = new TemporaryFilesystem();
+        $this->filesystem = new TemporaryFilesystem;
     }
 
     protected function tearDown(): void
@@ -33,16 +32,16 @@ final class ModuleDiscoveryTest extends TestCase
     {
         $this->assertInstanceOf(
             ModuleDiscovery::class,
-            new ModuleDiscovery()
+            new ModuleDiscovery
         );
     }
 
     public function test_returns_empty_array_when_modules_directory_does_not_exist(): void
     {
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
-            __DIR__ . '/non-existent-directory'
+            __DIR__.'/non-existent-directory'
         );
 
         $this->assertSame([], $result);
@@ -50,7 +49,7 @@ final class ModuleDiscoveryTest extends TestCase
 
     public function test_returns_empty_array_when_modules_directory_is_empty(): void
     {
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -72,7 +71,7 @@ final class ModuleDiscoveryTest extends TestCase
 
         $this->filesystem->create($fixture);
 
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -89,23 +88,23 @@ final class ModuleDiscoveryTest extends TestCase
     public function test_discovers_multiple_module_manifests(): void
     {
         $fixtures = [
-            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ModuleFixtureBuilder::make()
                 ->manifest(
-                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ManifestBuilder::make()
                         ->name('Core')
                 )
                 ->build(),
 
-            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ModuleFixtureBuilder::make()
                 ->manifest(
-                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ManifestBuilder::make()
                         ->name('HR')
                 )
                 ->build(),
 
-            \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+            ModuleFixtureBuilder::make()
                 ->manifest(
-                    \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                    ManifestBuilder::make()
                         ->name('PPDB')
                 )
                 ->build(),
@@ -115,7 +114,7 @@ final class ModuleDiscoveryTest extends TestCase
             $this->filesystem->create($fixture);
         }
 
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -133,9 +132,9 @@ final class ModuleDiscoveryTest extends TestCase
 
     public function test_ignores_directories_without_manifest(): void
     {
-        $fixture = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+        $fixture = ModuleFixtureBuilder::make()
             ->manifest(
-                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                ManifestBuilder::make()
                     ->name('Core')
             )
             ->build();
@@ -144,17 +143,17 @@ final class ModuleDiscoveryTest extends TestCase
 
         mkdir(
             $this->filesystem->path()
-                . DIRECTORY_SEPARATOR
-                . 'Dummy'
+                .DIRECTORY_SEPARATOR
+                .'Dummy'
         );
 
         mkdir(
             $this->filesystem->path()
-                . DIRECTORY_SEPARATOR
-                . 'Empty'
+                .DIRECTORY_SEPARATOR
+                .'Empty'
         );
 
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -185,19 +184,19 @@ final class ModuleDiscoveryTest extends TestCase
 
         file_put_contents(
             $this->filesystem->path()
-                . DIRECTORY_SEPARATOR
-                . 'README.md',
+                .DIRECTORY_SEPARATOR
+                .'README.md',
             '# Modules'
         );
 
         file_put_contents(
             $this->filesystem->path()
-                . DIRECTORY_SEPARATOR
-                . 'notes.txt',
+                .DIRECTORY_SEPARATOR
+                .'notes.txt',
             'temporary'
         );
 
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -213,30 +212,30 @@ final class ModuleDiscoveryTest extends TestCase
 
     public function test_returns_manifests_in_deterministic_sorted_order(): void
     {
-        $teacher = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+        $teacher = ModuleFixtureBuilder::make()
             ->manifest(
-                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                ManifestBuilder::make()
                     ->name('Teacher')
             )
             ->build();
 
-        $core = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+        $core = ModuleFixtureBuilder::make()
             ->manifest(
-                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                ManifestBuilder::make()
                     ->name('Core')
             )
             ->build();
 
-        $student = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+        $student = ModuleFixtureBuilder::make()
             ->manifest(
-                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                ManifestBuilder::make()
                     ->name('Student')
             )
             ->build();
 
-        $ppdb = \Modules\Core\Tests\Builders\ModuleFixtureBuilder::make()
+        $ppdb = ModuleFixtureBuilder::make()
             ->manifest(
-                \Modules\Core\Tests\Builders\ManifestBuilder::make()
+                ManifestBuilder::make()
                     ->name('PPDB')
             )
             ->build();
@@ -247,7 +246,7 @@ final class ModuleDiscoveryTest extends TestCase
         $this->filesystem->create($student);
         $this->filesystem->create($ppdb);
 
-        $discovery = new ModuleDiscovery();
+        $discovery = new ModuleDiscovery;
 
         $result = $discovery->discover(
             $this->filesystem->path()
@@ -261,7 +260,7 @@ final class ModuleDiscoveryTest extends TestCase
                 'Teacher',
             ],
             array_map(
-                static fn(string $manifest): string => basename(dirname($manifest)),
+                static fn (string $manifest): string => basename(dirname($manifest)),
                 $result
             )
         );

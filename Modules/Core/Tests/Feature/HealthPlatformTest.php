@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Core\Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Modules\Core\Providers\RouteServiceProvider;
+use Tests\TestCase;
 
 final class HealthPlatformTest extends TestCase
 {
@@ -17,8 +18,8 @@ final class HealthPlatformTest extends TestCase
     {
         parent::setUp();
 
-        if (class_exists(\Modules\Core\Providers\RouteServiceProvider::class)) {
-            $this->app->register(\Modules\Core\Providers\RouteServiceProvider::class);
+        if (class_exists(RouteServiceProvider::class)) {
+            $this->app->register(RouteServiceProvider::class);
         }
     }
 

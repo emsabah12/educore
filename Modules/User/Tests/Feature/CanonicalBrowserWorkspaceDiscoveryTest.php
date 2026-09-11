@@ -346,12 +346,9 @@ final class CanonicalBrowserWorkspaceDiscoveryTest extends TestCase
             ->assertExactJson([
                 'status' => 'success',
                 'data' => [
-                    'membership_id' =>
-                        $this->membershipAId,
-                    'tenant_id' =>
-                        $this->tenantAId,
-                    'tenant_name' =>
-                        'Canonical Workspace Tenant A',
+                    'membership_id' => $this->membershipAId,
+                    'tenant_id' => $this->tenantAId,
+                    'tenant_name' => 'Canonical Workspace Tenant A',
                 ],
             ]);
 

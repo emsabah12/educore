@@ -185,7 +185,7 @@ final class EmploymentManagementController extends Controller
         return $this->transition(
             request: $request,
             employmentId: $employmentId,
-            operation: fn(string $tenantId): Employment => $this->employmentLifecycleService
+            operation: fn (string $tenantId): Employment => $this->employmentLifecycleService
                 ->activate($tenantId, $employmentId),
             auditEventType: 'employment.activated',
             auditDescription: 'Activated Employment.',
@@ -199,7 +199,7 @@ final class EmploymentManagementController extends Controller
         return $this->transition(
             request: $request,
             employmentId: $employmentId,
-            operation: fn(string $tenantId): Employment => $this->employmentLifecycleService
+            operation: fn (string $tenantId): Employment => $this->employmentLifecycleService
                 ->cancel($tenantId, $employmentId),
             auditEventType: 'employment.cancelled',
             auditDescription: 'Cancelled Employment.',
@@ -221,7 +221,7 @@ final class EmploymentManagementController extends Controller
         return $this->transition(
             request: $request,
             employmentId: $employmentId,
-            operation: fn(string $tenantId): Employment => $this->employmentLifecycleService
+            operation: fn (string $tenantId): Employment => $this->employmentLifecycleService
                 ->end($tenantId, $employmentId, $payload['end_date']),
             auditEventType: 'employment.ended',
             auditDescription: 'Ended Employment.',
@@ -229,7 +229,7 @@ final class EmploymentManagementController extends Controller
     }
 
     /**
-     * @param callable(string): Employment $operation
+     * @param  callable(string): Employment  $operation
      */
     private function transition(
         Request $request,
@@ -337,7 +337,7 @@ final class EmploymentManagementController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     private function auditSafely(
         string $eventType,

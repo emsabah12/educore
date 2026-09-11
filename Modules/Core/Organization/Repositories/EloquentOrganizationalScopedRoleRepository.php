@@ -9,8 +9,7 @@ use Modules\Core\Authorization\Models\Role;
 use Modules\Core\Organization\Contracts\OrganizationalScopedRoleRepositoryInterface;
 use Modules\Core\Support\Uuid\UuidV7;
 
-final class EloquentOrganizationalScopedRoleRepository implements
-    OrganizationalScopedRoleRepositoryInterface
+final class EloquentOrganizationalScopedRoleRepository implements OrganizationalScopedRoleRepositoryInterface
 {
     /**
      * @return Collection<int, Role>

@@ -22,6 +22,7 @@ final class LeaveApprovalPolicy extends Model
     use HasUuidV7;
 
     public const string DECISION_MODE_SEQUENTIAL = 'SEQUENTIAL';
+
     public const string DECISION_MODE_AUTO = 'AUTO';
 
     protected $table = 'leave_approval_policies';

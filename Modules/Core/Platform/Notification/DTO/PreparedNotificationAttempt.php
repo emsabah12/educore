@@ -7,7 +7,7 @@ namespace Modules\Core\Platform\Notification\DTO;
 final readonly class PreparedNotificationAttempt
 {
     /**
-     * @param array<string, mixed> $providerMetadata
+     * @param  array<string, mixed>  $providerMetadata
      */
     public function __construct(
         public bool $alreadySent,

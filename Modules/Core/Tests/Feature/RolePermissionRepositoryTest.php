@@ -38,7 +38,7 @@ final class RolePermissionRepositoryTest extends TestCase
             $rolePermissionTraits,
         );
 
-        $rolePermission = new RolePermission();
+        $rolePermission = new RolePermission;
 
         $this->assertFalse(
             $rolePermission->usesTimestamps(),
@@ -158,6 +158,7 @@ final class RolePermissionRepositoryTest extends TestCase
                 ->count(),
         );
     }
+
     private function createRole(
         string $name,
     ): string {

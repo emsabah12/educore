@@ -22,18 +22,23 @@ final class LeaveEntitlementAndBalanceServiceTest extends TestCase
     use RefreshDatabase;
 
     private LeaveEntitlementService $entitlementService;
+
     private LeaveBalanceService $balanceService;
+
     private LeaveEntitlementPolicyService $policyService;
+
     private string $tenantId;
+
     private string $leaveTypeId;
+
     private string $employmentId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->balanceService = new LeaveBalanceService();
-        $this->policyService = new LeaveEntitlementPolicyService();
+        $this->balanceService = new LeaveBalanceService;
+        $this->policyService = new LeaveEntitlementPolicyService;
         $this->entitlementService = new LeaveEntitlementService(
             $this->policyService,
             $this->balanceService,
@@ -255,7 +260,7 @@ final class LeaveEntitlementAndBalanceServiceTest extends TestCase
     private function createLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,

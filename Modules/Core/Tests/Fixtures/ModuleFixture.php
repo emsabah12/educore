@@ -10,15 +10,14 @@ namespace Modules\Core\Tests\Fixtures;
 final readonly class ModuleFixture
 {
     /**
-     * @param list<string> $directories
-     * @param array<string, string> $files
+     * @param  list<string>  $directories
+     * @param  array<string, string>  $files
      */
     public function __construct(
         public readonly string $name,
         public readonly array $directories = [],
         public readonly array $files = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Check whether the fixture contains a file.

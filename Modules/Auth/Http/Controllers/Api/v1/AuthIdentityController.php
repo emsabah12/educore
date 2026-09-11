@@ -68,21 +68,16 @@ final class AuthIdentityController extends Controller
                 'data' => [
                     'context_type' => 'identity',
                     'user' => [
-                        'id' =>
-                            (string) $user->getKey(),
-                        'name' =>
-                            (string) $person->name,
-                        'email' =>
-                            (string) $user->email,
-                        'username' =>
-                            is_string($username)
+                        'id' => (string) $user->getKey(),
+                        'name' => (string) $person->name,
+                        'email' => (string) $user->email,
+                        'username' => is_string($username)
                             && trim($username) !== ''
                                 ? $username
                                 : null,
                     ],
                     'platform' => [
-                        'is_superadmin' =>
-                            (bool) $user->is_superadmin,
+                        'is_superadmin' => (bool) $user->is_superadmin,
                     ],
                 ],
             ],
@@ -94,8 +89,7 @@ final class AuthIdentityController extends Controller
     {
         return ApiErrorResponse::make(
             code: 'AUTHENTICATION_REQUIRED',
-            message:
-                'Unauthenticated. Invalid or missing identity context.',
+            message: 'Unauthenticated. Invalid or missing identity context.',
             status: Response::HTTP_UNAUTHORIZED,
         );
     }

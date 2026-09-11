@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Api\v1\AuthController;
-use Modules\Auth\Http\Controllers\Api\v1\AuthIdentityController;
 use Modules\Auth\Http\Controllers\Api\v1\AuthenticatedContextController;
+use Modules\Auth\Http\Controllers\Api\v1\AuthIdentityController;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareAuthenticatedUser;
@@ -15,11 +15,11 @@ use Modules\Core\Authorization\Http\Api\v1\RoleCatalogController;
 use Modules\Core\Authorization\Http\Api\v1\TenantCapabilityController;
 use Modules\Core\Authorization\Http\Api\v1\WorkspaceCapabilityController;
 use Modules\Core\Authorization\Http\Middleware\RequireGlobalSuperadmin;
-use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
-use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
+use Modules\Core\Organization\Http\Api\v1\OrganizationalAssignmentManagementController;
 use Modules\Core\Organization\Http\Api\v1\OrganizationManagementController;
 use Modules\Core\Organization\Http\Api\v1\OrganizationUnitManagementController;
-use Modules\Core\Organization\Http\Api\v1\OrganizationalAssignmentManagementController;
+use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+use Modules\Core\Platform\Http\Controllers\Api\v1\NotificationController;
 use Modules\Core\Subscription\Http\Api\v1\TenantEffectiveFeaturesController;
 use Modules\Core\Subscription\Http\Api\v1\TenantRoleController;
 use Modules\Core\Tenancy\Http\Api\v1\TenantManagementController;
@@ -140,7 +140,7 @@ Route::middleware([
 ])->group(function (): void {
     Route::get(
         '/v1/core/authorization/roles',
-        '\\' . RoleCatalogController::class,
+        '\\'.RoleCatalogController::class,
     )->name(
         'api.v1.core.authorization.roles.index',
     );

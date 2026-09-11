@@ -31,9 +31,9 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
     }
 
     /**
-     * @throws ModelNotFoundException
-     *
      * @return array<string, mixed>
+     *
+     * @throws ModelNotFoundException
      */
     public function findById(string $id): array
     {
@@ -43,7 +43,7 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
             ->first();
 
         if ($tenant === null) {
-            $exception = new ModelNotFoundException();
+            $exception = new ModelNotFoundException;
 
             $exception->setModel(
                 'Tenant',
@@ -57,8 +57,7 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
-     *
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public function create(array $data): array
@@ -110,11 +109,10 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      *
      * @throws ModelNotFoundException
-     *
-     * @return array<string, mixed>
      */
     public function update(
         string $id,

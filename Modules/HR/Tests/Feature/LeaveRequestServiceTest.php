@@ -16,7 +16,6 @@ use Modules\HR\Models\LeaveApprovalPolicyStep;
 use Modules\HR\Models\LeaveRequest;
 use Modules\HR\Models\LeaveType;
 use Modules\HR\Services\LeaveApprovalPolicyService;
-use Modules\HR\Services\LeaveApprovalService;
 use Modules\HR\Services\LeaveRequestService;
 use Tests\TestCase;
 
@@ -25,17 +24,22 @@ final class LeaveRequestServiceTest extends TestCase
     use RefreshDatabase;
 
     private LeaveRequestService $service;
+
     private LeaveApprovalPolicyService $approvalPolicyService;
+
     private string $tenantId;
+
     private string $membershipId;
+
     private string $employmentId;
+
     private string $leaveTypeId;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->approvalPolicyService = new LeaveApprovalPolicyService();
+        $this->approvalPolicyService = new LeaveApprovalPolicyService;
         $this->service = app(LeaveRequestService::class);
 
         $this->tenantId = $this->createTenant();
@@ -271,7 +275,7 @@ final class LeaveRequestServiceTest extends TestCase
     private function createLeaveType(): string
     {
         return LeaveType::create([
-            'code' => 'ANNUAL-' . Str::upper(Str::random(6)),
+            'code' => 'ANNUAL-'.Str::upper(Str::random(6)),
             'name' => 'Cuti Tahunan Uji',
             'category' => LeaveType::CATEGORY_LEAVE,
             'balance_mode' => LeaveType::BALANCE_MODE_BALANCE,

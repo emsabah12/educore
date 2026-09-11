@@ -20,14 +20,19 @@ use Tests\TestCase;
 
 final class LeaveRequestAndApprovalControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
+
     private string $employmentId;
+
     private string $noneTypeId;
+
     private string $balanceTypeId;
 
     protected function setUp(): void
@@ -295,8 +300,8 @@ final class LeaveRequestAndApprovalControllerTest extends TestCase
     private function createLeaveTypeFixture(string $balanceMode): string
     {
         return LeaveType::create([
-            'code' => 'HTTP-' . $balanceMode . '-' . Str::upper(Str::random(6)),
-            'name' => 'Tipe Uji HTTP ' . $balanceMode,
+            'code' => 'HTTP-'.$balanceMode.'-'.Str::upper(Str::random(6)),
+            'name' => 'Tipe Uji HTTP '.$balanceMode,
             'category' => $balanceMode === LeaveType::BALANCE_MODE_NONE
                 ? LeaveType::CATEGORY_PERMIT
                 : LeaveType::CATEGORY_LEAVE,

@@ -59,7 +59,7 @@ final class StoreRecruitmentVacancyRequest extends FormRequest
                 'uuid',
                 Rule::exists('positions', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),
@@ -70,7 +70,7 @@ final class StoreRecruitmentVacancyRequest extends FormRequest
                 'uuid',
                 Rule::exists('organizations', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),
@@ -81,7 +81,7 @@ final class StoreRecruitmentVacancyRequest extends FormRequest
                 'uuid',
                 Rule::exists('organization_units', 'id')
                     ->where(
-                        static fn(Builder $query): Builder => $query->where(
+                        static fn (Builder $query): Builder => $query->where(
                             'tenant_id',
                             $tenantId,
                         ),

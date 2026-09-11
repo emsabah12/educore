@@ -38,7 +38,7 @@ final class EmploymentCatalogController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $employmentTypes->map(
-                fn(EmploymentType $employmentType) => [
+                fn (EmploymentType $employmentType) => [
                     'id' => (string) $employmentType->id,
                     'code' => $employmentType->code,
                     'name' => $employmentType->name,

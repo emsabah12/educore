@@ -25,8 +25,11 @@ final class Employment extends Model
     use HasUuidV7;
 
     public const string STATUS_PLANNED = 'PLANNED';
+
     public const string STATUS_ACTIVE = 'ACTIVE';
+
     public const string STATUS_ENDED = 'ENDED';
+
     public const string STATUS_CANCELLED = 'CANCELLED';
 
     protected $table = 'employments';

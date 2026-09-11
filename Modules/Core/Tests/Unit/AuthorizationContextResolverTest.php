@@ -19,9 +19,8 @@ final class AuthorizationContextResolverTest extends TestCase
             membershipId: '00000000-0000-0000-0000-000000000003',
         );
 
-        $membershipContextResolver = new class(
-            $membershipContext,
-        ) implements MembershipContextResolverInterface {
+        $membershipContextResolver = new class($membershipContext) implements MembershipContextResolverInterface
+        {
             public function __construct(
                 private readonly MembershipContext $context,
             ) {}

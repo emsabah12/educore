@@ -123,7 +123,7 @@ final class PasswordVerifierContractTest extends TestCase
             'correct-password',
         );
 
-        $verifier = new HashPasswordVerifier();
+        $verifier = new HashPasswordVerifier;
 
         $this->assertTrue(
             $verifier->verify(
@@ -146,7 +146,7 @@ final class PasswordVerifierContractTest extends TestCase
             'correct-password',
         );
 
-        $verifier = new HashPasswordVerifier();
+        $verifier = new HashPasswordVerifier;
 
         $this->assertFalse(
             $verifier->verify(

@@ -13,8 +13,8 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Modules\HR\Models\BenefitProgram;
-use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmployeeBenefitParticipation;
+use Modules\HR\Models\Employment;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\GrantsAuthorizationRole;
 use Tests\Support\GrantsSubscriptionFeature;
@@ -22,12 +22,14 @@ use Tests\TestCase;
 
 final class BenefitIdentifierControllerTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsAuthorizationRole;
     use GrantsSubscriptionFeature;
+    use RefreshDatabase;
 
     private string $tenantId;
+
     private string $operatorUserId;
+
     private string $operatorMembershipId;
 
     protected function setUp(): void
@@ -253,7 +255,7 @@ final class BenefitIdentifierControllerTest extends TestCase
         app(TenantContextInterface::class)->setCurrentTenant($tenant);
 
         $program = BenefitProgram::create([
-            'code' => 'BPJS-' . Str::upper(Str::random(4)),
+            'code' => 'BPJS-'.Str::upper(Str::random(4)),
             'name' => 'BPJS Kesehatan',
             'category' => BenefitProgram::CATEGORY_STATUTORY,
             'beneficiary_scope' => BenefitProgram::BENEFICIARY_SCOPE_EITHER,

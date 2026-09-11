@@ -28,7 +28,7 @@ trait GrantsSubscriptionFeature
         $plan = SubscriptionPlan::query()
             ->whereHas(
                 'features',
-                fn($query) => $query->where(
+                fn ($query) => $query->where(
                     'code',
                     $featureCode,
                 ),

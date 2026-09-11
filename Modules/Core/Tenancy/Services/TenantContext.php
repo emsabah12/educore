@@ -2,9 +2,9 @@
 
 namespace Modules\Core\Tenancy\Services;
 
+use Illuminate\Support\Facades\Log;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
-use Illuminate\Support\Facades\Log;
 
 class TenantContext implements TenantContextInterface
 {
@@ -19,7 +19,7 @@ class TenantContext implements TenantContextInterface
 
         Log::debug('Tenant context bound successfully in memory.', [
             'tenant_id' => $tenant->id,
-            'subdomain' => $tenant->subdomain
+            'subdomain' => $tenant->subdomain,
         ]);
     }
 

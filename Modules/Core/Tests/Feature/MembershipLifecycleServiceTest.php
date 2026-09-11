@@ -16,7 +16,9 @@ final class MembershipLifecycleServiceTest extends TestCase
     use RefreshDatabase;
 
     private MembershipLifecycleServiceInterface $service;
+
     private string $tenantId;
+
     private string $personId;
 
     protected function setUp(): void
