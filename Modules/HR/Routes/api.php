@@ -7,6 +7,7 @@ use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
+use Modules\HR\Http\Controllers\Api\v1\CompensationComponentController;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
@@ -692,4 +693,19 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.leave.self.request')
         ->name('api.v1.hr.self.leave-requests.withdraw');
+
+    // HR-006 §7.2 — Compensation Component catalog.
+    Route::get(
+        '/compensation/components',
+        [CompensationComponentController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.compensation.components.view')
+        ->name('api.v1.hr.compensation.components.index');
+
+    Route::post(
+        '/compensation/components',
+        [CompensationComponentController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.compensation.components.manage')
+        ->name('api.v1.hr.compensation.components.store');
 });

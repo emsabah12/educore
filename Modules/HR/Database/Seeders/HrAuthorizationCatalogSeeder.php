@@ -58,6 +58,10 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.leave.policy.manage' => 'Create/update Leave Type, Entitlement Policy, and Approval Policy configuration',
         'hr.leave.balance.read' => 'View Entitlement balance for any Employee within authorized scope',
         'hr.leave.balance.adjust' => 'Manually adjust Entitlement balance (higher-impact operation, always audited)',
+
+        // HR-006 §7.2 — Compensation Component catalog.
+        'hr.compensation.components.view' => 'View Compensation Component catalog',
+        'hr.compensation.components.manage' => 'Create/update Compensation Component catalog',
     ];
 
     /**
