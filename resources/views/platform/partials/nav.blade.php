@@ -1,42 +1,137 @@
-<nav class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-        <span class="font-semibold">EduCore Platform</span>
+<header
+    class="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
+    <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+        {{-- Left controls --}}
+        <div class="flex items-center gap-3">
+            {{-- Mobile sidebar toggle --}}
+            <button
+                type="button"
+                @click="$store.sidebar.toggleMobile()"
+                class="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 lg:hidden dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                aria-label="Buka menu navigasi">
+                <svg
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
 
-        <a
-            href="{{ route('platform.dashboard') }}"
-            class="text-sm {{ request()->routeIs('platform.dashboard') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
-            Dashboard
-        </a>
+            {{-- Desktop sidebar toggle --}}
+            <button
+                type="button"
+                @click="$store.sidebar.toggleExpanded()"
+                class="hidden rounded-lg p-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 lg:block dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                aria-label="Toggle sidebar">
+                <svg
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
 
-        <a
-            href="{{ route('platform.tenants.index') }}"
-            class="text-sm {{ request()->routeIs('platform.tenants.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
-            Tenant
-        </a>
+            <div class="hidden sm:block">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                    EduCore Platform
+                </p>
 
-        <a
-            href="{{ route('platform.audit-logs.index') }}"
-            class="text-sm {{ request()->routeIs('platform.audit-logs.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
-            Log Aktivitas
-        </a>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Administration Console
+                </p>
+            </div>
+        </div>
 
-        <a
-            href="{{ route('platform.roles.index') }}"
-            class="text-sm {{ request()->routeIs('platform.roles.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
-            Role &amp; Permission
-        </a>
+        {{-- Right controls --}}
+        <div class="flex items-center gap-2">
+            {{-- Theme toggle --}}
+            <button
+                type="button"
+                @click="$store.theme.toggle()"
+                class="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                aria-label="Ganti tema">
+                <svg
+                    x-show="!$store.theme.isDark()"
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" />
+                    <path
+                        stroke-linecap="round"
+                        d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
 
-        <a
-            href="{{ route('platform.plans.index') }}"
-            class="text-sm {{ request()->routeIs('platform.plans.*') || request()->routeIs('platform.addons.*') ? 'font-semibold text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
-            Paket &amp; Add-on
-        </a>
+                <svg
+                    x-show="$store.theme.isDark()"
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z" />
+                </svg>
+            </button>
+
+            {{-- User --}}
+            <div
+                class="hidden h-8 w-px bg-gray-200 sm:block dark:bg-gray-800"
+                aria-hidden="true"></div>
+
+            <div class="hidden text-right sm:block">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    Platform Administrator
+                </p>
+
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    EduCore
+                </p>
+            </div>
+
+            {{-- Logout --}}
+            <form
+                method="POST"
+                action="{{ route('platform.logout') }}"
+                class="ml-1">
+                @csrf
+
+                <button
+                    type="submit"
+                    class="rounded-lg p-2.5 text-gray-500 hover:bg-error-50 hover:text-error-600 focus:outline-none focus:ring-2 focus:ring-error-500/30 dark:text-gray-400 dark:hover:bg-error-500/10 dark:hover:text-error-400"
+                    aria-label="Keluar"
+                    title="Keluar">
+                    <svg
+                        class="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        aria-hidden="true">
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M10 17l5-5-5-5m5 5H3m8-9h6a2 2 0 0 1 2 2v2m-8 10h6a2 2 0 0 0 2-2v-2" />
+                    </svg>
+                </button>
+            </form>
+        </div>
     </div>
-
-    <form method="POST" action="{{ route('platform.logout') }}">
-        @csrf
-        <button type="submit" class="text-sm text-slate-500 hover:text-slate-800">
-            Keluar
-        </button>
-    </form>
-</nav>
+</header>
