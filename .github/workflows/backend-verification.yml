@@ -47,7 +47,19 @@ jobs:
     # `php artisan test`. Dotenv (yang membaca file .env) TIDAK akan
     # menimpa environment variable proses yang sudah di-set di sini,
     # jadi nilai job-level ini yang selalu menang.
+    #
+    # APP_ENV WAJIB eksplisit di sini (bukan hanya di file .env)
+    # karena `composer install` sendiri memicu hook
+    # `post-autoload-dump` -> `artisan package:discover`, yang
+    # mem-boot Laravel SEBELUM file .env sempat dibuat kalau urutan
+    # step salah. Tanpa APP_ENV terbaca, Laravel fail-safe ke
+    # 'production' secara default, dan
+    # AuthServiceProvider::assertProductionBrowserSessionSecurity()
+    # (fitur keamanan yang BENAR di Modules/Auth) menolak boot karena
+    # config session default belum production-ready. Ini lapis
+    # pertama yang tidak bergantung urutan step manapun.
     env:
+      APP_ENV: testing
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -64,17 +76,23 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: "8.3"
           extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, ctype, fileinfo, intl, openssl, tokenizer, xml
           coverage: none
+
+      # Lapis kedua (defense-in-depth, bukan duplikasi tanpa arti):
+      # .env fisik dibuat SEBELUM composer install, supaya kalau ada
+      # script composer lain di masa depan yang juga mem-boot Laravel
+      # lewat hook-nya, ia tetap menemukan APP_ENV dari file .env,
+      # bukan cuma dari job env di atas.
+      - name: Prepare environment file
+        run: cp .env.example .env
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Prepare environment file
-        run: |
-          cp .env.example .env
-          php artisan key:generate --ansi
+      - name: Generate application key
+        run: php artisan key:generate --ansi
 
       # Dijalankan terpisah dari `php artisan test` supaya kalau ada
       # migration yang gagal (mis. constraint Postgres salah tulis),
