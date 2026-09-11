@@ -9,6 +9,7 @@ use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\HR\Http\Controllers\Api\v1\BenefitIdentifierController;
 use Modules\HR\Http\Controllers\Api\v1\BenefitProgramController;
+use Modules\HR\Http\Controllers\Api\v1\CompensationAdjustmentController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationAssignmentController;
 use Modules\HR\Http\Controllers\Api\v1\CompensationComponentController;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeBenefitParticipationController;
@@ -228,6 +229,52 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.benefit.identifiers.manage')
         ->name('api.v1.hr.benefit-participations.identifiers.store');
+
+    // HR-006 §7.8 — Compensation Adjustment lifecycle (maker-checker).
+    Route::get(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments',
+        [CompensationAdjustmentController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.view')
+        ->name('api.v1.hr.employments.compensation-adjustments.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments',
+        [CompensationAdjustmentController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.manage')
+        ->name('api.v1.hr.employments.compensation-adjustments.store');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/submit',
+        [CompensationAdjustmentController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.manage')
+        ->name('api.v1.hr.employments.compensation-adjustments.submit');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/cancel',
+        [CompensationAdjustmentController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.manage')
+        ->name('api.v1.hr.employments.compensation-adjustments.cancel');
+
+    // approve/reject SENGAJA memakai permission terpisah (higher-impact,
+    // maker-checker — checker harus bisa didelegasikan terpisah dari
+    // orang yang bisa membuat/submit adjustment).
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/approve',
+        [CompensationAdjustmentController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.approve')
+        ->name('api.v1.hr.employments.compensation-adjustments.approve');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/reject',
+        [CompensationAdjustmentController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.compensation.adjustments.approve')
+        ->name('api.v1.hr.employments.compensation-adjustments.reject');
 
     // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
     Route::get(

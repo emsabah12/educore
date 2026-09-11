@@ -80,6 +80,11 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         // HR-006 §7.7 — Employee Benefit Identifier (sensitive, encrypted).
         'hr.benefit.identifiers.view' => 'View decrypted Benefit Identifier values (highly sensitive — BPJS numbers etc.)',
         'hr.benefit.identifiers.manage' => 'Register a new Benefit Identifier for a Participation',
+
+        // HR-006 §7.8 — Compensation Adjustment lifecycle (maker-checker).
+        'hr.compensation.adjustments.view' => 'View Compensation Adjustment records for an Employment',
+        'hr.compensation.adjustments.manage' => 'Create / submit / cancel Compensation Adjustment records (maker)',
+        'hr.compensation.adjustments.approve' => 'Approve or reject a Compensation Adjustment (checker, higher-impact operation)',
     ];
 
     /**

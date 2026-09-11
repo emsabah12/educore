@@ -35,6 +35,9 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
             'benefit participations enroll' => ['hr.benefit.participations.enroll'],
             'benefit identifiers view' => ['hr.benefit.identifiers.view'],
             'benefit identifiers manage' => ['hr.benefit.identifiers.manage'],
+            'compensation adjustments view' => ['hr.compensation.adjustments.view'],
+            'compensation adjustments manage' => ['hr.compensation.adjustments.manage'],
+            'compensation adjustments approve' => ['hr.compensation.adjustments.approve'],
         ];
     }
 
@@ -74,6 +77,9 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
                 'hr.benefit.participations.view',
                 'hr.benefit.programs.manage',
                 'hr.benefit.programs.view',
+                'hr.compensation.adjustments.approve',
+                'hr.compensation.adjustments.manage',
+                'hr.compensation.adjustments.view',
                 'hr.compensation.assignments.approve',
                 'hr.compensation.assignments.manage',
                 'hr.compensation.assignments.view',
