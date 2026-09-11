@@ -636,6 +636,193 @@ final class CompensationAssignmentServiceTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // correct
+    // ---------------------------------------------------------------
+
+    public function test_correct_marks_original_as_superseded_and_creates_draft_replacement(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $original = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $replacement = $this->service->correct(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            originalAssignmentId: $original->id,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5500000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+                'reason' => 'Koreksi: nominal yang disetujui sebelumnya keliru.',
+            ],
+        );
+
+        $this->assertSame(CompensationAssignment::STATUS_DRAFT, $replacement->status);
+        $this->assertSame($original->id, $replacement->supersedes_assignment_id);
+        $this->assertSame('5500000.0000', $replacement->amount);
+
+        $original->refresh();
+        $this->assertSame(CompensationAssignment::STATUS_SUPERSEDED, $original->status);
+    }
+
+    public function test_correct_replacement_can_be_approved(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $original = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $replacement = $this->service->correct(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            originalAssignmentId: $original->id,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5500000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $approvedReplacement = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $replacement->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->assertSame(CompensationAssignment::STATUS_APPROVED, $approvedReplacement->status);
+        $this->assertSame($original->id, $approvedReplacement->supersedes_assignment_id);
+    }
+
+    public function test_correct_rejects_non_approved_original(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->correct(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            originalAssignmentId: $draft->id,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5500000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+    }
+
+    public function test_correct_rejects_original_from_different_employment(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $otherEmploymentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+        $approverMembershipId = $this->createMembership();
+
+        $draft = $this->service->createDraft(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5000000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+
+        $original = $this->service->approve(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            assignmentId: $draft->id,
+            approverMembershipId: $approverMembershipId,
+        );
+
+        $this->expectException(CompensationLifecycleException::class);
+
+        $this->service->correct(
+            tenantId: $this->tenantId,
+            employmentId: $otherEmploymentId,
+            originalAssignmentId: $original->id,
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5500000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+    }
+
+    public function test_correct_rejects_unknown_original(): void
+    {
+        $employmentId = $this->createActiveEmployment();
+        $componentId = $this->createFixedComponent('BASE_SALARY')->id;
+
+        $this->expectException(ModelNotFoundException::class);
+
+        $this->service->correct(
+            tenantId: $this->tenantId,
+            employmentId: $employmentId,
+            originalAssignmentId: UuidV7::generate(),
+            data: [
+                'compensation_component_id' => $componentId,
+                'amount' => '5500000.0000',
+                'currency_code' => 'IDR',
+                'effective_from' => '2026-01-01',
+            ],
+        );
+    }
+
+    // ---------------------------------------------------------------
     // Fixtures
     // ---------------------------------------------------------------
 
