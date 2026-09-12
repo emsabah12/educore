@@ -295,7 +295,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Employees for the current tenant */
+        /**
+         * List Employees for the current tenant
+         * @description Supports BearerAuth and BrowserSessionAuth. Browser Session requests require X-EduCore-Membership-Id to select a prepared server-held Membership credential; Bearer requests do not require that header.
+         */
         get: operations["hrEmployeeIndex"];
         put?: never;
         /**
@@ -2469,8 +2472,24 @@ export interface operations {
                  *     [1, 100] by the controller; defaults to 15.
                  */
                 per_page?: components["parameters"]["EmployeePerPage"];
+                /**
+                 * @description 1-indexed page number. Defaults to 1 (Laravel's standard
+                 *     paginate() convention — read automatically from this query
+                 *     string parameter, not passed explicitly by the controller).
+                 */
+                page?: components["parameters"]["EmployeePage"];
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
             path?: never;
             cookie?: never;
         };
