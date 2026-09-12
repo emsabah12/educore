@@ -51,13 +51,6 @@ Route::middleware([
         ->name('api.v1.hr.employees.store');
 
     // HR-002 §10.2 — Employment Lifecycle.
-    Route::get(
-        '/v1/hr/employees/{employeeId}/employments',
-        [EmploymentManagementController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.employments.view')
-        ->name('api.v1.hr.employees.employments.index');
-
     Route::post(
         '/v1/hr/employees/{employeeId}/employments',
         [EmploymentManagementController::class, 'store']
@@ -734,6 +727,18 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.employees.view')
         ->name('api.v1.hr.employees.index');
+
+    // HR-002 §10.2 — Employment Lifecycle (listing saja). Dipindah
+    // dari grup Bearer-only dengan alasan sama persis dengan
+    // GET /v1/hr/employees di atas — entry point M1 bagian 2 halaman
+    // Kompensasi & Benefit (pilih Employment target). `POST` (buat
+    // Employment baru) SENGAJA TETAP di grup Bearer-only lama.
+    Route::get(
+        '/v1/hr/employees/{employeeId}/employments',
+        [EmploymentManagementController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employees.employments.index');
 
     // HR-006 §7.3 — Compensation Assignment lifecycle.
     Route::get(

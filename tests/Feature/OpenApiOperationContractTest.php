@@ -45,6 +45,8 @@ final class OpenApiOperationContractTest extends TestCase
 
         'GET /api/v1/hr/employees' => '#/components/schemas/EmployeeListSuccess',
 
+        'GET /api/v1/hr/employees/{employeeId}/employments' => '#/components/schemas/EmploymentListSuccess',
+
         'POST /api/v1/hr/employees' => '#/components/schemas/EmployeeCreatedSuccess',
 
         'GET /api/v1/user/my-memberships' => '#/components/schemas/MembershipListSuccess',
@@ -76,6 +78,7 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/core/tenants' => '201',
         'PUT /api/v1/core/tenants/{id}' => '200',
         'GET /api/v1/hr/employees' => '200',
+        'GET /api/v1/hr/employees/{employeeId}/employments' => '200',
         'POST /api/v1/hr/employees' => '201',
         'GET /api/v1/user/my-memberships' => '200',
         'POST /api/v1/user/memberships/{membership_id}/switch' => '200',
@@ -102,10 +105,10 @@ final class OpenApiOperationContractTest extends TestCase
         'POST /api/v1/user/memberships/{target_membership_id}/assign-role' => '#/components/schemas/MembershipRoleAssignmentRequest',
     ];
 
-    public function test_all_21_json_foundation_operations_have_exact_success_schema_wiring(): void
+    public function test_all_22_json_foundation_operations_have_exact_success_schema_wiring(): void
     {
         $this->assertCount(
-            21,
+            22,
             self::SUCCESS_SCHEMAS,
         );
 
@@ -262,6 +265,7 @@ final class OpenApiOperationContractTest extends TestCase
             'GET /api/v1/user/my-memberships',
             'GET /api/v1/user/my-workspaces',
             'GET /api/v1/hr/employees',
+            'GET /api/v1/hr/employees/{employeeId}/employments',
         ];
 
         foreach ($canonicalDualTransportOperations as $operationKey) {
