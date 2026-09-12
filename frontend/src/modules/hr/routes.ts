@@ -98,6 +98,71 @@ export const hrCompensationSearchRoutePolicy =
     });
 
 /*
+ * Sub-halaman dari hr.compensation.index — dijangkau lewat tombol
+ * "Pilih" di baris pegawai HrCompensationEmployeeSearchPage, BUKAN
+ * entri menu navigasi top-level tersendiri. Sama seperti pola
+ * settings.organizations.units.index (lihat catatan arsitektur di
+ * Modules settings/routes.ts) — TIDAK perlu didaftarkan silang ke
+ * application-route-access.ts karena tidak muncul di
+ * navigation-definition.ts.
+ *
+ * Permission reuse hr.employments.view — sama persis dengan yang
+ * menggate endpoint backend-nya.
+ */
+export const hrCompensationEmployeeEmploymentsRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.compensation.employee-employments.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.employments.view',
+        },
+    });
+
+/*
+ * Sub-halaman dari hr.compensation.employee-employments.index —
+ * shell Compensation & Benefit untuk satu Employment terpilih
+ * (M1 bagian 2). Sub-resource-nya (Compensation Assignment, Benefit
+ * Participation/Identifier, Compensation Adjustment) dibangun
+ * bertahap di M3–M5; permission masing-masing baru ditambahkan
+ * saat sub-resource itu benar-benar ada.
+ *
+ * Permission reuse hr.employments.view untuk sekarang — shell ini
+ * belum memanggil endpoint Compensation/Benefit apa pun, cuma
+ * menampilkan konteks Employment yang sudah dipilih di halaman
+ * sebelumnya.
+ */
+export const hrCompensationEmploymentShellRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.compensation.employment-shell.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.employments.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -187,6 +252,58 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrCompensationEmployeeSearchPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.compensation.employee-employments.index',
+
+        path:
+            'hr/compensation/employees/:employeeId/employments',
+
+        accessPolicy:
+            hrCompensationEmployeeEmploymentsRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrCompensationEmployeeEmploymentsPage,
+                } =
+                    await import(
+                        '@/modules/hr/compensation/HrCompensationEmployeeEmploymentsPage'
+                    );
+
+                return {
+                    Component:
+                        HrCompensationEmployeeEmploymentsPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.compensation.employment-shell.index',
+
+        path:
+            'hr/compensation/employments/:employmentId',
+
+        accessPolicy:
+            hrCompensationEmploymentShellRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrCompensationEmploymentShellPage,
+                } =
+                    await import(
+                        '@/modules/hr/compensation/HrCompensationEmploymentShellPage'
+                    );
+
+                return {
+                    Component:
+                        HrCompensationEmploymentShellPage,
                 };
             },
     },

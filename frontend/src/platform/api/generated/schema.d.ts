@@ -314,6 +314,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employees/{employeeId}/employments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Employment episodes for an Employee within the current tenant
+         * @description Tenant-wide (BUKAN Organizational Workspace scope) — dipakai halaman Kompensasi & Benefit untuk memilih Employment target sebelum masuk ke sub-resource Compensation/Benefit-nya. Supports BearerAuth dan BrowserSessionAuth; Browser Session requests require X-EduCore-Membership-Id.
+         */
+        get: operations["hrEmployeeEmploymentIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/workspace/employees": {
         parameters: {
             query?: never;
@@ -1144,6 +1164,12 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["EmployeeResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        EmploymentListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmploymentResource"][];
             meta: components["schemas"]["PaginationMeta"];
         };
         /**
@@ -2555,6 +2581,63 @@ export interface operations {
             };
             422: components["responses"]["ValidationFailed"];
             500: components["responses"]["EmployeeProvisioningFailed"];
+        };
+    };
+    hrEmployeeEmploymentIndex: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Number of Employees returned per page. Silently clamped to
+                 *     [1, 100] by the controller; defaults to 15.
+                 */
+                per_page?: components["parameters"]["EmployeePerPage"];
+                /**
+                 * @description 1-indexed page number. Defaults to 1 (Laravel's standard
+                 *     paginate() convention — read automatically from this query
+                 *     string parameter, not passed explicitly by the controller).
+                 */
+                page?: components["parameters"]["EmployeePage"];
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employeeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated Employment collection for the given Employee. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentListSuccess"];
+                };
+            };
+            /**
+             * @description Tenant authentication context is invalid, or the current
+             *     Membership does not have hr.employments.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
         };
     };
     hrWorkspaceEmployeeIndex: {

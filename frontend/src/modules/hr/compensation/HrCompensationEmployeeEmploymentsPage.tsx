@@ -1,19 +1,18 @@
 import {
-    useMemo,
     useState,
 } from 'react';
 import {
     Link,
+    useLocation,
+    useParams,
 } from 'react-router';
 
 import {
-    useHrEmployeesDirectoryQuery,
-    type HrEmployeeDirectoryEntry,
-} from '@/modules/hr/compensation/api/use-hr-employees-directory-query';
+    useHrEmployeeEmploymentsQuery,
+} from '@/modules/hr/compensation/api/use-hr-employee-employments-query';
 import {
     Badge,
     Button,
-    Input,
     Pagination,
     Table,
     TableBody,
@@ -23,128 +22,101 @@ import {
     TableRow,
 } from '@/shared/ui';
 
-const JABATAN_LABEL: Record<string, string> = {
-    GURU: 'Guru',
-    KEPALA_SEKOLAH: 'Kepala Sekolah',
-    STAFF: 'Staf',
+const EMPLOYMENT_STATUS_VARIANT: Record<
+    string,
+    'success' | 'warning' | 'secondary'
+> = {
+    ACTIVE: 'success',
+    PLANNED: 'warning',
+    ENDED: 'secondary',
+    CANCELLED: 'secondary',
 };
 
-function jabatanLabel(
-    jabatan: string,
-): string {
-    return (
-        JABATAN_LABEL[jabatan]
-        ?? jabatan
-    );
+const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
+    ACTIVE: 'Aktif',
+    PLANNED: 'Direncanakan',
+    ENDED: 'Berakhir',
+    CANCELLED: 'Dibatalkan',
+};
+
+interface EmployeeSearchNavigationState {
+    readonly employeeName?: string;
 }
 
-const EMPTY_EMPLOYEE_LIST: readonly HrEmployeeDirectoryEntry[] = [];
+export function HrCompensationEmployeeEmploymentsPage() {
+    const {
+        employeeId,
+    } = useParams<{
+        employeeId:
+            string;
+    }>();
 
-/*
- * Filter murni di sisi klien, HANYA pada baris yang sedang
- * termuat di halaman saat ini — GET /v1/hr/employees tidak
- * punya parameter pencarian server-side (cuma per_page/page),
- * jadi ini bukan pencarian menyeluruh lintas seluruh direktori
- * pegawai. Label di UI (lihat placeholder Input di bawah)
- * sengaja jujur soal keterbatasan ini.
- */
-function filterEmployeesOnCurrentPage(
-    employees: readonly HrEmployeeDirectoryEntry[],
-    query: string,
-): readonly HrEmployeeDirectoryEntry[] {
-    const normalizedQuery =
-        query.trim().toLowerCase();
+    const resolvedEmployeeId =
+        employeeId
+        ?? '';
 
-    if (normalizedQuery === '') {
-        return employees;
-    }
+    const location =
+        useLocation();
 
-    return employees.filter(
-        (employee) =>
-            employee.nama
-                .toLowerCase()
-                .includes(
-                    normalizedQuery,
-                )
-            || (
-                employee.nip
-                ?.toLowerCase()
-                .includes(
-                    normalizedQuery,
-                )
-                ?? false
-            ),
-    );
-}
+    /*
+     * Tidak ada endpoint GET tunggal untuk satu Employee (cuma
+     * index + store) — nama pegawai dibawa lewat location.state
+     * dari HrCompensationEmployeeSearchPage (baris yang di-klik),
+     * menghindari panggilan API tambahan cuma untuk judul halaman.
+     * Kalau halaman ini dibuka langsung (refresh/bookmark), state
+     * kosong dan judul jatuh ke fallback generik di bawah.
+     */
+    const employeeName =
+        (
+            location.state as
+                | EmployeeSearchNavigationState
+                | null
+        )
+            ?.employeeName
+        ?? null;
 
-export function HrCompensationEmployeeSearchPage() {
     const [
         page,
         setPage,
     ] = useState(1);
 
-    const [
-        filterQuery,
-        setFilterQuery,
-    ] = useState('');
-
     const query =
-        useHrEmployeesDirectoryQuery(
+        useHrEmployeeEmploymentsQuery(
+            resolvedEmployeeId,
             page,
-        );
-
-    const loadedEmployees =
-        query.status === 'success'
-            ? query.data.items
-            : EMPTY_EMPLOYEE_LIST;
-
-    const filteredEmployees =
-        useMemo(
-            () =>
-                filterEmployeesOnCurrentPage(
-                    loadedEmployees,
-                    filterQuery,
-                ),
-            [
-                loadedEmployees,
-                filterQuery,
-            ],
         );
 
     return (
         <section
-            aria-labelledby="hr-compensation-search-heading"
+            aria-labelledby="hr-compensation-employments-heading"
             className="space-y-4"
         >
+            <Button
+                asChild
+                variant="ghost"
+                size="sm"
+            >
+                <Link to="/hr/compensation">
+                    ← Kembali ke Pencarian Pegawai
+                </Link>
+            </Button>
+
             <div>
                 <h1
-                    id="hr-compensation-search-heading"
+                    id="hr-compensation-employments-heading"
                     className="text-xl font-semibold"
                 >
-                    Kompensasi & Benefit
+                    {
+                        employeeName
+                        ?? 'Riwayat Employment Pegawai'
+                    }
                 </h1>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Pilih pegawai untuk mengelola gaji, tunjangan, dan
-                    kepesertaan benefit mereka.
+                    Pilih salah satu Employment untuk mengelola kompensasi
+                    dan benefit-nya.
                 </p>
             </div>
-
-            <Input
-                type="search"
-                placeholder="Filter nama/NIP pada halaman ini…"
-                aria-label="Filter nama atau NIP pada halaman ini"
-                value={
-                    filterQuery
-                }
-                onChange={
-                    (event) =>
-                        setFilterQuery(
-                            event.target.value,
-                        )
-                }
-                className="max-w-sm"
-            />
 
             {
                 query.status === 'pending'
@@ -153,7 +125,7 @@ export function HrCompensationEmployeeSearchPage() {
                             role="status"
                             className="text-sm text-muted-foreground"
                         >
-                            Memuat direktori pegawai…
+                            Memuat riwayat employment…
                         </p>
                     )
                     : null
@@ -166,7 +138,7 @@ export function HrCompensationEmployeeSearchPage() {
                             role="alert"
                             className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
                         >
-                            Gagal memuat direktori pegawai. Coba muat ulang
+                            Gagal memuat riwayat employment. Coba muat ulang
                             halaman ini.
                         </div>
                     )
@@ -178,14 +150,11 @@ export function HrCompensationEmployeeSearchPage() {
                     ? (
                         <>
                             {
-                                filteredEmployees.length === 0
+                                query.data.items.length === 0
                                     ? (
                                         <p className="text-sm text-muted-foreground">
-                                            {
-                                                filterQuery.trim() === ''
-                                                    ? 'Belum ada pegawai terdaftar.'
-                                                    : 'Tidak ada pegawai yang cocok dengan filter pada halaman ini — coba ganti halaman atau kosongkan filter.'
-                                            }
+                                            Pegawai ini belum punya riwayat
+                                            employment.
                                         </p>
                                     )
                                     : (
@@ -193,13 +162,13 @@ export function HrCompensationEmployeeSearchPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>
-                                                        Nama
+                                                        Status
                                                     </TableHead>
                                                     <TableHead>
-                                                        NIP
+                                                        Mulai
                                                     </TableHead>
                                                     <TableHead>
-                                                        Jabatan
+                                                        Berakhir
                                                     </TableHead>
                                                     <TableHead>
                                                         <span className="sr-only">
@@ -211,24 +180,40 @@ export function HrCompensationEmployeeSearchPage() {
 
                                             <TableBody>
                                                 {
-                                                    filteredEmployees.map(
+                                                    query.data.items.map(
                                                         (
-                                                            employee,
+                                                            employment,
                                                         ) => (
                                                             <TableRow
                                                                 key={
-                                                                    employee.employee_id
+                                                                    employment.id
                                                                 }
                                                             >
                                                                 <TableCell>
+                                                                    <Badge
+                                                                        variant={
+                                                                            EMPLOYMENT_STATUS_VARIANT[
+                                                                                employment.status
+                                                                            ]
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            EMPLOYMENT_STATUS_LABEL[
+                                                                                employment.status
+                                                                            ]
+                                                                        }
+                                                                    </Badge>
+                                                                </TableCell>
+
+                                                                <TableCell>
                                                                     {
-                                                                        employee.nama
+                                                                        employment.start_date
                                                                     }
                                                                 </TableCell>
 
                                                                 <TableCell>
                                                                     {
-                                                                        employee.nip
+                                                                        employment.end_date
                                                                         ?? (
                                                                             <span className="text-muted-foreground">
                                                                                 —
@@ -238,28 +223,23 @@ export function HrCompensationEmployeeSearchPage() {
                                                                 </TableCell>
 
                                                                 <TableCell>
-                                                                    <Badge variant="secondary">
-                                                                        {
-                                                                            jabatanLabel(
-                                                                                employee.jabatan,
-                                                                            )
-                                                                        }
-                                                                    </Badge>
-                                                                </TableCell>
-
-                                                                <TableCell>
                                                                     <Button
                                                                         asChild
                                                                         size="sm"
                                                                     >
                                                                         <Link
                                                                             to={
-                                                                                `/hr/compensation/employees/${employee.employee_id}/employments`
+                                                                                `/hr/compensation/employments/${employment.id}`
                                                                             }
                                                                             state={
                                                                                 {
-                                                                                    employeeName:
-                                                                                        employee.nama,
+                                                                                    employeeName,
+                                                                                    employmentStatus:
+                                                                                        employment.status,
+                                                                                    employmentStartDate:
+                                                                                        employment.start_date,
+                                                                                    employmentEndDate:
+                                                                                        employment.end_date,
                                                                                 }
                                                                             }
                                                                         >
@@ -273,7 +253,6 @@ export function HrCompensationEmployeeSearchPage() {
                                                 }
                                             </TableBody>
                                         </Table>
-
                                     )
                             }
 
