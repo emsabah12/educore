@@ -47,6 +47,22 @@ describe(
                 },
                 {
                     id:
+                        'hr.compensation',
+
+                    routeId:
+                        'hr.compensation.index',
+
+                    label:
+                        'Kompensasi & Benefit',
+
+                    destination:
+                        '/hr/compensation',
+
+                    requiredFeature:
+                        'hr_module',
+                },
+                {
+                    id:
                         'settings.tenant-roles',
 
                     routeId:
