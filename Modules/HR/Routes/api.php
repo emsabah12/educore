@@ -43,13 +43,6 @@ Route::middleware([
     InjectTenantContext::class,
 ])->group(function (): void {
 
-    Route::get(
-        '/v1/hr/employees',
-        [EmployeeManagementController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.employees.view')
-        ->name('api.v1.hr.employees.index');
-
     Route::post(
         '/v1/hr/employees',
         [EmployeeManagementController::class, 'store']
@@ -725,6 +718,22 @@ Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
 ])->group(function (): void {
+
+    // HR-002 §10.1 — Employee directory.
+    //
+    // Dipindah ke grup ini (BUKAN bagian dari HR-006 Compensation/
+    // Benefit) karena jadi entry point/pencarian pegawai untuk
+    // halaman Kompensasi & Benefit tenant-wide di frontend — sama
+    // butuhnya dengan browser transport, alasan sama persis dengan
+    // komentar di atas. `POST /v1/hr/employees` (pembuatan pegawai
+    // baru) SENGAJA TETAP di grup Bearer-only lama karena belum ada
+    // konsumen browser untuk itu.
+    Route::get(
+        '/v1/hr/employees',
+        [EmployeeManagementController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employees.view')
+        ->name('api.v1.hr.employees.index');
 
     // HR-006 §7.3 — Compensation Assignment lifecycle.
     Route::get(
