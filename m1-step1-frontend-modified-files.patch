@@ -1,0 +1,296 @@
+diff --git a/frontend/src/app/navigation/__tests__/navigation-projection.test.ts b/frontend/src/app/navigation/__tests__/navigation-projection.test.ts
+index f16aa23..6a9019d 100644
+--- a/frontend/src/app/navigation/__tests__/navigation-projection.test.ts
++++ b/frontend/src/app/navigation/__tests__/navigation-projection.test.ts
+@@ -388,6 +388,30 @@ describe(
+                     reason:
+                         'context-required',
+                 },
++                {
++                    status:
++                        'hidden',
++
++                    navigation: {
++                        id:
++                            'hr.compensation',
++
++                        routeId:
++                            'hr.compensation.index',
++
++                        label:
++                            'Kompensasi & Benefit',
++
++                        destination:
++                            '/hr/compensation',
++
++                        requiredFeature:
++                            'hr_module',
++                    },
++
++                    reason:
++                        'authority-pending',
++                },
+                 {
+                     status:
+                         'hidden',
+diff --git a/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx b/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
+index a538f26..5f6fd51 100644
+--- a/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
++++ b/frontend/src/app/navigation/__tests__/useApplicationNavigationProjection.test.tsx
+@@ -408,6 +408,30 @@ describe(
+                     reason:
+                         'context-required',
+                 },
++                {
++                    status:
++                        'hidden',
++
++                    navigation: {
++                        id:
++                            'hr.compensation',
++
++                        routeId:
++                            'hr.compensation.index',
++
++                        label:
++                            'Kompensasi & Benefit',
++
++                        destination:
++                            '/hr/compensation',
++
++                        requiredFeature:
++                            'hr_module',
++                    },
++
++                    reason:
++                        'authority-pending',
++                },
+                 {
+                     status:
+                         'hidden',
+@@ -541,6 +565,30 @@ describe(
+                     reason:
+                         'authority-pending',
+                 },
++                {
++                    status:
++                        'hidden',
++
++                    navigation: {
++                        id:
++                            'hr.compensation',
++
++                        routeId:
++                            'hr.compensation.index',
++
++                        label:
++                            'Kompensasi & Benefit',
++
++                        destination:
++                            '/hr/compensation',
++
++                        requiredFeature:
++                            'hr_module',
++                    },
++
++                    reason:
++                        'authority-pending',
++                },
+                 {
+                     status:
+                         'hidden',
+diff --git a/frontend/src/app/routing/application-route-access.ts b/frontend/src/app/routing/application-route-access.ts
+index e52c259..4d51899 100644
+--- a/frontend/src/app/routing/application-route-access.ts
++++ b/frontend/src/app/routing/application-route-access.ts
+@@ -1,4 +1,5 @@
+ import {
++    hrCompensationSearchRoutePolicy,
+     hrWorkforceRoutePolicy,
+ } from '@/modules/hr/routes';
+ import {
+@@ -50,6 +51,9 @@ const applicationRouteAccessPolicies =
+         'hr.workforce.index':
+             hrWorkforceRoutePolicy,
+ 
++        'hr.compensation.index':
++            hrCompensationSearchRoutePolicy,
++
+         'settings.tenant-roles.index':
+             settingsTenantRolesRoutePolicy,
+ 
+diff --git a/frontend/src/modules/hr/routes.ts b/frontend/src/modules/hr/routes.ts
+index e5ba10a..ea941dd 100644
+--- a/frontend/src/modules/hr/routes.ts
++++ b/frontend/src/modules/hr/routes.ts
+@@ -61,6 +61,42 @@ export const hrWorkforceDetailRoutePolicy =
+         },
+     });
+ 
++/*
++ * Canonical HR Compensation & Benefit search route policy.
++ *
++ * contextRequirement: 'tenant' — BEDA dengan hrWorkforceRoutePolicy
++ * di atas. CompensationAdjustmentController dkk. didaftarkan di
++ * backend sebagai TENANT-wide concern (Route::middleware([...])
++ * tanpa prefix('v1/hr/workspace')), bukan Organizational Workspace
++ * scope — HR-officer tidak perlu memilih Workspace organisasi dulu
++ * untuk membuka fitur ini, sama seperti Kelola Organisasi.
++ *
++ * Permission REUSE hr.employees.view — endpoint yang benar-benar
++ * dipanggil halaman pencarian ini (GET /v1/hr/employees) memang
++ * digerbang permission itu di backend; sub-halaman employment yang
++ * dijangkau dari sini akan punya permission Compensation/Benefit
++ * spesifik masing-masing saat dibangun.
++ */
++export const hrCompensationSearchRoutePolicy =
++    defineProtectedRoutePolicy({
++        routeId:
++            'hr.compensation.index',
++
++        contextRequirement:
++            'tenant',
++
++        authorizationScope:
++            'tenant',
++
++        requiredPermissions: {
++            mode:
++                'single',
++
++            permission:
++                'hr.employees.view',
++        },
++    });
++
+ /*
+  * Public route contribution owned by the HR module.
+  *
+@@ -128,4 +164,30 @@ export const hrRouteContributions = [
+                 };
+             },
+     },
++
++    {
++        routeId:
++            'hr.compensation.index',
++
++        path:
++            'hr/compensation',
++
++        accessPolicy:
++            hrCompensationSearchRoutePolicy,
++
++        lazy:
++            async () => {
++                const {
++                    HrCompensationEmployeeSearchPage,
++                } =
++                    await import(
++                        '@/modules/hr/compensation/HrCompensationEmployeeSearchPage'
++                    );
++
++                return {
++                    Component:
++                        HrCompensationEmployeeSearchPage,
++                };
++            },
++    },
+ ] as const;
+diff --git a/frontend/src/platform/api/generated/schema.d.ts b/frontend/src/platform/api/generated/schema.d.ts
+index f5fa1c0..52e77c7 100644
+--- a/frontend/src/platform/api/generated/schema.d.ts
++++ b/frontend/src/platform/api/generated/schema.d.ts
+@@ -295,7 +295,10 @@ export interface paths {
+             path?: never;
+             cookie?: never;
+         };
+-        /** List Employees for the current tenant */
++        /**
++         * List Employees for the current tenant
++         * @description Supports BearerAuth and BrowserSessionAuth. Browser Session requests require X-EduCore-Membership-Id to select a prepared server-held Membership credential; Bearer requests do not require that header.
++         */
+         get: operations["hrEmployeeIndex"];
+         put?: never;
+         /**
+@@ -2469,8 +2472,24 @@ export interface operations {
+                  *     [1, 100] by the controller; defaults to 15.
+                  */
+                 per_page?: components["parameters"]["EmployeePerPage"];
++                /**
++                 * @description 1-indexed page number. Defaults to 1 (Laravel's standard
++                 *     paginate() convention — read automatically from this query
++                 *     string parameter, not passed explicitly by the controller).
++                 */
++                page?: components["parameters"]["EmployeePage"];
++            };
++            header?: {
++                /**
++                 * @description UUIDv7 tab-local locator used only when a canonical operation is
++                 *     authenticated with BrowserSessionAuth. It selects one Membership
++                 *     credential already prepared in server-side Browser Session custody.
++                 *
++                 *     Omit this header for BearerAuth. The header is never authentication or
++                 *     authorization authority and cannot create a Membership context.
++                 */
++                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+             };
+-            header?: never;
+             path?: never;
+             cookie?: never;
+         };
+diff --git a/frontend/src/platform/navigation/__tests__/navigation-definition.test.ts b/frontend/src/platform/navigation/__tests__/navigation-definition.test.ts
+index 76535ed..2ff32a4 100644
+--- a/frontend/src/platform/navigation/__tests__/navigation-definition.test.ts
++++ b/frontend/src/platform/navigation/__tests__/navigation-definition.test.ts
+@@ -45,6 +45,22 @@ describe(
+                     requiredFeature:
+                         'hr_module',
+                 },
++                {
++                    id:
++                        'hr.compensation',
++
++                    routeId:
++                        'hr.compensation.index',
++
++                    label:
++                        'Kompensasi & Benefit',
++
++                    destination:
++                        '/hr/compensation',
++
++                    requiredFeature:
++                        'hr_module',
++                },
+                 {
+                     id:
+                         'settings.tenant-roles',
+diff --git a/frontend/src/platform/navigation/navigation-definition.ts b/frontend/src/platform/navigation/navigation-definition.ts
+index 6bad6d2..c9da4e6 100644
+--- a/frontend/src/platform/navigation/navigation-definition.ts
++++ b/frontend/src/platform/navigation/navigation-definition.ts
+@@ -161,6 +161,23 @@ export const applicationNavigationCatalog =
+                 'hr_module',
+         }),
+ 
++        defineApplicationNavigation({
++            id:
++                'hr.compensation',
++
++            routeId:
++                'hr.compensation.index',
++
++            label:
++                'Kompensasi & Benefit',
++
++            destination:
++                '/hr/compensation',
++
++            requiredFeature:
++                'hr_module',
++        }),
++
+         defineApplicationNavigation({
+             id:
+                 'settings.tenant-roles',
