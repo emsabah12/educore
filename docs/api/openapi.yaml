@@ -634,6 +634,53 @@ paths:
         "500":
           $ref: "#/components/responses/EmployeeProvisioningFailed"
 
+  /api/v1/hr/employees/{employeeId}/employments:
+    get:
+      operationId: hrEmployeeEmploymentIndex
+      x-laravel-route-name: api.v1.hr.employees.employments.index
+      tags:
+        - Human Resources
+      summary: List Employment episodes for an Employee within the current tenant
+      description: >
+        Tenant-wide (BUKAN Organizational Workspace scope) — dipakai halaman
+        Kompensasi & Benefit untuk memilih Employment target sebelum masuk ke
+        sub-resource Compensation/Benefit-nya. Supports BearerAuth dan
+        BrowserSessionAuth; Browser Session requests require
+        X-EduCore-Membership-Id.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - $ref: "#/components/parameters/EmployeePerPage"
+        - $ref: "#/components/parameters/EmployeePage"
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: Paginated Employment collection for the given Employee.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentListSuccess"
+
+        "403":
+          description: |
+            Tenant authentication context is invalid, or the current
+            Membership does not have hr.employments.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employees:
     get:
       operationId: hrWorkspaceEmployeeIndex
@@ -2828,6 +2875,24 @@ components:
         meta:
           $ref: "#/components/schemas/PaginationMeta"
 
+    EmploymentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmploymentResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
     WorkspaceEmployeeResource:
       type: object
       additionalProperties: false
@@ -4620,12 +4685,6 @@ x-educore-deferred-routes:
   # Academic: dokumentasi OpenAPI penuh untuk domain ini menyusul
   # di siklus pengerasan API tersendiri, bukan bagian dari scope
   # implementasi fitur.
-  - method: GET
-    path: /api/v1/hr/employees/{employeeId}/employments
-    route_name: api.v1.hr.employees.employments.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
   - method: POST
     path: /api/v1/hr/employees/{employeeId}/employments
     route_name: api.v1.hr.employees.employments.store
