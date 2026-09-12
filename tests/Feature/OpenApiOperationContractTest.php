@@ -261,6 +261,7 @@ final class OpenApiOperationContractTest extends TestCase
             'GET /api/v1/core/authorization/workspace-capabilities',
             'GET /api/v1/user/my-memberships',
             'GET /api/v1/user/my-workspaces',
+            'GET /api/v1/hr/employees',
         ];
 
         foreach ($canonicalDualTransportOperations as $operationKey) {
