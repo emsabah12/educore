@@ -62,6 +62,42 @@ export const hrWorkforceDetailRoutePolicy =
     });
 
 /*
+ * Canonical HR Compensation & Benefit search route policy.
+ *
+ * contextRequirement: 'tenant' — BEDA dengan hrWorkforceRoutePolicy
+ * di atas. CompensationAdjustmentController dkk. didaftarkan di
+ * backend sebagai TENANT-wide concern (Route::middleware([...])
+ * tanpa prefix('v1/hr/workspace')), bukan Organizational Workspace
+ * scope — HR-officer tidak perlu memilih Workspace organisasi dulu
+ * untuk membuka fitur ini, sama seperti Kelola Organisasi.
+ *
+ * Permission REUSE hr.employees.view — endpoint yang benar-benar
+ * dipanggil halaman pencarian ini (GET /v1/hr/employees) memang
+ * digerbang permission itu di backend; sub-halaman employment yang
+ * dijangkau dari sini akan punya permission Compensation/Benefit
+ * spesifik masing-masing saat dibangun.
+ */
+export const hrCompensationSearchRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.compensation.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.employees.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -125,6 +161,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrEmployeeDetailPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.compensation.index',
+
+        path:
+            'hr/compensation',
+
+        accessPolicy:
+            hrCompensationSearchRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrCompensationEmployeeSearchPage,
+                } =
+                    await import(
+                        '@/modules/hr/compensation/HrCompensationEmployeeSearchPage'
+                    );
+
+                return {
+                    Component:
+                        HrCompensationEmployeeSearchPage,
                 };
             },
     },

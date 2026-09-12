@@ -394,6 +394,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.compensation',
+
+                        routeId:
+                            'hr.compensation.index',
+
+                        label:
+                            'Kompensasi & Benefit',
+
+                        destination:
+                            '/hr/compensation',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:

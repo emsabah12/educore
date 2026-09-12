@@ -163,6 +163,23 @@ export const applicationNavigationCatalog =
 
         defineApplicationNavigation({
             id:
+                'hr.compensation',
+
+            routeId:
+                'hr.compensation.index',
+
+            label:
+                'Kompensasi & Benefit',
+
+            destination:
+                '/hr/compensation',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
                 'settings.tenant-roles',
 
             routeId:
