@@ -104,5 +104,27 @@ jobs:
       - name: Check code style (Laravel Pint)
         run: vendor/bin/pint --test
 
+      # 15 test gagal dengan "Vite manifest not found" sebelum step
+      # ini ditambahkan — beberapa test Feature (mis.
+      # PlatformTenantSubscriptionControllerTest) me-render Blade
+      # view lama (resources/views/platform/...) yang memakai
+      # direktif @vite() Laravel. Direktif itu butuh
+      # public/build/manifest.json ada secara FISIK di disk, terlepas
+      # dari environment testing — tidak ada mock/stub bawaan Laravel
+      # untuk ini. `npm run build` (root vite.config.js, BUKAN
+      # frontend/vite.config.ts) yang menghasilkannya.
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build Vite assets for Blade views
+        run: npm run build
+
       - name: Run test suite
         run: php artisan test
