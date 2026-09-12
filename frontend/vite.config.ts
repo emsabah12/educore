@@ -109,5 +109,32 @@ export default defineConfig({
 
         emptyOutDir:
             true,
+
+        rollupOptions: {
+            output: {
+                /*
+                 * Vendor chunk terpisah untuk framework inti yang
+                 * jarang berubah antar-deploy (react, react-dom,
+                 * react-router, react-query) — browser bisa
+                 * meng-cache chunk ini lintas rilis selama
+                 * dependency-nya tidak berubah, terlepas dari
+                 * app code yang berubah tiap deploy.
+                 *
+                 * CATATAN JUJUR: ini TIDAK mengurangi total byte
+                 * JavaScript yang dikirim (javascriptAggregateBytes
+                 * di bundle-regression-check tetap sama) — cuma
+                 * mengubah BATAS antar-file, bukan jumlah byte-nya.
+                 * Manfaatnya murni caching, bukan pengurangan
+                 * ukuran.
+                 */
+                manualChunks:
+                    (id: string) =>
+                        /node_modules\/(react|react-dom|react-router|@tanstack\/react-query)\//.test(
+                            id,
+                        )
+                            ? 'vendor'
+                            : undefined,
+            },
+        },
     },
 });
