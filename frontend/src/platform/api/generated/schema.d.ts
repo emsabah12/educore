@@ -354,7 +354,18 @@ export interface paths {
          */
         get: operations["hrWorkspaceEmployeeIndex"];
         put?: never;
-        post?: never;
+        /**
+         * Provision a new Employee within the current organizational workspace
+         * @description HR-017 §3 (resolves HR-013 §35) — creates an Employee, an ACTIVE
+         *     Employment, and an open Employment Placement atomically. Supports
+         *     BearerAuth and BrowserSessionAuth; both transports require
+         *     X-EduCore-Organizational-Assignment-Id. `organization_id` /
+         *     `organization_unit_id` are deliberately NOT accepted in the request
+         *     body (HR-017 §3.4 decision #2, LOCKED) — both are always resolved
+         *     from the active OrganizationalContext, never from client input,
+         *     to close a privilege-escalation gap.
+         */
+        post: operations["hrWorkspaceEmployeeStore"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1555,6 +1566,27 @@ export interface components {
             message: "Employee registered successfully within tenant domain.";
             data: components["schemas"]["EmployeeResource"];
         };
+        /**
+         * @description HR-017 §3 — composite result of provisioning an Employee within an
+         *     organizational workspace. Deliberately NOT a full EmployeeResource:
+         *     the operation creates three related records (Employee, an ACTIVE
+         *     Employment, and an open Employment Placement) atomically, so the
+         *     response surfaces all three identifiers rather than one resource
+         *     shape.
+         */
+        WorkspaceEmployeeProvisioningSuccess: {
+            /** @constant */
+            status: "success";
+            /** @constant */
+            message: "Employee provisioned within workspace with ACTIVE Employment and open Placement.";
+            data: {
+                employee_id: components["schemas"]["UuidV7"];
+                membership_id: components["schemas"]["UuidV7"];
+                employment_id: components["schemas"]["UuidV7"];
+                organizational_assignment_id: components["schemas"]["UuidV7"];
+                employment_placement_id: components["schemas"]["UuidV7"];
+            };
+        };
         InitialTenantAdmin: {
             user_id: components["schemas"]["UuidV7"];
             person_id: components["schemas"]["UuidV7"];
@@ -2703,6 +2735,82 @@ export interface operations {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmployeeStore: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    nama: string;
+                    nip: string;
+                    jabatan: string;
+                    employment_type_id: components["schemas"]["UuidV7"];
+                };
+            };
+        };
+        responses: {
+            /** @description Employee provisioned within the current workspace. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceEmployeeProvisioningSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is missing,
+             *     unavailable, or mismatched; organizational context is missing or
+             *     invalid; or the current organizational assignment does not have
+             *     hr.employees.create permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /**
+             * @description Workspace Employee provisioning conflict (e.g. duplicate NIP
+             *     within tenant).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmploymentLifecycleConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };

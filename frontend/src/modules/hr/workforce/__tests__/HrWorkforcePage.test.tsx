@@ -157,10 +157,310 @@ describe(
                 ).toBeInTheDocument();
 
                 expect(
-                    screen.getByText(
+                    screen.getAllByText(
                         'Guru',
+                    ).length,
+                ).toBeGreaterThanOrEqual(
+                    1,
+                );
+            },
+        );
+
+        it(
+            'creates a new employee from the inline form and clears it on success',
+            async () => {
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/workspace/employees',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
                     ),
-                ).toBeInTheDocument();
+                    http.get(
+                        '*/api/v1/hr/employment-types',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: '01970000-0000-7000-8000-0000000009aa',
+                                            code: 'TETAP',
+                                            name: 'Tetap',
+                                            description: null,
+                                            is_active: true,
+                                        },
+                                    ],
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/workspace/employees',
+                        async ({
+                            request,
+                        }) => {
+                            const body =
+                                await request.json() as Record<string, unknown>;
+
+                            expect(
+                                body,
+                            ).toEqual(
+                                {
+                                    nama: 'Dewi Lestari',
+                                    nip: 'NIP-999',
+                                    jabatan: 'STAFF',
+                                    employment_type_id:
+                                        '01970000-0000-7000-8000-0000000009aa',
+                                },
+                            );
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    message:
+                                        'Employee provisioned within workspace with ACTIVE Employment and open Placement.',
+                                    data: {
+                                        employee_id:
+                                            '01970000-0000-7000-8000-0000000009bb',
+                                        membership_id:
+                                            '01970000-0000-7000-8000-0000000009cc',
+                                        employment_id:
+                                            '01970000-0000-7000-8000-0000000009dd',
+                                        organizational_assignment_id:
+                                            '01970000-0000-7000-8000-0000000000cc',
+                                        employment_placement_id:
+                                            '01970000-0000-7000-8000-0000000009ee',
+                                    },
+                                },
+                                {
+                                    status: 201,
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderWorkforcePage();
+
+                await screen.findByText(
+                    'Belum ada pegawai yang terlihat di workspace ini.',
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Nama',
+                    ),
+                    {
+                        target: {
+                            value: 'Dewi Lestari',
+                        },
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'NIP',
+                    ),
+                    {
+                        target: {
+                            value: 'NIP-999',
+                        },
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Jabatan',
+                    ),
+                    {
+                        target: {
+                            value: 'STAFF',
+                        },
+                    },
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByLabelText(
+                                'Jenis Employment',
+                            ),
+                        ).not.toBeDisabled();
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Jenis Employment',
+                    ),
+                    {
+                        target: {
+                            value: '01970000-0000-7000-8000-0000000009aa',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Tambah Pegawai',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByLabelText(
+                                'Nama',
+                            ),
+                        ).toHaveValue(
+                            '',
+                        );
+                    },
+                );
+
+                expect(
+                    screen.getByLabelText(
+                        'NIP',
+                    ),
+                ).toHaveValue(
+                    '',
+                );
+            },
+        );
+
+        it(
+            'shows a friendly message when the NIP is already taken',
+            async () => {
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/workspace/employees',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/employment-types',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: '01970000-0000-7000-8000-0000000009aa',
+                                            code: 'TETAP',
+                                            name: 'Tetap',
+                                            description: null,
+                                            is_active: true,
+                                        },
+                                    ],
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/workspace/employees',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'error',
+                                    code: 'WORKSPACE_EMPLOYEE_PROVISIONING_CONFLICT',
+                                    message:
+                                        'NIP is already registered within this tenant.',
+                                },
+                                {
+                                    status: 409,
+                                },
+                            ),
+                    ),
+                );
+
+                renderWorkforcePage();
+
+                await screen.findByText(
+                    'Belum ada pegawai yang terlihat di workspace ini.',
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Nama',
+                    ),
+                    {
+                        target: {
+                            value: 'Dewi Lestari',
+                        },
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'NIP',
+                    ),
+                    {
+                        target: {
+                            value: 'NIP-DUPLICATE',
+                        },
+                    },
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByLabelText(
+                                'Jenis Employment',
+                            ),
+                        ).not.toBeDisabled();
+                    },
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Jenis Employment',
+                    ),
+                    {
+                        target: {
+                            value: '01970000-0000-7000-8000-0000000009aa',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Tambah Pegawai',
+                        },
+                    ),
+                );
+
+                expect(
+                    await screen.findByRole(
+                        'alert',
+                    ),
+                ).toHaveTextContent(
+                    'NIP ini sudah dipakai pegawai lain di tenant Anda.',
+                );
             },
         );
 
