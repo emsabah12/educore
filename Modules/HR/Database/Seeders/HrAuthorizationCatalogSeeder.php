@@ -59,6 +59,12 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         'hr.leave.balance.read' => 'View Entitlement balance for any Employee within authorized scope',
         'hr.leave.balance.adjust' => 'Manually adjust Entitlement balance (higher-impact operation, always audited)',
 
+        // HR-002 §3 (OD-HR-DATA-002) — Employment Type catalog.
+        // Hanya .manage — GET /v1/hr/employment-types SENGAJA sudah
+        // ungated sejak awal (lihat docblock EmploymentCatalogController),
+        // jadi tidak perlu permission .view pendamping.
+        'hr.employment-types.manage' => 'Create/update Employment Type catalog',
+
         // HR-006 §7.2 — Compensation Component catalog.
         'hr.compensation.components.view' => 'View Compensation Component catalog',
         'hr.compensation.components.manage' => 'Create/update Compensation Component catalog',

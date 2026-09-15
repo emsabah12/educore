@@ -371,7 +371,7 @@ final class OpenApiIntegrityGateTest extends TestCase
             );
 
         $this->assertCount(
-            45,
+            46,
             $operations,
         );
 
