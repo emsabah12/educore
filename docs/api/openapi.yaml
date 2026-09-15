@@ -923,6 +923,75 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    post:
+      operationId: hrEmploymentTypeStore
+      x-laravel-route-name: api.v1.hr.employment-types.store
+      tags:
+        - Human Resources
+      summary: Create a new Employment Type catalog entry for the current tenant
+      description: |
+        HR-002 §3 (OD-HR-DATA-002) — adds one entry to the tenant's
+        Employment Type catalog (e.g. TETAP / KONTRAK / HONORER).
+        `code` must be unique within the tenant. Newly created entries
+        default to is_active=true; deactivation has no dedicated
+        endpoint yet.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: Employment Type catalog entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTypeCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employment-types.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employees/{employeeId}/employments:
     post:
       operationId: hrWorkspaceEmploymentStore
@@ -3362,6 +3431,19 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EmploymentTypeResource"
+
+    EmploymentTypeCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/EmploymentTypeResource"
 
     SubscriptionFeatureNotAvailableError:
       type: object

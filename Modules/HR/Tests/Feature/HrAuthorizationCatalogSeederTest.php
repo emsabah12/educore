@@ -23,6 +23,7 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
         return [
             'employees view' => ['hr.employees.view'],
             'employees create' => ['hr.employees.create'],
+            'employment types manage' => ['hr.employment-types.manage'],
             'compensation components view' => ['hr.compensation.components.view'],
             'compensation components manage' => ['hr.compensation.components.manage'],
             'compensation assignments view' => ['hr.compensation.assignments.view'],
@@ -87,6 +88,7 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
                 'hr.compensation.components.view',
                 'hr.employees.create',
                 'hr.employees.view',
+                'hr.employment-types.manage',
                 'hr.employments.end',
                 'hr.employments.manage',
                 'hr.employments.view',

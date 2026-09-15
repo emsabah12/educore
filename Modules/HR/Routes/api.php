@@ -349,12 +349,20 @@ Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
     'tenant.feature:hr_module',
-    'tenant.permission:hr.employments.view',
 ])->prefix('v1/hr')->group(function (): void {
     Route::get(
         '/employment-types',
         [EmploymentCatalogController::class, 'indexEmploymentTypes']
-    )->name('api.v1.hr.employment-types.index');
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employment-types.index');
+
+    Route::post(
+        '/employment-types',
+        [EmploymentCatalogController::class, 'storeEmploymentType']
+    )
+        ->middleware('tenant.permission:hr.employment-types.manage')
+        ->name('api.v1.hr.employment-types.store');
 });
 
 Route::middleware([
