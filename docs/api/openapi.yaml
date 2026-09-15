@@ -992,6 +992,274 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/compensation/components:
+    get:
+      operationId: hrCompensationComponentIndex
+      x-laravel-route-name: api.v1.hr.compensation.components.index
+      tags:
+        - Human Resources
+      summary: List Compensation Component catalog entries for the current tenant
+      description: |
+        HR-006 §7.2 — tenant-wide (not Organizational Workspace scope).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: Compensation Component catalog collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationComponentListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.components.view
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrCompensationComponentStore
+      x-laravel-route-name: api.v1.hr.compensation.components.store
+      tags:
+        - Human Resources
+      summary: Create a new Compensation Component catalog entry
+      description: |
+        HR-006 §7.2 — code must be unique within the tenant. unit_code
+        is required when value_mode=RATE_PER_UNIT and must be omitted
+        when value_mode=FIXED_AMOUNT (enforced by DB CHECK constraint;
+        a mismatch surfaces as 422
+        COMPENSATION_COMPONENT_CREATION_FAILED).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+                - category
+                - value_mode
+                - periodicity
+              properties:
+                code:
+                  type: string
+                  maxLength: 60
+                name:
+                  type: string
+                  maxLength: 150
+                category:
+                  type: string
+                  enum:
+                    - BASE_PAY
+                    - ALLOWANCE
+                    - RATE
+                    - OTHER_EARNING_INPUT
+                value_mode:
+                  type: string
+                  enum:
+                    - FIXED_AMOUNT
+                    - RATE_PER_UNIT
+                unit_code:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 20
+                periodicity:
+                  type: string
+                  enum:
+                    - MONTHLY
+                    - DAILY
+                    - PER_UNIT
+                    - ONE_TIME
+                    - OTHER
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: Compensation Component catalog entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationComponentCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.components.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/benefits/programs:
+    get:
+      operationId: hrBenefitProgramIndex
+      x-laravel-route-name: api.v1.hr.benefits.programs.index
+      tags:
+        - Human Resources
+      summary: List Benefit Program catalog entries for the current tenant
+      description: |
+        HR-006 §7.5 — tenant-wide (not Organizational Workspace scope).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: Benefit Program catalog collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitProgramListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.programs.view
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrBenefitProgramStore
+      x-laravel-route-name: api.v1.hr.benefits.programs.store
+      tags:
+        - Human Resources
+      summary: Create a new Benefit Program catalog entry
+      description: |
+        HR-006 §7.5 — code must be unique within the tenant.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+                - category
+                - beneficiary_scope
+                - payroll_relevance
+              properties:
+                code:
+                  type: string
+                  maxLength: 60
+                name:
+                  type: string
+                  maxLength: 150
+                category:
+                  type: string
+                  enum:
+                    - STATUTORY
+                    - GOVERNMENT
+                    - INSTITUTIONAL
+                    - OTHER
+                beneficiary_scope:
+                  type: string
+                  enum:
+                    - EMPLOYEE
+                    - DEPENDENT
+                    - EITHER
+                payroll_relevance:
+                  type: string
+                  enum:
+                    - NONE
+                    - ELIGIBILITY_INPUT
+                    - EXTERNAL_PAYMENT_TRACKING
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: Benefit Program catalog entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitProgramCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.programs.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employees/{employeeId}/employments:
     post:
       operationId: hrWorkspaceEmploymentStore
@@ -3445,6 +3713,190 @@ components:
         data:
           $ref: "#/components/schemas/EmploymentTypeResource"
 
+    CompensationComponentResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.2 — tenant-scoped catalog entry describing the MEANING
+        of a compensation fact (e.g. BASE_SALARY, TEACHING_HOUR_RATE),
+        not a per-employee value (that is CompensationAssignment).
+        Controller returns the raw Eloquent model, so every persisted
+        column is present here.
+      required:
+        - id
+        - tenant_id
+        - code
+        - name
+        - category
+        - value_mode
+        - unit_code
+        - periodicity
+        - description
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - BASE_PAY
+            - ALLOWANCE
+            - RATE
+            - OTHER_EARNING_INPUT
+        value_mode:
+          type: string
+          enum:
+            - FIXED_AMOUNT
+            - RATE_PER_UNIT
+        unit_code:
+          description: |
+            Required when value_mode=RATE_PER_UNIT, must be null when
+            value_mode=FIXED_AMOUNT (enforced by DB CHECK constraint).
+          type:
+            - string
+            - "null"
+        periodicity:
+          type: string
+          enum:
+            - MONTHLY
+            - DAILY
+            - PER_UNIT
+            - ONE_TIME
+            - OTHER
+        description:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    CompensationComponentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompensationComponentResource"
+
+    CompensationComponentCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/CompensationComponentResource"
+
+    BenefitProgramResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.5 — tenant-scoped catalog entry describing a benefit
+        program (e.g. BPJS_KESEHATAN, TPG, THR — illustrative codes,
+        NOT a fixed global enum). Controller returns the raw Eloquent
+        model, so every persisted column is present here.
+      required:
+        - id
+        - tenant_id
+        - code
+        - name
+        - category
+        - beneficiary_scope
+        - payroll_relevance
+        - description
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - STATUTORY
+            - GOVERNMENT
+            - INSTITUTIONAL
+            - OTHER
+        beneficiary_scope:
+          type: string
+          enum:
+            - EMPLOYEE
+            - DEPENDENT
+            - EITHER
+        payroll_relevance:
+          type: string
+          enum:
+            - NONE
+            - ELIGIBILITY_INPUT
+            - EXTERNAL_PAYMENT_TRACKING
+        description:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    BenefitProgramListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitProgramResource"
+
+    BenefitProgramCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/BenefitProgramResource"
+
     SubscriptionFeatureNotAvailableError:
       type: object
       additionalProperties: false
@@ -5295,18 +5747,6 @@ x-educore-deferred-routes:
     reason: domain-api-hardening-deferred
 
   - method: GET
-    path: /api/v1/hr/compensation/components
-    route_name: api.v1.hr.compensation.components.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/compensation/components
-    route_name: api.v1.hr.compensation.components.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
     path: /api/v1/hr/employments/{employmentId}/compensation-assignments
     route_name: api.v1.hr.employments.compensation-assignments.index
     owner: HR
@@ -5333,18 +5773,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/correct
     route_name: api.v1.hr.employments.compensation-assignments.correct
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/benefits/programs
-    route_name: api.v1.hr.benefits.programs.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/benefits/programs
-    route_name: api.v1.hr.benefits.programs.store
     owner: HR
     reason: domain-api-hardening-deferred
 
