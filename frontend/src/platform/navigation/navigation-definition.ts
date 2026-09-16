@@ -196,6 +196,27 @@ export const applicationNavigationCatalog =
         }),
 
         /*
+         * requiredFeature SENGAJA tidak diisi — Kelola Anggota &
+         * Role adalah kapabilitas RBAC inti (tenant.role:admin di
+         * backend), bukan Subscription feature yang bisa
+         * dinyalakan/dimatikan per paket, sama seperti
+         * organization.manage.
+         */
+        defineApplicationNavigation({
+            id:
+                'settings.tenant-members',
+
+            routeId:
+                'settings.tenant-members.index',
+
+            label:
+                'Kelola Anggota',
+
+            destination:
+                '/settings/members',
+        }),
+
+        /*
          * organization.manage adalah permission RBAC biasa,
          * bukan Subscription feature — SENGAJA tidak diberi
          * requiredFeature (beda dengan Kepegawaian/Role Kustom

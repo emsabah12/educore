@@ -79,6 +79,19 @@ describe(
                 },
                 {
                     id:
+                        'settings.tenant-members',
+
+                    routeId:
+                        'settings.tenant-members.index',
+
+                    label:
+                        'Kelola Anggota',
+
+                    destination:
+                        '/settings/members',
+                },
+                {
+                    id:
                         'settings.organizations',
 
                     routeId:

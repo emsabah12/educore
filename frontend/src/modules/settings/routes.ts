@@ -31,6 +31,31 @@ export const settingsTenantRolesRoutePolicy =
     });
 
 /*
+ * §Kelola Anggota & Role — SENGAJA memakai mode 'tenant-admin'
+ * (bukan permission granular): mengelola SIAPA punya ROLE apa
+ * adalah kewenangan yang tidak boleh didelegasikan lewat permission
+ * kustom, sama persis dengan tenant.role:admin yang menggerbang
+ * endpoint backend-nya (lihat Modules/User/Routes/api.php,
+ * Modules/Auth/Routes/api.php).
+ */
+export const settingsTenantMembersRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'settings.tenant-members.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'tenant-admin',
+        },
+    });
+
+/*
  * Canonical Kelola Organisasi route policy.
  *
  * contextRequirement: 'tenant' — Organisasi itu sendiri adalah
@@ -153,6 +178,32 @@ export const settingsRouteContributions = [
                 return {
                     Component:
                         TenantRolesPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'settings.tenant-members.index',
+
+        path:
+            'settings/members',
+
+        accessPolicy:
+            settingsTenantMembersRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    TenantMembersPage,
+                } =
+                    await import(
+                        '@/modules/settings/members/TenantMembersPage'
+                    );
+
+                return {
+                    Component:
+                        TenantMembersPage,
                 };
             },
     },

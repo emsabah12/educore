@@ -445,6 +445,27 @@ describe(
 
                     navigation: {
                         id:
+                            'settings.tenant-members',
+
+                        routeId:
+                            'settings.tenant-members.index',
+
+                        label:
+                            'Kelola Anggota',
+
+                        destination:
+                            '/settings/members',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.organizations',
 
                         routeId:

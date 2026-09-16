@@ -4,6 +4,7 @@ import {
 } from '@/modules/hr/routes';
 import {
     settingsOrganizationsRoutePolicy,
+    settingsTenantMembersRoutePolicy,
     settingsTenantRolesRoutePolicy,
 } from '@/modules/settings/routes';
 import {
@@ -56,6 +57,9 @@ const applicationRouteAccessPolicies =
 
         'settings.tenant-roles.index':
             settingsTenantRolesRoutePolicy,
+
+        'settings.tenant-members.index':
+            settingsTenantMembersRoutePolicy,
 
         'settings.organizations.index':
             settingsOrganizationsRoutePolicy,
