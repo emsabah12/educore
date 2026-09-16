@@ -186,6 +186,79 @@ final class MembershipRoleRepositoryIsolationTest extends TestCase
         );
     }
 
+    /**
+     * Regression untuk celah isolasi yang ditemukan saat membangun
+     * fitur "Kelola Anggota & Role": sebelum diperbaiki, assignRole()
+     * hanya memeriksa role EXISTS secara global — tidak peduli role
+     * itu role KUSTOM milik tenant lain. rolesForMembership() (dipakai
+     * AuthorizationService::hasPermission()) menyaring berdasarkan
+     * tenant MEMBERSHIP, bukan tenant ROLE, jadi role "bocor" itu
+     * akan tetap dianggap efektif dan memberi permission yang tidak
+     * seharusnya kalau tidak ditolak di titik assignment ini.
+     */
+    public function test_assignment_rejects_custom_role_owned_by_a_different_tenant(): void
+    {
+        $tenantAId = $this->createTenant(
+            'Isolation Tenant A',
+            'isolation-tenant-a',
+        );
+
+        $tenantBId = $this->createTenant(
+            'Isolation Tenant B',
+            'isolation-tenant-b',
+        );
+
+        $personId = $this->createPerson(
+            'Cross Tenant Custom Role Person',
+        );
+
+        $membershipId = $this->createMembership(
+            personId: $personId,
+            tenantId: $tenantAId,
+        );
+
+        $customRoleId = UuidV7::generate();
+
+        DB::table('roles')->insert([
+            'id' => $customRoleId,
+            'tenant_id' => $tenantBId,
+            'name' => 'tenant-b-custom-role',
+            'display_name' => 'Tenant B Custom Role',
+            'description' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $repository = $this->app->make(
+            MembershipRoleRepositoryInterface::class,
+        );
+
+        try {
+            $repository->assignRole(
+                membershipId: $membershipId,
+                tenantId: $tenantAId,
+                roleId: $customRoleId,
+            );
+
+            $this->fail(
+                'Assigning a custom role owned by a different tenant should have failed.',
+            );
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Role was not found.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseMissing(
+            'membership_roles',
+            [
+                'membership_id' => $membershipId,
+                'role_id' => $customRoleId,
+            ],
+        );
+    }
+
     private function createTenant(
         string $name,
         string $subdomain,

@@ -148,8 +148,23 @@ final class EloquentMembershipRoleRepository implements MembershipRoleRepository
             );
         }
 
+        /*
+         * Isolasi lintas-tenant: role KUSTOM (roles.tenant_id
+         * terisi) HANYA boleh di-assign dalam tenant pemiliknya
+         * sendiri. Tanpa pengecekan ini, aktor bisa menebak/mengambil
+         * UUID role kustom milik tenant lain dan meng-assign-nya ke
+         * membership di tenant-nya sendiri — rolesForMembership()
+         * (dipakai AuthorizationService::hasPermission()) menyaring
+         * berdasarkan tenant MEMBERSHIP, bukan tenant ROLE, jadi role
+         * "bocor" itu akan tetap dianggap efektif dan memberi
+         * permission yang tidak seharusnya.
+         */
         $roleExists = DB::table('roles')
             ->where('id', $roleId)
+            ->where(function ($query) use ($tenantId): void {
+                $query->whereNull('tenant_id')
+                    ->orWhere('tenant_id', $tenantId);
+            })
             ->exists();
 
         if (! $roleExists) {
