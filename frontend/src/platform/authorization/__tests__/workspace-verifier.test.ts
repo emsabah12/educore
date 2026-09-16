@@ -134,6 +134,9 @@ const tenantCapabilitySuccess:
             is_global_superadmin:
                 false,
 
+            is_tenant_admin:
+                false,
+
             /*
              * Empty permissions are still a valid canonical
              * context projection. Workspace verification is

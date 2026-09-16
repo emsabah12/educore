@@ -96,6 +96,12 @@ function snapshotPermissionRequirement(
                     ...requirement.permissions,
                 ],
             };
+
+        case 'tenant-admin':
+            return {
+                mode:
+                    'tenant-admin',
+            };
     }
 }
 

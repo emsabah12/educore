@@ -189,6 +189,9 @@ function readyState(
             is_global_superadmin:
                 isGlobalSuperadmin,
 
+            is_tenant_admin:
+                false,
+
             permissions,
         },
     };

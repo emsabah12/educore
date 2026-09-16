@@ -197,6 +197,9 @@ function isTenantCapabilitySuccess(
         && typeof data
             .is_global_superadmin
             === 'boolean'
+        && typeof data
+            .is_tenant_admin
+            === 'boolean'
         && isPermissionNames(
             data.permissions,
         )

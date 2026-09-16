@@ -394,6 +394,9 @@ function configureReadyTenantContext(
             is_global_superadmin:
                 false,
 
+            is_tenant_admin:
+                false,
+
             permissions,
         },
     };
@@ -743,6 +746,9 @@ describe(
                     },
 
                     is_global_superadmin:
+                        false,
+
+                    is_tenant_admin:
                         false,
 
                     permissions:
