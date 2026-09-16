@@ -2953,12 +2953,22 @@ components:
       required:
         - scope
         - is_global_superadmin
+        - is_tenant_admin
         - permissions
       properties:
         scope:
           $ref: "#/components/schemas/TenantCapabilityScope"
         is_global_superadmin:
           type: boolean
+        is_tenant_admin:
+          type: boolean
+          description: |
+            §Kelola Anggota & Role — murni untuk visibilitas UI.
+            Dihitung dari role literal 'admin' (hasRole), SAMA
+            PERSIS dengan pemeriksaan yang menggerbang endpoint
+            RBAC-management sesungguhnya (tenant.role:admin) —
+            bukan otorisasi baru, cuma proyeksi dari yang sudah
+            ditegakkan middleware.
         permissions:
           type: array
           uniqueItems: true

@@ -61,6 +61,7 @@ final readonly class TenantCapabilityProjectionQuery
                 tenantId: $context->tenantId(),
                 membershipId: $context->membershipId(),
                 isGlobalSuperadmin: true,
+                isTenantAdmin: true,
                 permissions: $permissionCatalog,
             );
         }
@@ -77,10 +78,23 @@ final readonly class TenantCapabilityProjectionQuery
             }
         }
 
+        /*
+         * §Kelola Anggota & Role — 'admin' SENGAJA dicek lewat NAMA
+         * ROLE literal (hasRole), BUKAN permission granular, supaya
+         * konsisten dengan 'tenant.role:admin' yang menggerbang
+         * endpoint RBAC-management sesungguhnya (lihat
+         * Modules/User/Routes/api.php, Modules/Auth/Routes/api.php).
+         * Flag ini murni untuk visibilitas UI (tampilkan/sembunyikan
+         * menu) — otorisasi SESUNGGUHNYA tetap ditegakkan
+         * middleware, bukan flag ini.
+         */
         return new TenantCapabilityProjection(
             tenantId: $context->tenantId(),
             membershipId: $context->membershipId(),
             isGlobalSuperadmin: false,
+            isTenantAdmin: $this->authorizationService->hasRole(
+                'admin',
+            ),
             permissions: $effectivePermissions,
         );
     }

@@ -13,6 +13,7 @@ final readonly class TenantCapabilityProjection
         public string $tenantId,
         public string $membershipId,
         public bool $isGlobalSuperadmin,
+        public bool $isTenantAdmin,
         public array $permissions,
     ) {}
 
@@ -24,6 +25,7 @@ final readonly class TenantCapabilityProjection
      *         membership_id: string
      *     },
      *     is_global_superadmin: bool,
+     *     is_tenant_admin: bool,
      *     permissions: array<int, string>
      * }
      */
@@ -36,6 +38,7 @@ final readonly class TenantCapabilityProjection
                 'membership_id' => $this->membershipId,
             ],
             'is_global_superadmin' => $this->isGlobalSuperadmin,
+            'is_tenant_admin' => $this->isTenantAdmin,
             'permissions' => $this->permissions,
         ];
     }
