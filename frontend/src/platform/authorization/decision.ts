@@ -6,6 +6,7 @@ import {
     type PermissionEvaluator,
 } from '@/platform/authorization/permission-evaluator';
 import type {
+    CapabilityProjectionData,
     CapabilityState,
     CapabilityStateFailure,
 } from '@/platform/authorization/state';
@@ -31,6 +32,21 @@ export type PermissionRequirement =
 
         readonly permissions:
             readonly PermissionName[];
+    }
+    | {
+        /*
+         * §Kelola Anggota & Role — SATU-SATUNYA pengecualian dari
+         * "exact canonical permission matching only" yang dinyatakan
+         * eksplisit di permission-evaluator.ts. Ini BUKAN inferensi
+         * role→permission sisi klien — murni membaca flag
+         * is_tenant_admin yang SUDAH DIHITUNG backend (hasRole('admin'),
+         * sama persis dengan pemeriksaan tenant.role:admin yang
+         * menggerbang endpoint RBAC-management sesungguhnya). Cuma
+         * berlaku untuk proyeksi TENANT — proyeksi WORKSPACE tidak
+         * punya konsep ini sama sekali.
+         */
+        readonly mode:
+            'tenant-admin';
     };
 
 export interface PendingAuthorizationDecision {
@@ -83,6 +99,8 @@ export interface AuthorizationDecisionEvaluator {
 function evaluateReadyRequirement(
     evaluator:
         PermissionEvaluator,
+    projection:
+        CapabilityProjectionData,
     requirement:
         PermissionRequirement,
 ): boolean {
@@ -103,6 +121,10 @@ function evaluateReadyRequirement(
             return evaluator.hasAny(
                 requirement.permissions,
             );
+
+        case 'tenant-admin':
+            return 'is_tenant_admin' in projection
+                && projection.is_tenant_admin;
     }
 }
 
@@ -184,6 +206,7 @@ export function createAuthorizationDecisionEvaluator(
                 ) {
                     return evaluateReadyRequirement(
                         permissionEvaluator,
+                        state.projection,
                         requirement,
                     )
                         ? {

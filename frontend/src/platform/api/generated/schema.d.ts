@@ -943,6 +943,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/user/tenant-memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active Memberships within the current tenant, with their current roles
+         * @description §Kelola Anggota & Role — dipakai halaman admin untuk melihat
+         *     siapa saja anggota tenant dan role yang sudah mereka punya,
+         *     sebelum meng-assign role baru lewat
+         *     POST /user/memberships/{id}/assign-role. Digerbang
+         *     'tenant.role:admin' (bukan permission granular), sama persis
+         *     dengan endpoint assign-role.
+         */
+        get: operations["userTenantMembershipIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1094,6 +1119,15 @@ export interface components {
         TenantCapabilityData: {
             scope: components["schemas"]["TenantCapabilityScope"];
             is_global_superadmin: boolean;
+            /**
+             * @description §Kelola Anggota & Role — murni untuk visibilitas UI.
+             *     Dihitung dari role literal 'admin' (hasRole), SAMA
+             *     PERSIS dengan pemeriksaan yang menggerbang endpoint
+             *     RBAC-management sesungguhnya (tenant.role:admin) —
+             *     bukan otorisasi baru, cuma proyeksi dari yang sudah
+             *     ditegakkan middleware.
+             */
+            is_tenant_admin: boolean;
             permissions: components["schemas"]["PermissionName"][];
         };
         TenantCapabilitySuccess: {
@@ -1130,6 +1164,22 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["RoleSummary"][];
+        };
+        /**
+         * @description §Kelola Anggota & Role — satu Membership AKTIF dalam tenant
+         *     yang sedang otentikasi, beserta role yang sudah dipunya saat
+         *     ini (bisa kosong kalau belum pernah di-assign apa pun).
+         */
+        TenantMembershipSummary: {
+            membership_id: components["schemas"]["UuidV7"];
+            person_name: string | null;
+            email: string | null;
+            roles: components["schemas"]["RoleSummary"][];
+        };
+        TenantMembershipListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["TenantMembershipSummary"][];
         };
         HealthComponent: {
             healthy: boolean;
@@ -2480,7 +2530,17 @@ export interface operations {
     authorizationRoleCatalog: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -2495,6 +2555,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoleCatalogSuccess"];
                 };
             };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
             /**
              * @description Tenant authentication context is invalid or the current Membership
              *     does not have the required tenant administrator role.
@@ -4541,7 +4602,17 @@ export interface operations {
     userMembershipRoleAssign: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
             path: {
                 target_membership_id: components["parameters"]["TargetMembershipId"];
             };
@@ -4562,6 +4633,7 @@ export interface operations {
                     "application/json": components["schemas"]["MembershipRoleAssignmentSuccess"];
                 };
             };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
             /**
              * @description Tenant authentication context is invalid or the authenticated
              *     Membership does not have the required administrator role.
@@ -4576,6 +4648,52 @@ export interface operations {
             };
             404: components["responses"]["MembershipRoleAssignmentRejected"];
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    userTenantMembershipIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active tenant Membership collection with current roles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantMembershipListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current
+             *     Membership does not have the required tenant
+             *     administrator role.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

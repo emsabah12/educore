@@ -34,6 +34,8 @@ function createTenantProjection(
         string[],
     isGlobalSuperadmin =
         false,
+    isTenantAdmin =
+        false,
 ): CapabilityProjectionData {
     return {
         scope: {
@@ -50,6 +52,9 @@ function createTenantProjection(
         is_global_superadmin:
             isGlobalSuperadmin,
 
+        is_tenant_admin:
+            isTenantAdmin,
+
         permissions,
     };
 }
@@ -58,6 +63,8 @@ function readyState(
     permissions:
         string[],
     isGlobalSuperadmin =
+        false,
+    isTenantAdmin =
         false,
 ): CapabilityState {
     return {
@@ -68,6 +75,7 @@ function readyState(
             createTenantProjection(
                 permissions,
                 isGlobalSuperadmin,
+                isTenantAdmin,
             ),
     };
 }
@@ -351,6 +359,48 @@ describe(
 
                     permission:
                         gradesWrite,
+                }),
+            ).toEqual({
+                status:
+                    'denied',
+            });
+        });
+
+        it('allows a tenant-admin requirement when the tenant projection carries is_tenant_admin=true', () => {
+            const evaluator =
+                createAuthorizationDecisionEvaluator(
+                    readyState(
+                        [],
+                        false,
+                        true,
+                    ),
+                );
+
+            expect(
+                evaluator.evaluate({
+                    mode:
+                        'tenant-admin',
+                }),
+            ).toEqual({
+                status:
+                    'allowed',
+            });
+        });
+
+        it('denies a tenant-admin requirement when the tenant projection carries is_tenant_admin=false', () => {
+            const evaluator =
+                createAuthorizationDecisionEvaluator(
+                    readyState(
+                        [],
+                        false,
+                        false,
+                    ),
+                );
+
+            expect(
+                evaluator.evaluate({
+                    mode:
+                        'tenant-admin',
                 }),
             ).toEqual({
                 status:
