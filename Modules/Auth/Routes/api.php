@@ -135,7 +135,8 @@ Route::get(
 );
 
 Route::middleware([
-    InjectTenantContext::class,
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
     'tenant.role:admin',
 ])->group(function (): void {
     Route::get(

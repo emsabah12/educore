@@ -365,6 +365,9 @@ paths:
       summary: Return the safe global role catalog for tenant administrators
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
       responses:
         "200":
           description: Safe role catalog.
@@ -372,6 +375,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleCatalogSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
 
         "403":
           description: |
@@ -2498,8 +2504,10 @@ paths:
       summary: Assign a global role to a membership as a tenant administrator
       security:
         - BearerAuth: []
+        - BrowserSessionAuth: []
       parameters:
         - $ref: "#/components/parameters/TargetMembershipId"
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
       requestBody:
         required: true
         content:
@@ -2513,6 +2521,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MembershipRoleAssignmentSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
 
         "403":
           description: |
@@ -2530,6 +2541,53 @@ paths:
 
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/user/tenant-memberships:
+    get:
+      operationId: userTenantMembershipIndex
+      x-laravel-route-name: api.v1.user.tenant-memberships.index
+      tags:
+        - User Context
+        - Authorization
+      summary: List active Memberships within the current tenant, with their current roles
+      description: |
+        §Kelola Anggota & Role — dipakai halaman admin untuk melihat
+        siapa saja anggota tenant dan role yang sudah mereka punya,
+        sebelum meng-assign role baru lewat
+        POST /user/memberships/{id}/assign-role. Digerbang
+        'tenant.role:admin' (bukan permission granular), sama persis
+        dengan endpoint assign-role.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: Active tenant Membership collection with current roles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMembershipListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current
+            Membership does not have the required tenant
+            administrator role.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
@@ -3008,6 +3066,49 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RoleSummary"
+
+    TenantMembershipSummary:
+      type: object
+      additionalProperties: false
+      description: |
+        §Kelola Anggota & Role — satu Membership AKTIF dalam tenant
+        yang sedang otentikasi, beserta role yang sudah dipunya saat
+        ini (bisa kosong kalau belum pernah di-assign apa pun).
+      required:
+        - membership_id
+        - person_name
+        - email
+        - roles
+      properties:
+        membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        person_name:
+          type:
+            - string
+            - "null"
+        email:
+          type:
+            - string
+            - "null"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleSummary"
+
+    TenantMembershipListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantMembershipSummary"
 
     HealthComponent:
       type: object

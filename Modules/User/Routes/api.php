@@ -4,23 +4,40 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Middleware\InjectAuthenticatedUser;
-use Modules\Auth\Http\Middleware\InjectTenantContext;
 use Modules\Auth\Http\Middleware\InjectTransportAwareAuthenticatedUser;
 use Modules\Auth\Http\Middleware\InjectTransportAwareTenantContext;
 use Modules\Auth\Http\Middleware\UseBrowserSessionForCanonicalApi;
 use Modules\User\Http\Controllers\Api\v1\AssignMembershipRoleController;
 use Modules\User\Http\Controllers\Api\v1\MembershipController;
 use Modules\User\Http\Controllers\Api\v1\SwitchMembershipController;
+use Modules\User\Http\Controllers\Api\v1\TenantMembershipController;
 use Modules\User\Http\Controllers\Api\v1\WorkspaceController;
 
+/*
+ * §Kelola Anggota & Role — 'tenant.role:admin' (bukan permission
+ * granular) SENGAJA dipertahankan untuk seluruh grup RBAC-management
+ * ini: mengelola SIAPA punya ROLE apa adalah kewenangan yang tidak
+ * boleh didelegasikan lewat permission kustom (mencegah eskalasi
+ * privilese lewat role kustom yang, misalnya, diberi permission
+ * untuk mengubah permission role lain).
+ */
 Route::middleware([
-    InjectTenantContext::class,
+    UseBrowserSessionForCanonicalApi::class,
+    InjectTransportAwareTenantContext::class,
     'tenant.role:admin',
 ])->group(function (): void {
     Route::post(
         '/v1/user/memberships/{target_membership_id}/assign-role',
         AssignMembershipRoleController::class,
     )->name('api.v1.user.rbac.assign');
+
+    Route::get(
+        '/v1/user/tenant-memberships',
+        [
+            TenantMembershipController::class,
+            'index',
+        ],
+    )->name('api.v1.user.tenant-memberships.index');
 });
 
 /*
