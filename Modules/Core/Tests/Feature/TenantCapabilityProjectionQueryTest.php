@@ -128,6 +128,7 @@ final class TenantCapabilityProjectionQueryTest extends TestCase
                     'membership_id' => $membershipId,
                 ],
                 'is_global_superadmin' => false,
+                'is_tenant_admin' => false,
                 'permissions' => [
                     'academic.grades.write',
                     'core.notifications.dispatch',
@@ -221,6 +222,7 @@ final class TenantCapabilityProjectionQueryTest extends TestCase
                     'membership_id' => $membershipId,
                 ],
                 'is_global_superadmin' => true,
+                'is_tenant_admin' => true,
                 'permissions' => [
                     'academic.grades.write',
                     'core.notifications.dispatch',
