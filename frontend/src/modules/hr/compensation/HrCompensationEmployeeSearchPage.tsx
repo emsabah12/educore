@@ -116,18 +116,30 @@ export function HrCompensationEmployeeSearchPage() {
             aria-labelledby="hr-compensation-search-heading"
             className="space-y-4"
         >
-            <div>
-                <h1
-                    id="hr-compensation-search-heading"
-                    className="text-xl font-semibold"
-                >
-                    Kompensasi & Benefit
-                </h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1
+                        id="hr-compensation-search-heading"
+                        className="text-xl font-semibold"
+                    >
+                        Kompensasi & Benefit
+                    </h1>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Pilih pegawai untuk mengelola gaji, tunjangan, dan
-                    kepesertaan benefit mereka.
-                </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Pilih pegawai untuk mengelola gaji, tunjangan, dan
+                        kepesertaan benefit mereka.
+                    </p>
+                </div>
+
+                <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                >
+                    <Link to="/hr/compensation/catalog">
+                        Kelola Katalog
+                    </Link>
+                </Button>
             </div>
 
             <Input
