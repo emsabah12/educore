@@ -262,10 +262,12 @@ final class OpenApiOperationContractTest extends TestCase
             'GET /api/v1/auth/identity',
             'GET /api/v1/core/authorization/capabilities',
             'GET /api/v1/core/authorization/workspace-capabilities',
+            'GET /api/v1/core/authorization/roles',
             'GET /api/v1/user/my-memberships',
             'GET /api/v1/user/my-workspaces',
             'GET /api/v1/hr/employees',
             'GET /api/v1/hr/employees/{employeeId}/employments',
+            'POST /api/v1/user/memberships/{target_membership_id}/assign-role',
         ];
 
         foreach ($canonicalDualTransportOperations as $operationKey) {
