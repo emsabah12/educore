@@ -1,7 +1,15 @@
 import {
+    QueryClient,
+    QueryClientProvider,
+} from '@tanstack/react-query';
+import {
     render,
     screen,
 } from '@testing-library/react';
+import {
+    http,
+    HttpResponse,
+} from 'msw';
 import {
     MemoryRouter,
     Route,
@@ -11,11 +19,57 @@ import {
     describe,
     expect,
     it,
+    vi,
 } from 'vitest';
 
 import {
+    ApiClientProvider,
+} from '@/app/api/ApiClientProvider';
+import {
+    createBrowserApiClient,
+} from '@/platform/api';
+import {
+    apiMockServer,
+} from '@/test/server';
+
+const READY_TENANT_WORKSPACE_STATE = {
+    status: 'ready' as const,
+    context: {
+        membership: {
+            id: '01970000-0000-7000-8000-0000000000ee',
+            status: 'ACTIVE' as const,
+        },
+        tenant: {
+            id: '01970000-0000-7000-8000-0000000000ff',
+        },
+    },
+    tenant: {
+        name: 'Compensation Assignment Test Tenant',
+    },
+    workspaces: [],
+    current: {
+        type: 'TENANT' as const,
+        organizational_assignment_id: null,
+        organization_id: null,
+        organization_unit_id: null,
+        label: 'Compensation Assignment Test Tenant',
+    },
+    failure: null,
+};
+
+vi.mock(
+    '@/app/workspace/WorkspaceContextProvider',
+    () => ({
+        useWorkspaceContextState: () =>
+            READY_TENANT_WORKSPACE_STATE,
+    }),
+);
+
+const {
     HrCompensationEmploymentShellPage,
-} from '@/modules/hr/compensation/HrCompensationEmploymentShellPage';
+} = await import(
+    '@/modules/hr/compensation/HrCompensationEmploymentShellPage'
+);
 
 const SAMPLE_EMPLOYMENT_ID =
     '01970000-0000-7000-8000-0000000002aa';
@@ -25,28 +79,69 @@ function renderShell(
         | Record<string, unknown>
         | null,
 ) {
-    render(
-        <MemoryRouter
-            initialEntries={
-                [
+    apiMockServer.use(
+        http.get(
+            '*/api/v1/hr/employments/*/compensation-assignments',
+            () =>
+                HttpResponse.json(
                     {
-                        pathname:
-                            `/hr/compensation/employments/${SAMPLE_EMPLOYMENT_ID}`,
-
-                        state,
+                        status: 'success',
+                        data: [],
                     },
-                ]
-            }
-        >
-            <Routes>
-                <Route
-                    path="/hr/compensation/employments/:employmentId"
-                    element={
-                        <HrCompensationEmploymentShellPage />
+                ),
+        ),
+        http.get(
+            '*/api/v1/hr/compensation/components',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
+    );
+
+    const queryClient =
+        new QueryClient(
+            {
+                defaultOptions: {
+                    queries: {
+                        retry: false,
+                    },
+                },
+            },
+        );
+
+    const apiClient =
+        createBrowserApiClient();
+
+    render(
+        <ApiClientProvider apiClient={apiClient}>
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter
+                    initialEntries={
+                        [
+                            {
+                                pathname:
+                                    `/hr/compensation/employments/${SAMPLE_EMPLOYMENT_ID}`,
+
+                                state,
+                            },
+                        ]
                     }
-                />
-            </Routes>
-        </MemoryRouter>,
+                >
+                    <Routes>
+                        <Route
+                            path="/hr/compensation/employments/:employmentId"
+                            element={
+                                <HrCompensationEmploymentShellPage />
+                            }
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </QueryClientProvider>
+        </ApiClientProvider>,
     );
 }
 

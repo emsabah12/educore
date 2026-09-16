@@ -430,6 +430,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employments/{employmentId}/compensation-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the Compensation Assignment history for an Employment
+         * @description HR-006 §7.3 — tenant-wide (deliberately not workspace-scoped
+         *     or audit-trailed for this first release — see controller
+         *     docblock). Returns every status (DRAFT, APPROVED, ENDED,
+         *     CANCELLED, SUPERSEDED), newest effective_from first.
+         */
+        get: operations["hrCompensationAssignmentIndex"];
+        put?: never;
+        /**
+         * Create a new DRAFT Compensation Assignment for an Employment
+         * @description HR-006 §7.3 — starts the maker-checker lifecycle at DRAFT;
+         *     a separate /approve call (hr.compensation.assignments.approve)
+         *     is required to activate it. FormRequest validates raw types
+         *     only -- business rules (value_mode vs amount/rate, Employment
+         *     must be ACTIVE, etc.) are enforced by the service and surface
+         *     as 409 COMPENSATION_ASSIGNMENT_CONFLICT.
+         */
+        post: operations["hrCompensationAssignmentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a DRAFT Compensation Assignment
+         * @description HR-006 §7.3 — DRAFT -> APPROVED. Uses a separate, higher-impact
+         *     permission (hr.compensation.assignments.approve) from
+         *     create/end (hr.compensation.assignments.manage) -- same
+         *     pattern as hr.recruitment.approve.
+         */
+        post: operations["hrCompensationAssignmentApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an APPROVED Compensation Assignment
+         * @description HR-006 §7.3 — APPROVED -> ENDED.
+         */
+        post: operations["hrCompensationAssignmentEnd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-assignments/{assignmentId}/correct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct a Compensation Assignment (supersede with a new DRAFT)
+         * @description HR-006 §7.3 — marks the original assignment SUPERSEDED and
+         *     creates a new DRAFT row carrying the corrected data (same
+         *     payload shape as POST .../compensation-assignments). The new
+         *     DRAFT still requires its own /approve call. Uses the
+         *     higher-impact hr.compensation.assignments.approve permission,
+         *     same as /approve, because it mutates a row that may already
+         *     be APPROVED.
+         */
+        post: operations["hrCompensationAssignmentCorrect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/compensation/components": {
         parameters: {
             query?: never;
@@ -1496,6 +1597,68 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["CompensationComponentResource"];
+        };
+        /**
+         * @description HR-006 §7.3 — one compensation fact tied to an Employment.
+         *     Maker-checker lifecycle: DRAFT -> APPROVED -> ENDED, or
+         *     DRAFT/APPROVED -> SUPERSEDED via /correct (which also creates
+         *     a new DRAFT row). Controller returns a hand-built array
+         *     (`serialize()`), not the raw Eloquent model.
+         */
+        CompensationAssignmentResource: {
+            id: components["schemas"]["UuidV7"];
+            employment_id: components["schemas"]["UuidV7"];
+            compensation_component_id: components["schemas"]["UuidV7"];
+            employment_position_assignment_id: components["schemas"]["UuidV7"] | null;
+            /** @enum {string} */
+            status: "DRAFT" | "APPROVED" | "ENDED" | "CANCELLED" | "SUPERSEDED";
+            /** @description Decimal string (4 dp). Null when value_mode is rate-based. */
+            amount: string | null;
+            /** @description Decimal string (4 dp). Null when value_mode is fixed-amount. */
+            rate: string | null;
+            currency_code: string;
+            /** Format: date */
+            effective_from: string;
+            /** Format: date */
+            effective_to: string | null;
+            supersedes_assignment_id: components["schemas"]["UuidV7"] | null;
+            approved_by_membership_id: components["schemas"]["UuidV7"] | null;
+            approved_at: string | null;
+            ended_at: string | null;
+            reason: string | null;
+        };
+        CompensationAssignmentListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAssignmentResource"][];
+        };
+        CompensationAssignmentCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAssignmentResource"];
+        };
+        CompensationAssignmentActionSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAssignmentResource"];
+        };
+        /**
+         * @description E.g. approving/ending an assignment not in the expected status,
+         *     or a business-rule violation (value_mode vs amount/rate).
+         */
+        CompensationAssignmentConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "COMPENSATION_ASSIGNMENT_CONFLICT";
+            message: string;
+        };
+        CompensationAssignmentNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "COMPENSATION_ASSIGNMENT_NOT_FOUND";
+            message: string;
         };
         /**
          * @description HR-006 §7.5 — tenant-scoped catalog entry describing a benefit
@@ -3161,6 +3324,370 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAssignmentIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Assignment history for the Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.assignments.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAssignmentStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    compensation_component_id: components["schemas"]["UuidV7"];
+                    employment_position_assignment_id?: components["schemas"]["UuidV7"] | null;
+                    amount?: number | null;
+                    rate?: number | null;
+                    currency_code: string;
+                    /** Format: date */
+                    effective_from: string;
+                    /** Format: date */
+                    effective_to?: string | null;
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description DRAFT Compensation Assignment created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /**
+             * @description Employment, or the referenced CompensationComponent/
+             *     EmploymentPositionAssignment, was not found in the current
+             *     tenant.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentNotFoundError"];
+                };
+            };
+            /** @description Business-rule conflict (e.g. value_mode vs amount/rate mismatch). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAssignmentApprove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                assignmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Assignment approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.assignments.approve
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Assignment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentNotFoundError"];
+                };
+            };
+            /** @description Assignment is not currently DRAFT. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAssignmentEnd: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                assignmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    end_date: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Compensation Assignment ended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.assignments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Assignment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentNotFoundError"];
+                };
+            };
+            /** @description Assignment is not currently APPROVED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAssignmentCorrect: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                assignmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    compensation_component_id: components["schemas"]["UuidV7"];
+                    employment_position_assignment_id?: components["schemas"]["UuidV7"] | null;
+                    amount?: number | null;
+                    rate?: number | null;
+                    currency_code: string;
+                    /** Format: date */
+                    effective_from: string;
+                    /** Format: date */
+                    effective_to?: string | null;
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description New corrected DRAFT Compensation Assignment created; original marked SUPERSEDED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.assignments.approve
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /**
+             * @description Employment or the original Compensation Assignment was not
+             *     found in the current tenant, or a referenced
+             *     CompensationComponent/EmploymentPositionAssignment was not
+             *     found.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentNotFoundError"];
+                };
+            };
+            /** @description Business-rule or lifecycle conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAssignmentConflictError"];
                 };
             };
             422: components["responses"]["ValidationFailed"];

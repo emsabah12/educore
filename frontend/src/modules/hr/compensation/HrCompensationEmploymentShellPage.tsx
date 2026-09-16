@@ -5,6 +5,9 @@ import {
 } from 'react-router';
 
 import {
+    CompensationAssignmentSection,
+} from '@/modules/hr/compensation/CompensationAssignmentSection';
+import {
     Badge,
     Button,
 } from '@/shared/ui';
@@ -35,13 +38,11 @@ interface EmploymentSelectionNavigationState {
 
 /*
  * Shell halaman Compensation & Benefit untuk satu Employment
- * terpilih (M1 bagian 2). Konten sub-resource-nya (Compensation
- * Assignment, Benefit Participation/Identifier, Compensation
- * Adjustment) MEMANG belum ada di sini — itu cakupan M3–M5,
- * dibangun bertahap di milestone berikutnya, bukan sesuatu yang
- * terlewat. Halaman ini tetap "hidup" (bukan dead-end): pegawai
- * dan konteks Employment yang dipilih sudah tampil, kerangka
- * navigasi sudah terpasang.
+ * terpilih (M1 bagian 2). Compensation Assignment (M3) sudah terisi
+ * lewat CompensationAssignmentSection. Benefit Participation/
+ * Identifier (M4) dan Compensation Adjustment (M5) MEMANG belum ada
+ * di sini — dibangun bertahap di milestone berikutnya, bukan
+ * sesuatu yang terlewat.
  */
 export function HrCompensationEmploymentShellPage() {
     const {
@@ -134,16 +135,24 @@ export function HrCompensationEmploymentShellPage() {
                     : null
             }
 
+            {
+                employmentId !== undefined
+                    ? (
+                        <CompensationAssignmentSection
+                            employmentId={
+                                employmentId
+                            }
+                        />
+                    )
+                    : null
+            }
+
             <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">
-                    Modul kompensasi &amp; benefit untuk employment ini akan
-                    tersedia di sini secara bertahap:
+                    Modul berikut akan tersedia di sini secara bertahap:
                 </p>
 
                 <ul className="mt-3 list-disc space-y-1 pl-5">
-                    <li>
-                        Riwayat gaji &amp; tunjangan (Compensation Assignment)
-                    </li>
                     <li>
                         Kepesertaan benefit — BPJS, asuransi (Benefit
                         Participation)
