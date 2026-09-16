@@ -99,6 +99,40 @@ export const hrCompensationSearchRoutePolicy =
 
 /*
  * Sub-halaman dari hr.compensation.index — dijangkau lewat tombol
+ * dari HrCompensationEmployeeSearchPage. Sama seperti
+ * hr.compensation.employee-employments.index, TIDAK perlu
+ * didaftarkan silang ke application-route-access.ts.
+ *
+ * mode 'any': halaman menampilkan DUA resource sekaligus
+ * (Compensation Component + Benefit Program) — cukup salah satu
+ * permission view untuk membuka halamannya; masing-masing seksi
+ * tetap akan gagal individual di request API-nya sendiri kalau
+ * user benar-benar tidak punya akses ke resource itu.
+ */
+export const hrCompensationCatalogRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.compensation.catalog.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'any',
+
+            permissions: [
+                'hr.compensation.components.view',
+                'hr.benefit.programs.view',
+            ],
+        },
+    });
+
+/*
+ * Sub-halaman dari hr.compensation.index — dijangkau lewat tombol
  * "Pilih" di baris pegawai HrCompensationEmployeeSearchPage, BUKAN
  * entri menu navigasi top-level tersendiri. Sama seperti pola
  * settings.organizations.units.index (lihat catatan arsitektur di
@@ -113,7 +147,6 @@ export const hrCompensationEmployeeEmploymentsRoutePolicy =
     defineProtectedRoutePolicy({
         routeId:
             'hr.compensation.employee-employments.index',
-
         contextRequirement:
             'tenant',
 
@@ -252,6 +285,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrCompensationEmployeeSearchPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.compensation.catalog.index',
+
+        path:
+            'hr/compensation/catalog',
+
+        accessPolicy:
+            hrCompensationCatalogRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrCompensationCatalogPage,
+                } =
+                    await import(
+                        '@/modules/hr/compensation/HrCompensationCatalogPage'
+                    );
+
+                return {
+                    Component:
+                        HrCompensationCatalogPage,
                 };
             },
     },

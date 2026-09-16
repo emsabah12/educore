@@ -430,6 +430,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/compensation/components": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Compensation Component catalog entries for the current tenant
+         * @description HR-006 §7.2 — tenant-wide (not Organizational Workspace scope).
+         */
+        get: operations["hrCompensationComponentIndex"];
+        put?: never;
+        /**
+         * Create a new Compensation Component catalog entry
+         * @description HR-006 §7.2 — code must be unique within the tenant. unit_code
+         *     is required when value_mode=RATE_PER_UNIT and must be omitted
+         *     when value_mode=FIXED_AMOUNT (enforced by DB CHECK constraint;
+         *     a mismatch surfaces as 422
+         *     COMPENSATION_COMPONENT_CREATION_FAILED).
+         */
+        post: operations["hrCompensationComponentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/benefits/programs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Benefit Program catalog entries for the current tenant
+         * @description HR-006 §7.5 — tenant-wide (not Organizational Workspace scope).
+         */
+        get: operations["hrBenefitProgramIndex"];
+        put?: never;
+        /**
+         * Create a new Benefit Program catalog entry
+         * @description HR-006 §7.5 — code must be unique within the tenant.
+         */
+        post: operations["hrBenefitProgramStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/workspace/employees/{employeeId}/employments": {
         parameters: {
             query?: never;
@@ -1356,6 +1408,76 @@ export interface components {
             /** @constant */
             status: "success";
             data: components["schemas"]["EmploymentTypeResource"];
+        };
+        /**
+         * @description HR-006 §7.2 — tenant-scoped catalog entry describing the MEANING
+         *     of a compensation fact (e.g. BASE_SALARY, TEACHING_HOUR_RATE),
+         *     not a per-employee value (that is CompensationAssignment).
+         *     Controller returns the raw Eloquent model, so every persisted
+         *     column is present here.
+         */
+        CompensationComponentResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            code: string;
+            name: string;
+            /** @enum {string} */
+            category: "BASE_PAY" | "ALLOWANCE" | "RATE" | "OTHER_EARNING_INPUT";
+            /** @enum {string} */
+            value_mode: "FIXED_AMOUNT" | "RATE_PER_UNIT";
+            /**
+             * @description Required when value_mode=RATE_PER_UNIT, must be null when
+             *     value_mode=FIXED_AMOUNT (enforced by DB CHECK constraint).
+             */
+            unit_code: string | null;
+            /** @enum {string} */
+            periodicity: "MONTHLY" | "DAILY" | "PER_UNIT" | "ONE_TIME" | "OTHER";
+            description: string | null;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        CompensationComponentListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationComponentResource"][];
+        };
+        CompensationComponentCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationComponentResource"];
+        };
+        /**
+         * @description HR-006 §7.5 — tenant-scoped catalog entry describing a benefit
+         *     program (e.g. BPJS_KESEHATAN, TPG, THR — illustrative codes,
+         *     NOT a fixed global enum). Controller returns the raw Eloquent
+         *     model, so every persisted column is present here.
+         */
+        BenefitProgramResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            code: string;
+            name: string;
+            /** @enum {string} */
+            category: "STATUTORY" | "GOVERNMENT" | "INSTITUTIONAL" | "OTHER";
+            /** @enum {string} */
+            beneficiary_scope: "EMPLOYEE" | "DEPENDENT" | "EITHER";
+            /** @enum {string} */
+            payroll_relevance: "NONE" | "ELIGIBILITY_INPUT" | "EXTERNAL_PAYMENT_TRACKING";
+            description: string | null;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        BenefitProgramListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["BenefitProgramResource"][];
+        };
+        BenefitProgramCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["BenefitProgramResource"];
         };
         /**
          * @description Generic Subscription-feature gate failure (CheckTenantFeature
@@ -2970,6 +3092,221 @@ export interface operations {
              * @description Authentication or Browser Session Membership context is
              *     missing, unavailable, or mismatched, or the current tenant
              *     membership does not have hr.employment-types.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationComponentIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Component catalog collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationComponentListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.components.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationComponentStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                    name: string;
+                    /** @enum {string} */
+                    category: "BASE_PAY" | "ALLOWANCE" | "RATE" | "OTHER_EARNING_INPUT";
+                    /** @enum {string} */
+                    value_mode: "FIXED_AMOUNT" | "RATE_PER_UNIT";
+                    unit_code?: string | null;
+                    /** @enum {string} */
+                    periodicity: "MONTHLY" | "DAILY" | "PER_UNIT" | "ONE_TIME" | "OTHER";
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Compensation Component catalog entry created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationComponentCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.components.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitProgramIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefit Program catalog collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitProgramListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.programs.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitProgramStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                    name: string;
+                    /** @enum {string} */
+                    category: "STATUTORY" | "GOVERNMENT" | "INSTITUTIONAL" | "OTHER";
+                    /** @enum {string} */
+                    beneficiary_scope: "EMPLOYEE" | "DEPENDENT" | "EITHER";
+                    /** @enum {string} */
+                    payroll_relevance: "NONE" | "ELIGIBILITY_INPUT" | "EXTERNAL_PAYMENT_TRACKING";
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Benefit Program catalog entry created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitProgramCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.programs.manage
              *     permission.
              */
             403: {
