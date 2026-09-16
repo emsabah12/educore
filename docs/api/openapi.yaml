@@ -1435,6 +1435,597 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/employments/{employmentId}/benefit-participations:
+    get:
+      operationId: hrBenefitParticipationIndex
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.index
+      tags:
+        - Human Resources
+      summary: List the Benefit Participation history for an Employment
+      description: |
+        HR-006 §7.6 — tenant-wide (same simplicity level as
+        Compensation Assignment for this first release — see
+        controller docblock). Returns every status (ELIGIBLE,
+        ENROLLED, SUSPENDED, ENDED, INELIGIBLE), newest
+        effective_from first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Benefit Participation history for the Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.view
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrBenefitParticipationStore
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.store
+      tags:
+        - Human Resources
+      summary: Register a new Benefit Participation (starts at ELIGIBLE)
+      description: |
+        HR-006 §7.6 — a separate /enroll call
+        (hr.benefit.participations.enroll) is required to verify and
+        activate it (ELIGIBLE -> ENROLLED).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - benefit_program_id
+                - effective_from
+              properties:
+                benefit_program_id:
+                  $ref: "#/components/schemas/UuidV7"
+                beneficiary_person_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+                notes:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: Benefit Participation created (ELIGIBLE).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment or the referenced BenefitProgram was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Business-rule or lifecycle conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/enroll:
+    post:
+      operationId: hrBenefitParticipationEnroll
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.enroll
+      tags:
+        - Human Resources
+      summary: Enroll (verify) an ELIGIBLE Benefit Participation
+      description: |
+        HR-006 §7.6 — ELIGIBLE -> ENROLLED. Uses a separate,
+        higher-impact permission (hr.benefit.participations.enroll)
+        from create/suspend/reinstate/end
+        (hr.benefit.participations.manage) -- this is also an
+        administrative verification action, same pattern as
+        hr.compensation.assignments.approve.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Benefit Participation enrolled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.enroll
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Participation is not currently ELIGIBLE.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/suspend:
+    post:
+      operationId: hrBenefitParticipationSuspend
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.suspend
+      tags:
+        - Human Resources
+      summary: Suspend an ENROLLED Benefit Participation
+      description: |
+        HR-006 §7.6 — ENROLLED -> SUSPENDED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Benefit Participation suspended.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Participation is not currently ENROLLED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/reinstate:
+    post:
+      operationId: hrBenefitParticipationReinstate
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.reinstate
+      tags:
+        - Human Resources
+      summary: Reinstate a SUSPENDED Benefit Participation
+      description: |
+        HR-006 §7.6 — SUSPENDED -> ENROLLED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Benefit Participation reinstated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Participation is not currently SUSPENDED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/end:
+    post:
+      operationId: hrBenefitParticipationEnd
+      x-laravel-route-name: api.v1.hr.employments.benefit-participations.end
+      tags:
+        - Human Resources
+      summary: End an ENROLLED or SUSPENDED Benefit Participation
+      description: |
+        HR-006 §7.6 — ENROLLED/SUSPENDED -> ENDED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - end_date
+              properties:
+                end_date:
+                  type: string
+                  format: date
+      responses:
+        "200":
+          description: Benefit Participation ended.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeBenefitParticipationActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.participations.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Participation is not currently ENROLLED or SUSPENDED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/benefit-participations/{participationId}/identifiers:
+    get:
+      operationId: hrBenefitIdentifierIndex
+      x-laravel-route-name: api.v1.hr.benefit-participations.identifiers.index
+      tags:
+        - Human Resources
+      summary: List ACTIVE identifiers (e.g. BPJS numbers) for a Benefit Participation, decrypted
+      description: |
+        HR-006 §7.7 — nested directly under participationId (not
+        employmentId) — benefit_program_id is always derived
+        server-side from the referenced participation, never from
+        client input, so the composite FK can never be "forced" to
+        mismatch through this endpoint. Deliberately gated by a
+        SEPARATE, more sensitive permission
+        (hr.benefit.identifiers.view) from /store
+        (hr.benefit.identifiers.manage) — reading a decrypted raw
+        identifier is operationally more sensitive than merely
+        registering one.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: ACTIVE identifiers for the participation, values decrypted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitIdentifierListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.identifiers.view
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrBenefitIdentifierStore
+      x-laravel-route-name: api.v1.hr.benefit-participations.identifiers.store
+      tags:
+        - Human Resources
+      summary: Register a new identifier (e.g. a BPJS number) for a Benefit Participation
+      description: |
+        HR-006 §7.7 — the raw `value` is encrypted at rest and NEVER
+        echoed back in the response, encrypted or otherwise -- only
+        metadata (id, identifier_type, status) is returned.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - identifier_type
+                - value
+              properties:
+                identifier_type:
+                  type: string
+                  maxLength: 50
+                value:
+                  description: Raw identifier value (e.g. a BPJS number). Encrypted at rest; never echoed back.
+                  type: string
+                  maxLength: 255
+                issuer:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 150
+                issued_at:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+                expires_at:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+      responses:
+        "201":
+          description: Identifier registered (metadata only -- value never echoed back).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitIdentifierCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.benefit.identifiers.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Benefit Participation was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitParticipationNotFoundError"
+
+        "409":
+          description: Duplicate identifier fingerprint, or FK mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitIdentifierConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/compensation/components:
     get:
       operationId: hrCompensationComponentIndex
@@ -4521,6 +5112,244 @@ components:
         message:
           type: string
 
+    EmployeeBenefitParticipationResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.6 — one Employee's participation record in a
+        Benefit Program. Lifecycle: ELIGIBLE -> (enroll) -> ENROLLED
+        -> (suspend) -> SUSPENDED -> (reinstate) -> ENROLLED, or
+        ENROLLED/SUSPENDED -> (end) -> ENDED. INELIGIBLE is a
+        separate terminal state. Controller returns a hand-built
+        array (`serialize()`), not the raw Eloquent model.
+      required:
+        - id
+        - employment_id
+        - benefit_program_id
+        - beneficiary_person_id
+        - status
+        - effective_from
+        - effective_to
+        - verified_at
+        - verified_by_membership_id
+        - notes
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        benefit_program_id:
+          $ref: "#/components/schemas/UuidV7"
+        beneficiary_person_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - ELIGIBLE
+            - ENROLLED
+            - SUSPENDED
+            - ENDED
+            - INELIGIBLE
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+            - string
+            - "null"
+          format: date
+        verified_at:
+          type:
+            - string
+            - "null"
+        verified_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        notes:
+          type:
+            - string
+            - "null"
+
+    EmployeeBenefitParticipationListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeBenefitParticipationResource"
+
+    EmployeeBenefitParticipationCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/EmployeeBenefitParticipationResource"
+
+    EmployeeBenefitParticipationActionSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/EmployeeBenefitParticipationResource"
+
+    BenefitParticipationConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. enrolling/suspending/reinstating/ending from an unexpected status.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: BENEFIT_PARTICIPATION_CONFLICT
+        message:
+          type: string
+
+    BenefitParticipationNotFoundError:
+      type: object
+      additionalProperties: false
+      description: |
+        Also used by the Benefit Identifier endpoints when the
+        referenced participationId does not resolve within the
+        current tenant — see BenefitIdentifierController.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: BENEFIT_PARTICIPATION_NOT_FOUND
+        message:
+          type: string
+
+    BenefitIdentifierEntry:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.7 — one DECRYPTED identifier (e.g. a BPJS number)
+        belonging to a participation. Returned ONLY by the
+        higher-sensitivity GET .../identifiers endpoint
+        (hr.benefit.identifiers.view) — deliberately has no id or
+        status field, mirroring exactly what
+        listForParticipationWithDecryptedValue() projects.
+      required:
+        - identifier_type
+        - value
+        - issuer
+      properties:
+        identifier_type:
+          type: string
+        value:
+          description: Decrypted raw identifier value (e.g. a BPJS number).
+          type: string
+        issuer:
+          type:
+            - string
+            - "null"
+
+    BenefitIdentifierListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitIdentifierEntry"
+
+    BenefitIdentifierCreatedEntry:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.7 — metadata only. The raw `value` sent in the
+        request is NEVER echoed back, encrypted or otherwise (see
+        EloquentEmployeeBenefitIdentifierRepository::store()).
+      required:
+        - id
+        - employee_benefit_participation_id
+        - identifier_type
+        - status
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employee_benefit_participation_id:
+          $ref: "#/components/schemas/UuidV7"
+        identifier_type:
+          type: string
+        status:
+          type: string
+          const: ACTIVE
+
+    BenefitIdentifierCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/BenefitIdentifierCreatedEntry"
+
+    BenefitIdentifierConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. duplicate identifier fingerprint within the tenant, or
+        the employee_benefit_participation_id/benefit_program_id
+        pairing does not resolve to a matching tenant-owned record.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: BENEFIT_IDENTIFIER_CONFLICT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -6454,54 +7283,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw
     route_name: api.v1.hr.self.leave-requests.withdraw
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations
-    route_name: api.v1.hr.employments.benefit-participations.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations
-    route_name: api.v1.hr.employments.benefit-participations.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/enroll
-    route_name: api.v1.hr.employments.benefit-participations.enroll
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/suspend
-    route_name: api.v1.hr.employments.benefit-participations.suspend
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/reinstate
-    route_name: api.v1.hr.employments.benefit-participations.reinstate
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/end
-    route_name: api.v1.hr.employments.benefit-participations.end
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/benefit-participations/{participationId}/identifiers
-    route_name: api.v1.hr.benefit-participations.identifiers.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/benefit-participations/{participationId}/identifiers
-    route_name: api.v1.hr.benefit-participations.identifiers.store
     owner: HR
     reason: domain-api-hardening-deferred
 
