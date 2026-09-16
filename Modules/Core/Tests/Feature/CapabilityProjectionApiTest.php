@@ -110,6 +110,10 @@ final class CapabilityProjectionApiTest extends TestCase
                 false,
             )
             ->assertJsonPath(
+                'data.is_tenant_admin',
+                false,
+            )
+            ->assertJsonPath(
                 'data.permissions.0',
                 'academic.grades.write',
             )
@@ -145,6 +149,50 @@ final class CapabilityProjectionApiTest extends TestCase
                 'data.permissions',
             ),
         );
+    }
+
+    /**
+     * §Kelola Anggota & Role — regression untuk flag isTenantAdmin
+     * yang ditambahkan ke TenantCapabilityProjection. Flag ini
+     * MURNI untuk visibilitas UI (tampilkan/sembunyikan menu "Kelola
+     * Anggota") — dihitung dari hasRole('admin') yang SAMA PERSIS
+     * dengan pemeriksaan 'tenant.role:admin' yang menggerbang
+     * endpoint RBAC-management sesungguhnya, supaya proyeksi ini
+     * tidak pernah menyimpang dari penegakan otorisasi nyata.
+     */
+    public function test_tenant_capability_endpoint_projects_is_tenant_admin_true_for_admin_role(): void
+    {
+        $adminRoleId =
+            UuidV7::generate();
+
+        DB::table('roles')->insert([
+            'id' => $adminRoleId,
+            'name' => 'admin',
+            'display_name' => 'Admin',
+            'description' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('membership_roles')->insert([
+            'membership_id' => $this->membershipId,
+            'role_id' => $adminRoleId,
+        ]);
+
+        $response = $this
+            ->withToken(
+                $this->issueToken(),
+            )
+            ->getJson(
+                '/api/v1/core/authorization/capabilities',
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath(
+                'data.is_tenant_admin',
+                true,
+            );
     }
 
     public function test_workspace_capability_endpoint_projects_tenant_and_scoped_permissions(): void
