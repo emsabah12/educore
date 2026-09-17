@@ -56,70 +56,97 @@ export function AuthenticatedApplicationShell() {
         authentication.identity;
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-            <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-slate-100 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-950 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+        <div className="flex min-h-screen bg-background text-foreground">
+            
+            <a href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-popover focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-popover-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
                 Lewati ke konten utama
             </a>
 
-            <header className="border-b border-slate-800 bg-slate-950">
-                <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center lg:px-8">
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
-                            EduCore
-                        </p>
-
-                        <p className="mt-1 truncate text-sm text-slate-300">
-                            {tenant.name}
-                        </p>
-
-                        <MembershipSwitcher />
-                    </div>
-
+            {/*
+             * Persistent sidebar — the single canonical
+             * navigation landmark for the whole application.
+             *
+             * A collapsed/mobile-drawer variant is
+             * deliberately out of scope for this step; see
+             * the Step 2 handoff notes. It is NOT duplicated
+             * as a second horizontal nav, because two
+             * landmarks sharing the same accessible name is
+             * an accessibility anti-pattern regardless of
+             * which one CSS happens to hide at a given
+             * viewport.
+             */}
+            <aside className="flex w-64 shrink-0 flex-col gap-6 border-r border-border bg-card px-4 py-6">
+                <div className="flex items-center gap-2 px-2">
                     <div
-                        className="col-span-2 min-w-0 border-t border-slate-900 pt-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6 sm:gap-y-1 lg:col-span-1 lg:border-t-0 lg:pt-0 lg:text-right"
-                        aria-label="Konteks pengguna aktif"
-                    >
+                        className="h-2.5 w-2.5 rounded-sm bg-primary"
+                        aria-hidden="true"
+                    />
+
+                    <span className="text-base font-black tracking-tight">
+                        <span>EduCore</span>
+                        {' '}
+                        <span className="font-normal text-muted-foreground">
+                            HR
+                        </span>
+                    </span>
+                </div>
+
+                <ApplicationNavigation orientation="vertical" />
+            </aside>
+
+            {/* Main column */}
+            <div className="flex min-w-0 flex-1 flex-col">
+                <header className="border-b border-border bg-card">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-4 py-4 sm:px-6 lg:items-center lg:px-8">
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-slate-100">
-                                {person.name}
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">
+                                Tenant
                             </p>
 
-                            <p className="truncate text-xs text-slate-400">
-                                {user.email}
+                            <p className="truncate text-sm font-semibold text-foreground">
+                                {tenant.name}
                             </p>
+
+                            <MembershipSwitcher />
                         </div>
 
-                        <div className="mt-1 sm:mt-0">
-                            <p className="truncate text-xs text-slate-500">
-                                Workspace: {workspace.current.label}
-                            </p>
+                        <div
+                            className="min-w-0 sm:flex sm:flex-wrap sm:items-end sm:justify-end sm:gap-x-6 sm:gap-y-1 lg:text-right"
+                            aria-label="Konteks pengguna aktif"
+                        >
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-foreground">
+                                    {person.name}
+                                </p>
 
-                            <WorkspaceSwitcher />
+                                <p className="truncate text-xs text-muted-foreground">
+                                    {user.email}
+                                </p>
+                            </div>
+
+                            <div className="mt-1 sm:mt-0">
+                                <p className="truncate text-xs text-muted-foreground">
+                                    Workspace: {workspace.current.label}
+                                </p>
+
+                                <WorkspaceSwitcher />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="col-start-2 row-start-1 lg:col-start-3 lg:row-start-auto">
                         <LogoutButton />
                     </div>
-                </div>
+                </header>
 
-                <div className="border-t border-slate-900">
-                    <div className="mx-auto max-w-7xl overflow-x-auto overscroll-x-contain px-4 py-2 sm:px-6 lg:px-8">
-                        <ApplicationNavigation />
-                    </div>
-                </div>
-            </header>
-
-            <main
-                className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
-                id="main-content"
-                tabIndex={-1}
-            >
-                <Outlet />
-            </main>
+                <main
+                    className="flex-1 px-4 py-8 sm:px-6 lg:px-8"
+                    id="main-content"
+                    tabIndex={-1}
+                >
+                    <Outlet />
+                </main>
+            </div>
         </div>
     );
 }

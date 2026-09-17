@@ -385,12 +385,16 @@ describe(
                 'hidden',
             );
 
-            expect(
-                context,
-            ).toHaveClass(
-                'col-span-2',
-                'lg:col-span-1',
-            );
+            /*
+             * The header moved from a CSS Grid layout to a
+             * flex layout as part of the sidebar redesign
+             * (Step 2). The structural implementation detail
+             * (grid column span) is gone, but the behaviour
+             * this test protects — user/Workspace context
+             * stays rendered, not hidden, exactly once — is
+             * still what matters and is asserted below via
+             * getAllByText(...).toHaveLength(1).
+             */
 
             expect(
                 screen.getAllByText(
@@ -409,7 +413,7 @@ describe(
             );
         });
 
-        it('places application navigation inside a horizontal overflow region', () => {
+        it('places application navigation inside the persistent sidebar landmark', () => {
             configureAuthoritativeContext();
 
             renderShell();
@@ -423,24 +427,22 @@ describe(
                     },
                 );
 
-            const scrollRegion =
-                navigation.parentElement;
-
-            if (
-                scrollRegion
-                    === null
-            ) {
-                throw new Error(
-                    'Expected application navigation to have a responsive scroll container.',
+            const sidebar =
+                navigation.closest(
+                    'aside',
                 );
-            }
 
+            /*
+             * The Step 2 sidebar redesign replaced the
+             * horizontally-scrolling top nav with a single
+             * persistent vertical sidebar landmark. The
+             * invariant that matters now is that navigation
+             * always lives inside that sidebar, not that it
+             * scrolls horizontally.
+             */
             expect(
-                scrollRegion,
-            ).toHaveClass(
-                'overflow-x-auto',
-                'overscroll-x-contain',
-            );
+                sidebar,
+            ).not.toBeNull();
         });
 
         it('fails closed before authentication authority is authenticated', () => {
