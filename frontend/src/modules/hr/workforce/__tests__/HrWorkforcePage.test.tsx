@@ -901,5 +901,251 @@ describe(
                 );
             },
         );
+
+        it(
+            'creates a login account for an employee and shows the generated password once',
+            async () => {
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/workspace/employees',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: '01970000-0000-7000-8000-0000000060aa',
+                                            tenant_id: '01970000-0000-7000-8000-0000000000bb',
+                                            membership_id: '01970000-0000-7000-8000-0000000000ff',
+                                            nip: 'NIP-060',
+                                            jabatan: 'GURU',
+                                            nama: 'Sari Wulandari',
+                                            created_at: '2026-01-01T00:00:00Z',
+                                        },
+                                    ],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 1,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/employment-types',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/workspace/employees/01970000-0000-7000-8000-0000000060aa/create-account',
+                        async ({
+                            request,
+                        }) => {
+                            const body =
+                                await request.json() as Record<string, unknown>;
+
+                            expect(
+                                body,
+                            ).toEqual(
+                                {
+                                    email: 'sari.wulandari@educore.test',
+                                },
+                            );
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    message: 'Login account created. The generated password is shown only once.',
+                                    data: {
+                                        user_id: '01970000-0000-7000-8000-0000000061aa',
+                                        email: 'sari.wulandari@educore.test',
+                                        generated_password: 'Xk9$mPq2#vT7wLzR',
+                                    },
+                                },
+                                {
+                                    status: 201,
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderWorkforcePage();
+
+                await screen.findByText(
+                    'Sari Wulandari',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Buat Akun Login',
+                        },
+                    ),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Email',
+                    ),
+                    {
+                        target: {
+                            value: 'sari.wulandari@educore.test',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Buat',
+                        },
+                    ),
+                );
+
+                expect(
+                    await screen.findByText(
+                        'Xk9$mPq2#vT7wLzR',
+                    ),
+                ).toBeInTheDocument();
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Sudah Dicatat, Tutup',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByRole(
+                                'button',
+                                {
+                                    name: 'Buat Akun Login',
+                                },
+                            ),
+                        ).toBeInTheDocument();
+                    },
+                );
+
+                expect(
+                    screen.queryByText(
+                        'Xk9$mPq2#vT7wLzR',
+                    ),
+                ).not.toBeInTheDocument();
+            },
+        );
+
+        it(
+            'shows a friendly message when the employee already has a login account',
+            async () => {
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/workspace/employees',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        {
+                                            id: '01970000-0000-7000-8000-0000000062aa',
+                                            tenant_id: '01970000-0000-7000-8000-0000000000bb',
+                                            membership_id: '01970000-0000-7000-8000-0000000000ff',
+                                            nip: 'NIP-062',
+                                            jabatan: 'STAFF',
+                                            nama: 'Dedi Hartono',
+                                            created_at: '2026-01-01T00:00:00Z',
+                                        },
+                                    ],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 1,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/employment-types',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/workspace/employees/01970000-0000-7000-8000-0000000062aa/create-account',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'error',
+                                    code: 'EMPLOYEE_ACCOUNT_CONFLICT',
+                                    message: 'This Employee already has a login account.',
+                                },
+                                {
+                                    status: 409,
+                                },
+                            ),
+                    ),
+                );
+
+                renderWorkforcePage();
+
+                await screen.findByText(
+                    'Dedi Hartono',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Buat Akun Login',
+                        },
+                    ),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Email',
+                    ),
+                    {
+                        target: {
+                            value: 'dedi.hartono@educore.test',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Buat',
+                        },
+                    ),
+                );
+
+                expect(
+                    await screen.findByRole(
+                        'alert',
+                    ),
+                ).toHaveTextContent(
+                    'Pegawai ini sudah punya akun login.',
+                );
+            },
+        );
     },
 );

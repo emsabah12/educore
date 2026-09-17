@@ -6,6 +6,9 @@ import {
 } from 'react-router';
 
 import {
+    useCreateEmployeeAccountMutation,
+} from '@/modules/hr/api/use-employee-account-mutation';
+import {
     useCreateWorkspaceEmployeeMutation,
 } from '@/modules/hr/api/use-employee-mutations';
 import {
@@ -480,6 +483,185 @@ function CreateEmployeeForm() {
     );
 }
 
+function CreateAccountControl({
+    employeeId,
+}: {
+    employeeId: string;
+}) {
+    const [
+        mode,
+        setMode,
+    ] = useState<
+        'idle' | 'form' | 'result'
+    >('idle');
+
+    const [
+        email,
+        setEmail,
+    ] = useState('');
+
+    const mutation =
+        useCreateEmployeeAccountMutation();
+
+    function handleSubmit(
+        event: React.FormEvent,
+    ) {
+        event.preventDefault();
+
+        mutation.mutate(
+            {
+                employeeId,
+                email,
+            },
+            {
+                onSuccess: () => {
+                    setMode('result');
+                },
+            },
+        );
+    }
+
+    if (mode === 'result' && mutation.data !== undefined) {
+        return (
+            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs">
+                <p className="font-semibold text-foreground">
+                    Akun berhasil dibuat — catat sekarang, password
+                    tidak akan ditampilkan lagi.
+                </p>
+
+                <p>
+                    Email:
+                    {' '}
+                    <span className="font-mono">
+                        {
+                            mutation.data.email
+                        }
+                    </span>
+                </p>
+
+                <p>
+                    Password:
+                    {' '}
+                    <span className="font-mono">
+                        {
+                            mutation.data.generated_password
+                        }
+                    </span>
+                </p>
+
+                <Button
+                    type="button"
+                    size="sm"
+                    onClick={
+                        () => {
+                            setMode('idle');
+                            setEmail('');
+                            mutation.reset();
+                        }
+                    }
+                >
+                    Sudah Dicatat, Tutup
+                </Button>
+            </div>
+        );
+    }
+
+    if (mode === 'form') {
+        return (
+            <form
+                onSubmit={handleSubmit}
+                className="flex flex-wrap items-end gap-2"
+            >
+                <div className="space-y-1">
+                    <label
+                        htmlFor={
+                            `create-account-email-${employeeId}`
+                        }
+                        className="text-xs font-medium text-muted-foreground"
+                    >
+                        Email
+                    </label>
+
+                    <Input
+                        id={
+                            `create-account-email-${employeeId}`
+                        }
+                        type="email"
+                        value={email}
+                        required
+                        onChange={
+                            (
+                                event,
+                            ) =>
+                                setEmail(
+                                    event.target.value,
+                                )
+                        }
+                    />
+                </div>
+
+                <Button
+                    type="submit"
+                    size="sm"
+                    disabled={
+                        mutation.isPending
+                    }
+                >
+                    {
+                        mutation.isPending
+                            ? 'Membuat…'
+                            : 'Buat'
+                    }
+                </Button>
+
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={
+                        () =>
+                            setMode('idle')
+                    }
+                >
+                    Batal
+                </Button>
+
+                {
+                    mutation.isError
+                        ? (
+                            <p
+                                role="alert"
+                                className="w-full text-xs text-destructive"
+                            >
+                                {
+                                    mutation.error.kind === 'response'
+                                    && mutation.error.status === 409
+                                        ? 'Pegawai ini sudah punya akun login.'
+                                        : 'Gagal membuat akun. Coba lagi.'
+                                }
+                            </p>
+                        )
+                        : null
+                }
+            </form>
+        );
+    }
+
+    return (
+        <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={
+                () =>
+                    setMode('form')
+            }
+        >
+            Buat Akun Login
+        </Button>
+    );
+}
+
 export function HrWorkforcePage() {
     const [
         page,
@@ -607,19 +789,27 @@ export function HrWorkforcePage() {
                                                             </TableCell>
 
                                                             <TableCell>
-                                                                <Button
-                                                                    asChild
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                >
-                                                                    <Link
-                                                                        to={
-                                                                            `/hr/workforce/${employee.id}`
-                                                                        }
+                                                                <div className="flex flex-wrap items-start gap-2">
+                                                                    <Button
+                                                                        asChild
+                                                                        variant="outline"
+                                                                        size="sm"
                                                                     >
-                                                                        Lihat Detail
-                                                                    </Link>
-                                                                </Button>
+                                                                        <Link
+                                                                            to={
+                                                                                `/hr/workforce/${employee.id}`
+                                                                            }
+                                                                        >
+                                                                            Lihat Detail
+                                                                        </Link>
+                                                                    </Button>
+
+                                                                    <CreateAccountControl
+                                                                        employeeId={
+                                                                            employee.id
+                                                                        }
+                                                                    />
+                                                                </div>
                                                             </TableCell>
                                                         </TableRow>
                                                     ),

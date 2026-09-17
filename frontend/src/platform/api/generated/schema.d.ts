@@ -396,6 +396,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/workspace/employees/{employeeId}/create-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a login account (User) for an Employee that does not have one yet
+         * @description §Pengaturan Akun Pegawai — an Employee created via
+         *     POST /hr/workspace/employees gets a Person + Membership
+         *     already linked, but NO User (login credential) — this is the
+         *     only endpoint that creates one. Password is generated
+         *     server-side and returned ONLY in this response, never
+         *     logged or retrievable again. Filters from the exact same
+         *     visibility query as GET /hr/workspace/employees (HR-013 §6)
+         *     — an Employee outside the current workspace returns 404,
+         *     identical to one that does not exist.
+         */
+        post: operations["hrWorkspaceEmployeeCreateAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/employment-types": {
         parameters: {
             query?: never;
@@ -2107,6 +2135,36 @@ export interface components {
             message: string;
         };
         /**
+         * @description §Pengaturan Akun Pegawai — `generated_password` muncul HANYA
+         *     SEKALI di response ini. Tidak pernah disimpan atau bisa
+         *     diminta ulang lewat endpoint manapun — kalau hilang,
+         *     satu-satunya jalan adalah reset password lewat mekanisme
+         *     auth standar.
+         */
+        EmployeeAccountCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            /** @constant */
+            message: "Login account created. The generated password is shown only once.";
+            data: {
+                user_id: components["schemas"]["UuidV7"];
+                email: string;
+                generated_password: string;
+            };
+        };
+        /**
+         * @description Person di balik Employee ini sudah punya User (akun login) —
+         *     satu Person hanya boleh punya satu akun (users.person_id
+         *     UNIQUE).
+         */
+        EmployeeAccountConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "EMPLOYEE_ACCOUNT_CONFLICT";
+            message: string;
+        };
+        /**
          * @description HR-006 §7.5 — tenant-scoped catalog entry describing a benefit
          *     program (e.g. BPJS_KESEHATAN, TPG, THR — illustrative codes,
          *     NOT a fixed global enum). Controller returns the raw Eloquent
@@ -3673,6 +3731,88 @@ export interface operations {
                 };
             };
             404: components["responses"]["ResourceNotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrWorkspaceEmployeeCreateAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+                /**
+                 * @description UUIDv7 locator for the selected organizational assignment.
+                 *
+                 *     This header is a context locator only. It does not grant authority.
+                 *     The backend resolves and verifies the assignment against the current
+                 *     Tenant and Membership on every request.
+                 */
+                "X-EduCore-Organizational-Assignment-Id": components["parameters"]["OrganizationalAssignmentId"];
+            };
+            path: {
+                employeeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Login account created; generated password shown once. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeAccountCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched; organizational context
+             *     is missing or invalid; or the current organizational
+             *     assignment does not have hr.employees.create permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["OrganizationalContextRequiredError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Employee was not found in the current workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNotFoundError"];
+                };
+            };
+            /** @description This Employee's Person already has a login account. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeAccountConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };
