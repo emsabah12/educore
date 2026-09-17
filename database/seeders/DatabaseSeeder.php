@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Academic\Database\Seeders\AcademicAuthorizationCatalogSeeder;
+use Modules\Core\Authorization\Database\Seeders\AdminRoleFullAccessSeeder;
 use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Organization\Database\Seeders\OrganizationAuthorizationCatalogSeeder;
@@ -24,6 +25,14 @@ final class DatabaseSeeder extends Seeder
         $this->call(AcademicAuthorizationCatalogSeeder::class);
         $this->call(HrAuthorizationCatalogSeeder::class);
         $this->call(OrganizationAuthorizationCatalogSeeder::class);
+
+        /*
+         * §Kelola Anggota & Role — SENGAJA dipanggil PALING TERAKHIR,
+         * setelah seluruh seeder katalog modul di atas, supaya
+         * menangkap SEMUA permission yang sudah terdaftar (lihat
+         * docblock AdminRoleFullAccessSeeder).
+         */
+        $this->call(AdminRoleFullAccessSeeder::class);
 
         $person = PersonModel::factory()->create([
             'name' => 'Test User',
