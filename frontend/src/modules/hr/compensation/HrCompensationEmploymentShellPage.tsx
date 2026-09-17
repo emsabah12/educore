@@ -5,6 +5,9 @@ import {
 } from 'react-router';
 
 import {
+    BenefitParticipationSection,
+} from '@/modules/hr/compensation/BenefitParticipationSection';
+import {
     CompensationAssignmentSection,
 } from '@/modules/hr/compensation/CompensationAssignmentSection';
 import {
@@ -38,11 +41,10 @@ interface EmploymentSelectionNavigationState {
 
 /*
  * Shell halaman Compensation & Benefit untuk satu Employment
- * terpilih (M1 bagian 2). Compensation Assignment (M3) sudah terisi
- * lewat CompensationAssignmentSection. Benefit Participation/
- * Identifier (M4) dan Compensation Adjustment (M5) MEMANG belum ada
- * di sini — dibangun bertahap di milestone berikutnya, bukan
- * sesuatu yang terlewat.
+ * terpilih (M1 bagian 2). Compensation Assignment (M3) dan Benefit
+ * Participation/Identifier (M4) sudah terisi. Compensation
+ * Adjustment (M5) MEMANG belum ada di sini — dibangun di milestone
+ * berikutnya, bukan sesuatu yang terlewat.
  */
 export function HrCompensationEmploymentShellPage() {
     const {
@@ -147,16 +149,24 @@ export function HrCompensationEmploymentShellPage() {
                     : null
             }
 
+            {
+                employmentId !== undefined
+                    ? (
+                        <BenefitParticipationSection
+                            employmentId={
+                                employmentId
+                            }
+                        />
+                    )
+                    : null
+            }
+
             <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">
                     Modul berikut akan tersedia di sini secara bertahap:
                 </p>
 
                 <ul className="mt-3 list-disc space-y-1 pl-5">
-                    <li>
-                        Kepesertaan benefit — BPJS, asuransi (Benefit
-                        Participation)
-                    </li>
                     <li>
                         Pengajuan penyesuaian kompensasi (Compensation
                         Adjustment)

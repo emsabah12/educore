@@ -531,6 +531,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employments/{employmentId}/benefit-participations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the Benefit Participation history for an Employment
+         * @description HR-006 §7.6 — tenant-wide (same simplicity level as
+         *     Compensation Assignment for this first release — see
+         *     controller docblock). Returns every status (ELIGIBLE,
+         *     ENROLLED, SUSPENDED, ENDED, INELIGIBLE), newest
+         *     effective_from first.
+         */
+        get: operations["hrBenefitParticipationIndex"];
+        put?: never;
+        /**
+         * Register a new Benefit Participation (starts at ELIGIBLE)
+         * @description HR-006 §7.6 — a separate /enroll call
+         *     (hr.benefit.participations.enroll) is required to verify and
+         *     activate it (ELIGIBLE -> ENROLLED).
+         */
+        post: operations["hrBenefitParticipationStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enroll (verify) an ELIGIBLE Benefit Participation
+         * @description HR-006 §7.6 — ELIGIBLE -> ENROLLED. Uses a separate,
+         *     higher-impact permission (hr.benefit.participations.enroll)
+         *     from create/suspend/reinstate/end
+         *     (hr.benefit.participations.manage) -- this is also an
+         *     administrative verification action, same pattern as
+         *     hr.compensation.assignments.approve.
+         */
+        post: operations["hrBenefitParticipationEnroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend an ENROLLED Benefit Participation
+         * @description HR-006 §7.6 — ENROLLED -> SUSPENDED.
+         */
+        post: operations["hrBenefitParticipationSuspend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/reinstate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reinstate a SUSPENDED Benefit Participation
+         * @description HR-006 §7.6 — SUSPENDED -> ENROLLED.
+         */
+        post: operations["hrBenefitParticipationReinstate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/benefit-participations/{participationId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an ENROLLED or SUSPENDED Benefit Participation
+         * @description HR-006 §7.6 — ENROLLED/SUSPENDED -> ENDED.
+         */
+        post: operations["hrBenefitParticipationEnd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/benefit-participations/{participationId}/identifiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List ACTIVE identifiers (e.g. BPJS numbers) for a Benefit Participation, decrypted
+         * @description HR-006 §7.7 — nested directly under participationId (not
+         *     employmentId) — benefit_program_id is always derived
+         *     server-side from the referenced participation, never from
+         *     client input, so the composite FK can never be "forced" to
+         *     mismatch through this endpoint. Deliberately gated by a
+         *     SEPARATE, more sensitive permission
+         *     (hr.benefit.identifiers.view) from /store
+         *     (hr.benefit.identifiers.manage) — reading a decrypted raw
+         *     identifier is operationally more sensitive than merely
+         *     registering one.
+         */
+        get: operations["hrBenefitIdentifierIndex"];
+        put?: never;
+        /**
+         * Register a new identifier (e.g. a BPJS number) for a Benefit Participation
+         * @description HR-006 §7.7 — the raw `value` is encrypted at rest and NEVER
+         *     echoed back in the response, encrypted or otherwise -- only
+         *     metadata (id, identifier_type, status) is returned.
+         */
+        post: operations["hrBenefitIdentifierStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/compensation/components": {
         parameters: {
             query?: never;
@@ -1658,6 +1808,112 @@ export interface components {
             status: "error";
             /** @constant */
             code: "COMPENSATION_ASSIGNMENT_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description HR-006 §7.6 — one Employee's participation record in a
+         *     Benefit Program. Lifecycle: ELIGIBLE -> (enroll) -> ENROLLED
+         *     -> (suspend) -> SUSPENDED -> (reinstate) -> ENROLLED, or
+         *     ENROLLED/SUSPENDED -> (end) -> ENDED. INELIGIBLE is a
+         *     separate terminal state. Controller returns a hand-built
+         *     array (`serialize()`), not the raw Eloquent model.
+         */
+        EmployeeBenefitParticipationResource: {
+            id: components["schemas"]["UuidV7"];
+            employment_id: components["schemas"]["UuidV7"];
+            benefit_program_id: components["schemas"]["UuidV7"];
+            beneficiary_person_id: components["schemas"]["UuidV7"] | null;
+            /** @enum {string} */
+            status: "ELIGIBLE" | "ENROLLED" | "SUSPENDED" | "ENDED" | "INELIGIBLE";
+            /** Format: date */
+            effective_from: string;
+            /** Format: date */
+            effective_to: string | null;
+            verified_at: string | null;
+            verified_by_membership_id: components["schemas"]["UuidV7"] | null;
+            notes: string | null;
+        };
+        EmployeeBenefitParticipationListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmployeeBenefitParticipationResource"][];
+        };
+        EmployeeBenefitParticipationCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmployeeBenefitParticipationResource"];
+        };
+        EmployeeBenefitParticipationActionSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["EmployeeBenefitParticipationResource"];
+        };
+        /** @description E.g. enrolling/suspending/reinstating/ending from an unexpected status. */
+        BenefitParticipationConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "BENEFIT_PARTICIPATION_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description Also used by the Benefit Identifier endpoints when the
+         *     referenced participationId does not resolve within the
+         *     current tenant — see BenefitIdentifierController.
+         */
+        BenefitParticipationNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "BENEFIT_PARTICIPATION_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description HR-006 §7.7 — one DECRYPTED identifier (e.g. a BPJS number)
+         *     belonging to a participation. Returned ONLY by the
+         *     higher-sensitivity GET .../identifiers endpoint
+         *     (hr.benefit.identifiers.view) — deliberately has no id or
+         *     status field, mirroring exactly what
+         *     listForParticipationWithDecryptedValue() projects.
+         */
+        BenefitIdentifierEntry: {
+            identifier_type: string;
+            /** @description Decrypted raw identifier value (e.g. a BPJS number). */
+            value: string;
+            issuer: string | null;
+        };
+        BenefitIdentifierListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["BenefitIdentifierEntry"][];
+        };
+        /**
+         * @description HR-006 §7.7 — metadata only. The raw `value` sent in the
+         *     request is NEVER echoed back, encrypted or otherwise (see
+         *     EloquentEmployeeBenefitIdentifierRepository::store()).
+         */
+        BenefitIdentifierCreatedEntry: {
+            id: components["schemas"]["UuidV7"];
+            employee_benefit_participation_id: components["schemas"]["UuidV7"];
+            identifier_type: string;
+            /** @constant */
+            status: "ACTIVE";
+        };
+        BenefitIdentifierCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["BenefitIdentifierCreatedEntry"];
+        };
+        /**
+         * @description E.g. duplicate identifier fingerprint within the tenant, or
+         *     the employee_benefit_participation_id/benefit_program_id
+         *     pairing does not resolve to a matching tenant-owned record.
+         */
+        BenefitIdentifierConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "BENEFIT_IDENTIFIER_CONFLICT";
             message: string;
         };
         /**
@@ -3688,6 +3944,546 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompensationAssignmentConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefit Participation history for the Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    benefit_program_id: components["schemas"]["UuidV7"];
+                    beneficiary_person_id?: components["schemas"]["UuidV7"] | null;
+                    /** Format: date */
+                    effective_from: string;
+                    /** Format: date */
+                    effective_to?: string | null;
+                    notes?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Benefit Participation created (ELIGIBLE). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Employment or the referenced BenefitProgram was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Business-rule or lifecycle conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationEnroll: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefit Participation enrolled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.enroll
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Participation is not currently ELIGIBLE. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationSuspend: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefit Participation suspended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Participation is not currently ENROLLED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationReinstate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefit Participation reinstated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Participation is not currently SUSPENDED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitParticipationEnd: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    end_date: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Benefit Participation ended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeBenefitParticipationActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.participations.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Participation is not currently ENROLLED or SUSPENDED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitIdentifierIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ACTIVE identifiers for the participation, values decrypted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitIdentifierListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.identifiers.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrBenefitIdentifierStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                participationId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    identifier_type: string;
+                    /** @description Raw identifier value (e.g. a BPJS number). Encrypted at rest; never echoed back. */
+                    value: string;
+                    issuer?: string | null;
+                    /** Format: date */
+                    issued_at?: string | null;
+                    /** Format: date */
+                    expires_at?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Identifier registered (metadata only -- value never echoed back). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitIdentifierCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.benefit.identifiers.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Benefit Participation was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitParticipationNotFoundError"];
+                };
+            };
+            /** @description Duplicate identifier fingerprint, or FK mismatch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitIdentifierConflictError"];
                 };
             };
             422: components["responses"]["ValidationFailed"];

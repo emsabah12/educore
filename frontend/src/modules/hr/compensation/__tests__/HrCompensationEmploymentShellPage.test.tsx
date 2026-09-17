@@ -100,6 +100,26 @@ function renderShell(
                     },
                 ),
         ),
+        http.get(
+            '*/api/v1/hr/employments/*/benefit-participations',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
+        http.get(
+            '*/api/v1/hr/benefits/programs',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
     );
 
     const queryClient =
