@@ -681,6 +681,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employments/{employmentId}/compensation-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the Compensation Adjustment history for an Employment
+         * @description HR-006 §7.8 — tenant-wide (same simplicity level as
+         *     Compensation Assignment/Benefit Participation for this first
+         *     release — see controller docblock). Returns every status
+         *     (DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED), newest
+         *     created_at first.
+         */
+        get: operations["hrCompensationAdjustmentIndex"];
+        put?: never;
+        /**
+         * Create a new DRAFT Compensation Adjustment request
+         * @description HR-006 §7.8 — starts the maker-checker lifecycle at DRAFT; a
+         *     separate /submit call is required before it can be
+         *     approved/rejected. `idempotency_key` is client-supplied and
+         *     must be unique per Employment, guarding against duplicate
+         *     submission on retry.
+         */
+        post: operations["hrCompensationAdjustmentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a DRAFT Compensation Adjustment for approval
+         * @description HR-006 §7.8 — DRAFT -> SUBMITTED.
+         */
+        post: operations["hrCompensationAdjustmentSubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a DRAFT Compensation Adjustment
+         * @description HR-006 §7.8 — DRAFT -> CANCELLED.
+         */
+        post: operations["hrCompensationAdjustmentCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a SUBMITTED Compensation Adjustment
+         * @description HR-006 §7.8 — SUBMITTED -> APPROVED. Uses a separate,
+         *     higher-impact permission (hr.compensation.adjustments.approve)
+         *     from create/submit/cancel
+         *     (hr.compensation.adjustments.manage) — the checker must be
+         *     delegatable independently from whoever can create/submit.
+         */
+        post: operations["hrCompensationAdjustmentApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a SUBMITTED Compensation Adjustment
+         * @description HR-006 §7.8 — SUBMITTED -> REJECTED. Uses the same
+         *     higher-impact permission as /approve
+         *     (hr.compensation.adjustments.approve).
+         */
+        post: operations["hrCompensationAdjustmentReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/compensation/components": {
         parameters: {
             query?: never;
@@ -1914,6 +2032,78 @@ export interface components {
             status: "error";
             /** @constant */
             code: "BENEFIT_IDENTIFIER_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description HR-006 §7.8 — a one-off compensation adjustment request tied
+         *     to an Employment, full maker-checker lifecycle: DRAFT ->
+         *     (submit) -> SUBMITTED -> (approve) -> APPROVED, or SUBMITTED
+         *     -> (reject) -> REJECTED, or DRAFT -> (cancel) -> CANCELLED.
+         *     approve/reject use a SEPARATE, higher-impact permission
+         *     (hr.compensation.adjustments.approve) from
+         *     create/submit/cancel
+         *     (hr.compensation.adjustments.manage) — the checker must be
+         *     delegatable independently from whoever can create/submit.
+         *     Controller returns a hand-built array (`serialize()`), not
+         *     the raw Eloquent model.
+         */
+        CompensationAdjustmentResource: {
+            id: components["schemas"]["UuidV7"];
+            employment_id: components["schemas"]["UuidV7"];
+            compensation_component_id: components["schemas"]["UuidV7"] | null;
+            /** @enum {string} */
+            adjustment_type: "ONE_TIME_EARNING" | "COMPENSATION_CORRECTION";
+            /** @description Decimal string (4 dp). */
+            amount: string;
+            currency_code: string;
+            /** Format: date */
+            target_period_start: string;
+            /** Format: date */
+            target_period_end: string;
+            /** @enum {string} */
+            status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CANCELLED";
+            reason: string;
+            requested_by_membership_id: components["schemas"]["UuidV7"];
+            approved_by_membership_id: components["schemas"]["UuidV7"] | null;
+            approved_at: string | null;
+            /**
+             * @description Client-supplied opaque string, unique per Employment,
+             *     preventing duplicate submission on retry.
+             */
+            idempotency_key: string;
+        };
+        CompensationAdjustmentListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAdjustmentResource"][];
+        };
+        CompensationAdjustmentCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAdjustmentResource"];
+        };
+        CompensationAdjustmentActionSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["CompensationAdjustmentResource"];
+        };
+        /**
+         * @description E.g. submitting/cancelling/approving/rejecting from an
+         *     unexpected status, or a duplicate idempotency_key within the
+         *     Employment.
+         */
+        CompensationAdjustmentConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "COMPENSATION_ADJUSTMENT_CONFLICT";
+            message: string;
+        };
+        CompensationAdjustmentNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "COMPENSATION_ADJUSTMENT_NOT_FOUND";
             message: string;
         };
         /**
@@ -4487,6 +4677,405 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Adjustment history for the Employment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.view
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    compensation_component_id?: components["schemas"]["UuidV7"] | null;
+                    /** @enum {string} */
+                    adjustment_type: "ONE_TIME_EARNING" | "COMPENSATION_CORRECTION";
+                    amount: number;
+                    currency_code: string;
+                    /** Format: date */
+                    target_period_start: string;
+                    /** Format: date */
+                    target_period_end: string;
+                    reason: string;
+                    idempotency_key: string;
+                };
+            };
+        };
+        responses: {
+            /** @description DRAFT Compensation Adjustment created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Employment or the referenced CompensationComponent was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentNotFoundError"];
+                };
+            };
+            /** @description Business-rule conflict (e.g. duplicate idempotency_key). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentSubmit: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                adjustmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Adjustment submitted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Adjustment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentNotFoundError"];
+                };
+            };
+            /** @description Adjustment is not currently DRAFT. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentCancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                adjustmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Adjustment cancelled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.manage
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Adjustment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentNotFoundError"];
+                };
+            };
+            /** @description Adjustment is not currently DRAFT. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentApprove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                adjustmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Adjustment approved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.approve
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Adjustment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentNotFoundError"];
+                };
+            };
+            /** @description Adjustment is not currently SUBMITTED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrCompensationAdjustmentReject: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+                adjustmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compensation Adjustment rejected. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentActionSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.compensation.adjustments.approve
+             *     permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Compensation Adjustment was not found under this Employment in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentNotFoundError"];
+                };
+            };
+            /** @description Adjustment is not currently SUBMITTED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

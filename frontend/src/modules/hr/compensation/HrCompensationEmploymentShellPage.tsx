@@ -8,6 +8,9 @@ import {
     BenefitParticipationSection,
 } from '@/modules/hr/compensation/BenefitParticipationSection';
 import {
+    CompensationAdjustmentSection,
+} from '@/modules/hr/compensation/CompensationAdjustmentSection';
+import {
     CompensationAssignmentSection,
 } from '@/modules/hr/compensation/CompensationAssignmentSection';
 import {
@@ -41,10 +44,10 @@ interface EmploymentSelectionNavigationState {
 
 /*
  * Shell halaman Compensation & Benefit untuk satu Employment
- * terpilih (M1 bagian 2). Compensation Assignment (M3) dan Benefit
- * Participation/Identifier (M4) sudah terisi. Compensation
- * Adjustment (M5) MEMANG belum ada di sini — dibangun di milestone
- * berikutnya, bukan sesuatu yang terlewat.
+ * terpilih (M1 bagian 2). Compensation Assignment (M3), Benefit
+ * Participation/Identifier (M4), dan Compensation Adjustment (M5)
+ * semuanya sudah terisi — ini menuntaskan seluruh modul Compensation
+ * & Benefit sesuai rencana milestone.
  */
 export function HrCompensationEmploymentShellPage() {
     const {
@@ -161,18 +164,17 @@ export function HrCompensationEmploymentShellPage() {
                     : null
             }
 
-            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">
-                    Modul berikut akan tersedia di sini secara bertahap:
-                </p>
-
-                <ul className="mt-3 list-disc space-y-1 pl-5">
-                    <li>
-                        Pengajuan penyesuaian kompensasi (Compensation
-                        Adjustment)
-                    </li>
-                </ul>
-            </div>
+            {
+                employmentId !== undefined
+                    ? (
+                        <CompensationAdjustmentSection
+                            employmentId={
+                                employmentId
+                            }
+                        />
+                    )
+                    : null
+            }
 
             <p className="text-xs text-muted-foreground">
                 ID Employment: {employmentId}

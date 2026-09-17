@@ -120,6 +120,16 @@ function renderShell(
                     },
                 ),
         ),
+        http.get(
+            '*/api/v1/hr/employments/*/compensation-adjustments',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
     );
 
     const queryClient =
