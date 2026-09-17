@@ -387,6 +387,16 @@ Route::middleware([
         ->middleware('organizational.permission:hr.employees.view')
         ->name('api.v1.hr.workspace.employees.show');
 
+    // §Pengaturan Akun Pegawai — permission DIPAKAI ULANG
+    // (hr.employees.create) — siapa pun yang boleh membuat Employee
+    // juga boleh menuntaskan pembuatan akun loginnya.
+    Route::post(
+        '/employees/{employeeId}/create-account',
+        [EmployeeManagementController::class, 'createAccount']
+    )
+        ->middleware('organizational.permission:hr.employees.create')
+        ->name('api.v1.hr.workspace.employees.create-account');
+
     Route::post(
         '/employees/{employeeId}/employments',
         [EmploymentManagementController::class, 'store']

@@ -9,10 +9,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Modules\Core\Authorization\Models\Membership;
 use Modules\Core\Governance\Audit\Contracts\AuditTrailServiceInterface;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
+use Modules\HR\Exceptions\EmployeeAccountConflictException;
+use Modules\HR\Http\Requests\CreateEmployeeAccountRequest;
 use Modules\HR\Http\Requests\StoreEmployeeRequest;
+use Modules\HR\Services\EmployeeAccountProvisioningService;
 use Modules\HR\Services\EmployeeProvisioningService;
 use Modules\HR\Services\HrWorkforceScopeService;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +27,7 @@ final class EmployeeManagementController extends Controller
     public function __construct(
         private readonly EmployeeRepositoryInterface $employeeRepository,
         private readonly EmployeeProvisioningService $employeeProvisioningService,
+        private readonly EmployeeAccountProvisioningService $employeeAccountProvisioningService,
         private readonly AuditTrailServiceInterface $auditTrail,
         private readonly HrWorkforceScopeService $hrWorkforceScopeService,
     ) {}
@@ -162,6 +167,118 @@ final class EmployeeManagementController extends Controller
                 ),
             ],
         ]);
+    }
+
+    /**
+     * §Pengaturan Akun Pegawai — resolusi employeeId -> membership_id
+     * -> person_id memakai `visibleEmployeesQuery()` yang SAMA PERSIS
+     * dipakai indexWorkspace()/showWorkspace() — Employee di luar
+     * workspace operator mengembalikan 404 yang sama seperti Employee
+     * yang tidak ada, konsisten dengan pola showWorkspace().
+     *
+     * Password yang di-generate HANYA muncul di response ini — tidak
+     * pernah disimpan di audit trail atau log manapun.
+     */
+    public function createAccount(
+        CreateEmployeeAccountRequest $request,
+        string $employeeId,
+    ): JsonResponse {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+        $operatorId = $request->attributes->get(
+            'authenticated_user_id',
+        );
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $operatorId = $this->isCanonicalUuid($operatorId)
+            ? $operatorId
+            : null;
+
+        $employee = $this->hrWorkforceScopeService
+            ->visibleEmployeesQuery($tenantId)
+            ->where('employees.id', $employeeId)
+            ->first();
+
+        if ($employee === null) {
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_NOT_FOUND',
+                message: 'Employee was not found in the current workspace.',
+                status: Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        $personId = Membership::query()
+            ->where('id', $employee->membership_id)
+            ->value('person_id');
+
+        if (! $this->isCanonicalUuid($personId)) {
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_NOT_FOUND',
+                message: 'Employee was not found in the current workspace.',
+                status: Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        /** @var array{email: string} $payload */
+        $payload = $request->validated();
+
+        try {
+            $account = $this->employeeAccountProvisioningService
+                ->createAccountForEmployee(
+                    personId: $personId,
+                    email: $payload['email'],
+                );
+        } catch (EmployeeAccountConflictException $exception) {
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_ACCOUNT_CONFLICT',
+                message: $exception->getMessage(),
+                status: Response::HTTP_CONFLICT,
+            );
+        } catch (Throwable $exception) {
+            Log::error(
+                'Employee account creation failed.',
+                [
+                    'tenant_id' => $tenantId,
+                    'operator_user_id' => $operatorId,
+                    'employee_id' => $employeeId,
+                    'exception_class' => $exception::class,
+                ],
+            );
+
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_ACCOUNT_CREATION_FAILED',
+                message: 'Failed to create login account for employee.',
+                status: Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
+        }
+
+        try {
+            $this->auditTrail->log(
+                eventType: 'employee.account_created',
+                description: 'Created login account for employee.',
+                tenantId: $tenantId,
+                actorUserId: $operatorId,
+                metadata: [
+                    'employee_id' => $employeeId,
+                    // SENGAJA TIDAK menyertakan generated_password —
+                    // audit trail bukan tempat menyimpan rahasia.
+                    'user_id' => $account['user_id'],
+                    'email' => $account['email'],
+                ],
+            );
+        } catch (Throwable $auditException) {
+            report($auditException);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Login account created. The generated password is shown only once.',
+            'data' => $account,
+        ], 201);
     }
 
     public function store(StoreEmployeeRequest $request): JsonResponse
