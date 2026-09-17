@@ -2026,6 +2026,436 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/employments/{employmentId}/compensation-adjustments:
+    get:
+      operationId: hrCompensationAdjustmentIndex
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.index
+      tags:
+        - Human Resources
+      summary: List the Compensation Adjustment history for an Employment
+      description: |
+        HR-006 §7.8 — tenant-wide (same simplicity level as
+        Compensation Assignment/Benefit Participation for this first
+        release — see controller docblock). Returns every status
+        (DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED), newest
+        created_at first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Compensation Adjustment history for the Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.view
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrCompensationAdjustmentStore
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.store
+      tags:
+        - Human Resources
+      summary: Create a new DRAFT Compensation Adjustment request
+      description: |
+        HR-006 §7.8 — starts the maker-checker lifecycle at DRAFT; a
+        separate /submit call is required before it can be
+        approved/rejected. `idempotency_key` is client-supplied and
+        must be unique per Employment, guarding against duplicate
+        submission on retry.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - adjustment_type
+                - amount
+                - currency_code
+                - target_period_start
+                - target_period_end
+                - reason
+                - idempotency_key
+              properties:
+                compensation_component_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                adjustment_type:
+                  type: string
+                  enum:
+                    - ONE_TIME_EARNING
+                    - COMPENSATION_CORRECTION
+                amount:
+                  type: number
+                  exclusiveMinimum: 0
+                currency_code:
+                  type: string
+                  pattern: "^[A-Z]{3}$"
+                target_period_start:
+                  type: string
+                  format: date
+                target_period_end:
+                  type: string
+                  format: date
+                reason:
+                  type: string
+                idempotency_key:
+                  type: string
+                  maxLength: 120
+      responses:
+        "201":
+          description: DRAFT Compensation Adjustment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment or the referenced CompensationComponent was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. duplicate idempotency_key).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/submit:
+    post:
+      operationId: hrCompensationAdjustmentSubmit
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.submit
+      tags:
+        - Human Resources
+      summary: Submit a DRAFT Compensation Adjustment for approval
+      description: |
+        HR-006 §7.8 — DRAFT -> SUBMITTED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: adjustmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Compensation Adjustment submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Compensation Adjustment was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentNotFoundError"
+
+        "409":
+          description: Adjustment is not currently DRAFT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/cancel:
+    post:
+      operationId: hrCompensationAdjustmentCancel
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.cancel
+      tags:
+        - Human Resources
+      summary: Cancel a DRAFT Compensation Adjustment
+      description: |
+        HR-006 §7.8 — DRAFT -> CANCELLED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: adjustmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Compensation Adjustment cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.manage
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Compensation Adjustment was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentNotFoundError"
+
+        "409":
+          description: Adjustment is not currently DRAFT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/approve:
+    post:
+      operationId: hrCompensationAdjustmentApprove
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.approve
+      tags:
+        - Human Resources
+      summary: Approve a SUBMITTED Compensation Adjustment
+      description: |
+        HR-006 §7.8 — SUBMITTED -> APPROVED. Uses a separate,
+        higher-impact permission (hr.compensation.adjustments.approve)
+        from create/submit/cancel
+        (hr.compensation.adjustments.manage) — the checker must be
+        delegatable independently from whoever can create/submit.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: adjustmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Compensation Adjustment approved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.approve
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Compensation Adjustment was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentNotFoundError"
+
+        "409":
+          description: Adjustment is not currently SUBMITTED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/reject:
+    post:
+      operationId: hrCompensationAdjustmentReject
+      x-laravel-route-name: api.v1.hr.employments.compensation-adjustments.reject
+      tags:
+        - Human Resources
+      summary: Reject a SUBMITTED Compensation Adjustment
+      description: |
+        HR-006 §7.8 — SUBMITTED -> REJECTED. Uses the same
+        higher-impact permission as /approve
+        (hr.compensation.adjustments.approve).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: adjustmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Compensation Adjustment rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentActionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.compensation.adjustments.approve
+            permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Compensation Adjustment was not found under this Employment in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentNotFoundError"
+
+        "409":
+          description: Adjustment is not currently SUBMITTED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationAdjustmentConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/compensation/components:
     get:
       operationId: hrCompensationComponentIndex
@@ -5350,6 +5780,166 @@ components:
         message:
           type: string
 
+    CompensationAdjustmentResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-006 §7.8 — a one-off compensation adjustment request tied
+        to an Employment, full maker-checker lifecycle: DRAFT ->
+        (submit) -> SUBMITTED -> (approve) -> APPROVED, or SUBMITTED
+        -> (reject) -> REJECTED, or DRAFT -> (cancel) -> CANCELLED.
+        approve/reject use a SEPARATE, higher-impact permission
+        (hr.compensation.adjustments.approve) from
+        create/submit/cancel
+        (hr.compensation.adjustments.manage) — the checker must be
+        delegatable independently from whoever can create/submit.
+        Controller returns a hand-built array (`serialize()`), not
+        the raw Eloquent model.
+      required:
+        - id
+        - employment_id
+        - compensation_component_id
+        - adjustment_type
+        - amount
+        - currency_code
+        - target_period_start
+        - target_period_end
+        - status
+        - reason
+        - requested_by_membership_id
+        - approved_by_membership_id
+        - approved_at
+        - idempotency_key
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        compensation_component_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        adjustment_type:
+          type: string
+          enum:
+            - ONE_TIME_EARNING
+            - COMPENSATION_CORRECTION
+        amount:
+          description: Decimal string (4 dp).
+          type: string
+        currency_code:
+          type: string
+        target_period_start:
+          type: string
+          format: date
+        target_period_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - SUBMITTED
+            - APPROVED
+            - REJECTED
+            - CANCELLED
+        reason:
+          type: string
+        requested_by_membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        approved_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        approved_at:
+          type:
+            - string
+            - "null"
+        idempotency_key:
+          description: |
+            Client-supplied opaque string, unique per Employment,
+            preventing duplicate submission on retry.
+          type: string
+
+    CompensationAdjustmentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompensationAdjustmentResource"
+
+    CompensationAdjustmentCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/CompensationAdjustmentResource"
+
+    CompensationAdjustmentActionSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/CompensationAdjustmentResource"
+
+    CompensationAdjustmentConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. submitting/cancelling/approving/rejecting from an
+        unexpected status, or a duplicate idempotency_key within the
+        Employment.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: COMPENSATION_ADJUSTMENT_CONFLICT
+        message:
+          type: string
+
+    CompensationAdjustmentNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: COMPENSATION_ADJUSTMENT_NOT_FOUND
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -7283,42 +7873,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw
     route_name: api.v1.hr.self.leave-requests.withdraw
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments
-    route_name: api.v1.hr.employments.compensation-adjustments.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments
-    route_name: api.v1.hr.employments.compensation-adjustments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/submit
-    route_name: api.v1.hr.employments.compensation-adjustments.submit
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/cancel
-    route_name: api.v1.hr.employments.compensation-adjustments.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/approve
-    route_name: api.v1.hr.employments.compensation-adjustments.approve
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/compensation-adjustments/{adjustmentId}/reject
-    route_name: api.v1.hr.employments.compensation-adjustments.reject
     owner: HR
     reason: domain-api-hardening-deferred
   - method: POST
