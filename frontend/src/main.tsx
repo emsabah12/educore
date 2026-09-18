@@ -7,7 +7,7 @@ import {
     createBrowserRuntimeObservabilityCoordinator,
 } from '@/platform/observability/runtime';
 
-import './styles.css';
+import './styles/globals.css';
 
 interface FrontendEntrypointRoot {
     unmount():

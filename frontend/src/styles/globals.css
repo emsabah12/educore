@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+@theme {
+  /* ============================================
+     Semantic tokens — mengikuti konvensi shadcn/ui
+     (WAJIB pakai nama ini karena shared/ui/*.tsx sudah merujuk ke nama-nama ini)
+     ============================================ */
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+
+  --color-primary: #047857;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-accent: #ecfdf5;
+  --color-accent-foreground: #047857;
+
+  --color-destructive: #b91c1c;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #047857;
+
+  /* Status semantik untuk StatusBadge (dipakai terpisah dari token shadcn di atas) */
+  --color-status-neutral-bg: #f1f5f9;
+  --color-status-neutral-text: #475569;
+  --color-status-info-bg: #dbeafe;
+  --color-status-info-text: #1d4ed8;
+  --color-status-success-bg: #d1fae5;
+  --color-status-success-text: #047857;
+  --color-status-danger-bg: #fee2e2;
+  --color-status-danger-text: #b91c1c;
+  --color-status-warning-bg: #fef3c7;
+  --color-status-warning-text: #b45309;
+
+  /* Tipografi */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Radius */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* Shadow */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-elevated: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+:root {
+  color-scheme: light;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+   select option {
+    background-color: var(--color-popover);
+    color: var(--color-popover-foreground);
+  }
+}
