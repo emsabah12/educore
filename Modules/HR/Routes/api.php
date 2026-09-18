@@ -82,28 +82,12 @@ Route::middleware([
         ->middleware('tenant.permission:hr.employments.end')
         ->name('api.v1.hr.employments.end');
 
-    // HR-002 §5.6 / §9.2 — Employment Placement.
-    Route::get(
-        '/v1/hr/employments/{employmentId}/placements',
-        [EmploymentPlacementController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.employments.view')
-        ->name('api.v1.hr.employments.placements.index');
-
     Route::post(
         '/v1/hr/employments/{employmentId}/placements',
         [EmploymentPlacementController::class, 'store']
     )
         ->middleware('tenant.permission:hr.employments.manage')
         ->name('api.v1.hr.employments.placements.store');
-
-    // HR-002 §5.7 / §9.3 — Employment Position Assignment.
-    Route::get(
-        '/v1/hr/employments/{employmentId}/position-assignments',
-        [EmploymentPositionAssignmentController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.employments.view')
-        ->name('api.v1.hr.employments.position-assignments.index');
 
     Route::post(
         '/v1/hr/employments/{employmentId}/position-assignments',
@@ -770,6 +754,30 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.employments.view')
         ->name('api.v1.hr.employees.employments.index');
+
+    // HR-002 §5.6 / §9.2 & §5.7 / §9.3 — Employment Placement dan
+    // Position Assignment (listing saja). Dipindah dari grup
+    // Bearer-only dengan alasan SAMA PERSIS dengan GET
+    // /v1/hr/employees di atas -- dipakai
+    // EmploymentPlacementAndPositionSection di halaman detail
+    // pegawai. STORE (buat Placement/Position Assignment baru)
+    // sudah lebih dulu benar lewat endpoint workspace-scoped
+    // terpisah, jadi TIDAK ikut dipindah di sini.
+    // HR-002 §5.6 / §9.2 — Employment Placement.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/placements',
+        [EmploymentPlacementController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employments.placements.index');
+
+    // HR-002 §5.7 / §9.3 — Employment Position Assignment.
+    Route::get(
+        '/v1/hr/employments/{employmentId}/position-assignments',
+        [EmploymentPositionAssignmentController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.employments.view')
+        ->name('api.v1.hr.employments.position-assignments.index');
 
     // HR-006 §7.3 — Compensation Assignment lifecycle.
     Route::get(
