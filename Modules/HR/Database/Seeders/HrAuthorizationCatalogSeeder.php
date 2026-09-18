@@ -65,6 +65,12 @@ final class HrAuthorizationCatalogSeeder extends Seeder
         // jadi tidak perlu permission .view pendamping.
         'hr.employment-types.manage' => 'Create/update Employment Type catalog',
 
+        // HR-002 §7 — Position catalog. INV-HR-003: Position bukan
+        // authorization role, jadi permission ini murni kontrol
+        // baca/tulis katalog, tidak ada kaitan dengan RBAC lain.
+        'hr.positions.view' => 'View Position catalog',
+        'hr.positions.manage' => 'Create/update Position catalog',
+
         // HR-006 §7.2 — Compensation Component catalog.
         'hr.compensation.components.view' => 'View Compensation Component catalog',
         'hr.compensation.components.manage' => 'Create/update Compensation Component catalog',

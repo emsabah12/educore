@@ -7,6 +7,7 @@ namespace Modules\HR\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Core\Authorization\Models\Membership;
@@ -279,6 +280,75 @@ final class EmployeeManagementController extends Controller
             'message' => 'Login account created. The generated password is shown only once.',
             'data' => $account,
         ], 201);
+    }
+
+    /**
+     * §Epic 1 — Lifecycle Employment (Placement). Daftar
+     * OrganizationalAssignment ACTIVE milik Membership pegawai ini,
+     * dengan nama Organization/OrganizationUnit ikut di-join —
+     * dipakai sebagai picker di form Placement (Placement.
+     * organizational_assignment_id HARUS mengacu ke salah satu baris
+     * ini, ditegakkan FK, bukan sekadar konvensi UI).
+     */
+    public function organizationalAssignments(
+        Request $request,
+        string $employeeId,
+    ): JsonResponse {
+        $tenantId = $request->attributes->get(
+            'authenticated_tenant_id',
+        );
+
+        if (! $this->isCanonicalUuid($tenantId)) {
+            return $this->authenticationContextDeniedResponse();
+        }
+
+        $employee = $this->hrWorkforceScopeService
+            ->visibleEmployeesQuery($tenantId)
+            ->where('employees.id', $employeeId)
+            ->first();
+
+        if ($employee === null) {
+            return ApiErrorResponse::make(
+                code: 'EMPLOYEE_NOT_FOUND',
+                message: 'Employee was not found in the current workspace.',
+                status: Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        $assignments = DB::table('organizational_assignments')
+            ->join(
+                'organizations',
+                'organizations.id',
+                '=',
+                'organizational_assignments.organization_id',
+            )
+            ->leftJoin(
+                'organization_units',
+                'organization_units.id',
+                '=',
+                'organizational_assignments.organization_unit_id',
+            )
+            ->where(
+                'organizational_assignments.membership_id',
+                $employee->membership_id,
+            )
+            ->where(
+                'organizational_assignments.status',
+                'ACTIVE',
+            )
+            ->orderBy('organizations.name')
+            ->orderBy('organization_units.name')
+            ->select([
+                'organizational_assignments.id',
+                'organizations.name as organization_name',
+                'organization_units.name as organization_unit_name',
+            ])
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $assignments,
+        ]);
     }
 
     public function store(StoreEmployeeRequest $request): JsonResponse

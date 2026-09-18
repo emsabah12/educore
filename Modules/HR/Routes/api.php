@@ -18,6 +18,7 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
+use Modules\HR\Http\Controllers\Api\v1\PositionController;
 use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalPolicyController;
@@ -396,6 +397,16 @@ Route::middleware([
     )
         ->middleware('organizational.permission:hr.employees.create')
         ->name('api.v1.hr.workspace.employees.create-account');
+
+    // §Epic 1 — Lifecycle Employment (Placement). Picker untuk form
+    // Placement: daftar OrganizationalAssignment ACTIVE milik
+    // Membership pegawai ini.
+    Route::get(
+        '/employees/{employeeId}/organizational-assignments',
+        [EmployeeManagementController::class, 'organizationalAssignments']
+    )
+        ->middleware('organizational.permission:hr.employments.view')
+        ->name('api.v1.hr.workspace.employees.organizational-assignments.index');
 
     Route::post(
         '/employees/{employeeId}/employments',
@@ -942,4 +953,19 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.compensation.components.manage')
         ->name('api.v1.hr.compensation.components.store');
+
+    // HR-002 §7 — Position catalog.
+    Route::get(
+        '/v1/hr/positions',
+        [PositionController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.positions.view')
+        ->name('api.v1.hr.positions.index');
+
+    Route::post(
+        '/v1/hr/positions',
+        [PositionController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.positions.manage')
+        ->name('api.v1.hr.positions.store');
 });
