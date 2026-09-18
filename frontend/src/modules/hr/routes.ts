@@ -279,6 +279,34 @@ export const hrSelfLeaveRequestsRoutePolicy =
     });
 
 /*
+ * §Sprint 3a — halaman Rekrutmen (Lowongan & Kandidat), tenant-wide.
+ * hr.recruitment.view dipilih sebagai gerbang minimum: form buat
+ * Lowongan/Kandidat sendiri butuh hr.recruitment.manage, dan
+ * approve/reject Lowongan butuh hr.recruitment.approve -- keduanya
+ * dicek granular per-aksi oleh backend, halaman tetap bisa dibuka
+ * untuk melihat daftar dengan permission .view saja.
+ */
+export const hrRecruitmentRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.recruitment.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.recruitment.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -524,6 +552,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrSelfLeaveRequestsPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.recruitment.index',
+
+        path:
+            'hr/recruitment',
+
+        accessPolicy:
+            hrRecruitmentRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrRecruitmentPage,
+                } =
+                    await import(
+                        '@/modules/hr/recruitment/HrRecruitmentPage'
+                    );
+
+                return {
+                    Component:
+                        HrRecruitmentPage,
                 };
             },
     },

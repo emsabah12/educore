@@ -510,6 +510,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.recruitment',
+
+                        routeId:
+                            'hr.recruitment.index',
+
+                        label:
+                            'Rekrutmen',
+
+                        destination:
+                            '/hr/recruitment',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:
@@ -746,6 +770,30 @@ describe(
 
                         destination:
                             '/hr/self/leave-requests',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.recruitment',
+
+                        routeId:
+                            'hr.recruitment.index',
+
+                        label:
+                            'Rekrutmen',
+
+                        destination:
+                            '/hr/recruitment',
 
                         requiredFeature:
                             'hr_module',

@@ -231,6 +231,23 @@ export const applicationNavigationCatalog =
 
         defineApplicationNavigation({
             id:
+                'hr.recruitment',
+
+            routeId:
+                'hr.recruitment.index',
+
+            label:
+                'Rekrutmen',
+
+            destination:
+                '/hr/recruitment',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
                 'settings.tenant-roles',
 
             routeId:
