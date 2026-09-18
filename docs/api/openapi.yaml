@@ -2617,6 +2617,876 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/leave-types:
+    get:
+      operationId: hrLeaveTypeIndex
+      x-laravel-route-name: api.v1.hr.leave-types.index
+      tags:
+        - Human Resources
+      summary: List the current tenant's Leave/Permit Type catalog
+      description: |
+        HR-004 §7.1 — tenant-wide catalog powering pickers such as
+        the Entitlement Policy / Approval Policy forms.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The current tenant's Leave Type catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrLeaveTypeStore
+      x-laravel-route-name: api.v1.hr.leave-types.store
+      tags:
+        - Human Resources
+      summary: Create a new Leave/Permit Type catalog entry
+      description: |
+        HR-004 §7.1 — `code` must be unique within the tenant.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+                - category
+                - balance_mode
+                - unit
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 120
+                category:
+                  type: string
+                  enum:
+                    - LEAVE
+                    - PERMIT
+                balance_mode:
+                  type: string
+                  enum:
+                    - BALANCE
+                    - NONE
+                unit:
+                  type: string
+                  enum:
+                    - DAY
+                    - HOUR
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: LeaveType created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-types/{leaveTypeId}:
+    get:
+      operationId: hrLeaveTypeShow
+      x-laravel-route-name: api.v1.hr.leave-types.show
+      tags:
+        - Human Resources
+      summary: Get a single Leave/Permit Type by id
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveTypeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The requested LeaveType.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveType was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    patch:
+      operationId: hrLeaveTypeUpdate
+      x-laravel-route-name: api.v1.hr.leave-types.update
+      tags:
+        - Human Resources
+      summary: Update a Leave/Permit Type catalog entry
+      description: |
+        HR-004 §15.1 — form-shape validation only (422). The business
+        rule "category/balance_mode/unit must not be mutated after
+        this LeaveType has been referenced by entitlement/ledger/
+        request history" is enforced by LeaveTypeService and surfaces
+        as 409 LEAVE_TYPE_CONFLICT.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveTypeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 120
+                category:
+                  type: string
+                  enum:
+                    - LEAVE
+                    - PERMIT
+                balance_mode:
+                  type: string
+                  enum:
+                    - BALANCE
+                    - NONE
+                unit:
+                  type: string
+                  enum:
+                    - DAY
+                    - HOUR
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "200":
+          description: The updated LeaveType.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveType was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeNotFoundError"
+
+        "409":
+          description: Cannot reinterpret historical data for a LeaveType already referenced by entitlement/ledger/request history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-types/{leaveTypeId}/deactivate:
+    post:
+      operationId: hrLeaveTypeDeactivate
+      x-laravel-route-name: api.v1.hr.leave-types.deactivate
+      tags:
+        - Human Resources
+      summary: Deactivate a Leave/Permit Type catalog entry
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveTypeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The deactivated LeaveType.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveType was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-entitlement-policies:
+    get:
+      operationId: hrLeaveEntitlementPolicyIndex
+      x-laravel-route-name: api.v1.hr.leave-entitlement-policies.index
+      tags:
+        - Human Resources
+      summary: List the current tenant's Leave Entitlement Policy configurations
+      description: |
+        HR-004 §7.2 — this is POLICY CONFIGURATION, not any Employee's
+        actual balance (see Sprint 2d for balances).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The current tenant's Entitlement Policy configurations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicyListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrLeaveEntitlementPolicyStore
+      x-laravel-route-name: api.v1.hr.leave-entitlement-policies.store
+      tags:
+        - Human Resources
+      summary: Create a new Leave Entitlement Policy configuration
+      description: |
+        HR-004 §7.2 — organization/organization_unit/employment_type/
+        employment_classification narrow which Employments this
+        policy applies to (all omitted = tenant-wide default).
+        FormRequest validates shape/tenant-ownership of referenced
+        ids only; business rules (LeaveType must be BALANCE-backed,
+        organization_unit_id requires organization_id) surface as 409
+        LEAVE_ENTITLEMENT_POLICY_CONFLICT.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - leave_type_id
+                - period_basis
+                - grant_units
+                - effective_from
+              properties:
+                leave_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                organization_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                organization_unit_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                employment_type_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                employment_classification_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                period_basis:
+                  type: string
+                  enum:
+                    - CALENDAR_YEAR
+                    - EMPLOYMENT_ANNIVERSARY
+                    - MANUAL
+                grant_units:
+                  type: number
+                  exclusiveMinimum: 0
+                carryover_mode:
+                  type: string
+                  enum:
+                    - NONE
+                    - LIMITED
+                carryover_limit_units:
+                  type:
+                    - number
+                    - "null"
+                  minimum: 0
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+                priority:
+                  type: integer
+      responses:
+        "201":
+          description: LeaveEntitlementPolicy created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Referenced LeaveType was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. LeaveType is not BALANCE-backed).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicyConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}:
+    get:
+      operationId: hrLeaveEntitlementPolicyShow
+      x-laravel-route-name: api.v1.hr.leave-entitlement-policies.show
+      tags:
+        - Human Resources
+      summary: Get a single Leave Entitlement Policy configuration by id
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: entitlementPolicyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The requested LeaveEntitlementPolicy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveEntitlementPolicy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicyNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}/deactivate:
+    post:
+      operationId: hrLeaveEntitlementPolicyDeactivate
+      x-laravel-route-name: api.v1.hr.leave-entitlement-policies.deactivate
+      tags:
+        - Human Resources
+      summary: Deactivate a Leave Entitlement Policy configuration
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: entitlementPolicyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The deactivated LeaveEntitlementPolicy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveEntitlementPolicy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementPolicyNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-approval-policies:
+    get:
+      operationId: hrLeaveApprovalPolicyIndex
+      x-laravel-route-name: api.v1.hr.leave-approval-policies.index
+      tags:
+        - Human Resources
+      summary: List the current tenant's Leave Approval Policy versions
+      description: |
+        HR-004 §15.4 — loaded with `steps` (eager relation, ordered
+        approval workflow steps).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The current tenant's Approval Policy versions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicyListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrLeaveApprovalPolicyStore
+      x-laravel-route-name: api.v1.hr.leave-approval-policies.store
+      tags:
+        - Human Resources
+      summary: Create a new Leave Approval Policy version, with its steps
+      description: |
+        HR-004 §15.4 — only 4 endpoints are registered for this
+        domain (no separate step endpoints), so `steps` is accepted
+        as a nested array in this same request body.
+        organization/organization_unit/employment_type/
+        employment_classification/leave_type_id all narrow which
+        requests this policy applies to (all omitted = tenant-wide
+        default).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - policy_code
+                - name
+                - decision_mode
+                - effective_from
+              properties:
+                policy_code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 150
+                leave_type_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                organization_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                organization_unit_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                employment_type_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                employment_classification_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                decision_mode:
+                  type: string
+                  enum:
+                    - SEQUENTIAL
+                    - AUTO
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+                priority:
+                  type: integer
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - step_order
+                      - required_permission
+                      - scope_strategy
+                    properties:
+                      step_order:
+                        type: integer
+                        minimum: 1
+                      required_permission:
+                        type: string
+                        maxLength: 120
+                      scope_strategy:
+                        type: string
+                        enum:
+                          - REQUEST_PLACEMENT
+                          - ORGANIZATION
+                          - TENANT
+                      independent_approver:
+                        type: boolean
+      responses:
+        "201":
+          description: LeaveApprovalPolicy created, with its steps.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: Business-rule conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicyConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-approval-policies/{approvalPolicyId}:
+    get:
+      operationId: hrLeaveApprovalPolicyShow
+      x-laravel-route-name: api.v1.hr.leave-approval-policies.show
+      tags:
+        - Human Resources
+      summary: Get a single Leave Approval Policy version by id, with its steps
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: approvalPolicyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The requested LeaveApprovalPolicy, with its steps.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveApprovalPolicy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicyNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-approval-policies/{approvalPolicyId}/deactivate:
+    post:
+      operationId: hrLeaveApprovalPolicyDeactivate
+      x-laravel-route-name: api.v1.hr.leave-approval-policies.deactivate
+      tags:
+        - Human Resources
+      summary: Deactivate a Leave Approval Policy version
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: approvalPolicyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The deactivated LeaveApprovalPolicy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveApprovalPolicy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveApprovalPolicyNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -7263,6 +8133,460 @@ components:
         message:
           type: string
 
+    LeaveTypeResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §7.1 — tenant-scoped catalog entry describing a Leave
+        or Permit type. Once referenced by entitlement/ledger/request
+        history, category/balance_mode/unit must not be mutated in
+        ways that reinterpret historical data (enforced by
+        LeaveTypeService, not this schema). Controller returns the
+        raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - code
+        - name
+        - category
+        - balance_mode
+        - unit
+        - description
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - LEAVE
+            - PERMIT
+        balance_mode:
+          type: string
+          enum:
+            - BALANCE
+            - NONE
+        unit:
+          type: string
+          enum:
+            - DAY
+            - HOUR
+        description:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    LeaveTypeListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveTypeResource"
+
+    LeaveTypeSingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveTypeResource"
+
+    LeaveTypeNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_TYPE_NOT_FOUND
+        message:
+          type: string
+
+    LeaveTypeConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. mutating category/balance_mode/unit after this LeaveType
+        has already been referenced by entitlement/ledger/request
+        history (HR-004 §15.1).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_TYPE_CONFLICT
+        message:
+          type: string
+
+    LeaveEntitlementPolicyResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §7.2 — fixed-entitlement generation rule configuration
+        (policy configuration, NOT an employee's actual balance).
+        Optional organization/organization_unit/employment_type/
+        employment_classification fields narrow which Employments
+        this policy applies to (all null = tenant-wide default).
+        Controller returns the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - leave_type_id
+        - organization_id
+        - organization_unit_id
+        - employment_type_id
+        - employment_classification_id
+        - period_basis
+        - grant_units
+        - carryover_mode
+        - carryover_limit_units
+        - effective_from
+        - effective_to
+        - priority
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        leave_type_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        organization_unit_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_type_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_classification_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        period_basis:
+          type: string
+          enum:
+            - CALENDAR_YEAR
+            - EMPLOYMENT_ANNIVERSARY
+            - MANUAL
+        grant_units:
+          description: Decimal string (2 dp).
+          type: string
+        carryover_mode:
+          type: string
+          enum:
+            - NONE
+            - LIMITED
+        carryover_limit_units:
+          description: Decimal string (2 dp). Null when carryover_mode is NONE.
+          type:
+            - string
+            - "null"
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+            - string
+            - "null"
+          format: date
+        priority:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    LeaveEntitlementPolicyListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveEntitlementPolicyResource"
+
+    LeaveEntitlementPolicySingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveEntitlementPolicyResource"
+
+    LeaveEntitlementPolicyNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_ENTITLEMENT_POLICY_NOT_FOUND
+        message:
+          type: string
+
+    LeaveEntitlementPolicyConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. the referenced LeaveType is not BALANCE-backed, or
+        organization_unit_id given without organization_id.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_ENTITLEMENT_POLICY_CONFLICT
+        message:
+          type: string
+
+    LeaveApprovalPolicyStepResource:
+      type: object
+      additionalProperties: false
+      description: HR-004 §15.4 — one ordered approval step within a LeaveApprovalPolicy version.
+      required:
+        - id
+        - approval_policy_id
+        - step_order
+        - required_permission
+        - scope_strategy
+        - independent_approver
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        approval_policy_id:
+          $ref: "#/components/schemas/UuidV7"
+        step_order:
+          type: integer
+        required_permission:
+          type: string
+        scope_strategy:
+          type: string
+          enum:
+            - REQUEST_PLACEMENT
+            - ORGANIZATION
+            - TENANT
+        independent_approver:
+          type: boolean
+        created_at:
+          type: string
+
+    LeaveApprovalPolicyResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.4 — a versioned approval workflow configuration.
+        `leave_type_id`/organization/unit/employment_type/
+        classification narrow which requests this policy applies to
+        (all null = tenant-wide default). Loaded with `steps` eager
+        relation. Controller returns the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - policy_code
+        - version_no
+        - name
+        - leave_type_id
+        - organization_id
+        - organization_unit_id
+        - employment_type_id
+        - employment_classification_id
+        - decision_mode
+        - effective_from
+        - effective_to
+        - priority
+        - is_active
+        - created_at
+        - updated_at
+        - steps
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        policy_code:
+          type: string
+        version_no:
+          type: integer
+        name:
+          type: string
+        leave_type_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        organization_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        organization_unit_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_type_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_classification_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        decision_mode:
+          type: string
+          enum:
+            - SEQUENTIAL
+            - AUTO
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+            - string
+            - "null"
+          format: date
+        priority:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveApprovalPolicyStepResource"
+
+    LeaveApprovalPolicyListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveApprovalPolicyResource"
+
+    LeaveApprovalPolicySingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveApprovalPolicyResource"
+
+    LeaveApprovalPolicyNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_APPROVAL_POLICY_NOT_FOUND
+        message:
+          type: string
+
+    LeaveApprovalPolicyConflictError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_APPROVAL_POLICY_CONFLICT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -8945,59 +10269,6 @@ x-educore-deferred-routes:
     reason: domain-api-hardening-deferred
 
   - method: GET
-    path: /api/v1/hr/leave-types
-    route_name: api.v1.hr.leave-types.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-types
-    route_name: api.v1.hr.leave-types.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-types/{leaveTypeId}
-    route_name: api.v1.hr.leave-types.show
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: PATCH
-    path: /api/v1/hr/leave-types/{leaveTypeId}
-    route_name: api.v1.hr.leave-types.update
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-types/{leaveTypeId}/deactivate
-    route_name: api.v1.hr.leave-types.deactivate
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-entitlement-policies
-    route_name: api.v1.hr.leave-entitlement-policies.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-entitlement-policies
-    route_name: api.v1.hr.leave-entitlement-policies.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}
-    route_name: api.v1.hr.leave-entitlement-policies.show
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}/deactivate
-    route_name: api.v1.hr.leave-entitlement-policies.deactivate
-    owner: HR
-    reason: domain-api-hardening-deferred
-  - method: GET
     path: /api/v1/hr/employees/{employeeId}/leave-balances
     route_name: api.v1.hr.employees.leave-balances.index
     owner: HR
@@ -9018,30 +10289,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/leave-entitlements/{entitlementId}/adjustments
     route_name: api.v1.hr.leave-entitlements.adjustments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-approval-policies
-    route_name: api.v1.hr.leave-approval-policies.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-approval-policies
-    route_name: api.v1.hr.leave-approval-policies.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-approval-policies/{approvalPolicyId}
-    route_name: api.v1.hr.leave-approval-policies.show
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-approval-policies/{approvalPolicyId}/deactivate
-    route_name: api.v1.hr.leave-approval-policies.deactivate
     owner: HR
     reason: domain-api-hardening-deferred
   - method: GET

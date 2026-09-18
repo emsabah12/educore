@@ -834,6 +834,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/leave-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's Leave/Permit Type catalog
+         * @description HR-004 §7.1 — tenant-wide catalog powering pickers such as
+         *     the Entitlement Policy / Approval Policy forms.
+         */
+        get: operations["hrLeaveTypeIndex"];
+        put?: never;
+        /**
+         * Create a new Leave/Permit Type catalog entry
+         * @description HR-004 §7.1 — `code` must be unique within the tenant.
+         */
+        post: operations["hrLeaveTypeStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-types/{leaveTypeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single Leave/Permit Type by id */
+        get: operations["hrLeaveTypeShow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a Leave/Permit Type catalog entry
+         * @description HR-004 §15.1 — form-shape validation only (422). The business
+         *     rule "category/balance_mode/unit must not be mutated after
+         *     this LeaveType has been referenced by entitlement/ledger/
+         *     request history" is enforced by LeaveTypeService and surfaces
+         *     as 409 LEAVE_TYPE_CONFLICT.
+         */
+        patch: operations["hrLeaveTypeUpdate"];
+        trace?: never;
+    };
+    "/api/v1/hr/leave-types/{leaveTypeId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a Leave/Permit Type catalog entry */
+        post: operations["hrLeaveTypeDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-entitlement-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's Leave Entitlement Policy configurations
+         * @description HR-004 §7.2 — this is POLICY CONFIGURATION, not any Employee's
+         *     actual balance (see Sprint 2d for balances).
+         */
+        get: operations["hrLeaveEntitlementPolicyIndex"];
+        put?: never;
+        /**
+         * Create a new Leave Entitlement Policy configuration
+         * @description HR-004 §7.2 — organization/organization_unit/employment_type/
+         *     employment_classification narrow which Employments this
+         *     policy applies to (all omitted = tenant-wide default).
+         *     FormRequest validates shape/tenant-ownership of referenced
+         *     ids only; business rules (LeaveType must be BALANCE-backed,
+         *     organization_unit_id requires organization_id) surface as 409
+         *     LEAVE_ENTITLEMENT_POLICY_CONFLICT.
+         */
+        post: operations["hrLeaveEntitlementPolicyStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single Leave Entitlement Policy configuration by id */
+        get: operations["hrLeaveEntitlementPolicyShow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-entitlement-policies/{entitlementPolicyId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a Leave Entitlement Policy configuration */
+        post: operations["hrLeaveEntitlementPolicyDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-approval-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current tenant's Leave Approval Policy versions
+         * @description HR-004 §15.4 — loaded with `steps` (eager relation, ordered
+         *     approval workflow steps).
+         */
+        get: operations["hrLeaveApprovalPolicyIndex"];
+        put?: never;
+        /**
+         * Create a new Leave Approval Policy version, with its steps
+         * @description HR-004 §15.4 — only 4 endpoints are registered for this
+         *     domain (no separate step endpoints), so `steps` is accepted
+         *     as a nested array in this same request body.
+         *     organization/organization_unit/employment_type/
+         *     employment_classification/leave_type_id all narrow which
+         *     requests this policy applies to (all omitted = tenant-wide
+         *     default).
+         */
+        post: operations["hrLeaveApprovalPolicyStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-approval-policies/{approvalPolicyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single Leave Approval Policy version by id, with its steps */
+        get: operations["hrLeaveApprovalPolicyShow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-approval-policies/{approvalPolicyId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a Leave Approval Policy version */
+        post: operations["hrLeaveApprovalPolicyDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -2520,6 +2717,185 @@ export interface components {
             status: "error";
             /** @constant */
             code: "EMPLOYEE_ACCOUNT_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description HR-004 §7.1 — tenant-scoped catalog entry describing a Leave
+         *     or Permit type. Once referenced by entitlement/ledger/request
+         *     history, category/balance_mode/unit must not be mutated in
+         *     ways that reinterpret historical data (enforced by
+         *     LeaveTypeService, not this schema). Controller returns the
+         *     raw Eloquent model.
+         */
+        LeaveTypeResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            code: string;
+            name: string;
+            /** @enum {string} */
+            category: "LEAVE" | "PERMIT";
+            /** @enum {string} */
+            balance_mode: "BALANCE" | "NONE";
+            /** @enum {string} */
+            unit: "DAY" | "HOUR";
+            description: string | null;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        LeaveTypeListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveTypeResource"][];
+        };
+        LeaveTypeSingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveTypeResource"];
+        };
+        LeaveTypeNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_TYPE_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description E.g. mutating category/balance_mode/unit after this LeaveType
+         *     has already been referenced by entitlement/ledger/request
+         *     history (HR-004 §15.1).
+         */
+        LeaveTypeConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_TYPE_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description HR-004 §7.2 — fixed-entitlement generation rule configuration
+         *     (policy configuration, NOT an employee's actual balance).
+         *     Optional organization/organization_unit/employment_type/
+         *     employment_classification fields narrow which Employments
+         *     this policy applies to (all null = tenant-wide default).
+         *     Controller returns the raw Eloquent model.
+         */
+        LeaveEntitlementPolicyResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            leave_type_id: components["schemas"]["UuidV7"];
+            organization_id: components["schemas"]["UuidV7"] | null;
+            organization_unit_id: components["schemas"]["UuidV7"] | null;
+            employment_type_id: components["schemas"]["UuidV7"] | null;
+            employment_classification_id: components["schemas"]["UuidV7"] | null;
+            /** @enum {string} */
+            period_basis: "CALENDAR_YEAR" | "EMPLOYMENT_ANNIVERSARY" | "MANUAL";
+            /** @description Decimal string (2 dp). */
+            grant_units: string;
+            /** @enum {string} */
+            carryover_mode: "NONE" | "LIMITED";
+            /** @description Decimal string (2 dp). Null when carryover_mode is NONE. */
+            carryover_limit_units: string | null;
+            /** Format: date */
+            effective_from: string;
+            /** Format: date */
+            effective_to: string | null;
+            priority: number;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        LeaveEntitlementPolicyListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementPolicyResource"][];
+        };
+        LeaveEntitlementPolicySingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementPolicyResource"];
+        };
+        LeaveEntitlementPolicyNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_ENTITLEMENT_POLICY_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description E.g. the referenced LeaveType is not BALANCE-backed, or
+         *     organization_unit_id given without organization_id.
+         */
+        LeaveEntitlementPolicyConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_ENTITLEMENT_POLICY_CONFLICT";
+            message: string;
+        };
+        /** @description HR-004 §15.4 — one ordered approval step within a LeaveApprovalPolicy version. */
+        LeaveApprovalPolicyStepResource: {
+            id: components["schemas"]["UuidV7"];
+            approval_policy_id: components["schemas"]["UuidV7"];
+            step_order: number;
+            required_permission: string;
+            /** @enum {string} */
+            scope_strategy: "REQUEST_PLACEMENT" | "ORGANIZATION" | "TENANT";
+            independent_approver: boolean;
+            created_at: string;
+        };
+        /**
+         * @description HR-004 §15.4 — a versioned approval workflow configuration.
+         *     `leave_type_id`/organization/unit/employment_type/
+         *     classification narrow which requests this policy applies to
+         *     (all null = tenant-wide default). Loaded with `steps` eager
+         *     relation. Controller returns the raw Eloquent model.
+         */
+        LeaveApprovalPolicyResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            policy_code: string;
+            version_no: number;
+            name: string;
+            leave_type_id: components["schemas"]["UuidV7"] | null;
+            organization_id: components["schemas"]["UuidV7"] | null;
+            organization_unit_id: components["schemas"]["UuidV7"] | null;
+            employment_type_id: components["schemas"]["UuidV7"] | null;
+            employment_classification_id: components["schemas"]["UuidV7"] | null;
+            /** @enum {string} */
+            decision_mode: "SEQUENTIAL" | "AUTO";
+            /** Format: date */
+            effective_from: string;
+            /** Format: date */
+            effective_to: string | null;
+            priority: number;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+            steps: components["schemas"]["LeaveApprovalPolicyStepResource"][];
+        };
+        LeaveApprovalPolicyListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveApprovalPolicyResource"][];
+        };
+        LeaveApprovalPolicySingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveApprovalPolicyResource"];
+        };
+        LeaveApprovalPolicyNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_APPROVAL_POLICY_NOT_FOUND";
+            message: string;
+        };
+        LeaveApprovalPolicyConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_APPROVAL_POLICY_CONFLICT";
             message: string;
         };
         /**
@@ -5645,6 +6021,783 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompensationAdjustmentConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveTypeIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current tenant's Leave Type catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveTypeStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                    name: string;
+                    /** @enum {string} */
+                    category: "LEAVE" | "PERMIT";
+                    /** @enum {string} */
+                    balance_mode: "BALANCE" | "NONE";
+                    /** @enum {string} */
+                    unit: "DAY" | "HOUR";
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description LeaveType created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveTypeShow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveTypeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested LeaveType. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveType was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveTypeUpdate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveTypeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code?: string;
+                    name?: string;
+                    /** @enum {string} */
+                    category?: "LEAVE" | "PERMIT";
+                    /** @enum {string} */
+                    balance_mode?: "BALANCE" | "NONE";
+                    /** @enum {string} */
+                    unit?: "DAY" | "HOUR";
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The updated LeaveType. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveType was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeNotFoundError"];
+                };
+            };
+            /** @description Cannot reinterpret historical data for a LeaveType already referenced by entitlement/ledger/request history. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveTypeDeactivate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveTypeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The deactivated LeaveType. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveType was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveEntitlementPolicyIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current tenant's Entitlement Policy configurations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicyListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveEntitlementPolicyStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    leave_type_id: components["schemas"]["UuidV7"];
+                    organization_id?: components["schemas"]["UuidV7"] | null;
+                    organization_unit_id?: components["schemas"]["UuidV7"] | null;
+                    employment_type_id?: components["schemas"]["UuidV7"] | null;
+                    employment_classification_id?: components["schemas"]["UuidV7"] | null;
+                    /** @enum {string} */
+                    period_basis: "CALENDAR_YEAR" | "EMPLOYMENT_ANNIVERSARY" | "MANUAL";
+                    grant_units: number;
+                    /** @enum {string} */
+                    carryover_mode?: "NONE" | "LIMITED";
+                    carryover_limit_units?: number | null;
+                    /** Format: date */
+                    effective_from: string;
+                    /** Format: date */
+                    effective_to?: string | null;
+                    priority?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description LeaveEntitlementPolicy created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Referenced LeaveType was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeNotFoundError"];
+                };
+            };
+            /** @description Business-rule conflict (e.g. LeaveType is not BALANCE-backed). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicyConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveEntitlementPolicyShow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                entitlementPolicyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested LeaveEntitlementPolicy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveEntitlementPolicy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicyNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveEntitlementPolicyDeactivate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                entitlementPolicyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The deactivated LeaveEntitlementPolicy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveEntitlementPolicy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementPolicyNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveApprovalPolicyIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current tenant's Approval Policy versions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicyListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveApprovalPolicyStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    policy_code: string;
+                    name: string;
+                    leave_type_id?: components["schemas"]["UuidV7"] | null;
+                    organization_id?: components["schemas"]["UuidV7"] | null;
+                    organization_unit_id?: components["schemas"]["UuidV7"] | null;
+                    employment_type_id?: components["schemas"]["UuidV7"] | null;
+                    employment_classification_id?: components["schemas"]["UuidV7"] | null;
+                    /** @enum {string} */
+                    decision_mode: "SEQUENTIAL" | "AUTO";
+                    /** Format: date */
+                    effective_from: string;
+                    /** Format: date */
+                    effective_to?: string | null;
+                    priority?: number;
+                    steps?: {
+                        step_order: number;
+                        required_permission: string;
+                        /** @enum {string} */
+                        scope_strategy: "REQUEST_PLACEMENT" | "ORGANIZATION" | "TENANT";
+                        independent_approver?: boolean;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description LeaveApprovalPolicy created, with its steps. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Business-rule conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicyConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveApprovalPolicyShow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                approvalPolicyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested LeaveApprovalPolicy, with its steps. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveApprovalPolicy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicyNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveApprovalPolicyDeactivate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                approvalPolicyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The deactivated LeaveApprovalPolicy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveApprovalPolicy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveApprovalPolicyNotFoundError"];
                 };
             };
             500: components["responses"]["InternalServerError"];
