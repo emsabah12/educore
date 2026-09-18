@@ -461,258 +461,6 @@ Route::middleware([
         ->name('api.v1.hr.workspace.employees.store');
 });
 
-/*
-|--------------------------------------------------------------------------
-| HR-004 — Leave & Permit System — Admin Configuration Routes
-|--------------------------------------------------------------------------
-| §15.1 Leave Type, §15.2 Entitlement Policy. Permission tenant-wide
-| (hr.leave.policy.*) — konfigurasi ini berlaku di seluruh tenant, bukan
-| per-workspace, sehingga tetap di grup InjectTenantContext biasa
-| (bukan grup workspace organizational).
-*/
-Route::middleware([
-    InjectTenantContext::class,
-])->prefix('v1/hr')->group(function (): void {
-    Route::get(
-        '/leave-types',
-        [LeaveTypeController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-types.index');
-
-    Route::post(
-        '/leave-types',
-        [LeaveTypeController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-types.store');
-
-    Route::get(
-        '/leave-types/{leaveTypeId}',
-        [LeaveTypeController::class, 'show']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-types.show');
-
-    Route::patch(
-        '/leave-types/{leaveTypeId}',
-        [LeaveTypeController::class, 'update']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-types.update');
-
-    Route::post(
-        '/leave-types/{leaveTypeId}/deactivate',
-        [LeaveTypeController::class, 'deactivate']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-types.deactivate');
-
-    Route::get(
-        '/leave-entitlement-policies',
-        [LeaveEntitlementPolicyController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-entitlement-policies.index');
-
-    Route::post(
-        '/leave-entitlement-policies',
-        [LeaveEntitlementPolicyController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-entitlement-policies.store');
-
-    Route::get(
-        '/leave-entitlement-policies/{entitlementPolicyId}',
-        [LeaveEntitlementPolicyController::class, 'show']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-entitlement-policies.show');
-
-    Route::post(
-        '/leave-entitlement-policies/{entitlementPolicyId}/deactivate',
-        [LeaveEntitlementPolicyController::class, 'deactivate']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-entitlement-policies.deactivate');
-
-    // §15.3 Entitlements / Balance.
-    Route::get(
-        '/employees/{employeeId}/leave-balances',
-        [LeaveEntitlementController::class, 'employeeBalances']
-    )
-        ->middleware('tenant.permission:hr.leave.balance.read')
-        ->name('api.v1.hr.employees.leave-balances.index');
-
-    Route::get(
-        '/employments/{employmentId}/leave-entitlements',
-        [LeaveEntitlementController::class, 'employmentEntitlements']
-    )
-        ->middleware('tenant.permission:hr.leave.balance.read')
-        ->name('api.v1.hr.employments.leave-entitlements.index');
-
-    Route::post(
-        '/employments/{employmentId}/leave-entitlements/generate',
-        [LeaveEntitlementController::class, 'generate']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.employments.leave-entitlements.generate');
-
-    Route::post(
-        '/leave-entitlements/{entitlementId}/adjustments',
-        [LeaveEntitlementController::class, 'adjust']
-    )
-        ->middleware('tenant.permission:hr.leave.balance.adjust')
-        ->name('api.v1.hr.leave-entitlements.adjustments.store');
-
-    // §15.4 Approval Policy.
-    Route::get(
-        '/leave-approval-policies',
-        [LeaveApprovalPolicyController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-approval-policies.index');
-
-    Route::post(
-        '/leave-approval-policies',
-        [LeaveApprovalPolicyController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-approval-policies.store');
-
-    Route::get(
-        '/leave-approval-policies/{approvalPolicyId}',
-        [LeaveApprovalPolicyController::class, 'show']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.read')
-        ->name('api.v1.hr.leave-approval-policies.show');
-
-    Route::post(
-        '/leave-approval-policies/{approvalPolicyId}/deactivate',
-        [LeaveApprovalPolicyController::class, 'deactivate']
-    )
-        ->middleware('tenant.permission:hr.leave.policy.manage')
-        ->name('api.v1.hr.leave-approval-policies.deactivate');
-
-    // §15.5 Leave Request.
-    Route::get(
-        '/leave-requests',
-        [LeaveRequestController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.leave.read')
-        ->name('api.v1.hr.leave-requests.index');
-
-    Route::post(
-        '/leave-requests',
-        [LeaveRequestController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.leave.manage')
-        ->name('api.v1.hr.leave-requests.store');
-
-    Route::get(
-        '/leave-requests/{leaveRequestId}',
-        [LeaveRequestController::class, 'show']
-    )
-        ->middleware('tenant.permission:hr.leave.read')
-        ->name('api.v1.hr.leave-requests.show');
-
-    Route::patch(
-        '/leave-requests/{leaveRequestId}',
-        [LeaveRequestController::class, 'update']
-    )
-        ->middleware('tenant.permission:hr.leave.manage')
-        ->name('api.v1.hr.leave-requests.update');
-
-    Route::post(
-        '/leave-requests/{leaveRequestId}/submit',
-        [LeaveRequestController::class, 'submit']
-    )
-        ->middleware('tenant.permission:hr.leave.manage')
-        ->name('api.v1.hr.leave-requests.submit');
-
-    Route::post(
-        '/leave-requests/{leaveRequestId}/withdraw',
-        [LeaveRequestController::class, 'withdraw']
-    )
-        ->middleware('tenant.permission:hr.leave.manage')
-        ->name('api.v1.hr.leave-requests.withdraw');
-
-    Route::post(
-        '/leave-requests/{leaveRequestId}/cancel',
-        [LeaveRequestController::class, 'cancel']
-    )
-        ->middleware('tenant.permission:hr.leave.cancel')
-        ->name('api.v1.hr.leave-requests.cancel');
-
-    // §15.6 Approval queue / decision.
-    Route::get(
-        '/leave-approvals/pending',
-        [LeaveApprovalController::class, 'pending']
-    )
-        ->middleware('tenant.permission:hr.leave.approve')
-        ->name('api.v1.hr.leave-approvals.pending');
-
-    Route::post(
-        '/leave-requests/{leaveRequestId}/approve',
-        [LeaveApprovalController::class, 'approve']
-    )
-        ->middleware('tenant.permission:hr.leave.approve')
-        ->name('api.v1.hr.leave-requests.approve');
-
-    Route::post(
-        '/leave-requests/{leaveRequestId}/reject',
-        [LeaveApprovalController::class, 'reject']
-    )
-        ->middleware('tenant.permission:hr.leave.approve')
-        ->name('api.v1.hr.leave-requests.reject');
-
-    // §15.7 Self-service. Permission hr.leave.self.* — LIHAT
-    // HrAuthorizationCatalogSeeder: permission ini SENGAJA tidak
-    // di-auto-grant ke hr-officer, karena secara konseptual milik
-    // SETIAP Employee (via membership sendiri), bukan staf HR.
-    Route::get(
-        '/self/leave-balances',
-        [LeaveSelfServiceController::class, 'balances']
-    )
-        ->middleware('tenant.permission:hr.leave.self.read')
-        ->name('api.v1.hr.self.leave-balances.index');
-
-    Route::get(
-        '/self/leave-requests',
-        [LeaveSelfServiceController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.leave.self.read')
-        ->name('api.v1.hr.self.leave-requests.index');
-
-    Route::post(
-        '/self/leave-requests',
-        [LeaveSelfServiceController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.leave.self.request')
-        ->name('api.v1.hr.self.leave-requests.store');
-
-    Route::get(
-        '/self/leave-requests/{leaveRequestId}',
-        [LeaveSelfServiceController::class, 'show']
-    )
-        ->middleware('tenant.permission:hr.leave.self.read')
-        ->name('api.v1.hr.self.leave-requests.show');
-
-    Route::post(
-        '/self/leave-requests/{leaveRequestId}/submit',
-        [LeaveSelfServiceController::class, 'submit']
-    )
-        ->middleware('tenant.permission:hr.leave.self.request')
-        ->name('api.v1.hr.self.leave-requests.submit');
-
-    Route::post(
-        '/self/leave-requests/{leaveRequestId}/withdraw',
-        [LeaveSelfServiceController::class, 'withdraw']
-    )
-        ->middleware('tenant.permission:hr.leave.self.request')
-        ->name('api.v1.hr.self.leave-requests.withdraw');
-});
-
 // HR-006 — Compensation & Benefit browser-accessible mirror.
 //
 // Endpoint di bawah ini SENGAJA didaftarkan di grup middleware
@@ -740,6 +488,251 @@ Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
 ])->group(function (): void {
+
+    // HR-004 — Leave & Permit System (Sprint 2a-2d). Dipindah dari
+    // grup InjectTenantContext bearer-only ke sini -- alasan SAMA
+    // PERSIS dengan komentar HR-006 di atas: browser SPA tidak
+    // pernah mengirim header Authorization asli, jadi harus lewat
+    // InjectTransportAwareTenantContext supaya browser session bisa
+    // dipakai. Permission dan nama route TIDAK BERUBAH sama sekali.
+    Route::get(
+        '/v1/hr/leave-types',
+        [LeaveTypeController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-types.index');
+
+    Route::post(
+        '/v1/hr/leave-types',
+        [LeaveTypeController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.store');
+
+    Route::get(
+        '/v1/hr/leave-types/{leaveTypeId}',
+        [LeaveTypeController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-types.show');
+
+    Route::patch(
+        '/v1/hr/leave-types/{leaveTypeId}',
+        [LeaveTypeController::class, 'update']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.update');
+
+    Route::post(
+        '/v1/hr/leave-types/{leaveTypeId}/deactivate',
+        [LeaveTypeController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-types.deactivate');
+
+    Route::get(
+        '/v1/hr/leave-entitlement-policies',
+        [LeaveEntitlementPolicyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-entitlement-policies.index');
+
+    Route::post(
+        '/v1/hr/leave-entitlement-policies',
+        [LeaveEntitlementPolicyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-entitlement-policies.store');
+
+    Route::get(
+        '/v1/hr/leave-entitlement-policies/{entitlementPolicyId}',
+        [LeaveEntitlementPolicyController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-entitlement-policies.show');
+
+    Route::post(
+        '/v1/hr/leave-entitlement-policies/{entitlementPolicyId}/deactivate',
+        [LeaveEntitlementPolicyController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-entitlement-policies.deactivate');
+
+    // §15.3 Entitlements / Balance.
+    Route::get(
+        '/v1/hr/employees/{employeeId}/leave-balances',
+        [LeaveEntitlementController::class, 'employeeBalances']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.read')
+        ->name('api.v1.hr.employees.leave-balances.index');
+
+    Route::get(
+        '/v1/hr/employments/{employmentId}/leave-entitlements',
+        [LeaveEntitlementController::class, 'employmentEntitlements']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.read')
+        ->name('api.v1.hr.employments.leave-entitlements.index');
+
+    Route::post(
+        '/v1/hr/employments/{employmentId}/leave-entitlements/generate',
+        [LeaveEntitlementController::class, 'generate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.employments.leave-entitlements.generate');
+
+    Route::post(
+        '/v1/hr/leave-entitlements/{entitlementId}/adjustments',
+        [LeaveEntitlementController::class, 'adjust']
+    )
+        ->middleware('tenant.permission:hr.leave.balance.adjust')
+        ->name('api.v1.hr.leave-entitlements.adjustments.store');
+
+    // §15.4 Approval Policy.
+    Route::get(
+        '/v1/hr/leave-approval-policies',
+        [LeaveApprovalPolicyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-approval-policies.index');
+
+    Route::post(
+        '/v1/hr/leave-approval-policies',
+        [LeaveApprovalPolicyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-approval-policies.store');
+
+    Route::get(
+        '/v1/hr/leave-approval-policies/{approvalPolicyId}',
+        [LeaveApprovalPolicyController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.read')
+        ->name('api.v1.hr.leave-approval-policies.show');
+
+    Route::post(
+        '/v1/hr/leave-approval-policies/{approvalPolicyId}/deactivate',
+        [LeaveApprovalPolicyController::class, 'deactivate']
+    )
+        ->middleware('tenant.permission:hr.leave.policy.manage')
+        ->name('api.v1.hr.leave-approval-policies.deactivate');
+
+    // §15.5 Leave Request.
+    Route::get(
+        '/v1/hr/leave-requests',
+        [LeaveRequestController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.read')
+        ->name('api.v1.hr.leave-requests.index');
+
+    Route::post(
+        '/v1/hr/leave-requests',
+        [LeaveRequestController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.store');
+
+    Route::get(
+        '/v1/hr/leave-requests/{leaveRequestId}',
+        [LeaveRequestController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.read')
+        ->name('api.v1.hr.leave-requests.show');
+
+    Route::patch(
+        '/v1/hr/leave-requests/{leaveRequestId}',
+        [LeaveRequestController::class, 'update']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.update');
+
+    Route::post(
+        '/v1/hr/leave-requests/{leaveRequestId}/submit',
+        [LeaveRequestController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.submit');
+
+    Route::post(
+        '/v1/hr/leave-requests/{leaveRequestId}/withdraw',
+        [LeaveRequestController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.leave.manage')
+        ->name('api.v1.hr.leave-requests.withdraw');
+
+    Route::post(
+        '/v1/hr/leave-requests/{leaveRequestId}/cancel',
+        [LeaveRequestController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.leave.cancel')
+        ->name('api.v1.hr.leave-requests.cancel');
+
+    // §15.6 Approval queue / decision.
+    Route::get(
+        '/v1/hr/leave-approvals/pending',
+        [LeaveApprovalController::class, 'pending']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-approvals.pending');
+
+    Route::post(
+        '/v1/hr/leave-requests/{leaveRequestId}/approve',
+        [LeaveApprovalController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-requests.approve');
+
+    Route::post(
+        '/v1/hr/leave-requests/{leaveRequestId}/reject',
+        [LeaveApprovalController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.leave.approve')
+        ->name('api.v1.hr.leave-requests.reject');
+
+    // §15.7 Self-service. Permission hr.leave.self.* — LIHAT
+    // HrAuthorizationCatalogSeeder: permission ini SENGAJA tidak
+    // di-auto-grant ke hr-officer, karena secara konseptual milik
+    // SETIAP Employee (via membership sendiri), bukan staf HR.
+    Route::get(
+        '/v1/hr/self/leave-balances',
+        [LeaveSelfServiceController::class, 'balances']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-balances.index');
+
+    Route::get(
+        '/v1/hr/self/leave-requests',
+        [LeaveSelfServiceController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-requests.index');
+
+    Route::post(
+        '/v1/hr/self/leave-requests',
+        [LeaveSelfServiceController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.store');
+
+    Route::get(
+        '/v1/hr/self/leave-requests/{leaveRequestId}',
+        [LeaveSelfServiceController::class, 'show']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-requests.show');
+
+    Route::post(
+        '/v1/hr/self/leave-requests/{leaveRequestId}/submit',
+        [LeaveSelfServiceController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.submit');
+
+    Route::post(
+        '/v1/hr/self/leave-requests/{leaveRequestId}/withdraw',
+        [LeaveSelfServiceController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.leave.self.request')
+        ->name('api.v1.hr.self.leave-requests.withdraw');
 
     // HR-002 §10.1 — Employee directory.
     //
