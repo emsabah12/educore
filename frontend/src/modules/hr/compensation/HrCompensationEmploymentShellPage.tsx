@@ -14,6 +14,9 @@ import {
     CompensationAssignmentSection,
 } from '@/modules/hr/compensation/CompensationAssignmentSection';
 import {
+    LeaveRequestSection,
+} from '@/modules/hr/leave/LeaveRequestSection';
+import {
     Badge,
     Button,
 } from '@/shared/ui';
@@ -168,6 +171,18 @@ export function HrCompensationEmploymentShellPage() {
                 employmentId !== undefined
                     ? (
                         <CompensationAdjustmentSection
+                            employmentId={
+                                employmentId
+                            }
+                        />
+                    )
+                    : null
+            }
+
+            {
+                employmentId !== undefined
+                    ? (
+                        <LeaveRequestSection
                             employmentId={
                                 employmentId
                             }

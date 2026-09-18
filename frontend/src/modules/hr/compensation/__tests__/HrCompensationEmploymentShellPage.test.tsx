@@ -130,6 +130,32 @@ function renderShell(
                     },
                 ),
         ),
+        http.get(
+            '*/api/v1/hr/leave-requests',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                        meta: {
+                            current_page: 1,
+                            last_page: 1,
+                            per_page: 15,
+                            total: 0,
+                        },
+                    },
+                ),
+        ),
+        http.get(
+            '*/api/v1/hr/leave-types',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
     );
 
     const queryClient =
