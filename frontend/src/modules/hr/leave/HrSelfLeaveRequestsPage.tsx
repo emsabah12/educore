@@ -8,6 +8,9 @@ import {
     useWithdrawSelfLeaveRequestMutation,
 } from '@/modules/hr/api/use-self-leave-request-mutations';
 import {
+    useSelfLeaveBalancesQuery,
+} from '@/modules/hr/api/use-self-leave-balances-query';
+import {
     useSelfLeaveRequestsQuery,
 } from '@/modules/hr/api/use-self-leave-requests-query';
 import {
@@ -46,6 +49,9 @@ const STATUS_LABEL: Record<string, string> = {
 export function HrSelfLeaveRequestsPage() {
     const requestsQuery =
         useSelfLeaveRequestsQuery();
+
+    const balancesQuery =
+        useSelfLeaveBalancesQuery();
 
     const leaveTypesQuery =
         useLeaveTypesQuery();
@@ -146,6 +152,80 @@ export function HrSelfLeaveRequestsPage() {
                     Riwayat dan pengajuan cuti/izin Anda sendiri.
                 </p>
             </div>
+
+            <section
+                aria-labelledby="self-leave-balances-heading"
+                className="space-y-2"
+            >
+                <h2
+                    id="self-leave-balances-heading"
+                    className="text-sm font-semibold"
+                >
+                    Saldo Cuti Saya
+                </h2>
+
+                {
+                    balancesQuery.status === 'success'
+                        ? (
+                            balancesQuery.data.length === 0
+                                ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Belum ada saldo cuti.
+                                    </p>
+                                )
+                                : (
+                                    <ul className="space-y-1 text-sm">
+                                        {
+                                            balancesQuery.data.map(
+                                                (
+                                                    entry,
+                                                ) => (
+                                                    <li
+                                                        key={
+                                                            entry.entitlement_id
+                                                        }
+                                                        className="flex items-center justify-between rounded-md border px-3 py-2"
+                                                    >
+                                                        <span>
+                                                            {
+                                                                leaveTypeNameById.get(
+                                                                    entry.leave_type_id,
+                                                                )
+                                                                ?? entry.leave_type_id
+                                                            }
+                                                            {
+                                                                ' '
+                                                            }
+                                                            <span className="text-muted-foreground">
+                                                                (
+                                                                {
+                                                                    entry.period_start
+                                                                }
+                                                                {
+                                                                    ' – '
+                                                                }
+                                                                {
+                                                                    entry.period_end
+                                                                }
+                                                                )
+                                                            </span>
+                                                        </span>
+
+                                                        <span className="font-medium">
+                                                            {
+                                                                entry.balance
+                                                            }
+                                                        </span>
+                                                    </li>
+                                                ),
+                                            )
+                                        }
+                                    </ul>
+                                )
+                        )
+                        : null
+                }
+            </section>
 
             {
                 requestsQuery.status === 'pending'

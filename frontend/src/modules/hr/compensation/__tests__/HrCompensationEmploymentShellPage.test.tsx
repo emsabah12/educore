@@ -156,6 +156,16 @@ function renderShell(
                     },
                 ),
         ),
+        http.get(
+            '*/api/v1/hr/employments/*/leave-entitlements',
+            () =>
+                HttpResponse.json(
+                    {
+                        status: 'success',
+                        data: [],
+                    },
+                ),
+        ),
     );
 
     const queryClient =

@@ -41,7 +41,7 @@ const READY_TENANT_WORKSPACE_STATE = {
         },
     },
     tenant: {
-        name: 'Self Leave Requests Page Test Tenant',
+        name: 'Leave Entitlement Section Test Tenant',
     },
     workspaces: [],
     current: {
@@ -49,7 +49,7 @@ const READY_TENANT_WORKSPACE_STATE = {
         organizational_assignment_id: null,
         organization_id: null,
         organization_unit_id: null,
-        label: 'Self Leave Requests Page Test Tenant',
+        label: 'Leave Entitlement Section Test Tenant',
     },
     failure: null,
 };
@@ -63,13 +63,16 @@ vi.mock(
 );
 
 const {
-    HrSelfLeaveRequestsPage,
+    LeaveEntitlementSection,
 } = await import(
-    '@/modules/hr/leave/HrSelfLeaveRequestsPage'
+    '@/modules/hr/leave/LeaveEntitlementSection'
 );
 
+const EMPLOYMENT_ID =
+    '01970000-0000-7000-8000-00000000c0aa';
+
 const LEAVE_TYPE = {
-    id: '01970000-0000-7000-8000-0000000b0aa',
+    id: '01970000-0000-7000-8000-00000000c1aa',
     tenant_id: '01970000-0000-7000-8000-0000000000ff',
     code: 'CUTI_TAHUNAN',
     name: 'Cuti Tahunan',
@@ -105,7 +108,7 @@ function changeById(
     );
 }
 
-function renderPage() {
+function renderSection() {
     const queryClient =
         new QueryClient(
             {
@@ -123,31 +126,25 @@ function renderPage() {
     render(
         <ApiClientProvider apiClient={apiClient}>
             <QueryClientProvider client={queryClient}>
-                <HrSelfLeaveRequestsPage />
+                <LeaveEntitlementSection
+                    employmentId={
+                        EMPLOYMENT_ID
+                    }
+                />
             </QueryClientProvider>
         </ApiClientProvider>,
     );
 }
 
 describe(
-    'HrSelfLeaveRequestsPage',
+    'LeaveEntitlementSection',
     () => {
         it(
-            'creates a DRAFT request, submits it, then withdraws it',
+            'generates a new Entitlement, then adjusts its balance',
             async () => {
-                let currentRequest: Record<string, unknown> | null = null;
+                let currentEntitlement: Record<string, unknown> | null = null;
 
                 apiMockServer.use(
-                    http.get(
-                        '*/api/v1/hr/self/leave-balances',
-                        () =>
-                            HttpResponse.json(
-                                {
-                                    status: 'success',
-                                    data: [],
-                                },
-                            ),
-                    ),
                     http.get(
                         '*/api/v1/hr/leave-types',
                         () =>
@@ -161,22 +158,22 @@ describe(
                             ),
                     ),
                     http.get(
-                        '*/api/v1/hr/self/leave-requests',
+                        `*/api/v1/hr/employments/${EMPLOYMENT_ID}/leave-entitlements`,
                         () =>
                             HttpResponse.json(
                                 {
                                     status: 'success',
                                     data:
-                                        currentRequest === null
+                                        currentEntitlement === null
                                             ? []
                                             : [
-                                                currentRequest,
+                                                currentEntitlement,
                                             ],
                                 },
                             ),
                     ),
                     http.post(
-                        '*/api/v1/hr/self/leave-requests',
+                        `*/api/v1/hr/employments/${EMPLOYMENT_ID}/leave-entitlements/generate`,
                         async ({
                             request,
                         }) => {
@@ -185,43 +182,31 @@ describe(
 
                             expect(
                                 body,
-                            ).toMatchObject(
+                            ).toEqual(
                                 {
                                     leave_type_id: LEAVE_TYPE.id,
-                                    starts_at: '2026-03-01',
-                                    ends_at: '2026-03-03',
-                                    requested_units: 3,
-                                    reason: null,
+                                    period_start: '2026-01-01',
+                                    period_end: '2026-12-31',
                                 },
                             );
 
-                            currentRequest = {
-                                id: '01970000-0000-7000-8000-0000000b1aa',
+                            currentEntitlement = {
+                                id: '01970000-0000-7000-8000-00000000c2aa',
                                 tenant_id: '01970000-0000-7000-8000-0000000000ff',
-                                employment_id: '01970000-0000-7000-8000-0000000b2aa',
+                                employment_id: EMPLOYMENT_ID,
                                 leave_type_id: LEAVE_TYPE.id,
-                                approval_context_placement_id: null,
-                                approval_policy_id: null,
-                                submitted_by_membership_id: null,
-                                status: 'DRAFT',
-                                starts_at: '2026-03-01',
-                                ends_at: '2026-03-03',
-                                request_timezone: 'Asia/Jakarta',
-                                requested_units: '3.00',
-                                unit: 'DAY',
-                                reason: null,
-                                submitted_at: null,
-                                final_decided_at: null,
-                                withdrawn_at: null,
-                                cancelled_at: null,
-                                created_at: '2026-01-20T00:00:00Z',
-                                updated_at: '2026-01-20T00:00:00Z',
+                                entitlement_policy_id: null,
+                                period_start: '2026-01-01',
+                                period_end: '2026-12-31',
+                                status: 'ACTIVE',
+                                created_at: '2026-01-15T00:00:00Z',
+                                updated_at: '2026-01-15T00:00:00Z',
                             };
 
                             return HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: currentRequest,
+                                    data: currentEntitlement,
                                 },
                                 {
                                     status: 201,
@@ -230,74 +215,88 @@ describe(
                         },
                     ),
                     http.post(
-                        '*/api/v1/hr/self/leave-requests/:id/submit',
-                        () => {
-                            if (currentRequest !== null) {
-                                currentRequest = {
-                                    ...currentRequest,
-                                    status: 'SUBMITTED',
-                                };
-                            }
+                        '*/api/v1/hr/leave-entitlements/:id/adjustments',
+                        async ({
+                            request,
+                        }) => {
+                            const body =
+                                await request.json() as Record<string, unknown>;
 
-                            return HttpResponse.json(
-                                {
-                                    status: 'success',
-                                    data: currentRequest,
-                                },
+                            expect(
+                                body.units_delta,
+                            ).toBe(
+                                5,
                             );
-                        },
-                    ),
-                    http.post(
-                        '*/api/v1/hr/self/leave-requests/:id/withdraw',
-                        () => {
-                            if (currentRequest !== null) {
-                                currentRequest = {
-                                    ...currentRequest,
-                                    status: 'WITHDRAWN',
-                                };
-                            }
 
                             return HttpResponse.json(
                                 {
                                     status: 'success',
-                                    data: currentRequest,
+                                    data: {
+                                        entitlement_id: '01970000-0000-7000-8000-00000000c2aa',
+                                        balance: '17.00',
+                                    },
+                                },
+                                {
+                                    status: 201,
                                 },
                             );
                         },
                     ),
                 );
 
-                renderPage();
+                renderSection();
 
                 await screen.findByText(
-                    'Belum ada pengajuan cuti.',
+                    'Belum ada Entitlement untuk Employment ini.',
                 );
 
                 changeById(
-                    'self-leave-request-leave-type',
+                    'entitlement-generate-leave-type',
                     LEAVE_TYPE.id,
                 );
 
                 changeById(
-                    'self-leave-request-starts-at',
-                    '2026-03-01',
+                    'entitlement-generate-period-start',
+                    '2026-01-01',
                 );
 
                 changeById(
-                    'self-leave-request-ends-at',
-                    '2026-03-03',
+                    'entitlement-generate-period-end',
+                    '2026-12-31',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Generate',
+                        },
+                    ),
+                );
+
+                await screen.findByText(
+                    'Sesuaikan Saldo',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Sesuaikan Saldo',
+                        },
+                    ),
                 );
 
                 changeById(
-                    'self-leave-request-units',
-                    '3',
+                    'adjust-units-01970000-0000-7000-8000-00000000c2aa',
+                    '5',
                 );
 
                 fireEvent.click(
                     screen.getByRole(
                         'button',
                         {
-                            name: 'Simpan sebagai Draf',
+                            name: 'Simpan',
                         },
                     ),
                 );
@@ -306,45 +305,7 @@ describe(
                     () => {
                         expect(
                             screen.getByText(
-                                'Draf',
-                            ),
-                        ).toBeInTheDocument();
-                    },
-                );
-
-                fireEvent.click(
-                    screen.getByRole(
-                        'button',
-                        {
-                            name: 'Ajukan',
-                        },
-                    ),
-                );
-
-                await waitFor(
-                    () => {
-                        expect(
-                            screen.getByText(
-                                'Diajukan',
-                            ),
-                        ).toBeInTheDocument();
-                    },
-                );
-
-                fireEvent.click(
-                    screen.getByRole(
-                        'button',
-                        {
-                            name: 'Tarik',
-                        },
-                    ),
-                );
-
-                await waitFor(
-                    () => {
-                        expect(
-                            screen.getByText(
-                                'Ditarik',
+                                'Saldo sekarang: 17.00',
                             ),
                         ).toBeInTheDocument();
                     },
