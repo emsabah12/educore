@@ -4777,6 +4777,684 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/recruitment/vacancies:
+    get:
+      operationId: hrRecruitmentVacancyIndex
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.index
+      tags:
+        - Human Resources
+      summary: List Recruitment Vacancies (job requisitions)
+      description: HR-003 §7.1 / §8.1 — paginated, newest first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        "200":
+          description: Paginated list of Vacancies.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrRecruitmentVacancyStore
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.store
+      tags:
+        - Human Resources
+      summary: Create a new Recruitment Vacancy with DRAFT status
+      description: |
+        HR-003 §7.1 — `created_by_membership_id` is always the
+        authenticated Membership, never client-controlled. Field-shape
+        validation only here; "Position/Organization Unit must be
+        ACTIVE and belong together" is enforced by the lifecycle
+        service and reported as a 409 conflict, not 422.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - title
+                - position_id
+                - organization_id
+                - requested_headcount
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                title:
+                  type: string
+                  maxLength: 255
+                position_id:
+                  $ref: "#/components/schemas/UuidV7"
+                organization_id:
+                  $ref: "#/components/schemas/UuidV7"
+                organization_unit_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                requested_headcount:
+                  type: integer
+                  minimum: 1
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: The newly created Vacancy, with DRAFT status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: Referenced Position or Organization Unit is inactive, or the unit does not belong to the given organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/submit:
+    post:
+      operationId: hrRecruitmentVacancySubmit
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.submit
+      tags:
+        - Human Resources
+      summary: Submit a DRAFT Vacancy for approval
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Vacancy, now PENDING_APPROVAL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is not currently DRAFT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/approve:
+    post:
+      operationId: hrRecruitmentVacancyApprove
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.approve
+      tags:
+        - Human Resources
+      summary: Approve a PENDING_APPROVAL Vacancy
+      description: |
+        HR-003 §7.2 — guarded by hr.recruitment.approve (deliberately
+        separate from hr.recruitment.manage), a higher-impact explicit
+        business decision.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Vacancy, now APPROVED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.approve permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is not currently PENDING_APPROVAL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/reject:
+    post:
+      operationId: hrRecruitmentVacancyReject
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.reject
+      tags:
+        - Human Resources
+      summary: Reject a PENDING_APPROVAL Vacancy back to DRAFT
+      description: HR-003 §7.2 — guarded by hr.recruitment.approve, same as approve.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Vacancy, back to DRAFT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.approve permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is not currently PENDING_APPROVAL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/open:
+    post:
+      operationId: hrRecruitmentVacancyOpen
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.open
+      tags:
+        - Human Resources
+      summary: Open an APPROVED Vacancy for applications
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Vacancy, now OPEN, with open_at set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is not currently APPROVED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/close:
+    post:
+      operationId: hrRecruitmentVacancyClose
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.close
+      tags:
+        - Human Resources
+      summary: Close an OPEN Vacancy to new applications
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Vacancy, now CLOSED, with close_at set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is not currently OPEN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/cancel:
+    post:
+      operationId: hrRecruitmentVacancyCancel
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.cancel
+      tags:
+        - Human Resources
+      summary: Cancel a Vacancy from DRAFT, PENDING_APPROVAL, APPROVED, or OPEN
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Vacancy, now CANCELLED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancySingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyNotFoundError"
+
+        "409":
+          description: The Vacancy is already CLOSED or CANCELLED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/candidates:
+    get:
+      operationId: hrRecruitmentCandidateIndex
+      x-laravel-route-name: api.v1.hr.recruitment.candidates.index
+      tags:
+        - Human Resources
+      summary: List Recruitment Candidates
+      description: HR-003 §7.4 — paginated, newest first. Never exposes strong identifier values (write-only).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        "200":
+          description: Paginated list of Candidates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrRecruitmentCandidateStore
+      x-laravel-route-name: api.v1.hr.recruitment.candidates.store
+      tags:
+        - Human Resources
+      summary: Create a new Recruitment Candidate, with optional strong identifiers
+      description: |
+        HR-003 §7.4 — `identifiers` is deliberately optional: a
+        Candidate can be created before any strong ID is verified
+        (e.g. a fresh online application), with identifiers attached
+        later once documents are verified.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - display_name
+              properties:
+                display_name:
+                  type: string
+                  maxLength: 255
+                birth_date:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+                primary_email:
+                  type:
+                    - string
+                    - "null"
+                  format: email
+                  maxLength: 320
+                primary_phone:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 32
+                source:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 50
+                identifiers:
+                  type:
+                    - array
+                    - "null"
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - type
+                      - issuing_country_code
+                      - value
+                    properties:
+                      type:
+                        type: string
+                        maxLength: 50
+                      issuing_country_code:
+                        type: string
+                        minLength: 2
+                        maxLength: 2
+                      value:
+                        type: string
+      responses:
+        "201":
+          description: The newly created Candidate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: A given strong identifier already belongs to a different Candidate in this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateIdentifierConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -10547,6 +11225,285 @@ components:
         message:
           type: string
 
+    RecruitmentVacancyResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-003 §7.1 / §8.1 — a job requisition. Lifecycle:
+        DRAFT --submit--> PENDING_APPROVAL --approve/reject--> APPROVED
+        (or back to DRAFT) --open--> OPEN --close--> CLOSED, or
+        CANCELLED from DRAFT/PENDING_APPROVAL/APPROVED/OPEN.
+        Controller returns the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - code
+        - title
+        - position_id
+        - organization_id
+        - organization_unit_id
+        - requested_headcount
+        - description
+        - status
+        - open_at
+        - close_at
+        - created_by_membership_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        title:
+          type: string
+        position_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_unit_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        requested_headcount:
+          type: integer
+        description:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PENDING_APPROVAL
+            - APPROVED
+            - OPEN
+            - CLOSED
+            - CANCELLED
+        open_at:
+          type:
+            - string
+            - "null"
+        close_at:
+          type:
+            - string
+            - "null"
+        created_by_membership_id:
+          $ref: "#/components/schemas/UuidV7"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    RecruitmentVacancyListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecruitmentVacancyResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    RecruitmentVacancyCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RecruitmentVacancyResource"
+
+    RecruitmentVacancySingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/RecruitmentVacancyResource"
+
+    RecruitmentVacancyNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_VACANCY_NOT_FOUND
+        message:
+          type: string
+
+    RecruitmentVacancyConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. submitting a non-DRAFT vacancy, opening a non-APPROVED
+        vacancy, or a referenced Position/Organization Unit that is
+        inactive or does not belong together.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_VACANCY_CONFLICT
+        message:
+          type: string
+
+    RecruitmentCandidateResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-003 §7.4 — a job applicant. `identifiers` (strong ID such
+        as national ID) are stored and matched separately
+        (RecruitmentCandidateIdentifier) and are NEVER included here
+        or in any other response — write-only, matched only via
+        fingerprint for duplicate detection. Controller returns the
+        raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - person_id
+        - display_name
+        - birth_date
+        - primary_email
+        - normalized_email
+        - primary_phone
+        - normalized_phone
+        - source
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        person_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        display_name:
+          type: string
+        birth_date:
+          type:
+            - string
+            - "null"
+          format: date
+        primary_email:
+          type:
+            - string
+            - "null"
+        normalized_email:
+          type:
+            - string
+            - "null"
+        primary_phone:
+          type:
+            - string
+            - "null"
+        normalized_phone:
+          type:
+            - string
+            - "null"
+        source:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    RecruitmentCandidateListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecruitmentCandidateResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    RecruitmentCandidateCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RecruitmentCandidateResource"
+
+    RecruitmentCandidateIdentifierConflictError:
+      type: object
+      additionalProperties: false
+      description: INV-REC-003 — a strong identifier already belongs to a different Candidate in this tenant.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_CANDIDATE_IDENTIFIER_CONFLICT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -12157,30 +13114,6 @@ x-educore-deferred-routes:
     reason: domain-api-hardening-deferred
 
   - method: GET
-    path: /api/v1/hr/recruitment/candidates
-    route_name: api.v1.hr.recruitment.candidates.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/candidates
-    route_name: api.v1.hr.recruitment.candidates.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/recruitment/vacancies
-    route_name: api.v1.hr.recruitment.vacancies.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies
-    route_name: api.v1.hr.recruitment.vacancies.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
     path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
     route_name: api.v1.hr.recruitment.vacancies.applications.index
     owner: HR
@@ -12189,42 +13122,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
     route_name: api.v1.hr.recruitment.vacancies.applications.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/approve
-    route_name: api.v1.hr.recruitment.vacancies.approve
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/cancel
-    route_name: api.v1.hr.recruitment.vacancies.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/close
-    route_name: api.v1.hr.recruitment.vacancies.close
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/open
-    route_name: api.v1.hr.recruitment.vacancies.open
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/reject
-    route_name: api.v1.hr.recruitment.vacancies.reject
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/submit
-    route_name: api.v1.hr.recruitment.vacancies.submit
     owner: HR
     reason: domain-api-hardening-deferred
   - method: GET

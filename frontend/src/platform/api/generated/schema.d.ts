@@ -1394,6 +1394,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/recruitment/vacancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recruitment Vacancies (job requisitions)
+         * @description HR-003 §7.1 / §8.1 — paginated, newest first.
+         */
+        get: operations["hrRecruitmentVacancyIndex"];
+        put?: never;
+        /**
+         * Create a new Recruitment Vacancy with DRAFT status
+         * @description HR-003 §7.1 — `created_by_membership_id` is always the
+         *     authenticated Membership, never client-controlled. Field-shape
+         *     validation only here; "Position/Organization Unit must be
+         *     ACTIVE and belong together" is enforced by the lifecycle
+         *     service and reported as a 409 conflict, not 422.
+         */
+        post: operations["hrRecruitmentVacancyStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a DRAFT Vacancy for approval */
+        post: operations["hrRecruitmentVacancySubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a PENDING_APPROVAL Vacancy
+         * @description HR-003 §7.2 — guarded by hr.recruitment.approve (deliberately
+         *     separate from hr.recruitment.manage), a higher-impact explicit
+         *     business decision.
+         */
+        post: operations["hrRecruitmentVacancyApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a PENDING_APPROVAL Vacancy back to DRAFT
+         * @description HR-003 §7.2 — guarded by hr.recruitment.approve, same as approve.
+         */
+        post: operations["hrRecruitmentVacancyReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open an APPROVED Vacancy for applications */
+        post: operations["hrRecruitmentVacancyOpen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close an OPEN Vacancy to new applications */
+        post: operations["hrRecruitmentVacancyClose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/vacancies/{vacancyId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a Vacancy from DRAFT, PENDING_APPROVAL, APPROVED, or OPEN */
+        post: operations["hrRecruitmentVacancyCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/recruitment/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recruitment Candidates
+         * @description HR-003 §7.4 — paginated, newest first. Never exposes strong identifier values (write-only).
+         */
+        get: operations["hrRecruitmentCandidateIndex"];
+        put?: never;
+        /**
+         * Create a new Recruitment Candidate, with optional strong identifiers
+         * @description HR-003 §7.4 — `identifiers` is deliberately optional: a
+         *     Candidate can be created before any strong ID is verified
+         *     (e.g. a fresh online application), with identifiers attached
+         *     later once documents are verified.
+         */
+        post: operations["hrRecruitmentCandidateStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -3548,6 +3713,112 @@ export interface components {
             status: "error";
             /** @constant */
             code: "LEAVE_ENTITLEMENT_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description HR-003 §7.1 / §8.1 — a job requisition. Lifecycle:
+         *     DRAFT --submit--> PENDING_APPROVAL --approve/reject--> APPROVED
+         *     (or back to DRAFT) --open--> OPEN --close--> CLOSED, or
+         *     CANCELLED from DRAFT/PENDING_APPROVAL/APPROVED/OPEN.
+         *     Controller returns the raw Eloquent model.
+         */
+        RecruitmentVacancyResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            code: string;
+            title: string;
+            position_id: components["schemas"]["UuidV7"];
+            organization_id: components["schemas"]["UuidV7"];
+            organization_unit_id: components["schemas"]["UuidV7"] | null;
+            requested_headcount: number;
+            description: string | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "OPEN" | "CLOSED" | "CANCELLED";
+            open_at: string | null;
+            close_at: string | null;
+            created_by_membership_id: components["schemas"]["UuidV7"];
+            created_at: string;
+            updated_at: string;
+        };
+        RecruitmentVacancyListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["RecruitmentVacancyResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        RecruitmentVacancyCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            message: string;
+            data: components["schemas"]["RecruitmentVacancyResource"];
+        };
+        RecruitmentVacancySingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["RecruitmentVacancyResource"];
+        };
+        RecruitmentVacancyNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "RECRUITMENT_VACANCY_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description E.g. submitting a non-DRAFT vacancy, opening a non-APPROVED
+         *     vacancy, or a referenced Position/Organization Unit that is
+         *     inactive or does not belong together.
+         */
+        RecruitmentVacancyConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "RECRUITMENT_VACANCY_CONFLICT";
+            message: string;
+        };
+        /**
+         * @description HR-003 §7.4 — a job applicant. `identifiers` (strong ID such
+         *     as national ID) are stored and matched separately
+         *     (RecruitmentCandidateIdentifier) and are NEVER included here
+         *     or in any other response — write-only, matched only via
+         *     fingerprint for duplicate detection. Controller returns the
+         *     raw Eloquent model.
+         */
+        RecruitmentCandidateResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            person_id: components["schemas"]["UuidV7"] | null;
+            display_name: string;
+            /** Format: date */
+            birth_date: string | null;
+            primary_email: string | null;
+            normalized_email: string | null;
+            primary_phone: string | null;
+            normalized_phone: string | null;
+            source: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "ARCHIVED";
+            created_at: string;
+            updated_at: string;
+        };
+        RecruitmentCandidateListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["RecruitmentCandidateResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        RecruitmentCandidateCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            message: string;
+            data: components["schemas"]["RecruitmentCandidateResource"];
+        };
+        /** @description INV-REC-003 — a strong identifier already belongs to a different Candidate in this tenant. */
+        RecruitmentCandidateIdentifierConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "RECRUITMENT_CANDIDATE_IDENTIFIER_CONFLICT";
             message: string;
         };
         /**
@@ -8674,6 +8945,643 @@ export interface operations {
                     "application/json": components["schemas"]["LeaveSelfNoActiveEmploymentError"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyIndex: {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of Vacancies. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                    title: string;
+                    position_id: components["schemas"]["UuidV7"];
+                    organization_id: components["schemas"]["UuidV7"];
+                    organization_unit_id?: components["schemas"]["UuidV7"] | null;
+                    requested_headcount: number;
+                    description?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The newly created Vacancy, with DRAFT status. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Referenced Position or Organization Unit is inactive, or the unit does not belong to the given organization. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancySubmit: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Vacancy, now PENDING_APPROVAL. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is not currently DRAFT. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyApprove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The Vacancy, now APPROVED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.approve permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is not currently PENDING_APPROVAL. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyReject: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The Vacancy, back to DRAFT. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.approve permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is not currently PENDING_APPROVAL. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyOpen: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Vacancy, now OPEN, with open_at set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is not currently APPROVED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyClose: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Vacancy, now CLOSED, with close_at set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is not currently OPEN. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentVacancyCancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                vacancyId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Vacancy, now CANCELLED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancySingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Vacancy was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyNotFoundError"];
+                };
+            };
+            /** @description The Vacancy is already CLOSED or CANCELLED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentVacancyConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentCandidateIndex: {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of Candidates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentCandidateStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    display_name: string;
+                    /** Format: date */
+                    birth_date?: string | null;
+                    /** Format: email */
+                    primary_email?: string | null;
+                    primary_phone?: string | null;
+                    source?: string | null;
+                    identifiers?: {
+                        type: string;
+                        issuing_country_code: string;
+                        value: string;
+                    }[] | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The newly created Candidate. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description A given strong identifier already belongs to a different Candidate in this tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateIdentifierConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
             500: components["responses"]["InternalServerError"];
         };
     };
