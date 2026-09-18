@@ -112,189 +112,6 @@ Route::middleware([
         ->middleware('tenant.permission:hr.employments.manage')
         ->name('api.v1.hr.employments.position-assignments.store');
 
-    // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
-    Route::get(
-        '/v1/hr/recruitment/vacancies',
-        [RecruitmentVacancyController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.recruitment.view')
-        ->name('api.v1.hr.recruitment.vacancies.index');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies',
-        [RecruitmentVacancyController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.store');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/submit',
-        [RecruitmentVacancyController::class, 'submit']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.submit');
-
-    // approve/reject SENGAJA memakai permission terpisah
-    // (hr.recruitment.approve) — bukan hr.recruitment.manage — karena
-    // ini higher-impact operation (§7.2: keputusan bisnis eksplisit).
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/approve',
-        [RecruitmentVacancyController::class, 'approve']
-    )
-        ->middleware('tenant.permission:hr.recruitment.approve')
-        ->name('api.v1.hr.recruitment.vacancies.approve');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/reject',
-        [RecruitmentVacancyController::class, 'reject']
-    )
-        ->middleware('tenant.permission:hr.recruitment.approve')
-        ->name('api.v1.hr.recruitment.vacancies.reject');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/open',
-        [RecruitmentVacancyController::class, 'open']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.open');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/close',
-        [RecruitmentVacancyController::class, 'close']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.close');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/cancel',
-        [RecruitmentVacancyController::class, 'cancel']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.cancel');
-
-    // HR-003 §7.4 — Candidate.
-    Route::get(
-        '/v1/hr/recruitment/candidates',
-        [RecruitmentCandidateController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.recruitment.view')
-        ->name('api.v1.hr.recruitment.candidates.index');
-
-    Route::post(
-        '/v1/hr/recruitment/candidates',
-        [RecruitmentCandidateController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.candidates.store');
-
-    // HR-003 §7.6 / §8.2 — Application (Candidate x Vacancy) lifecycle.
-    Route::get(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
-        [RecruitmentApplicationController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.recruitment.view')
-        ->name('api.v1.hr.recruitment.vacancies.applications.index');
-
-    Route::post(
-        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
-        [RecruitmentApplicationController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.vacancies.applications.store');
-
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/start-processing',
-        [RecruitmentApplicationController::class, 'startProcessing']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.applications.start-processing');
-
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/reject',
-        [RecruitmentApplicationController::class, 'reject']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.applications.reject');
-
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/withdraw',
-        [RecruitmentApplicationController::class, 'withdraw']
-    )
-        ->middleware('tenant.permission:hr.recruitment.manage')
-        ->name('api.v1.hr.recruitment.applications.withdraw');
-
-    // approve-for-hiring SENGAJA memakai hr.recruitment.approve (bukan
-    // .manage) — higher-impact operation, konsisten dengan pola
-    // Vacancy approve/reject.
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring',
-        [RecruitmentApplicationController::class, 'approveForHiring']
-    )
-        ->middleware('tenant.permission:hr.recruitment.approve')
-        ->name('api.v1.hr.recruitment.applications.approve-for-hiring');
-
-    // HR-003 §7.10 — Onboarding Template.
-    Route::get(
-        '/v1/hr/onboarding/templates',
-        [OnboardingTemplateController::class, 'index']
-    )
-        ->middleware('tenant.permission:hr.onboarding.view')
-        ->name('api.v1.hr.onboarding.templates.index');
-
-    Route::post(
-        '/v1/hr/onboarding/templates',
-        [OnboardingTemplateController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.onboarding.manage')
-        ->name('api.v1.hr.onboarding.templates.store');
-
-    // HR-003 §7.12 / §8.3 — Onboarding Case lifecycle.
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/onboarding',
-        [OnboardingCaseController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.onboarding.manage')
-        ->name('api.v1.hr.onboarding.cases.store');
-
-    Route::post(
-        '/v1/hr/onboarding/cases/{caseId}/start',
-        [OnboardingCaseController::class, 'start']
-    )
-        ->middleware('tenant.permission:hr.onboarding.manage')
-        ->name('api.v1.hr.onboarding.cases.start');
-
-    Route::post(
-        '/v1/hr/onboarding/cases/{caseId}/cancel',
-        [OnboardingCaseController::class, 'cancel']
-    )
-        ->middleware('tenant.permission:hr.onboarding.manage')
-        ->name('api.v1.hr.onboarding.cases.cancel');
-
-    Route::post(
-        '/v1/hr/onboarding/tasks/{taskId}/complete',
-        [OnboardingCaseController::class, 'completeTask']
-    )
-        ->middleware('tenant.permission:hr.onboarding.manage')
-        ->name('api.v1.hr.onboarding.tasks.complete');
-
-    // waive SENGAJA memakai hr.onboarding.activate (bukan .manage) —
-    // "waived required task requires permission/audit" (§16).
-    Route::post(
-        '/v1/hr/onboarding/tasks/{taskId}/waive',
-        [OnboardingCaseController::class, 'waiveTask']
-    )
-        ->middleware('tenant.permission:hr.onboarding.activate')
-        ->name('api.v1.hr.onboarding.tasks.waive');
-
-    // HR-003 §12 — Hiring Conversion Transaction (RM-HR-03 Fase E).
-    // hr.recruitment.approve (bukan .manage) — higher-impact operation,
-    // konsisten dengan pola approve-for-hiring.
-    Route::post(
-        '/v1/hr/recruitment/applications/{applicationId}/hire-conversion',
-        [HireConversionController::class, 'store']
-    )
-        ->middleware('tenant.permission:hr.recruitment.approve')
-        ->name('api.v1.hr.recruitment.applications.hire-conversion');
 });
 
 /*
@@ -488,6 +305,198 @@ Route::middleware([
     UseBrowserSessionForCanonicalApi::class,
     InjectTransportAwareTenantContext::class,
 ])->group(function (): void {
+
+    // HR-003 — Recruitment (Epic 3) & Onboarding (Epic 4). Dipindah
+    // dari grup InjectTenantContext bearer-only ke sini -- alasan
+    // SAMA PERSIS dengan komentar HR-006/HR-004 di atas: browser SPA
+    // tidak pernah mengirim header Authorization asli. Permission dan
+    // nama route TIDAK BERUBAH sama sekali. Path sudah lengkap sejak
+    // awal (grup asal tidak pakai prefix()), jadi tidak perlu ditulis
+    // ulang.
+    // HR-003 §7.1 / §8.1 — Recruitment Vacancy lifecycle.
+    Route::get(
+        '/v1/hr/recruitment/vacancies',
+        [RecruitmentVacancyController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.vacancies.index');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies',
+        [RecruitmentVacancyController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.store');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/submit',
+        [RecruitmentVacancyController::class, 'submit']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.submit');
+
+    // approve/reject SENGAJA memakai permission terpisah
+    // (hr.recruitment.approve) — bukan hr.recruitment.manage — karena
+    // ini higher-impact operation (§7.2: keputusan bisnis eksplisit).
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/approve',
+        [RecruitmentVacancyController::class, 'approve']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.vacancies.approve');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/reject',
+        [RecruitmentVacancyController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.vacancies.reject');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/open',
+        [RecruitmentVacancyController::class, 'open']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.open');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/close',
+        [RecruitmentVacancyController::class, 'close']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.close');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/cancel',
+        [RecruitmentVacancyController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.cancel');
+
+    // HR-003 §7.4 — Candidate.
+    Route::get(
+        '/v1/hr/recruitment/candidates',
+        [RecruitmentCandidateController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.candidates.index');
+
+    Route::post(
+        '/v1/hr/recruitment/candidates',
+        [RecruitmentCandidateController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.candidates.store');
+
+    // HR-003 §7.6 / §8.2 — Application (Candidate x Vacancy) lifecycle.
+    Route::get(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
+        [RecruitmentApplicationController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.recruitment.view')
+        ->name('api.v1.hr.recruitment.vacancies.applications.index');
+
+    Route::post(
+        '/v1/hr/recruitment/vacancies/{vacancyId}/applications',
+        [RecruitmentApplicationController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.vacancies.applications.store');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/start-processing',
+        [RecruitmentApplicationController::class, 'startProcessing']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.start-processing');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/reject',
+        [RecruitmentApplicationController::class, 'reject']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.reject');
+
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/withdraw',
+        [RecruitmentApplicationController::class, 'withdraw']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.applications.withdraw');
+
+    // approve-for-hiring SENGAJA memakai hr.recruitment.approve (bukan
+    // .manage) — higher-impact operation, konsisten dengan pola
+    // Vacancy approve/reject.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring',
+        [RecruitmentApplicationController::class, 'approveForHiring']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.applications.approve-for-hiring');
+
+    // HR-003 §7.10 — Onboarding Template.
+    Route::get(
+        '/v1/hr/onboarding/templates',
+        [OnboardingTemplateController::class, 'index']
+    )
+        ->middleware('tenant.permission:hr.onboarding.view')
+        ->name('api.v1.hr.onboarding.templates.index');
+
+    Route::post(
+        '/v1/hr/onboarding/templates',
+        [OnboardingTemplateController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.templates.store');
+
+    // HR-003 §7.12 / §8.3 — Onboarding Case lifecycle.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/onboarding',
+        [OnboardingCaseController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.store');
+
+    Route::post(
+        '/v1/hr/onboarding/cases/{caseId}/start',
+        [OnboardingCaseController::class, 'start']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.start');
+
+    Route::post(
+        '/v1/hr/onboarding/cases/{caseId}/cancel',
+        [OnboardingCaseController::class, 'cancel']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.cases.cancel');
+
+    Route::post(
+        '/v1/hr/onboarding/tasks/{taskId}/complete',
+        [OnboardingCaseController::class, 'completeTask']
+    )
+        ->middleware('tenant.permission:hr.onboarding.manage')
+        ->name('api.v1.hr.onboarding.tasks.complete');
+
+    // waive SENGAJA memakai hr.onboarding.activate (bukan .manage) —
+    // "waived required task requires permission/audit" (§16).
+    Route::post(
+        '/v1/hr/onboarding/tasks/{taskId}/waive',
+        [OnboardingCaseController::class, 'waiveTask']
+    )
+        ->middleware('tenant.permission:hr.onboarding.activate')
+        ->name('api.v1.hr.onboarding.tasks.waive');
+
+    // HR-003 §12 — Hiring Conversion Transaction (RM-HR-03 Fase E).
+    // hr.recruitment.approve (bukan .manage) — higher-impact operation,
+    // konsisten dengan pola approve-for-hiring.
+    Route::post(
+        '/v1/hr/recruitment/applications/{applicationId}/hire-conversion',
+        [HireConversionController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.approve')
+        ->name('api.v1.hr.recruitment.applications.hire-conversion');
+
 
     // HR-004 — Leave & Permit System (Sprint 2a-2d). Dipindah dari
     // grup InjectTenantContext bearer-only ke sini -- alasan SAMA
