@@ -5455,6 +5455,570 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/recruitment/vacancies/{vacancyId}/applications:
+    get:
+      operationId: hrRecruitmentApplicationIndex
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.applications.index
+      tags:
+        - Human Resources
+      summary: List Applications submitted to a Vacancy
+      description: HR-003 §7.6 — paginated, most recently submitted first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        "200":
+          description: Paginated list of Applications for this Vacancy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrRecruitmentApplicationStore
+      x-laravel-route-name: api.v1.hr.recruitment.vacancies.applications.store
+      tags:
+        - Human Resources
+      summary: Submit a Candidate's Application to a Vacancy, with SUBMITTED status
+      description: |
+        HR-003 §7.6 — `candidate_id` must reference an ACTIVE
+        Candidate in this tenant. Business rules such as "Vacancy
+        must be OPEN" and "no duplicate Application for the same
+        Candidate+Vacancy" are enforced by the lifecycle service and
+        reported as a 409 conflict, not 422.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: vacancyId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - candidate_id
+              properties:
+                candidate_id:
+                  $ref: "#/components/schemas/UuidV7"
+      responses:
+        "201":
+          description: The newly created Application, with SUBMITTED status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Vacancy was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentVacancyOrCandidateNotFoundError"
+
+        "409":
+          description: The Vacancy is not OPEN, or this Candidate already has an active Application for it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/start-processing:
+    post:
+      operationId: hrRecruitmentApplicationStartProcessing
+      x-laravel-route-name: api.v1.hr.recruitment.applications.start-processing
+      tags:
+        - Human Resources
+      summary: Transition a SUBMITTED Application to IN_PROCESS
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Application, now IN_PROCESS.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: The Application is not currently SUBMITTED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/reject:
+    post:
+      operationId: hrRecruitmentApplicationReject
+      x-laravel-route-name: api.v1.hr.recruitment.applications.reject
+      tags:
+        - Human Resources
+      summary: Reject an Application, with finalized_at set
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Application, now REJECTED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: The Application is already in a final state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/withdraw:
+    post:
+      operationId: hrRecruitmentApplicationWithdraw
+      x-laravel-route-name: api.v1.hr.recruitment.applications.withdraw
+      tags:
+        - Human Resources
+      summary: Withdraw a not-yet-final Application
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Application, now WITHDRAWN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: The Application is already HIRING_APPROVED or otherwise final (already withdrawn/hired/already HIRING_APPROVED).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring:
+    post:
+      operationId: hrRecruitmentApplicationApproveForHiring
+      x-laravel-route-name: api.v1.hr.recruitment.applications.approve-for-hiring
+      tags:
+        - Human Resources
+      summary: Approve an IN_PROCESS Application for hiring, without finalizing it
+      description: |
+        HR-003 §7.6 — guarded by hr.recruitment.approve (deliberately
+        separate from hr.recruitment.manage), a higher-impact explicit
+        business decision. Does NOT set finalized_at — the Application
+        only becomes final once hire-conversion succeeds (HIRED) or
+        it is later rejected/withdrawn.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Application, now HIRING_APPROVED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.approve permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: The Application is not currently IN_PROCESS.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/hire-conversion:
+    post:
+      operationId: hrRecruitmentApplicationHireConversion
+      x-laravel-route-name: api.v1.hr.recruitment.applications.hire-conversion
+      tags:
+        - Human Resources
+      summary: Convert a HIRING_APPROVED Application into a provisioned Employee with PLANNED Employment
+      description: |
+        HR-003 §12 (RM-HR-03 Fase E) — guarded by hr.recruitment.approve,
+        consistent with approve-for-hiring. Idempotent: retrying against
+        an already-converted Application returns HTTP 200 with the same
+        result, never an error. `confirm_create_new_person` is required
+        (true) only when the Candidate's identity cannot be matched to
+        an existing Person by strong identifier — see the 409 schema
+        for the full set of situations this can report.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - employment_type_id
+                - start_date
+              properties:
+                employment_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                start_date:
+                  type: string
+                  format: date
+                confirm_create_new_person:
+                  type:
+                    - boolean
+                    - "null"
+      responses:
+        "200":
+          description: The hiring conversion result (always 200, even on first success — see schema description).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HireConversionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.approve permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: See schema description for the several distinct situations this reports.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HireConversionConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/recruitment/applications/{applicationId}/onboarding:
+    post:
+      operationId: hrRecruitmentApplicationOnboardingCaseStore
+      x-laravel-route-name: api.v1.hr.onboarding.cases.store
+      tags:
+        - Human Resources
+      summary: Create an Onboarding Case for a hired Application, optionally from a Template
+      description: |
+        HR-003 §7.12 / §8.3 — creates the Epic 4 Onboarding entry
+        point from the Recruitment side; full Onboarding Case/Task
+        lifecycle management (start/cancel/complete-task/waive-task,
+        and the Template catalog) remains deferred. `template_id` is
+        optional: when given, its tasks are snapshotted onto the new
+        Case at creation time.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                template_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+      responses:
+        "201":
+          description: The newly created Onboarding Case, with its tasks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Application was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentApplicationNotFoundError"
+
+        "409":
+          description: This Application already has an Onboarding Case, or the given Template is not ACTIVE.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -11504,6 +12068,443 @@ components:
         message:
           type: string
 
+    RecruitmentApplicationResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-003 §7.6 / §8.2 — a Candidate's application to a Vacancy.
+        Lifecycle: SUBMITTED --start-processing--> IN_PROCESS
+        --approve-for-hiring--> HIRING_APPROVED --hire-conversion
+        succeeds--> HIRED, or REJECTED/WITHDRAWN from SUBMITTED/
+        IN_PROCESS. Controller returns the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - vacancy_id
+        - candidate_id
+        - status
+        - submitted_at
+        - finalized_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        vacancy_id:
+          $ref: "#/components/schemas/UuidV7"
+        candidate_id:
+          $ref: "#/components/schemas/UuidV7"
+        status:
+          type: string
+          enum:
+            - SUBMITTED
+            - IN_PROCESS
+            - HIRING_APPROVED
+            - REJECTED
+            - WITHDRAWN
+            - HIRED
+        submitted_at:
+          type: string
+        finalized_at:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    RecruitmentApplicationListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecruitmentApplicationResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    RecruitmentApplicationCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RecruitmentApplicationResource"
+
+    RecruitmentApplicationSingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/RecruitmentApplicationResource"
+
+    RecruitmentApplicationNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_APPLICATION_NOT_FOUND
+        message:
+          type: string
+
+    RecruitmentApplicationConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. an action attempted from a status that does not permit it (see status enum for the valid lifecycle).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_APPLICATION_CONFLICT
+        message:
+          type: string
+
+    RecruitmentVacancyOrCandidateNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_APPLICATION_NOT_FOUND
+        message:
+          type: string
+
+    RecruitmentHireConversionResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-003 §12 — one hiring-conversion transaction per Application
+        (idempotent: retrying an already-SUCCEEDED conversion returns
+        the same row unchanged, rather than erroring). `resolution_status`
+        tracks how the Candidate's identity was resolved to a Person
+        (matched an existing Person by strong identifier, confirmed
+        creation of a new Person, or found conflicting Persons requiring
+        manual review). Controller returns the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - application_id
+        - resolution_status
+        - conversion_status
+        - person_id
+        - membership_id
+        - employee_id
+        - employment_id
+        - resolved_by_membership_id
+        - converted_by_membership_id
+        - converted_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        application_id:
+          $ref: "#/components/schemas/UuidV7"
+        resolution_status:
+          type: string
+          enum:
+            - UNRESOLVED
+            - MATCHED_EXISTING
+            - CREATE_NEW_CONFIRMED
+            - CONFLICT
+        conversion_status:
+          type: string
+          enum:
+            - PENDING
+            - SUCCEEDED
+            - CANCELLED
+        person_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employee_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        resolved_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        converted_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        converted_at:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    HireConversionSuccess:
+      type: object
+      additionalProperties: false
+      description: |
+        Always HTTP 200 (never 201) — this endpoint is idempotent, so
+        a repeat call against the same Application returns the SAME
+        conversion result, not necessarily a freshly created resource.
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RecruitmentHireConversionResource"
+
+    HireConversionConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        Covers several distinct business situations, distinguished
+        only by `message` text: Application not yet HIRING_APPROVED,
+        Candidate has no strong identifier on record, Candidate's
+        strong identifiers resolve to multiple different Persons
+        (manual review required), or (when confirm_create_new_person
+        was omitted/false) the identity is unresolved and creating a
+        new Person requires explicit confirmation.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: HIRE_CONVERSION_CONFLICT
+        message:
+          type: string
+
+    OnboardingTaskResource:
+      type: object
+      additionalProperties: false
+      description: HR-003 §7.12 — one checklist item of an Onboarding Case, snapshotted from its Template at case-creation time.
+      required:
+        - id
+        - tenant_id
+        - onboarding_case_id
+        - template_task_id
+        - code
+        - title
+        - category
+        - sequence
+        - is_required
+        - requires_evidence
+        - status
+        - completed_by_membership_id
+        - completed_at
+        - completion_note
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        onboarding_case_id:
+          $ref: "#/components/schemas/UuidV7"
+        template_task_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        code:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        sequence:
+          type: integer
+        is_required:
+          type: boolean
+        requires_evidence:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - PENDING
+            - COMPLETED
+            - WAIVED
+        completed_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        completed_at:
+          type:
+            - string
+            - "null"
+        completion_note:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    OnboardingCaseResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-003 §7.12 / §8.3 — full Epic 4 Onboarding lifecycle
+        management is deferred; this schema covers only the shape
+        returned by triggering case creation from a hired Application.
+        `tasks` are eager-loaded and included here.
+      required:
+        - id
+        - tenant_id
+        - application_id
+        - template_id
+        - employee_id
+        - employment_id
+        - status
+        - started_at
+        - completed_at
+        - created_at
+        - updated_at
+        - tasks
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        application_id:
+          $ref: "#/components/schemas/UuidV7"
+        template_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employee_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        employment_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - NOT_STARTED
+            - IN_PROGRESS
+            - READY_FOR_ACTIVATION
+            - COMPLETED
+            - CANCELLED
+        started_at:
+          type:
+            - string
+            - "null"
+        completed_at:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingTaskResource"
+
+    OnboardingCaseCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/OnboardingCaseResource"
+
+    OnboardingCaseConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. Application already has an Onboarding Case, or the given Template is not ACTIVE.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: ONBOARDING_CASE_CONFLICT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -13074,54 +14075,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/onboarding/templates
     route_name: api.v1.hr.onboarding.templates.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/approve-for-hiring
-    route_name: api.v1.hr.recruitment.applications.approve-for-hiring
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/hire-conversion
-    route_name: api.v1.hr.recruitment.applications.hire-conversion
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/onboarding
-    route_name: api.v1.hr.onboarding.cases.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/reject
-    route_name: api.v1.hr.recruitment.applications.reject
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/start-processing
-    route_name: api.v1.hr.recruitment.applications.start-processing
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/applications/{applicationId}/withdraw
-    route_name: api.v1.hr.recruitment.applications.withdraw
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
-    route_name: api.v1.hr.recruitment.vacancies.applications.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/recruitment/vacancies/{vacancyId}/applications
-    route_name: api.v1.hr.recruitment.vacancies.applications.store
     owner: HR
     reason: domain-api-hardening-deferred
   - method: GET
