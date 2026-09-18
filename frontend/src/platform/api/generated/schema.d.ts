@@ -1278,6 +1278,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/employees/{employeeId}/leave-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List an Employee's Leave/Permit balances, collected across all of their Employments
+         * @description HR-004 §15.3 — an Employee may have several Employment
+         *     episodes over time; balances are collected across ALL of
+         *     them, not just the currently ACTIVE one.
+         */
+        get: operations["hrEmployeeLeaveBalanceIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/leave-entitlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the Leave/Permit Entitlement periods generated for an Employment
+         * @description HR-004 §15.3 — does NOT include a resolved balance figure
+         *     (that is GET .../leave-balances). Plain list of generated
+         *     Entitlement periods.
+         */
+        get: operations["hrEmploymentLeaveEntitlementIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/employments/{employmentId}/leave-entitlements/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a new Leave/Permit Entitlement period for an Employment
+         * @description HR-004 §15.3 — guarded by hr.leave.policy.manage (not a
+         *     separate hr.leave.entitlements.manage permission — entitlement
+         *     generation is treated as a policy-administration action).
+         */
+        post: operations["hrEmploymentLeaveEntitlementGenerate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/leave-entitlements/{entitlementId}/adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually adjust a Leave/Permit Entitlement's balance
+         * @description HR-004 §15.3 — higher-impact operation, always audited via
+         *     the ledger, guarded by its own hr.leave.balance.adjust
+         *     permission (separate from hr.leave.balance.read).
+         *     `idempotency_key` prevents duplicate adjustment on retry.
+         *     `reason` is written to the HR ledger only — never copied into
+         *     generic Core audit metadata (see schema description).
+         *     `actor_membership_id` is never client-controlled — always the
+         *     authenticated Membership.
+         */
+        post: operations["hrLeaveEntitlementAdjustmentStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/self/leave-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the authenticated Membership's own Leave/Permit balances
+         * @description HR-004 §15.7 — Employment is always resolved from the
+         *     authenticated Membership (its current ACTIVE Employment);
+         *     no employment_id/employee_id parameter exists on this
+         *     endpoint.
+         */
+        get: operations["hrSelfLeaveBalanceIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -3322,6 +3438,116 @@ export interface components {
             status: "error";
             /** @constant */
             code: "LEAVE_SELF_NO_ACTIVE_EMPLOYMENT";
+            message: string;
+        };
+        /**
+         * @description HR-004 §15.3 — one generated Entitlement period for an
+         *     Employment (e.g. "2026 annual leave entitlement"). Does NOT
+         *     carry a balance figure itself — balance is derived on demand
+         *     from the ledger via LeaveBalanceService (see
+         *     LeaveEntitlementBalanceEntry). Controller returns the raw
+         *     Eloquent model.
+         */
+        LeaveEntitlementResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            employment_id: components["schemas"]["UuidV7"];
+            leave_type_id: components["schemas"]["UuidV7"];
+            entitlement_policy_id: components["schemas"]["UuidV7"] | null;
+            /** Format: date */
+            period_start: string;
+            /** Format: date */
+            period_end: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "CLOSED" | "CANCELLED";
+            created_at: string;
+            updated_at: string;
+        };
+        LeaveEntitlementListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementResource"][];
+        };
+        LeaveEntitlementCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementResource"];
+        };
+        /**
+         * @description HR-004 §15.3 — one Entitlement with its balance figure
+         *     resolved on demand from the ledger (LeaveBalanceService),
+         *     NOT a stored column. Shape assembled by the controller, not
+         *     an Eloquent model.
+         */
+        LeaveEntitlementBalanceEntry: {
+            entitlement_id: components["schemas"]["UuidV7"];
+            /** @description Present on GET .../employees/{employeeId}/leave-balances only (an Employee can have several Employments); absent on GET .../self/leave-balances (Employment is implicit). */
+            employment_id?: components["schemas"]["UuidV7"];
+            leave_type_id: components["schemas"]["UuidV7"];
+            /** Format: date */
+            period_start: string;
+            /** Format: date */
+            period_end: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "CLOSED" | "CANCELLED";
+            /** @description Decimal string (2 dp), resolved from the ledger at request time. */
+            balance: string;
+        };
+        /**
+         * @description HR-004 §15.3 — balances collected across ALL of this
+         *     Employee's Employments (an Employee may have several
+         *     Employment episodes over time).
+         */
+        LeaveEmployeeBalanceListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementBalanceEntry"][];
+        };
+        /** @description HR-004 §15.7 — the authenticated Membership's own balances across its ACTIVE Employment. */
+        LeaveSelfBalanceListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveEntitlementBalanceEntry"][];
+        };
+        /**
+         * @description HR-004 §15.3 — `reason` is written to the HR ledger's `note`
+         *     column but is NEVER copied into generic Core audit metadata
+         *     (INV-HR-LEAVE-014 — see AdjustLeaveEntitlementRequest
+         *     docblock).
+         */
+        LeaveEntitlementAdjustmentSuccess: {
+            /** @constant */
+            status: "success";
+            data: {
+                entitlement_id: components["schemas"]["UuidV7"];
+                /** @description Decimal string (2 dp), the balance AFTER this adjustment. */
+                balance: string;
+            };
+        };
+        LeaveEntitlementNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_ENTITLEMENT_NOT_FOUND";
+            message: string;
+        };
+        LeaveEmploymentOrTypeNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_EMPLOYMENT_OR_TYPE_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description E.g. an overlapping period already exists for this
+         *     Employment+LeaveType (generate), or the adjustment would
+         *     drive the balance negative (adjust).
+         */
+        LeaveEntitlementConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_ENTITLEMENT_CONFLICT";
             message: string;
         };
         /**
@@ -8138,6 +8364,314 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LeaveSelfRequestConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmployeeLeaveBalanceIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employeeId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Employee's Leave/Permit balances. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEmployeeBalanceListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.balance.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Employee was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmploymentLeaveEntitlementIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Employment's Entitlement periods. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.balance.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrEmploymentLeaveEntitlementGenerate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                employmentId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    leave_type_id: components["schemas"]["UuidV7"];
+                    /** Format: date */
+                    period_start: string;
+                    /** Format: date */
+                    period_end: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The newly generated LeaveEntitlement. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.policy.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Referenced Employment or LeaveType was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEmploymentOrTypeNotFoundError"];
+                };
+            };
+            /** @description An overlapping Entitlement period already exists for this Employment and LeaveType. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrLeaveEntitlementAdjustmentStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                entitlementId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Nonzero; positive credits, negative debits. */
+                    units_delta: number;
+                    reason?: string | null;
+                    idempotency_key: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The balance after this adjustment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementAdjustmentSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.balance.adjust permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description LeaveEntitlement was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementNotFoundError"];
+                };
+            };
+            /** @description The adjustment would drive the balance negative, or another business-rule conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveEntitlementConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveBalanceIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated Membership's own Leave/Permit balances. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfBalanceListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description The authenticated Membership has no ACTIVE Employment. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfNoActiveEmploymentError"];
                 };
             };
             500: components["responses"]["InternalServerError"];

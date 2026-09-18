@@ -4443,6 +4443,340 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/employees/{employeeId}/leave-balances:
+    get:
+      operationId: hrEmployeeLeaveBalanceIndex
+      x-laravel-route-name: api.v1.hr.employees.leave-balances.index
+      tags:
+        - Human Resources
+      summary: List an Employee's Leave/Permit balances, collected across all of their Employments
+      description: |
+        HR-004 §15.3 — an Employee may have several Employment
+        episodes over time; balances are collected across ALL of
+        them, not just the currently ACTIVE one.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Employee's Leave/Permit balances.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEmployeeBalanceListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.balance.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employee was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/leave-entitlements:
+    get:
+      operationId: hrEmploymentLeaveEntitlementIndex
+      x-laravel-route-name: api.v1.hr.employments.leave-entitlements.index
+      tags:
+        - Human Resources
+      summary: List the Leave/Permit Entitlement periods generated for an Employment
+      description: |
+        HR-004 §15.3 — does NOT include a resolved balance figure
+        (that is GET .../leave-balances). Plain list of generated
+        Entitlement periods.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Employment's Entitlement periods.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.balance.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/leave-entitlements/generate:
+    post:
+      operationId: hrEmploymentLeaveEntitlementGenerate
+      x-laravel-route-name: api.v1.hr.employments.leave-entitlements.generate
+      tags:
+        - Human Resources
+      summary: Generate a new Leave/Permit Entitlement period for an Employment
+      description: |
+        HR-004 §15.3 — guarded by hr.leave.policy.manage (not a
+        separate hr.leave.entitlements.manage permission — entitlement
+        generation is treated as a policy-administration action).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - leave_type_id
+                - period_start
+                - period_end
+              properties:
+                leave_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                period_start:
+                  type: string
+                  format: date
+                period_end:
+                  type: string
+                  format: date
+      responses:
+        "201":
+          description: The newly generated LeaveEntitlement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.policy.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Referenced Employment or LeaveType was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEmploymentOrTypeNotFoundError"
+
+        "409":
+          description: An overlapping Entitlement period already exists for this Employment and LeaveType.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-entitlements/{entitlementId}/adjustments:
+    post:
+      operationId: hrLeaveEntitlementAdjustmentStore
+      x-laravel-route-name: api.v1.hr.leave-entitlements.adjustments.store
+      tags:
+        - Human Resources
+      summary: Manually adjust a Leave/Permit Entitlement's balance
+      description: |
+        HR-004 §15.3 — higher-impact operation, always audited via
+        the ledger, guarded by its own hr.leave.balance.adjust
+        permission (separate from hr.leave.balance.read).
+        `idempotency_key` prevents duplicate adjustment on retry.
+        `reason` is written to the HR ledger only — never copied into
+        generic Core audit metadata (see schema description).
+        `actor_membership_id` is never client-controlled — always the
+        authenticated Membership.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: entitlementId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - units_delta
+                - idempotency_key
+              properties:
+                units_delta:
+                  description: Nonzero; positive credits, negative debits.
+                  type: number
+                  not:
+                    enum:
+                      - 0
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+                idempotency_key:
+                  type: string
+                  maxLength: 100
+      responses:
+        "201":
+          description: The balance after this adjustment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementAdjustmentSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.balance.adjust permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: LeaveEntitlement was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementNotFoundError"
+
+        "409":
+          description: The adjustment would drive the balance negative, or another business-rule conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveEntitlementConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/self/leave-balances:
+    get:
+      operationId: hrSelfLeaveBalanceIndex
+      x-laravel-route-name: api.v1.hr.self.leave-balances.index
+      tags:
+        - Human Resources
+      summary: List the authenticated Membership's own Leave/Permit balances
+      description: |
+        HR-004 §15.7 — Employment is always resolved from the
+        authenticated Membership (its current ACTIVE Employment);
+        no employment_id/employee_id parameter exists on this
+        endpoint.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The authenticated Membership's own Leave/Permit balances.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfBalanceListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: The authenticated Membership has no ACTIVE Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfNoActiveEmploymentError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -9976,6 +10310,243 @@ components:
         message:
           type: string
 
+    LeaveEntitlementResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.3 — one generated Entitlement period for an
+        Employment (e.g. "2026 annual leave entitlement"). Does NOT
+        carry a balance figure itself — balance is derived on demand
+        from the ledger via LeaveBalanceService (see
+        LeaveEntitlementBalanceEntry). Controller returns the raw
+        Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - employment_id
+        - leave_type_id
+        - entitlement_policy_id
+        - period_start
+        - period_end
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        leave_type_id:
+          $ref: "#/components/schemas/UuidV7"
+        entitlement_policy_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - CLOSED
+            - CANCELLED
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    LeaveEntitlementListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveEntitlementResource"
+
+    LeaveEntitlementCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveEntitlementResource"
+
+    LeaveEntitlementBalanceEntry:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.3 — one Entitlement with its balance figure
+        resolved on demand from the ledger (LeaveBalanceService),
+        NOT a stored column. Shape assembled by the controller, not
+        an Eloquent model.
+      required:
+        - entitlement_id
+        - leave_type_id
+        - period_start
+        - period_end
+        - status
+        - balance
+      properties:
+        entitlement_id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          description: Present on GET .../employees/{employeeId}/leave-balances only (an Employee can have several Employments); absent on GET .../self/leave-balances (Employment is implicit).
+          allOf:
+            - $ref: "#/components/schemas/UuidV7"
+        leave_type_id:
+          $ref: "#/components/schemas/UuidV7"
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - CLOSED
+            - CANCELLED
+        balance:
+          description: Decimal string (2 dp), resolved from the ledger at request time.
+          type: string
+
+    LeaveEmployeeBalanceListSuccess:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.3 — balances collected across ALL of this
+        Employee's Employments (an Employee may have several
+        Employment episodes over time).
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveEntitlementBalanceEntry"
+
+    LeaveSelfBalanceListSuccess:
+      type: object
+      additionalProperties: false
+      description: HR-004 §15.7 — the authenticated Membership's own balances across its ACTIVE Employment.
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveEntitlementBalanceEntry"
+
+    LeaveEntitlementAdjustmentSuccess:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.3 — `reason` is written to the HR ledger's `note`
+        column but is NEVER copied into generic Core audit metadata
+        (INV-HR-LEAVE-014 — see AdjustLeaveEntitlementRequest
+        docblock).
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - entitlement_id
+            - balance
+          properties:
+            entitlement_id:
+              $ref: "#/components/schemas/UuidV7"
+            balance:
+              description: Decimal string (2 dp), the balance AFTER this adjustment.
+              type: string
+
+    LeaveEntitlementNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_ENTITLEMENT_NOT_FOUND
+        message:
+          type: string
+
+    LeaveEmploymentOrTypeNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_EMPLOYMENT_OR_TYPE_NOT_FOUND
+        message:
+          type: string
+
+    LeaveEntitlementConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. an overlapping period already exists for this
+        Employment+LeaveType (generate), or the adjustment would
+        drive the balance negative (adjust).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_ENTITLEMENT_CONFLICT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -11656,38 +12227,9 @@ x-educore-deferred-routes:
     route_name: api.v1.hr.recruitment.vacancies.submit
     owner: HR
     reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employees/{employeeId}/leave-balances
-    route_name: api.v1.hr.employees.leave-balances.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employments/{employmentId}/leave-entitlements
-    route_name: api.v1.hr.employments.leave-entitlements.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/leave-entitlements/generate
-    route_name: api.v1.hr.employments.leave-entitlements.generate
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-entitlements/{entitlementId}/adjustments
-    route_name: api.v1.hr.leave-entitlements.adjustments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
   - method: GET
     path: /api/v1/hr/leave-approvals/pending
     route_name: api.v1.hr.leave-approvals.pending
-    owner: HR
-    reason: domain-api-hardening-deferred
-  - method: GET
-    path: /api/v1/hr/self/leave-balances
-    route_name: api.v1.hr.self.leave-balances.index
     owner: HR
     reason: domain-api-hardening-deferred
   - method: POST
