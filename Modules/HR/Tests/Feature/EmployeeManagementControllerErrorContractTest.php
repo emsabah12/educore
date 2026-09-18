@@ -11,6 +11,7 @@ use Modules\Core\Person\Contracts\PersonRepositoryInterface;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Http\Controllers\Api\v1\EmployeeManagementController;
 use Modules\HR\Http\Requests\StoreEmployeeRequest;
+use Modules\HR\Services\EmployeeAccountProvisioningService;
 use Modules\HR\Services\EmployeeProvisioningService;
 use Modules\HR\Services\HrWorkforceScopeService;
 use Symfony\Component\HttpFoundation\Response;
@@ -130,6 +131,12 @@ final class EmployeeManagementControllerErrorContractTest extends TestCase
                 $personRepository,
                 $employeeRepository,
             ),
+            // EmployeeAccountProvisioningService tidak punya dependency
+            // (tidak dideklarasikan final, tapi tidak ada constructor
+            // untuk di-mock) — instance ASLI aman dipakai persis
+            // seperti EmployeeProvisioningService di atas, karena test
+            // ini tidak pernah memanggil createAccount().
+            new EmployeeAccountProvisioningService(),
             $auditTrail,
             $hrWorkforceScopeService,
         );

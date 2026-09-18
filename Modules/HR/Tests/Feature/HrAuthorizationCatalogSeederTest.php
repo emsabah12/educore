@@ -103,6 +103,8 @@ final class HrAuthorizationCatalogSeederTest extends TestCase
                 'hr.onboarding.activate',
                 'hr.onboarding.manage',
                 'hr.onboarding.view',
+                'hr.positions.manage',
+                'hr.positions.view',
                 'hr.recruitment.approve',
                 'hr.recruitment.manage',
                 'hr.recruitment.view',
