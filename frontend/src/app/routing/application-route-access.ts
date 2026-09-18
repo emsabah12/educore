@@ -1,5 +1,6 @@
 import {
     hrCompensationSearchRoutePolicy,
+    hrLeaveCatalogRoutePolicy,
     hrPositionCatalogRoutePolicy,
     hrWorkforceRoutePolicy,
 } from '@/modules/hr/routes';
@@ -58,6 +59,9 @@ const applicationRouteAccessPolicies =
 
         'hr.positions.index':
             hrPositionCatalogRoutePolicy,
+
+        'hr.leave.catalog.index':
+            hrLeaveCatalogRoutePolicy,
 
         'settings.tenant-roles.index':
             settingsTenantRolesRoutePolicy,

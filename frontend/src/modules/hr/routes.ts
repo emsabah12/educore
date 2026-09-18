@@ -222,6 +222,34 @@ export const hrPositionCatalogRoutePolicy =
     });
 
 /*
+ * §Sprint 2a — halaman katalog & kebijakan Cuti, tenant-wide.
+ * Permission dipakai ulang hr.leave.policy.read — sama persis yang
+ * menggerbang GET /leave-types dkk. Form create di masing-masing
+ * seksi menggerbang dirinya sendiri lewat hr.leave.policy.manage di
+ * request API-nya, bukan lewat route policy ini (mode 'single'
+ * hanya untuk membuka halaman).
+ */
+export const hrLeaveCatalogRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.leave.catalog.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.leave.policy.read',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -415,6 +443,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrPositionCatalogPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.leave.catalog.index',
+
+        path:
+            'hr/leave',
+
+        accessPolicy:
+            hrLeaveCatalogRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrLeaveCatalogPage,
+                } =
+                    await import(
+                        '@/modules/hr/leave/HrLeaveCatalogPage'
+                    );
+
+                return {
+                    Component:
+                        HrLeaveCatalogPage,
                 };
             },
     },

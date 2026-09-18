@@ -79,6 +79,22 @@ describe(
                 },
                 {
                     id:
+                        'hr.leave.catalog',
+
+                    routeId:
+                        'hr.leave.catalog.index',
+
+                    label:
+                        'Katalog & Kebijakan Cuti',
+
+                    destination:
+                        '/hr/leave',
+
+                    requiredFeature:
+                        'hr_module',
+                },
+                {
+                    id:
                         'settings.tenant-roles',
 
                     routeId:

@@ -462,6 +462,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.leave.catalog',
+
+                        routeId:
+                            'hr.leave.catalog.index',
+
+                        label:
+                            'Katalog & Kebijakan Cuti',
+
+                        destination:
+                            '/hr/leave',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:
@@ -650,6 +674,30 @@ describe(
 
                         destination:
                             '/hr/positions',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.leave.catalog',
+
+                        routeId:
+                            'hr.leave.catalog.index',
+
+                        label:
+                            'Katalog & Kebijakan Cuti',
+
+                        destination:
+                            '/hr/leave',
 
                         requiredFeature:
                             'hr_module',

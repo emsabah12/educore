@@ -197,6 +197,23 @@ export const applicationNavigationCatalog =
 
         defineApplicationNavigation({
             id:
+                'hr.leave.catalog',
+
+            routeId:
+                'hr.leave.catalog.index',
+
+            label:
+                'Katalog & Kebijakan Cuti',
+
+            destination:
+                '/hr/leave',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
                 'settings.tenant-roles',
 
             routeId:
