@@ -3487,6 +3487,655 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/leave-requests:
+    get:
+      operationId: hrLeaveRequestIndex
+      x-laravel-route-name: api.v1.hr.leave-requests.index
+      tags:
+        - Human Resources
+      summary: List Leave/Permit requests, optionally filtered by Employment
+      description: |
+        HR-004 §15.5 — tenant-wide. `entitlement_allocations` and
+        `approval_steps` are NOT included here (only on GET
+        .../leave-requests/{id}).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employment_id
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Paginated Leave/Permit request collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrLeaveRequestStore
+      x-laravel-route-name: api.v1.hr.leave-requests.store
+      tags:
+        - Human Resources
+      summary: Create a new DRAFT Leave/Permit request on behalf of an Employee
+      description: |
+        HR-004 §15.5 — starts the maker-checker lifecycle at DRAFT; a
+        separate /submit call is required before approval steps can
+        act on it.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - employment_id
+                - leave_type_id
+                - starts_at
+                - ends_at
+                - request_timezone
+                - requested_units
+              properties:
+                employment_id:
+                  $ref: "#/components/schemas/UuidV7"
+                leave_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                starts_at:
+                  type: string
+                  format: date
+                ends_at:
+                  type: string
+                  format: date
+                request_timezone:
+                  type: string
+                  maxLength: 64
+                requested_units:
+                  type: number
+                  exclusiveMinimum: 0
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "201":
+          description: The newly created, DRAFT Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Referenced LeaveType (or Employment) was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeNotFoundError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}:
+    get:
+      operationId: hrLeaveRequestShow
+      x-laravel-route-name: api.v1.hr.leave-requests.show
+      tags:
+        - Human Resources
+      summary: Get a single Leave/Permit request, with its approval steps and entitlement allocations
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The requested Leave/Permit request, with its approval_steps and entitlement_allocations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestDetailSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    patch:
+      operationId: hrLeaveRequestUpdate
+      x-laravel-route-name: api.v1.hr.leave-requests.update
+      tags:
+        - Human Resources
+      summary: Update a DRAFT Leave/Permit request
+      description: |
+        HR-004 §15.5 — `status` is never accepted as a client-controlled
+        field (deliberately absent from validation rules, silently
+        ignored if sent — see UpdateLeaveRequestRequest docblock).
+        Business rule "must currently be DRAFT" surfaces as 409
+        LEAVE_REQUEST_CONFLICT.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                leave_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                starts_at:
+                  type: string
+                  format: date
+                ends_at:
+                  type: string
+                  format: date
+                request_timezone:
+                  type: string
+                  maxLength: 64
+                requested_units:
+                  type: number
+                  exclusiveMinimum: 0
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "200":
+          description: The updated Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The request is not currently DRAFT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}/submit:
+    post:
+      operationId: hrLeaveRequestSubmit
+      x-laravel-route-name: api.v1.hr.leave-requests.submit
+      tags:
+        - Human Resources
+      summary: Submit a DRAFT Leave/Permit request for approval
+      description: |
+        HR-004 §15.5 — DRAFT -> SUBMITTED/IN_REVIEW. Matches an
+        applicable LeaveApprovalPolicy and copies its steps into
+        runtime LeaveRequestApprovalStep rows.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The submitted Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The request is not currently DRAFT, or no applicable Entitlement/Approval Policy could be matched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}/withdraw:
+    post:
+      operationId: hrLeaveRequestWithdraw
+      x-laravel-route-name: api.v1.hr.leave-requests.withdraw
+      tags:
+        - Human Resources
+      summary: Withdraw a not-yet-final Leave/Permit request
+      description: |
+        HR-004 §15.5 — transitions to WITHDRAWN.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The withdrawn Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The request is already in a final state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}/cancel:
+    post:
+      operationId: hrLeaveRequestCancel
+      x-laravel-route-name: api.v1.hr.leave-requests.cancel
+      tags:
+        - Human Resources
+      summary: Cancel an APPROVED Leave/Permit request
+      description: |
+        HR-004 §15.5 — higher-impact operation, guarded by its own
+        hr.leave.cancel permission (separate from hr.leave.manage).
+        Transitions APPROVED -> CANCELLED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "200":
+          description: The cancelled Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; the current tenant
+            membership does not have hr.leave.cancel permission; or the
+            underlying failure is authorization-shaped
+            (LEAVE_CANCELLATION_NOT_ALLOWED + "permission", reported as
+            LEAVE_REQUEST_CANCELLATION_CONFLICT with this same 403
+            status instead of 409 — see controller docblock).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/LeaveRequestCancellationConflictError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The request is not currently APPROVED, or the cancellation window has passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestCancellationConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}/approve:
+    post:
+      operationId: hrLeaveRequestApprove
+      x-laravel-route-name: api.v1.hr.leave-requests.approve
+      tags:
+        - Human Resources
+      summary: Approve the current pending approval step for a Leave/Permit request
+      description: |
+        HR-004 §15.6 — `decided_by_membership_id` is never
+        client-controlled (always the authenticated Membership — see
+        DecideLeaveRequestRequest docblock). Advances to the next
+        step, or to APPROVED if this was the last step.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "200":
+          description: The Leave/Permit request after this approval decision.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; the current tenant
+            membership does not have hr.leave.approve permission; or
+            the decision was rejected for an authorization reason
+            (self-approval, scope mismatch, approver not authorized for
+            this step — see LeaveRequestDecisionForbiddenError).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/LeaveRequestDecisionForbiddenError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The current step is not PENDING, or another non-authorization business-rule conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestDecisionConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/leave-requests/{leaveRequestId}/reject:
+    post:
+      operationId: hrLeaveRequestReject
+      x-laravel-route-name: api.v1.hr.leave-requests.reject
+      tags:
+        - Human Resources
+      summary: Reject the current pending approval step for a Leave/Permit request
+      description: |
+        HR-004 §15.6 — transitions the whole LeaveRequest to
+        REJECTED (a rejection at any step ends the workflow, unlike
+        approval which only advances).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "200":
+          description: The rejected Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; the current tenant
+            membership does not have hr.leave.approve permission; or
+            the decision was rejected for an authorization reason (see
+            LeaveRequestDecisionForbiddenError).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+                  - $ref: "#/components/schemas/LeaveRequestDecisionForbiddenError"
+
+        "404":
+          description: Leave/Permit request was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestNotFoundError"
+
+        "409":
+          description: The current step is not PENDING, or another non-authorization business-rule conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestDecisionConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -8587,6 +9236,360 @@ components:
         message:
           type: string
 
+    LeaveRequestResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.5 — one Leave/Permit request. Lifecycle: DRAFT ->
+        (submit) -> SUBMITTED/IN_REVIEW -> (approve/reject per step,
+        see LeaveApprovalController) -> APPROVED/REJECTED, or DRAFT
+        -> (withdraw) -> WITHDRAWN, or APPROVED -> (cancel) ->
+        CANCELLED. `status` is never client-controlled on PATCH — see
+        UpdateLeaveRequestRequest docblock. Controller returns the
+        raw Eloquent model; approval_steps/entitlement_allocations
+        are ONLY present on GET .../leave-requests/{id} (eager
+        loaded there, absent everywhere else).
+      required:
+        - id
+        - tenant_id
+        - employment_id
+        - leave_type_id
+        - approval_context_placement_id
+        - approval_policy_id
+        - submitted_by_membership_id
+        - status
+        - starts_at
+        - ends_at
+        - request_timezone
+        - requested_units
+        - unit
+        - reason
+        - submitted_at
+        - final_decided_at
+        - withdrawn_at
+        - cancelled_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        leave_type_id:
+          $ref: "#/components/schemas/UuidV7"
+        approval_context_placement_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        approval_policy_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        submitted_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - SUBMITTED
+            - IN_REVIEW
+            - APPROVED
+            - REJECTED
+            - WITHDRAWN
+            - CANCELLED
+        starts_at:
+          type: string
+        ends_at:
+          type: string
+        request_timezone:
+          type: string
+        requested_units:
+          description: Decimal string (2 dp).
+          type: string
+        unit:
+          type:
+            - string
+            - "null"
+        reason:
+          type:
+            - string
+            - "null"
+        submitted_at:
+          type:
+            - string
+            - "null"
+        final_decided_at:
+          type:
+            - string
+            - "null"
+        withdrawn_at:
+          type:
+            - string
+            - "null"
+        cancelled_at:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    LeaveRequestApprovalStepResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.6 — one runtime approval step instance for a
+        specific LeaveRequest, copied from the matched
+        LeaveApprovalPolicy version's steps at submit time. NOT the
+        same schema as LeaveApprovalPolicyStepResource (that is
+        policy CONFIGURATION; this is a per-request runtime
+        instance with its own decision outcome).
+      required:
+        - id
+        - leave_request_id
+        - policy_step_id
+        - step_order
+        - required_permission
+        - scope_strategy
+        - independent_approver
+        - status
+        - decided_by_membership_id
+        - decision_note
+        - decided_at
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        leave_request_id:
+          $ref: "#/components/schemas/UuidV7"
+        policy_step_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        step_order:
+          type: integer
+        required_permission:
+          type: string
+        scope_strategy:
+          type: string
+          enum:
+            - REQUEST_PLACEMENT
+            - ORGANIZATION
+            - TENANT
+        independent_approver:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+            - SKIPPED
+        decided_by_membership_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        decision_note:
+          type:
+            - string
+            - "null"
+        decided_at:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+
+    LeaveRequestEntitlementAllocationResource:
+      type: object
+      additionalProperties: false
+      description: HR-004 §15.5 — how much of which Entitlement this LeaveRequest draws down.
+      required:
+        - id
+        - leave_request_id
+        - entitlement_id
+        - allocated_units
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        leave_request_id:
+          $ref: "#/components/schemas/UuidV7"
+        entitlement_id:
+          $ref: "#/components/schemas/UuidV7"
+        allocated_units:
+          description: Decimal string (2 dp).
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    LeaveRequestDetailResource:
+      allOf:
+        - $ref: "#/components/schemas/LeaveRequestResource"
+        - type: object
+          additionalProperties: false
+          required:
+            - approval_steps
+            - entitlement_allocations
+          properties:
+            approval_steps:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeaveRequestApprovalStepResource"
+            entitlement_allocations:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeaveRequestEntitlementAllocationResource"
+
+    LeaveRequestListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveRequestResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    LeaveRequestDetailSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveRequestDetailResource"
+
+    LeaveRequestSingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/LeaveRequestResource"
+
+    LeaveRequestNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_REQUEST_NOT_FOUND
+        message:
+          type: string
+
+    LeaveRequestConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. mutating a request that is no longer DRAFT, or lifecycle transition from an unexpected status.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_REQUEST_CONFLICT
+        message:
+          type: string
+
+    LeaveRequestCancellationConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. the request is not APPROVED, or the cancellation window
+        has passed. When the underlying failure is authorization
+        (LEAVE_CANCELLATION_NOT_ALLOWED + "permission"), the HTTP
+        status is 403 instead of 409, but the response body shape is
+        identical.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_REQUEST_CANCELLATION_CONFLICT
+        message:
+          type: string
+
+    LeaveRequestDecisionConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. the step is not PENDING, or approver scope mismatch surfaced via a non-authorization path.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_REQUEST_DECISION_CONFLICT
+        message:
+          type: string
+
+    LeaveRequestDecisionForbiddenError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. self-approval attempt (LEAVE_SELF_APPROVAL_FORBIDDEN),
+        approver scope mismatch (LEAVE_SCOPE_MISMATCH), or approver
+        not authorized for this step (LEAVE_APPROVER_NOT_AUTHORIZED).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_REQUEST_DECISION_FORBIDDEN
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -10292,62 +11295,8 @@ x-educore-deferred-routes:
     owner: HR
     reason: domain-api-hardening-deferred
   - method: GET
-    path: /api/v1/hr/leave-requests
-    route_name: api.v1.hr.leave-requests.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests
-    route_name: api.v1.hr.leave-requests.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/leave-requests/{leaveRequestId}
-    route_name: api.v1.hr.leave-requests.show
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: PATCH
-    path: /api/v1/hr/leave-requests/{leaveRequestId}
-    route_name: api.v1.hr.leave-requests.update
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests/{leaveRequestId}/submit
-    route_name: api.v1.hr.leave-requests.submit
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests/{leaveRequestId}/withdraw
-    route_name: api.v1.hr.leave-requests.withdraw
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests/{leaveRequestId}/cancel
-    route_name: api.v1.hr.leave-requests.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
     path: /api/v1/hr/leave-approvals/pending
     route_name: api.v1.hr.leave-approvals.pending
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests/{leaveRequestId}/approve
-    route_name: api.v1.hr.leave-requests.approve
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/leave-requests/{leaveRequestId}/reject
-    route_name: api.v1.hr.leave-requests.reject
     owner: HR
     reason: domain-api-hardening-deferred
   - method: GET
