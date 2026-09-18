@@ -1193,6 +1193,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/self/leave-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the authenticated Membership's own Leave/Permit request history
+         * @description HR-004 §15.7 — Employment is always resolved from the
+         *     authenticated Membership; no employment_id/employee_id
+         *     parameter exists on this endpoint. NOT paginated.
+         */
+        get: operations["hrSelfLeaveRequestIndex"];
+        put?: never;
+        /**
+         * Create a new DRAFT Leave/Permit request for the authenticated Membership's own Employment
+         * @description HR-004 §15.7 — `employment_id`/`employee_id` are deliberately
+         *     absent from validation rules; the client cannot request
+         *     another Employee's identity through this endpoint (see
+         *     StoreSelfLeaveRequestRequest docblock).
+         */
+        post: operations["hrSelfLeaveRequestStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/self/leave-requests/{leaveRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a single Leave/Permit request owned by the authenticated Membership, with its approval steps and entitlement allocations
+         * @description HR-004 §15.7 — a request belonging to a different Membership
+         *     is reported identically to a non-existent one (404
+         *     LEAVE_SELF_REQUEST_NOT_FOUND — see schema description).
+         */
+        get: operations["hrSelfLeaveRequestShow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/self/leave-requests/{leaveRequestId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit the authenticated Membership's own DRAFT Leave/Permit request for approval */
+        post: operations["hrSelfLeaveRequestSubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw the authenticated Membership's own not-yet-final Leave/Permit request */
+        post: operations["hrSelfLeaveRequestWithdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -3196,6 +3281,47 @@ export interface components {
             status: "error";
             /** @constant */
             code: "LEAVE_REQUEST_DECISION_FORBIDDEN";
+            message: string;
+        };
+        /**
+         * @description HR-004 §15.7 — unlike GET /hr/leave-requests, this is NOT
+         *     paginated (LeaveRequestService::getHistory() returns a plain
+         *     Collection).
+         */
+        LeaveSelfRequestListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["LeaveRequestResource"][];
+        };
+        /**
+         * @description HR-004 §15.7 — deliberately reported as 404, never 403: from
+         *     the actor's own self-service vantage point, a request
+         *     belonging to someone else simply does not exist in their
+         *     scope, rather than being something they're told exists but
+         *     denied access to (LEAVE_SELF_REQUEST_NOT_OWNED maps here too
+         *     — see controller docblock).
+         */
+        LeaveSelfRequestNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_SELF_REQUEST_NOT_FOUND";
+            message: string;
+        };
+        /** @description E.g. mutating/submitting/withdrawing a request that is no longer in the expected status. */
+        LeaveSelfRequestConflictError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_SELF_REQUEST_CONFLICT";
+            message: string;
+        };
+        /** @description The authenticated Membership has no ACTIVE Employment to attribute a self-service Leave Request to. */
+        LeaveSelfNoActiveEmploymentError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "LEAVE_SELF_NO_ACTIVE_EMPLOYMENT";
             message: string;
         };
         /**
@@ -7706,6 +7832,314 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveRequestIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated Membership's own Leave/Permit request history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description The authenticated Membership has no ACTIVE Employment. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfNoActiveEmploymentError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveRequestStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    leave_type_id: components["schemas"]["UuidV7"];
+                    /** Format: date */
+                    starts_at: string;
+                    /** Format: date */
+                    ends_at: string;
+                    request_timezone: string;
+                    requested_units: number;
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The newly created, DRAFT Leave/Permit request. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.request permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description The authenticated Membership has no ACTIVE Employment. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfNoActiveEmploymentError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveRequestShow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveRequestId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested Leave/Permit request, with its approval_steps and entitlement_allocations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestDetailSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Leave/Permit request does not exist, or is not owned by the authenticated Membership, or the Membership has no ACTIVE Employment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestNotFoundError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveRequestSubmit: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveRequestId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The submitted Leave/Permit request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.request permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Leave/Permit request does not exist, or is not owned by the authenticated Membership. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestNotFoundError"];
+                };
+            };
+            /** @description The request is not currently DRAFT, or no applicable Entitlement/Approval Policy could be matched. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveRequestWithdraw: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                leaveRequestId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The withdrawn Leave/Permit request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.request permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Leave/Permit request does not exist, or is not owned by the authenticated Membership. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestNotFoundError"];
+                };
+            };
+            /** @description The request is already in a final state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveSelfRequestConflictError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

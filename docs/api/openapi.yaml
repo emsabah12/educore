@@ -4136,6 +4136,313 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/self/leave-requests:
+    get:
+      operationId: hrSelfLeaveRequestIndex
+      x-laravel-route-name: api.v1.hr.self.leave-requests.index
+      tags:
+        - Human Resources
+      summary: List the authenticated Membership's own Leave/Permit request history
+      description: |
+        HR-004 §15.7 — Employment is always resolved from the
+        authenticated Membership; no employment_id/employee_id
+        parameter exists on this endpoint. NOT paginated.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The authenticated Membership's own Leave/Permit request history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: The authenticated Membership has no ACTIVE Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfNoActiveEmploymentError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrSelfLeaveRequestStore
+      x-laravel-route-name: api.v1.hr.self.leave-requests.store
+      tags:
+        - Human Resources
+      summary: Create a new DRAFT Leave/Permit request for the authenticated Membership's own Employment
+      description: |
+        HR-004 §15.7 — `employment_id`/`employee_id` are deliberately
+        absent from validation rules; the client cannot request
+        another Employee's identity through this endpoint (see
+        StoreSelfLeaveRequestRequest docblock).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - leave_type_id
+                - starts_at
+                - ends_at
+                - request_timezone
+                - requested_units
+              properties:
+                leave_type_id:
+                  $ref: "#/components/schemas/UuidV7"
+                starts_at:
+                  type: string
+                  format: date
+                ends_at:
+                  type: string
+                  format: date
+                request_timezone:
+                  type: string
+                  maxLength: 64
+                requested_units:
+                  type: number
+                  exclusiveMinimum: 0
+                reason:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 2000
+      responses:
+        "201":
+          description: The newly created, DRAFT Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.request permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "409":
+          description: The authenticated Membership has no ACTIVE Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfNoActiveEmploymentError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/self/leave-requests/{leaveRequestId}:
+    get:
+      operationId: hrSelfLeaveRequestShow
+      x-laravel-route-name: api.v1.hr.self.leave-requests.show
+      tags:
+        - Human Resources
+      summary: Get a single Leave/Permit request owned by the authenticated Membership, with its approval steps and entitlement allocations
+      description: |
+        HR-004 §15.7 — a request belonging to a different Membership
+        is reported identically to a non-existent one (404
+        LEAVE_SELF_REQUEST_NOT_FOUND — see schema description).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The requested Leave/Permit request, with its approval_steps and entitlement_allocations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestDetailSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request does not exist, or is not owned by the authenticated Membership, or the Membership has no ACTIVE Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestNotFoundError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/self/leave-requests/{leaveRequestId}/submit:
+    post:
+      operationId: hrSelfLeaveRequestSubmit
+      x-laravel-route-name: api.v1.hr.self.leave-requests.submit
+      tags:
+        - Human Resources
+      summary: Submit the authenticated Membership's own DRAFT Leave/Permit request for approval
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The submitted Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.request permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request does not exist, or is not owned by the authenticated Membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestNotFoundError"
+
+        "409":
+          description: The request is not currently DRAFT, or no applicable Entitlement/Approval Policy could be matched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw:
+    post:
+      operationId: hrSelfLeaveRequestWithdraw
+      x-laravel-route-name: api.v1.hr.self.leave-requests.withdraw
+      tags:
+        - Human Resources
+      summary: Withdraw the authenticated Membership's own not-yet-final Leave/Permit request
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: leaveRequestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The withdrawn Leave/Permit request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequestSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.request permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Leave/Permit request does not exist, or is not owned by the authenticated Membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestNotFoundError"
+
+        "409":
+          description: The request is already in a final state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveSelfRequestConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -9590,6 +9897,85 @@ components:
         message:
           type: string
 
+    LeaveSelfRequestListSuccess:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.7 — unlike GET /hr/leave-requests, this is NOT
+        paginated (LeaveRequestService::getHistory() returns a plain
+        Collection).
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaveRequestResource"
+
+    LeaveSelfRequestNotFoundError:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-004 §15.7 — deliberately reported as 404, never 403: from
+        the actor's own self-service vantage point, a request
+        belonging to someone else simply does not exist in their
+        scope, rather than being something they're told exists but
+        denied access to (LEAVE_SELF_REQUEST_NOT_OWNED maps here too
+        — see controller docblock).
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_SELF_REQUEST_NOT_FOUND
+        message:
+          type: string
+
+    LeaveSelfRequestConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. mutating/submitting/withdrawing a request that is no longer in the expected status.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_SELF_REQUEST_CONFLICT
+        message:
+          type: string
+
+    LeaveSelfNoActiveEmploymentError:
+      type: object
+      additionalProperties: false
+      description: The authenticated Membership has no ACTIVE Employment to attribute a self-service Leave Request to.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: LEAVE_SELF_NO_ACTIVE_EMPLOYMENT
+        message:
+          type: string
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -11302,36 +11688,6 @@ x-educore-deferred-routes:
   - method: GET
     path: /api/v1/hr/self/leave-balances
     route_name: api.v1.hr.self.leave-balances.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/self/leave-requests
-    route_name: api.v1.hr.self.leave-requests.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/self/leave-requests
-    route_name: api.v1.hr.self.leave-requests.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/self/leave-requests/{leaveRequestId}
-    route_name: api.v1.hr.self.leave-requests.show
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/self/leave-requests/{leaveRequestId}/submit
-    route_name: api.v1.hr.self.leave-requests.submit
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/self/leave-requests/{leaveRequestId}/withdraw
-    route_name: api.v1.hr.self.leave-requests.withdraw
     owner: HR
     reason: domain-api-hardening-deferred
   - method: POST
