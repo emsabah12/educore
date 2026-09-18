@@ -1713,6 +1713,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/onboarding/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Onboarding Templates
+         * @description HR-003 §7.10 — paginated, ordered by name. `tasks` are eager-loaded on each Template.
+         */
+        get: operations["hrOnboardingTemplateIndex"];
+        put?: never;
+        /**
+         * Create a new Onboarding Template, optionally with its checklist tasks
+         * @description HR-003 §7.10 — `tasks` is optional (a Template can be created empty and given tasks later via direct data management, not yet exposed as an endpoint).
+         */
+        post: operations["hrOnboardingTemplateStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/onboarding/cases/{caseId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition a NOT_STARTED Onboarding Case to IN_PROGRESS */
+        post: operations["hrOnboardingCaseStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/onboarding/cases/{caseId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel an Onboarding Case before completion, with a required authorized reason
+         * @description HR-003 §8.3 / §16 — `reason` has no dedicated storage column
+         *     on onboarding_cases (§7.12); it is instead recorded as
+         *     evidence of "explicit authorized reason" via the Core Audit
+         *     Trail (event hr.onboarding.case.cancelled), best-effort (a
+         *     failure to log does not fail the cancellation itself).
+         */
+        post: operations["hrOnboardingCaseCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/onboarding/tasks/{taskId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an Onboarding Task as COMPLETED
+         * @description HR-003 §7.12 — completing the last required (or waived) Task
+         *     advances the parent Case to READY_FOR_ACTIVATION as a side
+         *     effect (not reflected in this response's data, which is the
+         *     Task only — re-fetch the Case to observe it).
+         */
+        post: operations["hrOnboardingTaskComplete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr/onboarding/tasks/{taskId}/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Waive an Onboarding Task, exempting it from completion
+         * @description HR-003 §16 — deliberately guarded by hr.onboarding.activate
+         *     (NOT hr.onboarding.manage): waiving a required Task needs
+         *     higher scrutiny than ordinary Case/Task management, since it
+         *     can advance a Case to READY_FOR_ACTIVATION without every
+         *     required item actually being done.
+         */
+        post: operations["hrOnboardingTaskWaive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -4141,6 +4253,61 @@ export interface components {
             /** @constant */
             code: "ONBOARDING_CASE_CONFLICT";
             message: string;
+        };
+        OnboardingCaseNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "ONBOARDING_CASE_NOT_FOUND";
+            message: string;
+        };
+        OnboardingCaseSingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OnboardingCaseResource"];
+        };
+        OnboardingTaskSingleSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OnboardingTaskResource"];
+        };
+        /** @description HR-003 §7.10 — one checklist item defined on an Onboarding Template, copied onto every Case created from it. */
+        OnboardingTemplateTaskResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            template_id: components["schemas"]["UuidV7"];
+            code: string;
+            title: string;
+            /** @enum {string} */
+            category: "DOCUMENT" | "ORIENTATION" | "CONTRACT" | "ADMIN";
+            sequence: number;
+            is_required: boolean;
+            requires_evidence: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        /** @description HR-003 §7.10 — a reusable checklist definition for Onboarding Cases. `tasks` are eager-loaded and included here. */
+        OnboardingTemplateResource: {
+            id: components["schemas"]["UuidV7"];
+            tenant_id: components["schemas"]["UuidV7"];
+            code: string;
+            name: string;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+            tasks: components["schemas"]["OnboardingTemplateTaskResource"][];
+        };
+        OnboardingTemplateListSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["OnboardingTemplateResource"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        OnboardingTemplateCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            message: string;
+            data: components["schemas"]["OnboardingTemplateResource"];
         };
         /**
          * @description HR-006 §7.5 — tenant-scoped catalog entry describing a benefit
@@ -10434,6 +10601,396 @@ export interface operations {
                 };
             };
             /** @description This Application already has an Onboarding Case, or the given Template is not ACTIVE. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingTemplateIndex: {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of Onboarding Templates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingTemplateListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.view permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingTemplateStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                    name: string;
+                    tasks?: {
+                        code: string;
+                        title: string;
+                        /** @enum {string} */
+                        category: "DOCUMENT" | "ORIENTATION" | "CONTRACT" | "ADMIN";
+                        sequence: number;
+                        is_required?: boolean | null;
+                        requires_evidence?: boolean | null;
+                    }[] | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The newly created Template, with its tasks. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingTemplateCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingCaseStart: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                caseId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Onboarding Case, now IN_PROGRESS. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Onboarding Case was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseNotFoundError"];
+                };
+            };
+            /** @description The Onboarding Case is not currently NOT_STARTED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseConflictError"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingCaseCancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                caseId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The Onboarding Case, now CANCELLED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Onboarding Case was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseNotFoundError"];
+                };
+            };
+            /** @description The Onboarding Case is already COMPLETED or CANCELLED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingTaskComplete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                taskId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The Onboarding Task, now COMPLETED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingTaskSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Onboarding Task was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseNotFoundError"];
+                };
+            };
+            /** @description The Onboarding Task is already COMPLETED or WAIVED, or its parent Case is not IN_PROGRESS. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrOnboardingTaskWaive: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                taskId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The Onboarding Task, now WAIVED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingTaskSingleSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.onboarding.activate permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Onboarding Task was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCaseNotFoundError"];
+                };
+            };
+            /** @description The Onboarding Task is already COMPLETED or WAIVED, or its parent Case is not IN_PROGRESS. */
             409: {
                 headers: {
                     [name: string]: unknown;

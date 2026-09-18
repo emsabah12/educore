@@ -6019,6 +6019,447 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/onboarding/templates:
+    get:
+      operationId: hrOnboardingTemplateIndex
+      x-laravel-route-name: api.v1.hr.onboarding.templates.index
+      tags:
+        - Human Resources
+      summary: List Onboarding Templates
+      description: HR-003 §7.10 — paginated, ordered by name. `tasks` are eager-loaded on each Template.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        "200":
+          description: Paginated list of Onboarding Templates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingTemplateListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrOnboardingTemplateStore
+      x-laravel-route-name: api.v1.hr.onboarding.templates.store
+      tags:
+        - Human Resources
+      summary: Create a new Onboarding Template, optionally with its checklist tasks
+      description: HR-003 §7.10 — `tasks` is optional (a Template can be created empty and given tasks later via direct data management, not yet exposed as an endpoint).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 150
+                tasks:
+                  type:
+                    - array
+                    - "null"
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - code
+                      - title
+                      - category
+                      - sequence
+                    properties:
+                      code:
+                        type: string
+                        maxLength: 50
+                      title:
+                        type: string
+                        maxLength: 255
+                      category:
+                        type: string
+                        enum:
+                          - DOCUMENT
+                          - ORIENTATION
+                          - CONTRACT
+                          - ADMIN
+                      sequence:
+                        type: integer
+                        minimum: 1
+                      is_required:
+                        type:
+                          - boolean
+                          - "null"
+                      requires_evidence:
+                        type:
+                          - boolean
+                          - "null"
+      responses:
+        "201":
+          description: The newly created Template, with its tasks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingTemplateCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/onboarding/cases/{caseId}/start:
+    post:
+      operationId: hrOnboardingCaseStart
+      x-laravel-route-name: api.v1.hr.onboarding.cases.start
+      tags:
+        - Human Resources
+      summary: Transition a NOT_STARTED Onboarding Case to IN_PROGRESS
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The Onboarding Case, now IN_PROGRESS.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Onboarding Case was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseNotFoundError"
+
+        "409":
+          description: The Onboarding Case is not currently NOT_STARTED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/onboarding/cases/{caseId}/cancel:
+    post:
+      operationId: hrOnboardingCaseCancel
+      x-laravel-route-name: api.v1.hr.onboarding.cases.cancel
+      tags:
+        - Human Resources
+      summary: Cancel an Onboarding Case before completion, with a required authorized reason
+      description: |
+        HR-003 §8.3 / §16 — `reason` has no dedicated storage column
+        on onboarding_cases (§7.12); it is instead recorded as
+        evidence of "explicit authorized reason" via the Core Audit
+        Trail (event hr.onboarding.case.cancelled), best-effort (a
+        failure to log does not fail the cancellation itself).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Onboarding Case, now CANCELLED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Onboarding Case was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseNotFoundError"
+
+        "409":
+          description: The Onboarding Case is already COMPLETED or CANCELLED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/onboarding/tasks/{taskId}/complete:
+    post:
+      operationId: hrOnboardingTaskComplete
+      x-laravel-route-name: api.v1.hr.onboarding.tasks.complete
+      tags:
+        - Human Resources
+      summary: Mark an Onboarding Task as COMPLETED
+      description: |
+        HR-003 §7.12 — completing the last required (or waived) Task
+        advances the parent Case to READY_FOR_ACTIVATION as a side
+        effect (not reflected in this response's data, which is the
+        Task only — re-fetch the Case to observe it).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Onboarding Task, now COMPLETED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingTaskSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Onboarding Task was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseNotFoundError"
+
+        "409":
+          description: The Onboarding Task is already COMPLETED or WAIVED, or its parent Case is not IN_PROGRESS.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/onboarding/tasks/{taskId}/waive:
+    post:
+      operationId: hrOnboardingTaskWaive
+      x-laravel-route-name: api.v1.hr.onboarding.tasks.waive
+      tags:
+        - Human Resources
+      summary: Waive an Onboarding Task, exempting it from completion
+      description: |
+        HR-003 §16 — deliberately guarded by hr.onboarding.activate
+        (NOT hr.onboarding.manage): waiving a required Task needs
+        higher scrutiny than ordinary Case/Task management, since it
+        can advance a Case to READY_FOR_ACTIVATION without every
+        required item actually being done.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The Onboarding Task, now WAIVED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingTaskSingleSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.onboarding.activate permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Onboarding Task was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseNotFoundError"
+
+        "409":
+          description: The Onboarding Task is already COMPLETED or WAIVED, or its parent Case is not IN_PROGRESS.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCaseConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/positions:
     get:
       operationId: hrPositionIndex
@@ -12505,6 +12946,161 @@ components:
         message:
           type: string
 
+    OnboardingCaseNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: ONBOARDING_CASE_NOT_FOUND
+        message:
+          type: string
+
+    OnboardingCaseSingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/OnboardingCaseResource"
+
+    OnboardingTaskSingleSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/OnboardingTaskResource"
+
+    OnboardingTemplateTaskResource:
+      type: object
+      additionalProperties: false
+      description: HR-003 §7.10 — one checklist item defined on an Onboarding Template, copied onto every Case created from it.
+      required:
+        - id
+        - tenant_id
+        - template_id
+        - code
+        - title
+        - category
+        - sequence
+        - is_required
+        - requires_evidence
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        template_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+          enum:
+            - DOCUMENT
+            - ORIENTATION
+            - CONTRACT
+            - ADMIN
+        sequence:
+          type: integer
+        is_required:
+          type: boolean
+        requires_evidence:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    OnboardingTemplateResource:
+      type: object
+      additionalProperties: false
+      description: HR-003 §7.10 — a reusable checklist definition for Onboarding Cases. `tasks` are eager-loaded and included here.
+      required:
+        - id
+        - tenant_id
+        - code
+        - name
+        - is_active
+        - created_at
+        - updated_at
+        - tasks
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingTemplateTaskResource"
+
+    OnboardingTemplateListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingTemplateResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    OnboardingTemplateCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/OnboardingTemplateResource"
+
     BenefitProgramResource:
       type: object
       additionalProperties: false
@@ -14036,47 +14632,6 @@ x-educore-deferred-routes:
     owner: Academic
     reason: domain-api-hardening-deferred
 
-  # RM-HR-01 sampai RM-HR-03 — Employee/Employment lifecycle,
-  # Recruitment (Vacancy/Candidate/Application), Onboarding, dan
-  # Hiring Conversion. Deferred dengan alasan yang sama seperti
-  # Academic: dokumentasi OpenAPI penuh untuk domain ini menyusul
-  # di siklus pengerasan API tersendiri, bukan bagian dari scope
-  # implementasi fitur.
-  - method: POST
-    path: /api/v1/hr/onboarding/cases/{caseId}/cancel
-    route_name: api.v1.hr.onboarding.cases.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/onboarding/cases/{caseId}/start
-    route_name: api.v1.hr.onboarding.cases.start
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/onboarding/tasks/{taskId}/complete
-    route_name: api.v1.hr.onboarding.tasks.complete
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/onboarding/tasks/{taskId}/waive
-    route_name: api.v1.hr.onboarding.tasks.waive
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/onboarding/templates
-    route_name: api.v1.hr.onboarding.templates.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/onboarding/templates
-    route_name: api.v1.hr.onboarding.templates.store
-    owner: HR
-    reason: domain-api-hardening-deferred
   - method: GET
     path: /api/v1/hr/leave-approvals/pending
     route_name: api.v1.hr.leave-approvals.pending
