@@ -687,6 +687,79 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    post:
+      operationId: hrEmployeeEmploymentStore
+      x-laravel-route-name: api.v1.hr.employees.employments.store
+      tags:
+        - Human Resources
+      summary: Create a new PLANNED Employment episode for an Employee (tenant-wide)
+      description: |
+        HR-002 §9 — tenant-wide counterpart of
+        POST /hr/workspace/employees/{employeeId}/employments (no
+        organizational workspace scoping — see controller docblock
+        for the tenant-wide HR operations group).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreEmploymentRequest"
+      responses:
+        "201":
+          description: The newly created, PLANNED Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employee was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeNotFoundError"
+
+        "409":
+          description: |
+            The referenced EmploymentType or EmploymentClassification
+            catalog entry is not active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/workspace/employees:
     get:
       operationId: hrWorkspaceEmployeeIndex
@@ -2544,6 +2617,113 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/positions:
+    get:
+      operationId: hrPositionIndex
+      x-laravel-route-name: api.v1.hr.positions.index
+      tags:
+        - Human Resources
+      summary: List Position catalog entries for the current tenant
+      description: |
+        HR-002 §7 — tenant-wide. INV-HR-003: Position is a pure HR job
+        title catalog, NOT an authorization role — see model docblock.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: The current tenant's Position catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PositionListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.positions.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrPositionStore
+      x-laravel-route-name: api.v1.hr.positions.store
+      tags:
+        - Human Resources
+      summary: Create a new Position catalog entry
+      description: |
+        HR-002 §7 — tenant-wide. `code` must be unique within the
+        tenant.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  maxLength: 50
+                name:
+                  type: string
+                  maxLength: 150
+                description:
+                  type:
+                    - string
+                    - "null"
+      responses:
+        "201":
+          description: Position created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PositionCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.positions.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/compensation/components:
     get:
       operationId: hrCompensationComponentIndex
@@ -2805,6 +2985,475 @@ paths:
                   - $ref: "#/components/schemas/AuthenticationContextDeniedError"
                   - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
                   - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/activate:
+    post:
+      operationId: hrEmploymentActivate
+      x-laravel-route-name: api.v1.hr.employments.activate
+      tags:
+        - Human Resources
+      summary: Activate a PLANNED Employment episode (tenant-wide)
+      description: |
+        HR-002 §9 — tenant-wide counterpart of
+        POST /hr/workspace/employments/{employmentId}/activate.
+        Transitions PLANNED -> ACTIVE. Rejected with 409
+        EMPLOYMENT_LIFECYCLE_CONFLICT if not currently PLANNED, or if
+        the owning Employee already has a different ACTIVE Employment
+        (INV-HR-002).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The activated Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently PLANNED, or another Employment is already ACTIVE for this Employee.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/cancel:
+    post:
+      operationId: hrEmploymentCancel
+      x-laravel-route-name: api.v1.hr.employments.cancel
+      tags:
+        - Human Resources
+      summary: Cancel a PLANNED Employment episode (tenant-wide)
+      description: |
+        HR-002 §9 — tenant-wide counterpart of
+        POST /hr/workspace/employments/{employmentId}/cancel.
+        Transitions PLANNED -> CANCELLED. Rejected with 409
+        EMPLOYMENT_LIFECYCLE_CONFLICT if not currently PLANNED.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: The cancelled Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently PLANNED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/end:
+    post:
+      operationId: hrEmploymentEnd
+      x-laravel-route-name: api.v1.hr.employments.end
+      tags:
+        - Human Resources
+      summary: End an ACTIVE Employment episode (tenant-wide)
+      description: |
+        HR-002 §9.4 — tenant-wide counterpart of
+        POST /hr/workspace/employments/{employmentId}/end. Transitions
+        ACTIVE -> ENDED and closes the open Placement and Position
+        Assignment. Guarded by hr.employments.end, deliberately
+        separate from hr.employments.manage (higher-impact operation).
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndEmploymentRequest"
+      responses:
+        "200":
+          description: The ended Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentTransitionSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.end permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: The Employment is not currently ACTIVE.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentLifecycleConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/placements:
+    get:
+      operationId: hrEmploymentPlacementIndex
+      x-laravel-route-name: api.v1.hr.employments.placements.index
+      tags:
+        - Human Resources
+      summary: List the Placement history for an Employment
+      description: |
+        HR-002 §5.6 / §9.2 — tenant-wide. Returns every Placement
+        (open and closed), newest effective_from first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Placement history for the Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPlacementListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrEmploymentPlacementStore
+      x-laravel-route-name: api.v1.hr.employments.placements.store
+      tags:
+        - Human Resources
+      summary: Create a new Placement for an Employment (tenant-wide)
+      description: |
+        HR-002 §5.6 / §9.2 — assigns the Employment to an
+        Organization/OrganizationUnit via an existing Core
+        OrganizationalAssignment. `organizational_assignment_id` must
+        belong to the same tenant, validated by FormRequest; the
+        deeper business rule (Employment must be ACTIVE) surfaces as
+        409 EMPLOYMENT_PLACEMENT_CONFLICT.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - organizational_assignment_id
+                - effective_from
+              properties:
+                organizational_assignment_id:
+                  $ref: "#/components/schemas/UuidV7"
+                effective_from:
+                  type: string
+                  format: date
+                is_primary:
+                  type: boolean
+      responses:
+        "201":
+          description: EmploymentPlacement created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPlacementCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment, or the referenced OrganizationalAssignment, was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentOrAssignmentNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. Employment is not ACTIVE).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPlacementConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/employments/{employmentId}/position-assignments:
+    get:
+      operationId: hrEmploymentPositionAssignmentIndex
+      x-laravel-route-name: api.v1.hr.employments.position-assignments.index
+      tags:
+        - Human Resources
+      summary: List the Position Assignment history for an Employment
+      description: |
+        HR-002 §5.7 / §9.3 — tenant-wide. Returns every Position
+        Assignment (open and closed), newest effective_from first.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: Position Assignment history for the Employment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPositionAssignmentListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: hrEmploymentPositionAssignmentStore
+      x-laravel-route-name: api.v1.hr.employments.position-assignments.store
+      tags:
+        - Human Resources
+      summary: Create a new Position Assignment for an Employment (tenant-wide)
+      description: |
+        HR-002 §5.7 / §9.3 — INV-HR-003: Position is not an
+        authorization role. `employment_placement_id` is optional; when
+        given, the deeper business rule (must belong to this Employment
+        AND be OPEN) surfaces as 409
+        EMPLOYMENT_POSITION_ASSIGNMENT_CONFLICT, not 422 — the
+        FormRequest only validates the id's shape/tenant ownership.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - position_id
+                - effective_from
+              properties:
+                position_id:
+                  $ref: "#/components/schemas/UuidV7"
+                employment_placement_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                effective_from:
+                  type: string
+                  format: date
+                is_primary:
+                  type: boolean
+      responses:
+        "201":
+          description: EmploymentPositionAssignment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPositionAssignmentCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment, or the referenced Position, was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. the referenced Placement does not belong to this Employment, or is not OPEN).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPositionAssignmentConflictError"
 
         "422":
           $ref: "#/components/responses/ValidationFailed"
@@ -3108,6 +3757,242 @@ paths:
 
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/workspace/employments/{employmentId}/placements:
+    post:
+      operationId: hrWorkspaceEmploymentPlacementStore
+      x-laravel-route-name: api.v1.hr.workspace.employments.placements.store
+      tags:
+        - Human Resources
+      summary: Create a new Placement for an Employment (workspace-scoped)
+      description: |
+        HR-002 §5.6 / §9.2 — workspace-scoped counterpart of
+        POST /hr/employments/{employmentId}/placements.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - organizational_assignment_id
+                - effective_from
+              properties:
+                organizational_assignment_id:
+                  $ref: "#/components/schemas/UuidV7"
+                effective_from:
+                  type: string
+                  format: date
+                is_primary:
+                  type: boolean
+      responses:
+        "201":
+          description: EmploymentPlacement created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPlacementCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; or the current organizational
+            assignment does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment, or the referenced OrganizationalAssignment, was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentOrAssignmentNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. Employment is not ACTIVE).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPlacementConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/workspace/employments/{employmentId}/position-assignments:
+    post:
+      operationId: hrWorkspaceEmploymentPositionAssignmentStore
+      x-laravel-route-name: api.v1.hr.workspace.employments.position-assignments.store
+      tags:
+        - Human Resources
+      summary: Create a new Position Assignment for an Employment (workspace-scoped)
+      description: |
+        HR-002 §5.7 / §9.3 — workspace-scoped counterpart of
+        POST /hr/employments/{employmentId}/position-assignments.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - position_id
+                - effective_from
+              properties:
+                position_id:
+                  $ref: "#/components/schemas/UuidV7"
+                employment_placement_id:
+                  oneOf:
+                    - $ref: "#/components/schemas/UuidV7"
+                    - type: "null"
+                effective_from:
+                  type: string
+                  format: date
+                is_primary:
+                  type: boolean
+      responses:
+        "201":
+          description: EmploymentPositionAssignment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPositionAssignmentCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; or the current organizational
+            assignment does not have hr.employments.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employment, or the referenced Position, was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentNotFoundError"
+
+        "409":
+          description: Business-rule conflict (e.g. the referenced Placement does not belong to this Employment, or is not OPEN).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmploymentPositionAssignmentConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/hr/workspace/employees/{employeeId}/organizational-assignments:
+    get:
+      operationId: hrWorkspaceEmployeeOrganizationalAssignmentIndex
+      x-laravel-route-name: api.v1.hr.workspace.employees.organizational-assignments.index
+      tags:
+        - Human Resources
+      summary: List ACTIVE OrganizationalAssignments belonging to an Employee's Membership
+      description: |
+        §Epic 1 — powers the Placement picker in the frontend: values
+        returned as `id` here are exactly what
+        POST .../placements expects as
+        `organizational_assignment_id`. Filters the target Employee
+        through the same visibility rule as GET /hr/workspace/employees
+        (HR-013 §6) — an Employee outside the current workspace returns
+        404, identical to one that does not exist.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - $ref: "#/components/parameters/OrganizationalAssignmentId"
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      responses:
+        "200":
+          description: ACTIVE OrganizationalAssignments for the Employee's Membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeOrganizationalAssignmentListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched; organizational context
+            is missing or invalid; or the current organizational
+            assignment does not have hr.employments.view permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/OrganizationalContextRequiredError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Employee was not found in the current workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeNotFoundError"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
@@ -6028,6 +6913,300 @@ components:
         message:
           type: string
 
+    EmploymentPlacementResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-002 §5.6 / §9.2 — one Employment's assignment to an
+        Organization/OrganizationUnit via a Core OrganizationalAssignment.
+        Controller returns the raw Eloquent model.
+      required:
+        - id
+        - employment_id
+        - organizational_assignment_id
+        - effective_from
+        - effective_to
+        - is_primary
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        organizational_assignment_id:
+          $ref: "#/components/schemas/UuidV7"
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+            - string
+            - "null"
+          format: date
+        is_primary:
+          type: boolean
+
+    EmploymentPlacementListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmploymentPlacementResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    EmploymentPlacementCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - message
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        message:
+          type: string
+          const: EmploymentPlacement created.
+        data:
+          $ref: "#/components/schemas/EmploymentPlacementResource"
+
+    EmploymentOrAssignmentNotFoundError:
+      type: object
+      additionalProperties: false
+      description: Employment, or the referenced OrganizationalAssignment, was not found in the current tenant.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYMENT_OR_ASSIGNMENT_NOT_FOUND
+        message:
+          type: string
+
+    EmploymentPlacementConflictError:
+      type: object
+      additionalProperties: false
+      description: E.g. Employment is not ACTIVE, or overlapping effective dates.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYMENT_PLACEMENT_CONFLICT
+        message:
+          type: string
+
+    EmploymentPositionAssignmentResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-002 §5.7 / §9.3 — one Employment's assignment to a Position
+        (HR job title catalog entry — INV-HR-003, NOT an authorization
+        role), optionally tied to a specific EmploymentPlacement.
+        Controller returns the raw Eloquent model.
+      required:
+        - id
+        - employment_id
+        - position_id
+        - employment_placement_id
+        - effective_from
+        - effective_to
+        - is_primary
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_id:
+          $ref: "#/components/schemas/UuidV7"
+        position_id:
+          $ref: "#/components/schemas/UuidV7"
+        employment_placement_id:
+          oneOf:
+            - $ref: "#/components/schemas/UuidV7"
+            - type: "null"
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+            - string
+            - "null"
+          format: date
+        is_primary:
+          type: boolean
+
+    EmploymentPositionAssignmentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+        - meta
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmploymentPositionAssignmentResource"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    EmploymentPositionAssignmentCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/EmploymentPositionAssignmentResource"
+
+    EmploymentPositionAssignmentConflictError:
+      type: object
+      additionalProperties: false
+      description: |
+        E.g. the referenced EmploymentPlacement does not belong to
+        this Employment, or is not OPEN.
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: EMPLOYMENT_POSITION_ASSIGNMENT_CONFLICT
+        message:
+          type: string
+
+    PositionResource:
+      type: object
+      additionalProperties: false
+      description: |
+        HR-002 §7 — tenant-scoped catalog entry describing an HR job
+        title (e.g. "Guru Matematika"). INV-HR-003: NOT an
+        authorization role — see model docblock. Controller returns
+        the raw Eloquent model.
+      required:
+        - id
+        - tenant_id
+        - code
+        - name
+        - description
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        tenant_id:
+          $ref: "#/components/schemas/UuidV7"
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    PositionListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PositionResource"
+
+    PositionCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/PositionResource"
+
+    EmployeeOrganizationalAssignmentEntry:
+      type: object
+      additionalProperties: false
+      description: |
+        §Epic 1 — one ACTIVE OrganizationalAssignment belonging to
+        this Employee's Membership, with Organization/
+        OrganizationUnit names joined for display — powers the
+        Placement picker in the frontend.
+      required:
+        - id
+        - organization_name
+        - organization_unit_name
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        organization_name:
+          type: string
+        organization_unit_name:
+          type:
+            - string
+            - "null"
+
+    EmployeeOrganizationalAssignmentListSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeOrganizationalAssignmentEntry"
+
     EmployeeAccountCreatedSuccess:
       type: object
       additionalProperties: false
@@ -7622,54 +8801,6 @@ x-educore-deferred-routes:
   # di siklus pengerasan API tersendiri, bukan bagian dari scope
   # implementasi fitur.
   - method: POST
-    path: /api/v1/hr/employees/{employeeId}/employments
-    route_name: api.v1.hr.employees.employments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/activate
-    route_name: api.v1.hr.employments.activate
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/cancel
-    route_name: api.v1.hr.employments.cancel
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/end
-    route_name: api.v1.hr.employments.end
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employments/{employmentId}/placements
-    route_name: api.v1.hr.employments.placements.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/placements
-    route_name: api.v1.hr.employments.placements.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: GET
-    path: /api/v1/hr/employments/{employmentId}/position-assignments
-    route_name: api.v1.hr.employments.position-assignments.index
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/employments/{employmentId}/position-assignments
-    route_name: api.v1.hr.employments.position-assignments.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
     path: /api/v1/hr/onboarding/cases/{caseId}/cancel
     route_name: api.v1.hr.onboarding.cases.cancel
     owner: HR
@@ -7810,18 +8941,6 @@ x-educore-deferred-routes:
   - method: POST
     path: /api/v1/hr/recruitment/vacancies/{vacancyId}/submit
     route_name: api.v1.hr.recruitment.vacancies.submit
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employments/{employmentId}/placements
-    route_name: api.v1.hr.workspace.employments.placements.store
-    owner: HR
-    reason: domain-api-hardening-deferred
-
-  - method: POST
-    path: /api/v1/hr/workspace/employments/{employmentId}/position-assignments
-    route_name: api.v1.hr.workspace.employments.position-assignments.store
     owner: HR
     reason: domain-api-hardening-deferred
 

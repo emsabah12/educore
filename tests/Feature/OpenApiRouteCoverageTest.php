@@ -89,21 +89,21 @@ final class OpenApiRouteCoverageTest extends TestCase
         $deferred = $this->deferredOperations();
 
         $this->assertCount(
-            154,
+            157,
             $actual,
             'Expected the current public /api/v1 operation inventory.',
         );
 
         $this->assertCount(
-            71,
+            83,
             $documented,
-            'Foundation OpenAPI must contain exactly the 71 locked foundation, Browser BFF, HR, and Core operations.',
+            'Foundation OpenAPI must contain exactly the 83 locked foundation, Browser BFF, HR, and Core operations.',
         );
 
         $this->assertCount(
-            83,
+            73,
             $deferred,
-            'Academic and HR must contain exactly the 83 explicitly deferred operations (15 Academic + 67 HR + 1 Core).',
+            'Academic and HR must contain exactly the 73 explicitly deferred operations (15 Academic + 57 HR + 1 Core).',
         );
 
         $overlap = array_intersect_key(
@@ -249,7 +249,7 @@ final class OpenApiRouteCoverageTest extends TestCase
         }
 
         $this->assertCount(
-            71,
+            83,
             $operationIds,
         );
     }
