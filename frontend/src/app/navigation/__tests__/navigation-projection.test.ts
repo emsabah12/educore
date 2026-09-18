@@ -469,6 +469,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.self.leave-requests',
+
+                        routeId:
+                            'hr.self.leave-requests.index',
+
+                        label:
+                            'Pengajuan Cuti Saya',
+
+                        destination:
+                            '/hr/self/leave-requests',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:

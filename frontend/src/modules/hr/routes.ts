@@ -250,6 +250,35 @@ export const hrLeaveCatalogRoutePolicy =
     });
 
 /*
+ * §Sprint 2c — halaman self-service Pengajuan Cuti, tenant-wide.
+ * Permission hr.leave.self.read: SENGAJA TIDAK di-auto-grant ke
+ * hr-officer (lihat HrAuthorizationCatalogSeeder) — konseptual milik
+ * SETIAP Employee, tapi mekanisme grant konkretnya lewat provisioning
+ * Employee/Membership terpisah yang BELUM ADA di HR-004 Phase 2C.
+ * Untuk saat ini praktis hanya role admin (AdminRoleFullAccessSeeder)
+ * yang bisa akses halaman ini.
+ */
+export const hrSelfLeaveRequestsRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.self.leave-requests.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.leave.self.read',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -469,6 +498,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrLeaveCatalogPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.self.leave-requests.index',
+
+        path:
+            'hr/self/leave-requests',
+
+        accessPolicy:
+            hrSelfLeaveRequestsRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrSelfLeaveRequestsPage,
+                } =
+                    await import(
+                        '@/modules/hr/leave/HrSelfLeaveRequestsPage'
+                    );
+
+                return {
+                    Component:
+                        HrSelfLeaveRequestsPage,
                 };
             },
     },

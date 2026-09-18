@@ -214,6 +214,23 @@ export const applicationNavigationCatalog =
 
         defineApplicationNavigation({
             id:
+                'hr.self.leave-requests',
+
+            routeId:
+                'hr.self.leave-requests.index',
+
+            label:
+                'Pengajuan Cuti Saya',
+
+            destination:
+                '/hr/self/leave-requests',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
                 'settings.tenant-roles',
 
             routeId:
