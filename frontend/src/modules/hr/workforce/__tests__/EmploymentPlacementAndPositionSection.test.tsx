@@ -243,10 +243,21 @@ describe(
                     },
                 );
 
-                fireEvent.change(
+                const [
+                    effectiveFromInput,
+                ] =
                     screen.getAllByLabelText(
                         'Berlaku Sejak',
-                    )[0],
+                    );
+
+                if (effectiveFromInput === undefined) {
+                    throw new Error(
+                        'Expected a "Berlaku Sejak" input to be present in the Placement form.',
+                    );
+                }
+
+                fireEvent.change(
+                    effectiveFromInput,
                     {
                         target: {
                             value: '2026-01-01',
