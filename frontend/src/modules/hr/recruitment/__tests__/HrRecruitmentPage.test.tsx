@@ -876,6 +876,91 @@ describe(
                             );
                         },
                     ),
+                    http.get(
+                        '*/api/v1/hr/onboarding/templates',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/onboarding/cases/01970000-0000-7000-8000-0000000ddaa/start',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: {
+                                        id: '01970000-0000-7000-8000-0000000ddaa',
+                                        tenant_id: '01970000-0000-7000-8000-0000000000ff',
+                                        application_id: '01970000-0000-7000-8000-0000000d7aa',
+                                        template_id: null,
+                                        employee_id: '01970000-0000-7000-8000-0000000dbaa',
+                                        employment_id: '01970000-0000-7000-8000-0000000dcaa',
+                                        status: 'IN_PROGRESS',
+                                        started_at: '2026-02-02T00:00:00Z',
+                                        completed_at: null,
+                                        created_at: '2026-02-01T00:00:00Z',
+                                        updated_at: '2026-02-02T00:00:00Z',
+                                        tasks: [
+                                            {
+                                                id: '01970000-0000-7000-8000-0000000deaa',
+                                                tenant_id: '01970000-0000-7000-8000-0000000000ff',
+                                                onboarding_case_id: '01970000-0000-7000-8000-0000000ddaa',
+                                                template_task_id: null,
+                                                code: 'SIGN_CONTRACT',
+                                                title: 'Tanda Tangan Kontrak',
+                                                category: 'ADMINISTRATIVE',
+                                                sequence: 1,
+                                                is_required: true,
+                                                requires_evidence: false,
+                                                status: 'PENDING',
+                                                completed_by_membership_id: null,
+                                                completed_at: null,
+                                                completion_note: null,
+                                                created_at: '2026-02-01T00:00:00Z',
+                                                updated_at: '2026-02-01T00:00:00Z',
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/onboarding/tasks/01970000-0000-7000-8000-0000000deaa/complete',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: {
+                                        id: '01970000-0000-7000-8000-0000000deaa',
+                                        tenant_id: '01970000-0000-7000-8000-0000000000ff',
+                                        onboarding_case_id: '01970000-0000-7000-8000-0000000ddaa',
+                                        template_task_id: null,
+                                        code: 'SIGN_CONTRACT',
+                                        title: 'Tanda Tangan Kontrak',
+                                        category: 'ADMINISTRATIVE',
+                                        sequence: 1,
+                                        is_required: true,
+                                        requires_evidence: false,
+                                        status: 'COMPLETED',
+                                        completed_by_membership_id: '01970000-0000-7000-8000-0000000000ee',
+                                        completed_at: '2026-02-03T00:00:00Z',
+                                        completion_note: null,
+                                        created_at: '2026-02-01T00:00:00Z',
+                                        updated_at: '2026-02-03T00:00:00Z',
+                                    },
+                                },
+                            ),
+                    ),
                 );
 
                 renderPage();
@@ -1034,11 +1119,45 @@ describe(
                     () => {
                         expect(
                             screen.getByText(
-                                (
-                                    _content,
-                                    element,
-                                ) =>
-                                    element?.textContent === 'Onboarding Case dibuat (1 tugas).',
+                                'Belum Dimulai',
+                            ),
+                        ).toBeInTheDocument();
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Mulai',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByText(
+                                'Berjalan',
+                            ),
+                        ).toBeInTheDocument();
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Selesaikan',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByText(
+                                'Selesai',
                             ),
                         ).toBeInTheDocument();
                     },

@@ -127,6 +127,22 @@ describe(
                 },
                 {
                     id:
+                        'hr.onboarding.templates',
+
+                    routeId:
+                        'hr.onboarding.templates.index',
+
+                    label:
+                        'Template Onboarding',
+
+                    destination:
+                        '/hr/onboarding/templates',
+
+                    requiredFeature:
+                        'hr_module',
+                },
+                {
+                    id:
                         'settings.tenant-roles',
 
                     routeId:

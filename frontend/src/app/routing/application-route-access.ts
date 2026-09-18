@@ -1,6 +1,7 @@
 import {
     hrCompensationSearchRoutePolicy,
     hrLeaveCatalogRoutePolicy,
+    hrOnboardingTemplatesRoutePolicy,
     hrPositionCatalogRoutePolicy,
     hrRecruitmentRoutePolicy,
     hrSelfLeaveRequestsRoutePolicy,
@@ -70,6 +71,9 @@ const applicationRouteAccessPolicies =
 
         'hr.recruitment.index':
             hrRecruitmentRoutePolicy,
+
+        'hr.onboarding.templates.index':
+            hrOnboardingTemplatesRoutePolicy,
 
         'settings.tenant-roles.index':
             settingsTenantRolesRoutePolicy,

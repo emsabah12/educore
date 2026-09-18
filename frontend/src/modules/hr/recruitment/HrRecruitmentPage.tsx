@@ -16,6 +16,17 @@ import {
     type RecruitmentVacancyResource,
 } from '@/modules/hr/api/use-recruitment-vacancies-query';
 import {
+    useCancelOnboardingCaseMutation,
+    useStartOnboardingCaseMutation,
+} from '@/modules/hr/api/use-onboarding-case-mutations';
+import {
+    useCompleteOnboardingTaskMutation,
+    useWaiveOnboardingTaskMutation,
+} from '@/modules/hr/api/use-onboarding-task-mutations';
+import {
+    useOnboardingTemplatesQuery,
+} from '@/modules/hr/api/use-onboarding-templates-query';
+import {
     useApproveForHiringRecruitmentApplicationMutation,
     useCreateOnboardingCaseMutation,
     useCreateRecruitmentApplicationMutation,
@@ -23,6 +34,7 @@ import {
     useRejectRecruitmentApplicationMutation,
     useStartProcessingRecruitmentApplicationMutation,
     useWithdrawRecruitmentApplicationMutation,
+    type OnboardingCaseResource,
 } from '@/modules/hr/api/use-recruitment-application-mutations';
 import {
     useRecruitmentApplicationsQuery,
@@ -489,6 +501,350 @@ function HireConversionForm({
     );
 }
 
+const ONBOARDING_CASE_STATUS_VARIANT: Record<
+    string,
+    'success' | 'warning' | 'secondary' | 'destructive'
+> = {
+    NOT_STARTED: 'secondary',
+    IN_PROGRESS: 'warning',
+    READY_FOR_ACTIVATION: 'success',
+    COMPLETED: 'success',
+    CANCELLED: 'destructive',
+};
+
+const ONBOARDING_CASE_STATUS_LABEL: Record<string, string> = {
+    NOT_STARTED: 'Belum Dimulai',
+    IN_PROGRESS: 'Berjalan',
+    READY_FOR_ACTIVATION: 'Siap Diaktifkan',
+    COMPLETED: 'Selesai',
+    CANCELLED: 'Dibatalkan',
+};
+
+const ONBOARDING_TASK_STATUS_LABEL: Record<string, string> = {
+    PENDING: 'Menunggu',
+    COMPLETED: 'Selesai',
+    WAIVED: 'Dikecualikan',
+};
+
+function OnboardingTaskRow({
+    task,
+    onTaskUpdated,
+}: {
+    task: OnboardingCaseResource['tasks'][number];
+    onTaskUpdated: (
+        task: OnboardingCaseResource['tasks'][number],
+    ) => void;
+}) {
+    const completeMutation =
+        useCompleteOnboardingTaskMutation();
+
+    const waiveMutation =
+        useWaiveOnboardingTaskMutation();
+
+    const isPending =
+        completeMutation.isPending
+        || waiveMutation.isPending;
+
+    return (
+        <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2 text-xs">
+            <div className="flex items-center gap-2">
+                <span className="font-medium">
+                    {
+                        task.title
+                    }
+                </span>
+
+                <span className="text-muted-foreground">
+                    (
+                    {
+                        task.category
+                    }
+                    {
+                        task.is_required
+                            ? ', wajib'
+                            : ''
+                    }
+                    )
+                </span>
+
+                <Badge
+                    variant={
+                        task.status === 'PENDING'
+                            ? 'warning'
+                            : 'success'
+                    }
+                >
+                    {
+                        ONBOARDING_TASK_STATUS_LABEL[
+                            task.status
+                        ]
+                        ?? task.status
+                    }
+                </Badge>
+            </div>
+
+            {
+                task.status === 'PENDING'
+                    ? (
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={isPending}
+                                onClick={
+                                    () =>
+                                        completeMutation.mutate(
+                                            {
+                                                taskId:
+                                                    task.id,
+                                            },
+                                            {
+                                                onSuccess:
+                                                    onTaskUpdated,
+                                            },
+                                        )
+                                }
+                            >
+                                Selesaikan
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isPending}
+                                onClick={
+                                    () =>
+                                        waiveMutation.mutate(
+                                            {
+                                                taskId:
+                                                    task.id,
+                                            },
+                                            {
+                                                onSuccess:
+                                                    onTaskUpdated,
+                                            },
+                                        )
+                                }
+                            >
+                                Kecualikan
+                            </Button>
+                        </div>
+                    )
+                    : null
+            }
+        </li>
+    );
+}
+
+function OnboardingCaseManager({
+    initialCase,
+}: {
+    initialCase: OnboardingCaseResource;
+}) {
+    const [
+        onboardingCase,
+        setOnboardingCase,
+    ] = useState(
+        initialCase,
+    );
+
+    const [
+        cancelReason,
+        setCancelReason,
+    ] = useState('');
+
+    const startMutation =
+        useStartOnboardingCaseMutation();
+
+    const cancelMutation =
+        useCancelOnboardingCaseMutation();
+
+    function handleTaskUpdated(
+        updatedTask: OnboardingCaseResource['tasks'][number],
+    ) {
+        setOnboardingCase(
+            (
+                current,
+            ) => (
+                {
+                    ...current,
+
+                    tasks:
+                        current.tasks.map(
+                            (
+                                task,
+                            ) =>
+                                task.id === updatedTask.id
+                                    ? updatedTask
+                                    : task,
+                        ),
+                }
+            ),
+        );
+    }
+
+    function handleCancel(
+        event: React.FormEvent,
+    ) {
+        event.preventDefault();
+
+        cancelMutation.mutate(
+            {
+                caseId:
+                    onboardingCase.id,
+
+                reason:
+                    cancelReason,
+            },
+            {
+                onSuccess:
+                    setOnboardingCase,
+            },
+        );
+    }
+
+    return (
+        <div className="space-y-2 rounded-md border p-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                        Onboarding Case
+                    </span>
+
+                    <Badge
+                        variant={
+                            ONBOARDING_CASE_STATUS_VARIANT[
+                                onboardingCase.status
+                            ]
+                        }
+                    >
+                        {
+                            ONBOARDING_CASE_STATUS_LABEL[
+                                onboardingCase.status
+                            ]
+                            ?? onboardingCase.status
+                        }
+                    </Badge>
+                </div>
+
+                {
+                    onboardingCase.status === 'NOT_STARTED'
+                        ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                    startMutation.isPending
+                                }
+                                onClick={
+                                    () =>
+                                        startMutation.mutate(
+                                            {
+                                                caseId:
+                                                    onboardingCase.id,
+                                            },
+                                            {
+                                                onSuccess:
+                                                    setOnboardingCase,
+                                            },
+                                        )
+                                }
+                            >
+                                Mulai
+                            </Button>
+                        )
+                        : null
+                }
+            </div>
+
+            {
+                onboardingCase.tasks.length > 0
+                    ? (
+                        <ul className="space-y-1">
+                            {
+                                onboardingCase.tasks.map(
+                                    (
+                                        task,
+                                    ) => (
+                                        <OnboardingTaskRow
+                                            key={
+                                                task.id
+                                            }
+                                            task={
+                                                task
+                                            }
+                                            onTaskUpdated={
+                                                handleTaskUpdated
+                                            }
+                                        />
+                                    ),
+                                )
+                            }
+                        </ul>
+                    )
+                    : (
+                        <p className="text-muted-foreground">
+                            Tidak ada tugas (Template kosong atau tanpa Template).
+                        </p>
+                    )
+            }
+
+            {
+                onboardingCase.status !== 'COMPLETED'
+                && onboardingCase.status !== 'CANCELLED'
+                    ? (
+                        <form
+                            onSubmit={handleCancel}
+                            className="flex flex-wrap items-end gap-2"
+                        >
+                            <div className="space-y-1">
+                                <label
+                                    htmlFor={
+                                        `onboarding-cancel-reason-${onboardingCase.id}`
+                                    }
+                                    className="text-xs font-medium text-muted-foreground"
+                                >
+                                    Alasan Pembatalan
+                                </label>
+
+                                <Input
+                                    id={
+                                        `onboarding-cancel-reason-${onboardingCase.id}`
+                                    }
+                                    value={
+                                        cancelReason
+                                    }
+                                    onChange={
+                                        (
+                                            event,
+                                        ) =>
+                                            setCancelReason(
+                                                event.target.value,
+                                            )
+                                    }
+                                />
+                            </div>
+
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                    cancelMutation.isPending
+                                    || cancelReason.trim() === ''
+                                }
+                            >
+                                Batalkan Onboarding
+                            </Button>
+                        </form>
+                    )
+                    : null
+            }
+        </div>
+    );
+}
+
 function OnboardingTriggerForm({
     vacancyId,
     applicationId,
@@ -496,30 +852,102 @@ function OnboardingTriggerForm({
     vacancyId: string;
     applicationId: string;
 }) {
+    const templatesQuery =
+        useOnboardingTemplatesQuery();
+
     const createCaseMutation =
         useCreateOnboardingCaseMutation(
             vacancyId,
         );
 
+    const [
+        templateId,
+        setTemplateId,
+    ] = useState('');
+
     function handleClick() {
         createCaseMutation.mutate(
             {
                 applicationId,
-                templateId: null,
+
+                templateId:
+                    templateId === ''
+                        ? null
+                        : templateId,
             },
         );
     }
 
     if (createCaseMutation.isSuccess) {
         return (
-            <p className="text-xs text-muted-foreground">
-                Onboarding Case dibuat ({createCaseMutation.data.tasks.length} tugas).
-            </p>
+            <OnboardingCaseManager
+                initialCase={
+                    createCaseMutation.data
+                }
+            />
         );
     }
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+                <label
+                    htmlFor={
+                        `onboarding-template-${applicationId}`
+                    }
+                    className="text-xs font-medium text-muted-foreground"
+                >
+                    Template (opsional)
+                </label>
+
+                <Select
+                    id={
+                        `onboarding-template-${applicationId}`
+                    }
+                    value={
+                        templateId
+                    }
+                    disabled={
+                        templatesQuery.status !== 'success'
+                    }
+                    onChange={
+                        (
+                            event,
+                        ) =>
+                            setTemplateId(
+                                event.target.value,
+                            )
+                    }
+                >
+                    <option value="">
+                        Tanpa Template
+                    </option>
+
+                    {
+                        templatesQuery.status === 'success'
+                            ? templatesQuery.data.map(
+                                (
+                                    template,
+                                ) => (
+                                    <option
+                                        key={
+                                            template.id
+                                        }
+                                        value={
+                                            template.id
+                                        }
+                                    >
+                                        {
+                                            template.name
+                                        }
+                                    </option>
+                                ),
+                            )
+                            : null
+                    }
+                </Select>
+            </div>
+
             <Button
                 type="button"
                 size="sm"

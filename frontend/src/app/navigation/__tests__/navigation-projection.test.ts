@@ -517,6 +517,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.onboarding.templates',
+
+                        routeId:
+                            'hr.onboarding.templates.index',
+
+                        label:
+                            'Template Onboarding',
+
+                        destination:
+                            '/hr/onboarding/templates',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:

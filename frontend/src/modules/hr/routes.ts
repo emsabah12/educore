@@ -307,6 +307,29 @@ export const hrRecruitmentRoutePolicy =
     });
 
 /*
+ * §Epic 4 — halaman Katalog Template Onboarding, tenant-wide.
+ */
+export const hrOnboardingTemplatesRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.onboarding.templates.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.onboarding.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -578,6 +601,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrRecruitmentPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.onboarding.templates.index',
+
+        path:
+            'hr/onboarding/templates',
+
+        accessPolicy:
+            hrOnboardingTemplatesRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrOnboardingTemplatesPage,
+                } =
+                    await import(
+                        '@/modules/hr/onboarding/HrOnboardingTemplatesPage'
+                    );
+
+                return {
+                    Component:
+                        HrOnboardingTemplatesPage,
                 };
             },
     },
