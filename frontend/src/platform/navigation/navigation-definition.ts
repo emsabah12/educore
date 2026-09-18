@@ -180,6 +180,23 @@ export const applicationNavigationCatalog =
 
         defineApplicationNavigation({
             id:
+                'hr.positions',
+
+            routeId:
+                'hr.positions.index',
+
+            label:
+                'Katalog Jabatan',
+
+            destination:
+                '/hr/positions',
+
+            requiredFeature:
+                'hr_module',
+        }),
+
+        defineApplicationNavigation({
+            id:
                 'settings.tenant-roles',
 
             routeId:

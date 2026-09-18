@@ -438,6 +438,30 @@ describe(
 
                     navigation: {
                         id:
+                            'hr.positions',
+
+                        routeId:
+                            'hr.positions.index',
+
+                        label:
+                            'Katalog Jabatan',
+
+                        destination:
+                            '/hr/positions',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
                             'settings.tenant-roles',
 
                         routeId:
@@ -602,6 +626,30 @@ describe(
 
                         destination:
                             '/hr/compensation',
+
+                        requiredFeature:
+                            'hr_module',
+                    },
+
+                    reason:
+                        'authority-pending',
+                },
+                {
+                    status:
+                        'hidden',
+
+                    navigation: {
+                        id:
+                            'hr.positions',
+
+                        routeId:
+                            'hr.positions.index',
+
+                        label:
+                            'Katalog Jabatan',
+
+                        destination:
+                            '/hr/positions',
 
                         requiredFeature:
                             'hr_module',

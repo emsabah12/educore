@@ -16,6 +16,9 @@ import {
     useEmploymentTypesQuery,
 } from '@/modules/hr/api/use-employment-types-query';
 import {
+    EmploymentPlacementAndPositionSection,
+} from '@/modules/hr/workforce/EmploymentPlacementAndPositionSection';
+import {
     useWorkspaceEmployeeDetailQuery,
     type WorkspaceEmployeeDetail,
 } from '@/modules/hr/api/use-workspace-employees-query';
@@ -199,18 +202,29 @@ function EmploymentActionsCell({
     if (employment.status === 'ACTIVE') {
         if (! isEnding) {
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={
-                        () =>
-                            setIsEnding(
-                                true,
-                            )
-                    }
-                >
-                    Akhiri
-                </Button>
+                <div className="flex flex-col items-start gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={
+                            () =>
+                                setIsEnding(
+                                    true,
+                                )
+                        }
+                    >
+                        Akhiri
+                    </Button>
+
+                    <EmploymentPlacementAndPositionSection
+                        employeeId={
+                            employeeId
+                        }
+                        employmentId={
+                            employment.id
+                        }
+                    />
+                </div>
             );
         }
 

@@ -196,6 +196,32 @@ export const hrCompensationEmploymentShellRoutePolicy =
     });
 
 /*
+ * §Epic 1 — halaman katalog Position, tenant-wide (mirip Jenis
+ * Employment). Permission dedicated hr.positions.view — bukan
+ * hr.employments.view, karena katalog ini independen dari Employment
+ * mana pun.
+ */
+export const hrPositionCatalogRoutePolicy =
+    defineProtectedRoutePolicy({
+        routeId:
+            'hr.positions.index',
+
+        contextRequirement:
+            'tenant',
+
+        authorizationScope:
+            'tenant',
+
+        requiredPermissions: {
+            mode:
+                'single',
+
+            permission:
+                'hr.positions.view',
+        },
+    });
+
+/*
  * Public route contribution owned by the HR module.
  *
  * The application composes this structural contract without
@@ -363,6 +389,32 @@ export const hrRouteContributions = [
                 return {
                     Component:
                         HrCompensationEmploymentShellPage,
+                };
+            },
+    },
+
+    {
+        routeId:
+            'hr.positions.index',
+
+        path:
+            'hr/positions',
+
+        accessPolicy:
+            hrPositionCatalogRoutePolicy,
+
+        lazy:
+            async () => {
+                const {
+                    HrPositionCatalogPage,
+                } =
+                    await import(
+                        '@/modules/hr/positions/HrPositionCatalogPage'
+                    );
+
+                return {
+                    Component:
+                        HrPositionCatalogPage,
                 };
             },
     },

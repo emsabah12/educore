@@ -63,6 +63,22 @@ describe(
                 },
                 {
                     id:
+                        'hr.positions',
+
+                    routeId:
+                        'hr.positions.index',
+
+                    label:
+                        'Katalog Jabatan',
+
+                    destination:
+                        '/hr/positions',
+
+                    requiredFeature:
+                        'hr_module',
+                },
+                {
+                    id:
                         'settings.tenant-roles',
 
                     routeId:
