@@ -11,6 +11,7 @@ use Modules\Core\Authorization\Database\Seeders\AuthorizationCatalogSeeder;
 use Modules\Core\Identity\Models\User;
 use Modules\Core\Organization\Database\Seeders\OrganizationAuthorizationCatalogSeeder;
 use Modules\Core\Person\Models\PersonModel;
+use Modules\HR\Database\Seeders\EmployeeSelfServiceRoleSeeder;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 
 final class DatabaseSeeder extends Seeder
@@ -24,6 +25,7 @@ final class DatabaseSeeder extends Seeder
         $this->call(AuthorizationCatalogSeeder::class);
         $this->call(AcademicAuthorizationCatalogSeeder::class);
         $this->call(HrAuthorizationCatalogSeeder::class);
+        $this->call(EmployeeSelfServiceRoleSeeder::class);
         $this->call(OrganizationAuthorizationCatalogSeeder::class);
 
         /*
