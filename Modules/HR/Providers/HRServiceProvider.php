@@ -6,6 +6,7 @@ namespace Modules\HR\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\HR\Console\BackfillEmployeeSelfServiceRoleCommand;
 use Modules\HR\Contracts\EmployeeBenefitIdentifierRepositoryInterface;
 use Modules\HR\Contracts\EmployeeRepositoryInterface;
 use Modules\HR\Contracts\RecruitmentCandidateIdentifierRepositoryInterface;
@@ -63,5 +64,14 @@ final class HRServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(
             __DIR__.'/../Database/Migrations'
         );
+
+        /*
+         * Register HR module's Artisan commands.
+         */
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                BackfillEmployeeSelfServiceRoleCommand::class,
+            ]);
+        }
     }
 }
