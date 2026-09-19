@@ -14,8 +14,8 @@ import {
     useSelfLeaveRequestsQuery,
 } from '@/modules/hr/api/use-self-leave-requests-query';
 import {
-    useLeaveTypesQuery,
-} from '@/modules/hr/api/use-leave-types-query';
+    useSelfLeaveTypesQuery,
+} from '@/modules/hr/api/use-self-leave-types-query';
 import {
     Badge,
     Button,
@@ -83,7 +83,7 @@ export function HrSelfLeaveRequestsPage() {
         useSelfLeaveBalancesQuery();
 
     const leaveTypesQuery =
-        useLeaveTypesQuery();
+        useSelfLeaveTypesQuery();
 
     const createMutation =
         useCreateSelfLeaveRequestMutation();

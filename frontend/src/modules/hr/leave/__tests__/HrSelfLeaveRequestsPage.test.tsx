@@ -149,7 +149,7 @@ describe(
                             ),
                     ),
                     http.get(
-                        '*/api/v1/hr/leave-types',
+                        '*/api/v1/hr/self/leave-types',
                         () =>
                             HttpResponse.json(
                                 {
@@ -390,7 +390,7 @@ describe(
                             ),
                     ),
                     http.get(
-                        '*/api/v1/hr/leave-types',
+                        '*/api/v1/hr/self/leave-types',
                         () =>
                             HttpResponse.json(
                                 {
