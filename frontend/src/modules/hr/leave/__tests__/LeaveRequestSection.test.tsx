@@ -196,7 +196,13 @@ describe(
                                     employment_id: EMPLOYMENT_ID,
                                     leave_type_id: LEAVE_TYPE.id,
                                     starts_at: '2026-02-01',
-                                    ends_at: '2026-02-03',
+
+                                    // §Perbaikan bug tanggal Selesai
+                                    // -- diketik 2026-02-03 (hari
+                                    // terakhir, inklusif), dikirim
+                                    // sebagai 2026-02-04 (h+1,
+                                    // eksklusif, INV-HR-LEAVE-013).
+                                    ends_at: '2026-02-04',
                                     requested_units: 3,
                                     reason: null,
                                 },

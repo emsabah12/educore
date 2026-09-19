@@ -23,6 +23,35 @@ import {
     Select,
 } from '@/shared/ui';
 
+/**
+ * §Perbaikan bug tanggal Selesai — backend menyimpan starts_at/ends_at
+ * sebagai rentang setengah-terbuka `[starts_at, ends_at)` (awal
+ * inklusif, akhir EKSKLUSIF — lihat INV-HR-LEAVE-013 dan
+ * `tstzrange(..., '[)')` di migrasi leave_requests). Input tanggal
+ * "Selesai" di form ini INKLUSIF dari sudut pandang pengguna (mereka
+ * pilih hari TERAKHIR cuti mereka, bukan hari pertama SETELAH cuti
+ * selesai). Fungsi ini menerjemahkan tanggal inklusif pengguna ke
+ * konvensi eksklusif backend dengan menambah 1 hari — tanpa ini,
+ * cuti 1 hari (Mulai=Selesai) akan selalu ditolak backend
+ * (ends_at > starts_at gagal), dan cuti multi-hari akan kehilangan
+ * hari terakhirnya.
+ *
+ * Pakai UTC secara eksplisit (bukan Date setDate lokal) supaya tidak
+ * bergeser sehari akibat timezone browser pengguna.
+ */
+function toExclusiveEndDate(
+    inclusiveDateOnly: string,
+): string {
+    const date =
+        new Date(`${inclusiveDateOnly}T00:00:00Z`);
+
+    date.setUTCDate(
+        date.getUTCDate() + 1,
+    );
+
+    return date.toISOString().slice(0, 10);
+}
+
 const STATUS_VARIANT: Record<
     string,
     'success' | 'warning' | 'secondary' | 'destructive'
@@ -104,7 +133,9 @@ export function HrSelfLeaveRequestsPage() {
                     form.startsAt,
 
                 endsAt:
-                    form.endsAt,
+                    toExclusiveEndDate(
+                        form.endsAt,
+                    ),
 
                 requestTimezone:
                     Intl.DateTimeFormat().resolvedOptions().timeZone,

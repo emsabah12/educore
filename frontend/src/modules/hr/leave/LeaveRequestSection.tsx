@@ -24,6 +24,26 @@ import {
     Select,
 } from '@/shared/ui';
 
+/**
+ * §Perbaikan bug tanggal Selesai — lihat penjelasan lengkap di
+ * fungsi identik pada HrSelfLeaveRequestsPage.tsx. Backend memakai
+ * rentang setengah-terbuka `[starts_at, ends_at)` (INV-HR-LEAVE-013),
+ * sementara tanggal "Selesai" di form ini INKLUSIF dari sudut
+ * pandang pengguna -- perlu ditambah 1 hari sebelum dikirim.
+ */
+function toExclusiveEndDate(
+    inclusiveDateOnly: string,
+): string {
+    const date =
+        new Date(`${inclusiveDateOnly}T00:00:00Z`);
+
+    date.setUTCDate(
+        date.getUTCDate() + 1,
+    );
+
+    return date.toISOString().slice(0, 10);
+}
+
 const STATUS_VARIANT: Record<
     string,
     'success' | 'warning' | 'secondary' | 'destructive'
@@ -273,7 +293,9 @@ export function LeaveRequestSection({
                     form.startsAt,
 
                 endsAt:
-                    form.endsAt,
+                    toExclusiveEndDate(
+                        form.endsAt,
+                    ),
 
                 requestTimezone:
                     Intl.DateTimeFormat().resolvedOptions().timeZone,
