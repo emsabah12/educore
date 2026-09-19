@@ -685,6 +685,22 @@ Route::middleware([
     // HrAuthorizationCatalogSeeder: permission ini SENGAJA tidak
     // di-auto-grant ke hr-officer, karena secara konseptual milik
     // SETIAP Employee (via membership sendiri), bukan staf HR.
+
+    // §Perbaikan gap permission — Employee butuh daftar Jenis Cuti
+    // (dropdown pengajuan + tampilkan nama, bukan ID mentah, di
+    // saldo/riwayat sendiri), TAPI endpoint katalog
+    // `GET /leave-types` sengaja di-gate hr.leave.policy.read (SAMA
+    // dengan yang menjaga Entitlement/Approval Policy — detail
+    // konfigurasi bisnis HR yang TIDAK seharusnya bebas dilihat
+    // pegawai biasa). Endpoint ini SENGAJA terpisah, data yang
+    // dikembalikan PERSIS sama, cuma jalur otorisasinya beda.
+    Route::get(
+        '/v1/hr/self/leave-types',
+        [LeaveSelfServiceController::class, 'leaveTypes']
+    )
+        ->middleware('tenant.permission:hr.leave.self.read')
+        ->name('api.v1.hr.self.leave-types.index');
+
     Route::get(
         '/v1/hr/self/leave-balances',
         [LeaveSelfServiceController::class, 'balances']

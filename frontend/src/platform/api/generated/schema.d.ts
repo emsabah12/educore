@@ -1371,6 +1371,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/self/leave-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Leave/Permit Types, reachable with only self-service permission
+         * @description HR-004 §15.7 — Employee needs the Leave Type catalog for the
+         *     submission dropdown and to display names (rather than raw
+         *     IDs) on their own balances/history, but the HR catalog
+         *     endpoint (`GET /leave-types`) is deliberately gated by
+         *     hr.leave.policy.read — the SAME permission guarding
+         *     Entitlement/Approval Policy (HR business-rule configuration
+         *     that ordinary Employees should not freely browse). This
+         *     endpoint is a deliberately separate, narrower path to the
+         *     exact same LeaveType data (not sensitive on its own),
+         *     reachable with hr.leave.self.read alone.
+         */
+        get: operations["hrSelfLeaveTypeIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/self/leave-balances": {
         parameters: {
             query?: never;
@@ -9379,6 +9408,51 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrSelfLeaveTypeIndex: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All Leave/Permit Types in the current tenant, ordered by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveTypeListSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.leave.self.read permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
             500: components["responses"]["InternalServerError"];
         };
     };

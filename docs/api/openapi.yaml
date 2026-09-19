@@ -4726,6 +4726,56 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/self/leave-types:
+    get:
+      operationId: hrSelfLeaveTypeIndex
+      x-laravel-route-name: api.v1.hr.self.leave-types.index
+      tags:
+        - Human Resources
+      summary: List Leave/Permit Types, reachable with only self-service permission
+      description: |
+        HR-004 §15.7 — Employee needs the Leave Type catalog for the
+        submission dropdown and to display names (rather than raw
+        IDs) on their own balances/history, but the HR catalog
+        endpoint (`GET /leave-types`) is deliberately gated by
+        hr.leave.policy.read — the SAME permission guarding
+        Entitlement/Approval Policy (HR business-rule configuration
+        that ordinary Employees should not freely browse). This
+        endpoint is a deliberately separate, narrower path to the
+        exact same LeaveType data (not sensitive on its own),
+        reachable with hr.leave.self.read alone.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+      responses:
+        "200":
+          description: All Leave/Permit Types in the current tenant, ordered by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveTypeListSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.leave.self.read permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/self/leave-balances:
     get:
       operationId: hrSelfLeaveBalanceIndex

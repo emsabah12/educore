@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Modules\Core\Http\Responses\ApiErrorResponse;
 use Modules\HR\Exceptions\LeaveLifecycleException;
 use Modules\HR\Http\Requests\StoreSelfLeaveRequestRequest;
+use Modules\HR\Models\LeaveType;
 use Modules\HR\Services\LeaveSelfService;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -27,6 +28,37 @@ final class LeaveSelfServiceController extends Controller
     public function __construct(
         private readonly LeaveSelfService $selfService,
     ) {}
+
+    /**
+     * §Perbaikan gap permission -- Employee butuh melihat DAFTAR
+     * Jenis Cuti (untuk dropdown pengajuan & menampilkan nama, bukan
+     * cuma ID mentah, di saldo/riwayat mereka sendiri), tapi endpoint
+     * katalog HR (`GET /leave-types`) sengaja di-gate
+     * `hr.leave.policy.read` -- permission yang SAMA dengan yang
+     * menjaga Entitlement/Approval Policy (detail konfigurasi bisnis
+     * HR yang TIDAK seharusnya bisa dilihat bebas oleh pegawai biasa).
+     * Endpoint ini SENGAJA dipisah, di-gate `hr.leave.self.read` (yang
+     * SUDAH dimiliki role `employee`) -- data yang dikembalikan PERSIS
+     * sama (LeaveType itu sendiri bukan data sensitif), cuma jalur
+     * otorisasinya yang berbeda.
+     */
+    public function leaveTypes(Request $request): JsonResponse
+    {
+        [$tenantId, , $deniedResponse] = $this->authenticatedContext($request);
+
+        if ($deniedResponse !== null) {
+            return $deniedResponse;
+        }
+
+        $leaveTypes = LeaveType::query()
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $leaveTypes,
+        ]);
+    }
 
     public function balances(Request $request): JsonResponse
     {

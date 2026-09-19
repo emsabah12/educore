@@ -142,6 +142,40 @@ final class LeaveSelfServiceControllerTest extends TestCase
     }
 
     /**
+     * §Perbaikan gap permission — actor di sini (createEmployeeActor)
+     * SENGAJA HANYA punya hr.leave.self.* + hr.leave.approve, TIDAK
+     * PERNAH diberi hr.leave.policy.read (permission yang menjaga
+     * endpoint katalog `GET /leave-types`). Test ini membuktikan
+     * endpoint self-service baru TETAP bisa diakses walau tanpa
+     * permission katalog itu sama sekali.
+     */
+    public function test_leave_types_returns_catalog_for_actor_with_only_self_service_permission(): void
+    {
+        [$userId, $membershipId] = $this->createEmployeeActor();
+
+        $response = $this
+            ->withToken($this->issueToken($userId, $membershipId))
+            ->getJson(route('api.v1.hr.self.leave-types.index', [], false));
+
+        $response->assertOk();
+
+        $response->assertJsonFragment([
+            'id' => $this->leaveTypeId,
+        ]);
+    }
+
+    public function test_leave_types_is_forbidden_without_self_service_permission(): void
+    {
+        [$userId, $membershipId] = $this->createActorWithoutSelfServicePermission();
+
+        $response = $this
+            ->withToken($this->issueToken($userId, $membershipId))
+            ->getJson(route('api.v1.hr.self.leave-types.index', [], false));
+
+        $response->assertForbidden();
+    }
+
+    /**
      * @return array{
      *     leave_type_id: string,
      *     starts_at: string,
@@ -303,6 +337,51 @@ final class LeaveSelfServiceControllerTest extends TestCase
             'employee_id' => $employeeId,
             'status' => 'ACTIVE',
             'start_date' => '2025-01-01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [$userId, $membershipId];
+    }
+
+    /**
+     * Person+User+Membership AKTIF tapi TANPA role/permission apa
+     * pun -- untuk membuktikan endpoint self/leave-types tetap
+     * menegakkan hr.leave.self.read, bukan diam-diam terbuka untuk
+     * siapa saja yang terautentikasi.
+     *
+     * @return array{0: string, 1: string} [userId, membershipId]
+     */
+    private function createActorWithoutSelfServicePermission(): array
+    {
+        $personId = UuidV7::generate();
+        $userId = UuidV7::generate();
+        $membershipId = UuidV7::generate();
+
+        DB::table('persons')->insert([
+            'id' => $personId,
+            'name' => 'No Permission Fixture Person',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('users')->insert([
+            'id' => $userId,
+            'person_id' => $personId,
+            'email' => sprintf('no-permission-%s@educore.test', Str::lower(Str::random(10))),
+            'password' => 'not-used-by-token-test',
+            'status' => 'ACTIVE',
+            'is_superadmin' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('memberships')->insert([
+            'id' => $membershipId,
+            'person_id' => $personId,
+            'tenant_id' => $this->tenantId,
+            'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
