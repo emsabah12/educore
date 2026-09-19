@@ -10,10 +10,12 @@ use Illuminate\Support\Str;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
 use Modules\Core\Tenancy\Models\Tenant;
+use Modules\HR\Database\Seeders\EmployeeSelfServiceRoleSeeder;
 use Modules\HR\Exceptions\EmploymentLifecycleException;
 use Modules\HR\Models\Employment;
 use Modules\HR\Models\EmploymentPlacement;
 use Modules\HR\Services\WorkspaceEmployeeProvisioningService;
+use RuntimeException;
 use Tests\TestCase;
 
 final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
@@ -27,6 +29,8 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(EmployeeSelfServiceRoleSeeder::class);
 
         $this->service = app(WorkspaceEmployeeProvisioningService::class);
         $this->tenantId = $this->createTenant();
@@ -174,6 +178,92 @@ final class WorkspaceEmployeeProvisioningServiceTest extends TestCase
                 ->where('organization_id', $organizationId)
                 ->count(),
         );
+    }
+
+    public function test_provision_assigns_baseline_employee_role_to_new_membership(): void
+    {
+        $organizationId = $this->createOrganization();
+        $employmentTypeId = $this->createEmploymentType();
+
+        $result = $this->service->provisionWithinWorkspace(
+            tenantId: $this->tenantId,
+            employeeData: [
+                'nama' => 'Guru Uji Role Baseline',
+                'nip' => 'NIP-WS-'.Str::upper(Str::random(6)),
+                'jabatan' => 'GURU',
+                'employment_type_id' => $employmentTypeId,
+            ],
+            organizationId: $organizationId,
+            organizationUnitId: null,
+        );
+
+        $employeeRoleId = DB::table('roles')
+            ->whereNull('tenant_id')
+            ->where('name', 'employee')
+            ->value('id');
+
+        $this->assertNotNull(
+            $employeeRoleId,
+            'Expected EmployeeSelfServiceRoleSeeder (seeded in setUp) to have created the employee role.',
+        );
+
+        $this->assertSame(
+            1,
+            DB::table('membership_roles')
+                ->where('membership_id', $result['membership_id'])
+                ->where('role_id', $employeeRoleId)
+                ->count(),
+        );
+    }
+
+    /**
+     * §Perbaikan gap self-service leave — INV-HR-012 mengharuskan
+     * transaksi ini gagal TEGAS (bukan diam-diam melewati assign
+     * role) kalau prasyaratnya belum terpenuhi, sama seperti
+     * kegagalan langkah lain di test rollback di atas.
+     */
+    public function test_provision_fails_closed_when_employee_role_is_not_seeded(): void
+    {
+        DB::table('role_permissions')
+            ->whereIn(
+                'role_id',
+                DB::table('roles')->whereNull('tenant_id')->where('name', 'employee')->pluck('id'),
+            )
+            ->delete();
+
+        DB::table('roles')
+            ->whereNull('tenant_id')
+            ->where('name', 'employee')
+            ->delete();
+
+        $organizationId = $this->createOrganization();
+        $employmentTypeId = $this->createEmploymentType();
+        $nip = 'NIP-WS-FAILCLOSED-'.Str::upper(Str::random(6));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Canonical employee role is unavailable.');
+
+        try {
+            $this->service->provisionWithinWorkspace(
+                tenantId: $this->tenantId,
+                employeeData: [
+                    'nama' => 'Guru Uji Role Hilang',
+                    'nip' => $nip,
+                    'jabatan' => 'GURU',
+                    'employment_type_id' => $employmentTypeId,
+                ],
+                organizationId: $organizationId,
+                organizationUnitId: null,
+            );
+        } finally {
+            // Pastikan rollback benar-benar tuntas -- tidak ada Employee
+            // "yatim" yang tersisa walau kegagalannya terjadi SETELAH
+            // Person/Membership/Employee dibuat di langkah 3.
+            $this->assertSame(
+                0,
+                DB::table('employees')->where('nip', $nip)->count(),
+            );
+        }
     }
 
     private function activateTenantContext(string $tenantId): void

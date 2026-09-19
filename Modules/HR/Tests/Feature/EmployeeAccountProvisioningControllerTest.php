@@ -11,6 +11,7 @@ use Modules\Auth\Token\Contracts\TokenManagerInterface;
 use Modules\Core\Organization\Http\Middleware\InjectOrganizationalContext;
 use Modules\Core\Support\Uuid\UuidV7;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use Modules\HR\Database\Seeders\EmployeeSelfServiceRoleSeeder;
 use Modules\HR\Database\Seeders\HrAuthorizationCatalogSeeder;
 use Tests\Support\GrantsSubscriptionFeature;
 use Tests\TestCase;
@@ -35,6 +36,7 @@ final class EmployeeAccountProvisioningControllerTest extends TestCase
         parent::setUp();
 
         $this->seed(HrAuthorizationCatalogSeeder::class);
+        $this->seed(EmployeeSelfServiceRoleSeeder::class);
 
         $this->tenantId = UuidV7::generate();
         $this->operatorUserId = UuidV7::generate();

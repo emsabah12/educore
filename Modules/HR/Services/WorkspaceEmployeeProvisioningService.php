@@ -6,8 +6,11 @@ namespace Modules\HR\Services;
 
 use Illuminate\Support\Facades\DB;
 use LogicException;
+use Modules\Core\Authorization\Models\Role;
+use Modules\Core\Authorization\Repositories\Contracts\MembershipRoleRepositoryInterface;
 use Modules\Core\Organization\Contracts\OrganizationalAssignmentServiceInterface;
 use Modules\Core\Tenancy\Contracts\TenantContextInterface;
+use RuntimeException;
 
 /**
  * Implementasi transaksi "Workspace Employee Creation" dari HR-017 §3.2
@@ -38,13 +41,53 @@ use Modules\Core\Tenancy\Contracts\TenantContextInterface;
  */
 final readonly class WorkspaceEmployeeProvisioningService
 {
+    /**
+     * §Langkah 2 (self-service leave gap remediation) — nama role
+     * DISENGAJAKAN diduplikasi sebagai konstanta lokal, bukan
+     * mereferensikan `EmployeeSelfServiceRoleSeeder::EMPLOYEE_ROLE`
+     * secara langsung. Pola ini konsisten dengan bagaimana
+     * `TenantProvisioningService::ADMIN_ROLE_NAME` juga menduplikasi
+     * nilai yang sama persis dengan
+     * `AuthorizationCatalogSeeder::ADMIN_ROLE_NAME` — kelas Service
+     * TIDAK bergantung pada namespace Database\Seeders.
+     */
+    private const EMPLOYEE_ROLE_NAME = 'employee';
+
     public function __construct(
         private TenantContextInterface $tenantContext,
         private EmployeeProvisioningService $employeeProvisioningService,
         private OrganizationalAssignmentServiceInterface $organizationalAssignmentService,
         private EmploymentLifecycleService $employmentLifecycleService,
         private EmploymentPlacementService $employmentPlacementService,
+        private MembershipRoleRepositoryInterface $membershipRoleRepository,
     ) {}
+
+    /**
+     * §Perbaikan gap self-service leave — pola query identik dengan
+     * `TenantProvisioningService::requireAdminRole()`:
+     * `whereNull('tenant_id')` WAJIB supaya pencarian role sistem
+     * kanonik ini tidak pernah secara tidak sengaja mengambil role
+     * kustom tenant lain yang kebetulan bernama sama.
+     *
+     * Gagal TEGAS (bukan diam-diam dilewati) kalau role belum ada —
+     * berarti `EmployeeSelfServiceRoleSeeder` belum pernah dijalankan
+     * di database ini.
+     */
+    private function requireEmployeeRole(): Role
+    {
+        $employeeRole = Role::query()
+            ->whereNull('tenant_id')
+            ->where('name', self::EMPLOYEE_ROLE_NAME)
+            ->first();
+
+        if ($employeeRole === null) {
+            throw new RuntimeException(
+                'Canonical employee role is unavailable. Run EmployeeSelfServiceRoleSeeder.',
+            );
+        }
+
+        return $employeeRole;
+    }
 
     /**
      * @param array{
@@ -99,6 +142,20 @@ final readonly class WorkspaceEmployeeProvisioningService
                     'nip' => $employeeData['nip'],
                     'jabatan' => $employeeData['jabatan'],
                 ],
+            );
+
+            // §Perbaikan gap self-service leave — SETIAP Employee yang
+            // keluar dari transaksi ini WAJIB langsung punya akses ke
+            // kapabilitas self-service miliknya sendiri (mis. ajukan
+            // Cuti sendiri), tanpa menunggu tindakan manual admin
+            // terpisah. Ditempatkan di sini (bukan menunggu akun login
+            // dibuat lewat EmployeeAccountProvisioningService) karena
+            // kapabilitas ini secara konsep melekat pada STATUS
+            // "menjadi Employee", bukan pada "punya kredensial login".
+            $this->membershipRoleRepository->assignRole(
+                $employee['membership_id'],
+                $tenantId,
+                (string) $this->requireEmployeeRole()->id,
             );
 
             // Langkah 4: Core OrganizationalAssignment. HR-017 §3.4
