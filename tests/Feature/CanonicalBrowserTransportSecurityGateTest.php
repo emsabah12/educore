@@ -361,6 +361,7 @@ final class CanonicalBrowserTransportSecurityGateTest extends TestCase
             [
                 'api.v1.browser.auth.login' => 'api/v1/browser/auth/login',
                 'api.v1.browser.auth.logout' => 'api/v1/browser/auth/logout',
+                'api.v1.browser.auth.register' => 'api/v1/browser/auth/register',
                 'api.v1.browser.session.csrf' => 'api/v1/browser/session/csrf',
                 'api.v1.browser.user.memberships.switch' => 'api/v1/browser/user/memberships/{membership_id}/switch',
             ],

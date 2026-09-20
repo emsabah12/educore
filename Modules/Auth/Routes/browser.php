@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserLoginController;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserLogoutController;
 use Modules\Auth\Http\Controllers\Browser\v1\BrowserSessionCsrfController;
+use Modules\Auth\Http\Controllers\Browser\v1\TenantSelfRegistrationController;
 
 Route::prefix('v1/browser')->group(function (): void {
     /*
@@ -23,6 +24,20 @@ Route::prefix('v1/browser')->group(function (): void {
         '/auth/login',
         BrowserLoginController::class,
     )->name('api.v1.browser.auth.login');
+
+    /*
+     * §Pendaftaran tenant mandiri (self-service) -- SENGAJA PUBLIK,
+     * tanpa middleware autentikasi apa pun. Dibatasi throttle:5,1
+     * (5 percobaan/menit per IP) supaya tidak jadi jalur spam
+     * pembuatan tenant otomatis, sambil tetap wajar untuk pengguna
+     * asli yang mungkin salah isi form beberapa kali.
+     */
+    Route::post(
+        '/auth/register',
+        TenantSelfRegistrationController::class,
+    )
+        ->middleware('throttle:5,1')
+        ->name('api.v1.browser.auth.register');
 
     Route::post(
         '/auth/logout',

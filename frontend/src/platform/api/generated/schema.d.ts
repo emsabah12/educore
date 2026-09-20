@@ -133,6 +133,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/browser/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Self-service register a new Tenant with its initial admin, then authenticate
+         * @description Public, unauthenticated endpoint. Atomically provisions a brand-new
+         *     Tenant, its initial admin Person/User/Membership (with the canonical
+         *     admin Role), and a default Organization — reusing the exact same
+         *     TenantProvisioningService::provisionWithNewAdmin() boundary the
+         *     platform superadmin flow uses.
+         *
+         *     A self-registered Tenant is always created active; there is no
+         *     manual approval gate.
+         *
+         *     On success, immediately regenerates the pre-authentication session
+         *     identifier and establishes identity-only Browser Session state —
+         *     the exact same establishFreshIdentity() mechanism POST
+         *     /api/v1/browser/auth/login uses after credential verification.
+         *     "Registered successfully" and "logged in" are the same event here.
+         *
+         *     Rate-limited to 5 attempts per minute per IP to deter automated
+         *     abuse while remaining generous for a genuine user who mistypes the
+         *     form a few times.
+         */
+        post: operations["browserAuthRegister"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/browser/auth/logout": {
         parameters: {
             query?: never;
@@ -2659,6 +2696,51 @@ export interface components {
              */
             identifier: string;
             password: string;
+        };
+        /**
+         * @description Self-service Tenant registration request. Always creates an
+         *     immediately-active Tenant — there is no is_active field, unlike the
+         *     superadmin-only StoreTenantWithNewAdminRequest.
+         */
+        RegisterTenantRequestBody: {
+            /** @description School/institution (Tenant) display name. */
+            name: string;
+            /** @description Lowercase letters, numbers, and hyphens only. Must be globally unique. */
+            subdomain: string;
+            /** @description Display name of the person registering, who becomes the initial Tenant admin. */
+            admin_name: string;
+            /**
+             * Format: email
+             * @description Must be globally unique across all Users.
+             */
+            admin_email: string;
+            admin_password: string;
+        };
+        TenantRegistrationData: {
+            /** @constant */
+            context_type: "identity";
+            user: {
+                id: components["schemas"]["UuidV7"];
+                name: string;
+                /** Format: email */
+                email: string;
+                /** @description Always null immediately after self-registration — no username is collected on this form. */
+                username: string | null;
+            };
+            platform: {
+                /** @constant */
+                is_superadmin: false;
+            };
+            tenant: {
+                id: components["schemas"]["UuidV7"];
+                name: string;
+                subdomain: string;
+            };
+        };
+        TenantRegistrationSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["TenantRegistrationData"];
         };
         AuthenticationTokenContext: {
             user_id: components["schemas"]["UuidV7"];
@@ -5220,6 +5302,33 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationFailed"];
             422: components["responses"]["ValidationFailed"];
+            503: components["responses"]["BrowserSessionUnavailable"];
+        };
+    };
+    browserAuthRegister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterTenantRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Tenant registered and Browser identity session established. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantRegistrationSuccess"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
             503: components["responses"]["BrowserSessionUnavailable"];
         };
     };

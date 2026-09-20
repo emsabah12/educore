@@ -44,6 +44,7 @@ final class BrowserOpenApiContractTest extends TestCase
         $expected = [
             'GET /api/v1/browser/session/csrf' => 'api.v1.browser.session.csrf',
             'POST /api/v1/browser/auth/login' => 'api.v1.browser.auth.login',
+            'POST /api/v1/browser/auth/register' => 'api.v1.browser.auth.register',
             'POST /api/v1/browser/auth/logout' => 'api.v1.browser.auth.logout',
             'POST /api/v1/browser/user/memberships/{membership_id}/switch' => 'api.v1.browser.user.memberships.switch',
         ];
@@ -81,6 +82,7 @@ final class BrowserOpenApiContractTest extends TestCase
         foreach (
             [
                 '/api/v1/browser/auth/login',
+                '/api/v1/browser/auth/register',
                 '/api/v1/browser/auth/logout',
                 '/api/v1/browser/user/memberships/{membership_id}/switch',
             ] as $path

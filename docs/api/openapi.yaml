@@ -208,6 +208,54 @@ paths:
         "503":
           $ref: "#/components/responses/BrowserSessionUnavailable"
 
+  /api/v1/browser/auth/register:
+    post:
+      operationId: browserAuthRegister
+      x-laravel-route-name: api.v1.browser.auth.register
+      x-educore-request-forgery-protected: true
+      tags:
+        - Browser Session
+      summary: Self-service register a new Tenant with its initial admin, then authenticate
+      description: |
+        Public, unauthenticated endpoint. Atomically provisions a brand-new
+        Tenant, its initial admin Person/User/Membership (with the canonical
+        admin Role), and a default Organization — reusing the exact same
+        TenantProvisioningService::provisionWithNewAdmin() boundary the
+        platform superadmin flow uses.
+
+        A self-registered Tenant is always created active; there is no
+        manual approval gate.
+
+        On success, immediately regenerates the pre-authentication session
+        identifier and establishes identity-only Browser Session state —
+        the exact same establishFreshIdentity() mechanism POST
+        /api/v1/browser/auth/login uses after credential verification.
+        "Registered successfully" and "logged in" are the same event here.
+
+        Rate-limited to 5 attempts per minute per IP to deter automated
+        abuse while remaining generous for a genuine user who mistypes the
+        form a few times.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterTenantRequestBody"
+      responses:
+        "201":
+          description: Tenant registered and Browser identity session established.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantRegistrationSuccess"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          $ref: "#/components/responses/BrowserSessionUnavailable"
+
   /api/v1/browser/auth/logout:
     post:
       operationId: browserAuthLogout
@@ -8993,6 +9041,114 @@ components:
         Tenant, Membership, Workspace, Role, and Permission context are
         intentionally absent. Authentication establishes User identity before
         any Membership or Tenant selection occurs.
+
+    RegisterTenantRequestBody:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - subdomain
+        - admin_name
+        - admin_email
+        - admin_password
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: School/institution (Tenant) display name.
+        subdomain:
+          type: string
+          maxLength: 50
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$"
+          description: Lowercase letters, numbers, and hyphens only. Must be globally unique.
+        admin_name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Display name of the person registering, who becomes the initial Tenant admin.
+        admin_email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Must be globally unique across all Users.
+        admin_password:
+          type: string
+          minLength: 8
+      description: |
+        Self-service Tenant registration request. Always creates an
+        immediately-active Tenant — there is no is_active field, unlike the
+        superadmin-only StoreTenantWithNewAdminRequest.
+
+    TenantRegistrationData:
+      type: object
+      additionalProperties: false
+      required:
+        - context_type
+        - user
+        - platform
+        - tenant
+      properties:
+        context_type:
+          type: string
+          const: identity
+        user:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - name
+            - email
+            - username
+          properties:
+            id:
+              $ref: "#/components/schemas/UuidV7"
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+            username:
+              type:
+                - string
+                - "null"
+              description: Always null immediately after self-registration — no username is collected on this form.
+        platform:
+          type: object
+          additionalProperties: false
+          required:
+            - is_superadmin
+          properties:
+            is_superadmin:
+              type: boolean
+              const: false
+        tenant:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - name
+            - subdomain
+          properties:
+            id:
+              $ref: "#/components/schemas/UuidV7"
+            name:
+              type: string
+            subdomain:
+              type: string
+
+    TenantRegistrationSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/TenantRegistrationData"
 
     AuthenticationTokenContext:
       type: object
