@@ -136,7 +136,7 @@ final class EmployeeManagementControllerErrorContractTest extends TestCase
             // untuk di-mock) — instance ASLI aman dipakai persis
             // seperti EmployeeProvisioningService di atas, karena test
             // ini tidak pernah memanggil createAccount().
-            new EmployeeAccountProvisioningService(),
+            new EmployeeAccountProvisioningService,
             $auditTrail,
             $hrWorkforceScopeService,
         );

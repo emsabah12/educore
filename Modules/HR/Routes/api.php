@@ -18,7 +18,6 @@ use Modules\HR\Http\Controllers\Api\v1\EmploymentCatalogController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentManagementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPlacementController;
 use Modules\HR\Http\Controllers\Api\v1\EmploymentPositionAssignmentController;
-use Modules\HR\Http\Controllers\Api\v1\PositionController;
 use Modules\HR\Http\Controllers\Api\v1\HireConversionController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveApprovalPolicyController;
@@ -29,6 +28,7 @@ use Modules\HR\Http\Controllers\Api\v1\LeaveSelfServiceController;
 use Modules\HR\Http\Controllers\Api\v1\LeaveTypeController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingCaseController;
 use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
+use Modules\HR\Http\Controllers\Api\v1\PositionController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
@@ -480,7 +480,6 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.recruitment.approve')
         ->name('api.v1.hr.recruitment.applications.hire-conversion');
-
 
     // HR-004 — Leave & Permit System (Sprint 2a-2d). Dipindah dari
     // grup InjectTenantContext bearer-only ke sini -- alasan SAMA

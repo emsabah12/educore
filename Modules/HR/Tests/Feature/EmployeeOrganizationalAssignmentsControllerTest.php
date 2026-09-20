@@ -193,7 +193,7 @@ final class EmployeeOrganizationalAssignmentsControllerTest extends TestCase
                 route('api.v1.hr.workspace.employees.store', [], false),
                 [
                     'nama' => 'Pegawai Uji Organizational Assignment',
-                    'nip' => 'NIP-OA-' . Str::upper(Str::random(6)),
+                    'nip' => 'NIP-OA-'.Str::upper(Str::random(6)),
                     'jabatan' => 'GURU',
                     'employment_type_id' => $this->employmentTypeId,
                 ],
@@ -286,7 +286,7 @@ final class EmployeeOrganizationalAssignmentsControllerTest extends TestCase
         DB::table('employment_types')->insert([
             'id' => $employmentTypeId,
             'tenant_id' => $this->tenantId,
-            'code' => 'TETAP-' . Str::upper(Str::random(6)),
+            'code' => 'TETAP-'.Str::upper(Str::random(6)),
             'name' => 'Pegawai Tetap',
             'is_active' => true,
             'created_at' => now(),
