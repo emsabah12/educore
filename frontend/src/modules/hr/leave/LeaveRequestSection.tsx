@@ -44,6 +44,37 @@ function toExclusiveEndDate(
     return date.toISOString().slice(0, 10);
 }
 
+/**
+ * §Perbaikan tampilan tanggal — lihat penjelasan lengkap di fungsi
+ * identik pada HrSelfLeaveRequestsPage.tsx. Backend mengembalikan
+ * timestamp lengkap; dipotong ke tahun-bulan-hari saja untuk
+ * ditampilkan.
+ */
+function formatDisplayDate(
+    isoTimestamp: string,
+): string {
+    return isoTimestamp.slice(0, 10);
+}
+
+/**
+ * §Perbaikan tampilan tanggal — KEBALIKAN dari toExclusiveEndDate di
+ * atas. ends_at tersimpan sebagai batas eksklusif (h+1), jadi untuk
+ * ditampilkan harus dikurangi 1 hari dulu supaya kembali ke tanggal
+ * terakhir yang inklusif.
+ */
+function formatInclusiveEndDisplayDate(
+    isoTimestamp: string,
+): string {
+    const date =
+        new Date(isoTimestamp);
+
+    date.setUTCDate(
+        date.getUTCDate() - 1,
+    );
+
+    return date.toISOString().slice(0, 10);
+}
+
 const STATUS_VARIANT: Record<
     string,
     'success' | 'warning' | 'secondary' | 'destructive'
@@ -402,13 +433,17 @@ export function LeaveRequestSection({
 
                                                         <p className="text-muted-foreground">
                                                             {
-                                                                leaveRequest.starts_at
+                                                                formatDisplayDate(
+                                                                    leaveRequest.starts_at,
+                                                                )
                                                             }
                                                             {
                                                                 ' – '
                                                             }
                                                             {
-                                                                leaveRequest.ends_at
+                                                                formatInclusiveEndDisplayDate(
+                                                                    leaveRequest.ends_at,
+                                                                )
                                                             }
                                                             {
                                                                 ' · '

@@ -52,6 +52,39 @@ function toExclusiveEndDate(
     return date.toISOString().slice(0, 10);
 }
 
+/**
+ * §Perbaikan tampilan tanggal — backend mengembalikan starts_at/
+ * ends_at sebagai timestamp lengkap ("2026-09-20T00:00:00.000000Z"),
+ * kepanjangan untuk ditampilkan apa adanya. Fungsi ini memotongnya
+ * ke tahun-bulan-hari saja ("2026-09-20").
+ */
+function formatDisplayDate(
+    isoTimestamp: string,
+): string {
+    return isoTimestamp.slice(0, 10);
+}
+
+/**
+ * §Perbaikan tampilan tanggal — KEBALIKAN dari toExclusiveEndDate di
+ * atas. ends_at TERSIMPAN sebagai batas eksklusif (h+1 dari tanggal
+ * yang dipilih pengguna), jadi untuk DITAMPILKAN ke pengguna, harus
+ * dikurangi 1 hari dulu supaya kembali ke tanggal terakhir yang
+ * inklusif — tanpa ini, cuti 1 hari akan tampil seolah 2 hari
+ * (mis. "20 Sep – 21 Sep" padahal cuma cuti tanggal 20 Sep saja).
+ */
+function formatInclusiveEndDisplayDate(
+    isoTimestamp: string,
+): string {
+    const date =
+        new Date(isoTimestamp);
+
+    date.setUTCDate(
+        date.getUTCDate() - 1,
+    );
+
+    return date.toISOString().slice(0, 10);
+}
+
 const STATUS_VARIANT: Record<
     string,
     'success' | 'warning' | 'secondary' | 'destructive'
@@ -335,13 +368,17 @@ export function HrSelfLeaveRequestsPage() {
 
                                                         <p className="text-muted-foreground">
                                                             {
-                                                                leaveRequest.starts_at
+                                                                formatDisplayDate(
+                                                                    leaveRequest.starts_at,
+                                                                )
                                                             }
                                                             {
                                                                 ' – '
                                                             }
                                                             {
-                                                                leaveRequest.ends_at
+                                                                formatInclusiveEndDisplayDate(
+                                                                    leaveRequest.ends_at,
+                                                                )
                                                             }
                                                             {
                                                                 ' · '

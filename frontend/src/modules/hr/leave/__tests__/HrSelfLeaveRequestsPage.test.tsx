@@ -524,6 +524,32 @@ describe(
                     },
                 );
 
+                // §Perbaikan tampilan tanggal — ends_at TERSIMPAN
+                // sebagai 2026-04-11 (h+1, eksklusif), tapi karena
+                // ini cuti SATU HARI (2026-04-10 saja), tampilan
+                // WAJIB menunjukkan "2026-04-10 – 2026-04-10", BUKAN
+                // "2026-04-10 – 2026-04-11" (yang akan terlihat
+                // seolah cuti 2 hari).
+                expect(
+                    screen.getByText(
+                        (
+                            _content,
+                            element,
+                        ) =>
+                            element?.textContent
+                            === '2026-04-10 – 2026-04-10 · 1.00 DAY',
+                    ),
+                ).toBeInTheDocument();
+
+                expect(
+                    screen.queryByText(
+                        '2026-04-11',
+                        {
+                            exact: false,
+                        },
+                    ),
+                ).not.toBeInTheDocument();
+
                 expect(
                     screen.queryByText(
                         'Gagal menyimpan. Coba lagi.',
