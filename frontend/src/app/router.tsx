@@ -26,6 +26,9 @@ import {
     ProtectedApplicationLifecycleBoundary,
 } from '@/app/routing/ProtectedApplicationLifecycleBoundary';
 import {
+    RegisterRouteBoundary,
+} from '@/app/routing/RegisterRouteBoundary';
+import {
     AuthenticatedApplicationShell,
 } from '@/app/shell/AuthenticatedApplicationShell';
 import {
@@ -259,6 +262,19 @@ export function createApplicationRoutes(
 
             Component:
                 LoginRouteBoundary,
+
+            ErrorBoundary:
+                RouteErrorPage,
+        },
+        {
+            id:
+                'auth.register',
+
+            path:
+                '/daftar',
+
+            Component:
+                RegisterRouteBoundary,
 
             ErrorBoundary:
                 RouteErrorPage,

@@ -10,16 +10,16 @@ import {
     useBrowserAuthState,
 } from '@/app/auth/BrowserAuthProvider';
 import {
-    LoginForm,
-} from '@/app/auth/LoginForm';
+    RegisterForm,
+} from '@/app/auth/RegisterForm';
 import {
-    presentLoginFailure,
-} from '@/app/auth/login-failure';
+    presentRegisterFailure,
+} from '@/app/auth/register-failure';
 import type {
-    BrowserLoginRequest,
+    TenantRegistrationRequest,
 } from '@/platform/auth';
 
-export function LoginPage() {
+export function RegisterPage() {
     const runtime =
         useBrowserAuthRuntime();
 
@@ -41,17 +41,17 @@ export function LoginPage() {
         authentication.status
             === 'anonymous'
         && ! failureDismissed
-            ? presentLoginFailure(
+            ? presentRegisterFailure(
                 authentication.failure,
             )
             : null;
 
     function handleFormInputChange(): void {
         /*
-         * Auth runtime keeps the authoritative technical
-         * failure. The application only dismisses the current
-         * user-facing presentation once the user begins
-         * correcting input.
+         * Sama persis dengan LoginPage -- auth runtime tetap
+         * menyimpan kegagalan teknis otoritatif, aplikasi cuma
+         * membatalkan presentasi yang sedang tampil begitu
+         * pengguna mulai memperbaiki input.
          */
         if (
             authentication.status
@@ -66,16 +66,14 @@ export function LoginPage() {
     }
 
     async function handleValidatedSubmit(
-        request: BrowserLoginRequest,
+        request: TenantRegistrationRequest,
     ): Promise<void> {
         /*
-         * The subscribed React snapshot controls the visible
-         * form state, while the live runtime state is checked
-         * again immediately before dispatching authentication.
-         *
-         * This prevents a stale render or rapid duplicate
-         * submit from attempting an invalid LOGIN_STARTED
-         * transition after another login already began.
+         * Sama persis dengan LoginPage: state runtime hidup
+         * dicek ulang tepat sebelum dispatch, supaya render
+         * basi atau submit ganda cepat tidak mencoba transisi
+         * LOGIN_STARTED yang tidak valid setelah percobaan
+         * registrasi lain sudah dimulai.
          */
         if (
             runtime.getState()
@@ -86,25 +84,26 @@ export function LoginPage() {
         }
 
         /*
-         * A new login attempt owns a fresh failure lifecycle.
-         * Any previously dismissed presentation must therefore
-         * be eligible to appear again if this attempt fails.
+         * Percobaan registrasi baru memiliki siklus kegagalan
+         * sendiri. Presentasi yang sebelumnya ditutup harus bisa
+         * tampil lagi kalau percobaan ini juga gagal.
          */
         setFailureDismissed(
             false,
         );
 
         /*
-         * BrowserAuthRuntime owns:
+         * BrowserAuthRuntime.register() memiliki:
          * - CSRF bootstrap
-         * - browser login transport
-         * - canonical context resolution
+         * - transport pendaftaran tenant mandiri
+         * - transisi state yang PERSIS SAMA dengan login berhasil
          *
-         * LoginPage deliberately does not inspect the returned
-         * state or navigate. LoginRouteBoundary reacts to the
-         * authoritative authentication state instead.
+         * RegisterPage sengaja TIDAK memeriksa state yang
+         * dikembalikan atau bernavigasi sendiri -- boundary route
+         * yang bereaksi terhadap authentication state otoritatif
+         * (sama seperti LoginRouteBoundary bereaksi setelah login).
          */
-        await runtime.login(
+        await runtime.register(
             request,
         );
     }
@@ -119,16 +118,18 @@ export function LoginPage() {
                         </p>
 
                         <h1 className="text-3xl font-semibold tracking-tight">
-                            Masuk ke EduCore
+                            Daftarkan sekolah Anda
                         </h1>
 
                         <p className="leading-7 text-slate-300">
-                            Gunakan email atau username akun EduCore Anda
-                            untuk memulai Browser Session yang aman.
+                            Buat ruang kerja EduCore baru untuk sekolah
+                            atau institusi Anda. Anda akan langsung
+                            menjadi admin dan bisa langsung mulai
+                            memakainya.
                         </p>
                     </div>
 
-                    <LoginForm
+                    <RegisterForm
                         disabled={
                             formDisabled
                         }
@@ -151,12 +152,12 @@ export function LoginPage() {
                     />
 
                     <p className="text-center text-sm text-slate-400">
-                        Belum punya akun?{' '}
+                        Sudah punya akun?{' '}
                         <Link
                             className="font-medium text-slate-100 underline underline-offset-4 hover:text-white"
-                            to="/daftar"
+                            to="/login"
                         >
-                            Daftar
+                            Masuk
                         </Link>
                     </p>
                 </div>

@@ -14,23 +14,23 @@ import {
 } from 'vitest';
 
 import {
-    LoginPage,
-} from '@/app/LoginPage';
+    RegisterPage,
+} from '@/app/RegisterPage';
 import {
     BrowserAuthProvider,
 } from '@/app/auth/BrowserAuthProvider';
 import type {
     BrowserAuthRuntime,
     BrowserAuthState,
-    BrowserLoginRequest,
+    TenantRegistrationRequest,
 } from '@/platform/auth';
 
 interface RuntimeHarness {
     readonly runtime:
         BrowserAuthRuntime;
 
-    readonly loginRequests:
-        BrowserLoginRequest[];
+    readonly registerRequests:
+        TenantRegistrationRequest[];
 
     setState(
         nextState: BrowserAuthState,
@@ -51,8 +51,8 @@ function createRuntimeHarness(
             ) => void
         >();
 
-    const loginRequests:
-        BrowserLoginRequest[] = [];
+    const registerRequests:
+        TenantRegistrationRequest[] = [];
 
     function publish(): void {
         for (
@@ -89,17 +89,22 @@ function createRuntimeHarness(
             return state;
         },
 
-        async login(
+        async login() {
+            return state;
+        },
+
+        async register(
             request,
         ) {
-            loginRequests.push(
+            registerRequests.push(
                 request,
             );
 
             /*
              * Mirror the real runtime's synchronous
              * LOGIN_STARTED transition before transport
-             * work begins.
+             * work begins -- register() reuses this exact
+             * action, see BrowserAuthRuntime.register().
              */
             state = {
                 status:
@@ -112,10 +117,6 @@ function createRuntimeHarness(
         },
 
         async logout() {
-            return state;
-        },
-
-        async register() {
             return state;
         },
 
@@ -135,12 +136,12 @@ function createRuntimeHarness(
 
     return {
         runtime,
-        loginRequests,
+        registerRequests,
         setState,
     };
 }
 
-function renderLoginPage(
+function renderRegisterPage(
     harness: RuntimeHarness,
 ) {
     return render(
@@ -150,7 +151,7 @@ function renderLoginPage(
                     harness.runtime
                 }
             >
-                <LoginPage />
+                <RegisterPage />
             </BrowserAuthProvider>
         </MemoryRouter>,
     );
@@ -159,12 +160,48 @@ function renderLoginPage(
 function fillValidForm(): void {
     fireEvent.change(
         screen.getByLabelText(
-            'Email atau username',
+            'Nama sekolah/institusi',
         ),
         {
             target: {
                 value:
-                    '  MEMBER@EXAMPLE.COM  ',
+                    'SMA Negeri Uji Coba',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText(
+            'Subdomain',
+        ),
+        {
+            target: {
+                value:
+                    '  SMA-Uji-Coba  ',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText(
+            'Nama Anda',
+        ),
+        {
+            target: {
+                value:
+                    'Kepala Sekolah Baru',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText(
+            'Email Anda',
+        ),
+        {
+            target: {
+                value:
+                    '  ADMIN-BARU@EXAMPLE.COM  ',
             },
         },
     );
@@ -183,9 +220,9 @@ function fillValidForm(): void {
 }
 
 describe(
-    'LoginPage',
+    'RegisterPage',
     () => {
-        it('describes global User login without requiring Tenant context', () => {
+        it('describes self-service Tenant registration', () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -195,24 +232,18 @@ describe(
                         null,
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
             expect(
                 screen.getByText(
-                    'Gunakan email atau username akun EduCore Anda untuk memulai Browser Session yang aman.',
+                    /Buat ruang kerja EduCore baru/,
                 ),
             ).toBeInTheDocument();
-
-            expect(
-                screen.queryByText(
-                    /Tenant/i,
-                ),
-            ).not.toBeInTheDocument();
         });
 
-        it('dispatches only validated canonical login input through BrowserAuthRuntime', async () => {
+        it('dispatches only validated, normalized Tenant registration input through BrowserAuthRuntime', async () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -222,7 +253,7 @@ describe(
                         null,
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
@@ -233,31 +264,40 @@ describe(
                     'button',
                     {
                         name:
-                            'Masuk',
+                            'Daftar',
                     },
                 ),
             );
 
             await waitFor(() => {
                 expect(
-                    harness.loginRequests,
+                    harness.registerRequests,
                 ).toHaveLength(
                     1,
                 );
             });
 
             expect(
-                harness.loginRequests[0],
+                harness.registerRequests[0],
             ).toEqual({
-                identifier:
-                    'MEMBER@EXAMPLE.COM',
+                name:
+                    'SMA Negeri Uji Coba',
 
-                password:
+                subdomain:
+                    'sma-uji-coba',
+
+                admin_name:
+                    'Kepala Sekolah Baru',
+
+                admin_email:
+                    'admin-baru@example.com',
+
+                admin_password:
                     '  secret value  ',
             });
         });
 
-        it('does not dispatch BrowserAuthRuntime login for locally invalid input', async () => {
+        it('does not dispatch BrowserAuthRuntime register for locally invalid input', async () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -267,7 +307,7 @@ describe(
                         null,
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
@@ -276,44 +316,44 @@ describe(
                     'button',
                     {
                         name:
-                            'Masuk',
+                            'Daftar',
                     },
                 ),
             );
 
             expect(
                 await screen.findByText(
-                    'Identifier wajib diisi.',
+                    'Subdomain wajib diisi.',
                 ),
             ).toBeInTheDocument();
 
             expect(
-                harness.loginRequests,
+                harness.registerRequests,
             ).toHaveLength(
                 0,
             );
         });
 
-        it('disables authentication input while login is already authenticating', () => {
+        it('disables registration input while registration is already authenticating', () => {
             const harness =
                 createRuntimeHarness({
                     status:
                         'authenticating',
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
             expect(
                 screen.getByLabelText(
-                    'Email atau username',
+                    'Nama sekolah/institusi',
                 ),
             ).toBeDisabled();
 
             expect(
                 screen.getByLabelText(
-                    'Password',
+                    'Subdomain',
                 ),
             ).toBeDisabled();
 
@@ -322,13 +362,13 @@ describe(
                     'button',
                     {
                         name:
-                            'Masuk',
+                            'Daftar',
                     },
                 ),
             ).toBeDisabled();
         });
 
-        it('prevents rapid duplicate authentication dispatch after the runtime leaves anonymous state', async () => {
+        it('prevents rapid duplicate registration dispatch after the runtime leaves anonymous state', async () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -338,7 +378,7 @@ describe(
                         null,
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
@@ -349,7 +389,7 @@ describe(
                     'button',
                     {
                         name:
-                            'Masuk',
+                            'Daftar',
                     },
                 );
 
@@ -363,7 +403,7 @@ describe(
 
             await waitFor(() => {
                 expect(
-                    harness.loginRequests,
+                    harness.registerRequests,
                 ).toHaveLength(
                     1,
                 );
@@ -378,7 +418,7 @@ describe(
             );
         });
 
-         it('renders a safe invalid-credential message from canonical anonymous failure state', async () => {
+        it('renders a registration-specific message when the Tenant was created but the Browser session could not be established', () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -392,34 +432,34 @@ describe(
                             'response',
 
                         status:
-                            401,
+                            503,
 
                         error: {
                             status:
                                 'error',
 
                             code:
-                                'AUTHENTICATION_FAILED',
+                                'BROWSER_SESSION_UNAVAILABLE',
 
                             message:
-                                'Sensitive backend authentication detail.',
+                                'Internal session custody detail.',
                         },
                     },
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
             expect(
                 screen.getByText(
-                    'Identifier atau password tidak cocok.',
+                    'Sekolah Anda berhasil didaftarkan, tapi kami tidak dapat langsung memasukkan Anda. Silakan masuk secara manual.',
                 ),
             ).toBeInTheDocument();
 
             expect(
                 screen.queryByText(
-                    'Sensitive backend authentication detail.',
+                    'Internal session custody detail.',
                 ),
             ).not.toBeInTheDocument();
         });
@@ -451,37 +491,27 @@ describe(
                                 'The submitted data is invalid.',
 
                             errors: {
-                                identifier: [
+                                subdomain: [
                                     'Sensitive raw validation detail.',
-                                ],
-
-                                password: [
-                                    'Sensitive raw password validation detail.',
                                 ],
                             },
                         },
                     },
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
             expect(
                 screen.getByText(
-                    'Periksa kembali data login yang ditandai.',
+                    'Periksa kembali data yang ditandai.',
                 ),
             ).toBeInTheDocument();
 
             expect(
                 screen.getByText(
-                    'Identifier tidak dapat diterima. Periksa kembali email atau username Anda.',
-                ),
-            ).toBeInTheDocument();
-
-            expect(
-                screen.getByText(
-                    'Password tidak dapat diterima. Periksa kembali password Anda.',
+                    'Subdomain tidak dapat diterima. Kemungkinan sudah dipakai institusi lain.',
                 ),
             ).toBeInTheDocument();
 
@@ -492,7 +522,7 @@ describe(
             ).not.toBeInTheDocument();
         });
 
-        it('dismisses the current server failure presentation when the user edits login input', async () => {
+        it('dismisses the current server failure presentation when the user edits registration input', async () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -506,39 +536,45 @@ describe(
                             'response',
 
                         status:
-                            401,
+                            422,
 
                         error: {
                             status:
                                 'error',
 
                             code:
-                                'AUTHENTICATION_FAILED',
+                                'VALIDATION_FAILED',
 
                             message:
-                                'Authentication failed.',
+                                'The submitted data is invalid.',
+
+                            errors: {
+                                subdomain: [
+                                    'Already registered.',
+                                ],
+                            },
                         },
                     },
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
             expect(
                 screen.getByText(
-                    'Identifier atau password tidak cocok.',
+                    'Periksa kembali data yang ditandai.',
                 ),
             ).toBeInTheDocument();
 
             fireEvent.change(
                 screen.getByLabelText(
-                    'Email atau username',
+                    'Subdomain',
                 ),
                 {
                     target: {
                         value:
-                            'member@example.com',
+                            'sekolah-lain',
                     },
                 },
             );
@@ -546,13 +582,13 @@ describe(
             await waitFor(() => {
                 expect(
                     screen.queryByText(
-                        'Identifier atau password tidak cocok.',
+                        'Periksa kembali data yang ditandai.',
                     ),
                 ).not.toBeInTheDocument();
             });
         });
 
-        it('links to the self-service Tenant registration page', () => {
+        it('links back to the login page', () => {
             const harness =
                 createRuntimeHarness({
                     status:
@@ -562,7 +598,7 @@ describe(
                         null,
                 });
 
-            renderLoginPage(
+            renderRegisterPage(
                 harness,
             );
 
@@ -571,12 +607,12 @@ describe(
                     'link',
                     {
                         name:
-                            'Daftar',
+                            'Masuk',
                     },
                 ),
             ).toHaveAttribute(
                 'href',
-                '/daftar',
+                '/login',
             );
         });
     },
