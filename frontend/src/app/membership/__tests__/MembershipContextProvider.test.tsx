@@ -141,6 +141,12 @@ function createAuthOperations(
             );
         },
 
+        async register() {
+            throw new Error(
+                'Unexpected register operation.',
+            );
+        },
+
         async logout() {
             throw new Error(
                 'Unexpected logout operation.',

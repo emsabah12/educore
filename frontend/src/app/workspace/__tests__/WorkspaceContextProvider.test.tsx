@@ -241,6 +241,10 @@ function createControlledAuth(
             return state;
         },
 
+        async register() {
+            return state;
+        },
+
         async logout() {
             return state;
         },

@@ -368,6 +368,12 @@ function renderApplication(
 
         login,
 
+        async register() {
+            throw new Error(
+                'Unexpected register operation.',
+            );
+        },
+
         async logout() {
             return {
                 ok:

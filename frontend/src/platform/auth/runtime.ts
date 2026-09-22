@@ -12,6 +12,8 @@ import type {
     BrowserLoginRequest,
     BrowserLoginSuccess,
     BrowserLogoutSuccess,
+    TenantRegistrationRequest,
+    TenantRegistrationSuccess,
 } from '@/platform/auth/contract';
 import {
     isAuthenticationContextDeniedFailure,
@@ -26,6 +28,7 @@ import type {
 } from '@/platform/auth/operations';
 import type {
     BrowserLoginOptions,
+    TenantRegistrationOptions,
 } from '@/platform/auth/service';
 import {
     browserAuthReducer,
@@ -52,6 +55,23 @@ export interface BrowserAuthRuntime {
     login(
         request: BrowserLoginRequest,
         options?: BrowserLoginOptions,
+    ): Promise<BrowserAuthState>;
+
+    /**
+     * §Pendaftaran tenant mandiri (self-service) — "berhasil
+     * daftar" di sini secara harfiah SAMA dengan "berhasil login"
+     * dari sudut pandang state machine: REUSE action LOGIN_STARTED/
+     * LOGIN_ACCEPTED yang SUDAH ADA (state.ts TIDAK disentuh sama
+     * sekali), bukan action baru. Field `tenant` pada respons
+     * (nama sekolah/subdomain) HANYA untuk keperluan UX halaman
+     * pendaftaran itu sendiri -- TIDAK PERNAH disimpan sebagai
+     * Tenant/Membership context resmi; itu tetap wajib di-discover
+     * ulang lewat MembershipRuntime canonical, persis seperti
+     * setelah login biasa.
+     */
+    register(
+        request: TenantRegistrationRequest,
+        options?: TenantRegistrationOptions,
     ): Promise<BrowserAuthState>;
 
     logout(
@@ -350,6 +370,79 @@ export function createBrowserAuthRuntime(
 
                 identity:
                     loginResult.data.data,
+            });
+        },
+
+        async register(
+            request,
+            options,
+        ) {
+            dispatch({
+                type:
+                    'LOGIN_STARTED',
+            });
+
+            const registerResult:
+                BrowserApiResult<
+                    TenantRegistrationSuccess
+                > =
+                await operations.register(
+                    request,
+                    options,
+                );
+
+            if (! registerResult.ok) {
+                return dispatch({
+                    type:
+                        'BECAME_ANONYMOUS',
+                    failure:
+                        registerResult,
+                });
+            }
+
+            if (
+                registerResult.data
+                    === undefined
+            ) {
+                return dispatch({
+                    type:
+                        'BECAME_UNAVAILABLE',
+                    failure:
+                        createMissingSuccessBodyFailure(
+                            registerResult.status,
+                        ),
+                });
+            }
+
+            /*
+             * Sama persis dengan login() di atas -- registrasi
+             * yang berhasil JUGA cuma membangun identity
+             * global, BUKAN Tenant/Membership context.
+             *
+             * Field `tenant` pada respons SENGAJA DIBUANG di
+             * sini (destructuring eksplisit context_type/user/
+             * platform saja) -- state auth TIDAK PERNAH
+             * mempercayai Tenant dari payload registrasi
+             * sebagai context resmi; itu tetap wajib
+             * di-discover ulang lewat MembershipRuntime
+             * canonical.
+             */
+            const {
+                context_type,
+                user,
+                platform,
+            } =
+                registerResult.data.data;
+
+            return dispatch({
+                type:
+                    'LOGIN_ACCEPTED',
+
+                identity: {
+                    context_type,
+                    user,
+                    platform,
+                },
             });
         },
 

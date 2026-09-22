@@ -112,6 +112,10 @@ function createRuntimeHarness(
             return state;
         },
 
+        async register() {
+            return state;
+        },
+
         observeFailure() {
             return state;
         },

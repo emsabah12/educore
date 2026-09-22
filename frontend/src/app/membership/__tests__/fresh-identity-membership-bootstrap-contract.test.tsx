@@ -228,6 +228,10 @@ describe(
                     return identityAuthenticatedState;
                 },
 
+                async register() {
+                    return identityAuthenticatedState;
+                },
+
                 async logout() {
                     return identityAuthenticatedState;
                 },

@@ -13,6 +13,9 @@ export type {
     BrowserLoginRequest,
     BrowserLoginSuccess,
     BrowserLogoutSuccess,
+    TenantRegistrationData,
+    TenantRegistrationRequest,
+    TenantRegistrationSuccess,
 } from './contract';
 
 export {
@@ -48,10 +51,12 @@ export type {
 
 export {
     loginWithBrowserSession,
+    registerTenantWithBrowserSession,
 } from './service';
 
 export type {
     BrowserLoginOptions,
+    TenantRegistrationOptions,
 } from './service';
 
 export {

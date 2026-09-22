@@ -91,6 +91,12 @@ function createOperations(
             );
         },
 
+        async register() {
+            throw new Error(
+                'LogoutButton test must not perform register.',
+            );
+        },
+
         logout,
     };
 }
@@ -188,6 +194,12 @@ async function renderIdentityAuthenticatedLogoutButton(
                     },
                 },
             };
+        },
+
+        async register() {
+            throw new Error(
+                'LogoutButton test must not perform register.',
+            );
         },
 
         logout,

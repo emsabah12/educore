@@ -16,6 +16,8 @@ import {
     type BrowserLoginRequest,
     type BrowserLoginSuccess,
     type BrowserLogoutSuccess,
+    type TenantRegistrationRequest,
+    type TenantRegistrationSuccess,
 } from '@/platform/auth';
 
 const membershipId =
@@ -68,6 +70,81 @@ const loginSuccess:
                 platform: {
                     is_superadmin:
                         false,
+                },
+            },
+        },
+    };
+
+const registerRequest:
+    TenantRegistrationRequest = {
+        name:
+            'SMA Negeri Uji Coba',
+
+        subdomain:
+            'sma-uji-coba',
+
+        admin_name:
+            'Kepala Sekolah Baru',
+
+        admin_email:
+            'admin-baru@example.com',
+
+        admin_password:
+            'correct-horse-battery-staple',
+    };
+
+/**
+ * §registerSuccess SENGAJA punya field `tenant` tambahan yang
+ * TIDAK dimiliki loginSuccess -- membuktikan runtime.register()
+ * benar-benar MEMBUANG field itu sebelum dispatch (lihat test
+ * "register" di bawah).
+ */
+const registerSuccess:
+    BrowserApiResult<
+        TenantRegistrationSuccess
+    > = {
+        ok:
+            true,
+
+        status:
+            201,
+
+        data: {
+            status:
+                'success',
+
+            data: {
+                context_type:
+                    'identity',
+
+                user: {
+                    id:
+                        '018f3b6a-7c20-7cde-8def-1234567890ab',
+
+                    name:
+                        'Kepala Sekolah Baru',
+
+                    email:
+                        'admin-baru@example.com',
+
+                    username:
+                        null,
+                },
+
+                platform: {
+                    is_superadmin:
+                        false,
+                },
+
+                tenant: {
+                    id:
+                        '018f3b6a-7c20-7fed-8cba-1234567890ab',
+
+                    name:
+                        'SMA Negeri Uji Coba',
+
+                    subdomain:
+                        'sma-uji-coba',
                 },
             },
         },
@@ -217,6 +294,10 @@ function createOperations(
             return loginSuccess;
         },
 
+        async register() {
+            return registerSuccess;
+        },
+
         async logout() {
             return logoutSuccess;
         },
@@ -354,6 +435,178 @@ describe(
 
                 identity:
                     loginSuccess.data?.data,
+            });
+        });
+
+        it('stops fresh Tenant self-registration at identity-authenticated, reusing the exact same LOGIN_STARTED/LOGIN_ACCEPTED transitions as login', async () => {
+            const observedStatuses:
+                string[] = [];
+
+            const bootstrap =
+                vi.fn(
+                    async () =>
+                        bootstrapSuccess,
+                );
+
+            const runtime =
+                createBrowserAuthRuntime(
+                    createOperations({
+                        bootstrap,
+                    }),
+                );
+
+            await runtime.bootstrap();
+
+            runtime.observeFailure(
+                sessionRequiredFailure,
+            );
+
+            bootstrap.mockClear();
+
+            const unsubscribe =
+                runtime.subscribe(
+                    (state) => {
+                        observedStatuses.push(
+                            state.status,
+                        );
+                    },
+                );
+
+            const state =
+                await runtime.register(
+                    registerRequest,
+                );
+
+            unsubscribe();
+
+            expect(
+                observedStatuses,
+            ).toEqual([
+                'authenticating',
+                'identity-authenticated',
+            ]);
+
+            expect(
+                bootstrap,
+            ).not.toHaveBeenCalled();
+
+            /*
+             * §Bukti terpenting: registerSuccess.data.data PUNYA
+             * field `tenant`, tapi state.identity yang di-dispatch
+             * TIDAK BOLEH memilikinya -- runtime.register() wajib
+             * membuangnya sebelum dispatch (lihat catatan di
+             * runtime.ts). State auth tidak pernah mempercayai
+             * Tenant dari payload registrasi sebagai context resmi.
+             */
+            expect(
+                state,
+            ).toEqual({
+                status:
+                    'identity-authenticated',
+
+                identity: {
+                    context_type:
+                        'identity',
+
+                    user:
+                        registerSuccess
+                            .data
+                            ?.data
+                            .user,
+
+                    platform:
+                        registerSuccess
+                            .data
+                            ?.data
+                            .platform,
+                },
+            });
+
+            if (
+                state.status
+                    !== 'identity-authenticated'
+            ) {
+                throw new Error(
+                    'Expected identity-authenticated state.',
+                );
+            }
+
+            expect(
+                state.identity,
+            ).not.toHaveProperty(
+                'tenant',
+            );
+        });
+
+        it('returns to anonymous when Tenant self-registration fails', async () => {
+            const registrationFailure:
+                BrowserApiFailure = {
+                    ok: false,
+                    kind:
+                        'response',
+                    status:
+                        422,
+                    error: {
+                        status:
+                            'error',
+                        code:
+                            'VALIDATION_FAILED',
+                        message:
+                            'The submitted data is invalid.',
+                        errors: {
+                            subdomain: [
+                                'The subdomain has already been registered.',
+                            ],
+                        },
+                    },
+                };
+
+            const register =
+                vi.fn(
+                    async () =>
+                        registrationFailure,
+                );
+
+            const bootstrap =
+                vi.fn(
+                    async () =>
+                        bootstrapSuccess,
+                );
+
+            const runtime =
+                createBrowserAuthRuntime(
+                    createOperations({
+                        bootstrap,
+                        register,
+                    }),
+                );
+
+            await runtime.bootstrap();
+
+            runtime.observeFailure(
+                sessionRequiredFailure,
+            );
+
+            const state =
+                await runtime.register(
+                    registerRequest,
+                );
+
+            expect(
+                register,
+            ).toHaveBeenCalledWith(
+                registerRequest,
+                undefined,
+            );
+
+            expect(
+                state,
+            ).toEqual({
+                status:
+                    'anonymous',
+
+                failure:
+                    registrationFailure,
             });
         });
 

@@ -12,6 +12,8 @@ import type {
     BrowserLoginRequest,
     BrowserLoginSuccess,
     BrowserLogoutSuccess,
+    TenantRegistrationRequest,
+    TenantRegistrationSuccess,
 } from '@/platform/auth/contract';
 import {
     logoutBrowserSession,
@@ -19,7 +21,9 @@ import {
 } from '@/platform/auth/logout';
 import {
     loginWithBrowserSession,
+    registerTenantWithBrowserSession,
     type BrowserLoginOptions,
+    type TenantRegistrationOptions,
 } from '@/platform/auth/service';
 
 export interface BrowserAuthOperations {
@@ -37,6 +41,15 @@ export interface BrowserAuthOperations {
     ): Promise<
         BrowserApiResult<
             BrowserLoginSuccess
+        >
+    >;
+
+    register(
+        request: TenantRegistrationRequest,
+        options?: TenantRegistrationOptions,
+    ): Promise<
+        BrowserApiResult<
+            TenantRegistrationSuccess
         >
     >;
 
@@ -67,6 +80,17 @@ export function createBrowserAuthOperations(
             options,
         ) {
             return loginWithBrowserSession(
+                client,
+                request,
+                options,
+            );
+        },
+
+        register(
+            request,
+            options,
+        ) {
+            return registerTenantWithBrowserSession(
                 client,
                 request,
                 options,

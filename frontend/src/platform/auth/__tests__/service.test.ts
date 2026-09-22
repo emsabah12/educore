@@ -15,7 +15,9 @@ import {
 } from '@/platform/api';
 import {
     loginWithBrowserSession,
+    registerTenantWithBrowserSession,
     type BrowserLoginRequest,
+    type TenantRegistrationRequest,
 } from '@/platform/auth';
 import { apiMockServer } from '@/test/server';
 
@@ -371,5 +373,308 @@ describe('loginWithBrowserSession', () => {
         expect(result.kind).toBe(
             'aborted',
         );
+    });
+});
+
+const registerRequest:
+    TenantRegistrationRequest = {
+        name:
+            'SMA Negeri Uji Coba',
+
+        subdomain:
+            'sma-uji-coba',
+
+        admin_name:
+            'Kepala Sekolah Baru',
+
+        admin_email:
+            'admin-baru@example.com',
+
+        admin_password:
+            'correct-horse-battery-staple',
+    };
+
+const tenantRegistrationData = {
+    context_type:
+        'identity' as const,
+
+    user: {
+        id:
+            userId,
+
+        name:
+            'Kepala Sekolah Baru',
+
+        email:
+            'admin-baru@example.com',
+
+        username:
+            null,
+    },
+
+    platform: {
+        is_superadmin:
+            false,
+    },
+
+    tenant: {
+        id:
+            '018f3b6a-7c20-7fed-8cba-1234567890ab',
+
+        name:
+            'SMA Negeri Uji Coba',
+
+        subdomain:
+            'sma-uji-coba',
+    },
+};
+
+describe('registerTenantWithBrowserSession', () => {
+    beforeEach(() => {
+        clearXsrfCookie();
+    });
+
+    afterEach(() => {
+        clearXsrfCookie();
+    });
+
+    it('bootstraps request forgery protection before Tenant self-registration, reusing the exact same CSRF sequence as login', async () => {
+        const requests: string[] = [];
+
+        let observedRegisterBody:
+            unknown = null;
+
+        let observedXsrfHeader:
+            string | null = null;
+
+        apiMockServer.use(
+            http.get(
+                `${window.location.origin}/api/v1/browser/session/csrf`,
+                () => {
+                    requests.push(
+                        'csrf',
+                    );
+
+                    document.cookie =
+                        'XSRF-TOKEN=csrf%20token; Path=/';
+
+                    return new HttpResponse(
+                        null,
+                        {
+                            status: 204,
+                        },
+                    );
+                },
+            ),
+
+            http.post(
+                `${window.location.origin}/api/v1/browser/auth/register`,
+                async ({
+                    request,
+                }) => {
+                    requests.push(
+                        'register',
+                    );
+
+                    observedRegisterBody =
+                        await request.json();
+
+                    observedXsrfHeader =
+                        request.headers.get(
+                            'X-XSRF-TOKEN',
+                        );
+
+                    return HttpResponse.json(
+                        {
+                            status: 'success',
+                            data:
+                                tenantRegistrationData,
+                        },
+                        {
+                            status: 201,
+                        },
+                    );
+                },
+            ),
+        );
+
+        const client =
+            createBrowserApiClient();
+
+        const result =
+            await registerTenantWithBrowserSession(
+                client,
+                registerRequest,
+            );
+
+        expect(requests).toEqual([
+            'csrf',
+            'register',
+        ]);
+
+        expect(
+            observedRegisterBody,
+        ).toEqual(
+            registerRequest,
+        );
+
+        expect(
+            observedXsrfHeader,
+        ).toBe(
+            'csrf token',
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            status: 201,
+            data: {
+                status: 'success',
+                data:
+                    tenantRegistrationData,
+            },
+        });
+
+        if (! result.ok) {
+            throw new Error(
+                'Expected successful Tenant self-registration.',
+            );
+        }
+
+        expect(
+            result.data,
+        ).not.toHaveProperty(
+            'data.access_token',
+        );
+    });
+
+    it('fails closed and does not dispatch registration when CSRF bootstrap fails', async () => {
+        const requests: string[] = [];
+
+        apiMockServer.use(
+            http.get(
+                `${window.location.origin}/api/v1/browser/session/csrf`,
+                () => {
+                    requests.push(
+                        'csrf',
+                    );
+
+                    return HttpResponse.error();
+                },
+            ),
+
+            http.post(
+                `${window.location.origin}/api/v1/browser/auth/register`,
+                () => {
+                    requests.push(
+                        'register',
+                    );
+
+                    return HttpResponse.json(
+                        {
+                            status: 'success',
+                            data:
+                                tenantRegistrationData,
+                        },
+                        {
+                            status: 201,
+                        },
+                    );
+                },
+            ),
+        );
+
+        const client =
+            createBrowserApiClient();
+
+        const result =
+            await registerTenantWithBrowserSession(
+                client,
+                registerRequest,
+            );
+
+        expect(requests).toEqual([
+            'csrf',
+        ]);
+
+        expect(result.ok).toBe(
+            false,
+        );
+
+        if (result.ok) {
+            throw new Error(
+                'Expected failed CSRF bootstrap.',
+            );
+        }
+
+        expect(result.kind).toBe(
+            'network',
+        );
+    });
+
+    it('preserves canonical registration validation failures, such as an already-registered subdomain', async () => {
+        apiMockServer.use(
+            http.get(
+                `${window.location.origin}/api/v1/browser/session/csrf`,
+                () => {
+                    document.cookie =
+                        'XSRF-TOKEN=validation-token; Path=/';
+
+                    return new HttpResponse(
+                        null,
+                        {
+                            status: 204,
+                        },
+                    );
+                },
+            ),
+
+            http.post(
+                `${window.location.origin}/api/v1/browser/auth/register`,
+                () => HttpResponse.json(
+                    {
+                        status: 'error',
+                        code:
+                            'VALIDATION_FAILED',
+                        message:
+                            'The submitted data is invalid.',
+                        errors: {
+                            subdomain: [
+                                'The subdomain has already been registered.',
+                            ],
+                        },
+                    },
+                    {
+                        status: 422,
+                    },
+                ),
+            ),
+        );
+
+        const client =
+            createBrowserApiClient();
+
+        const result =
+            await registerTenantWithBrowserSession(
+                client,
+                registerRequest,
+            );
+
+        expect(result).toEqual({
+            ok: false,
+            kind: 'response',
+            status: 422,
+            error: {
+                status: 'error',
+                code:
+                    'VALIDATION_FAILED',
+                message:
+                    'The submitted data is invalid.',
+                errors: {
+                    subdomain: [
+                        'The subdomain has already been registered.',
+                    ],
+                },
+            },
+        });
     });
 });
