@@ -37,7 +37,15 @@ final class OnboardingTemplateController extends Controller
             ),
         );
 
+        // §Perbaikan bug — OnboardingTemplateResource (OpenAPI)
+        // menjanjikan `tasks` sebagai field WAJIB ("eager-loaded and
+        // included here"), persis seperti store() di bawah. Tanpa
+        // with() ini, response kehilangan `tasks` sepenuhnya, dan
+        // frontend (HrOnboardingTemplatesPage) yang membaca
+        // `template.tasks.length` langsung setelah data dimuat akan
+        // crash begitu ada minimal satu Template tersimpan.
         $templates = OnboardingTemplate::query()
+            ->with('tasks')
             ->orderBy('name')
             ->paginate($perPage);
 

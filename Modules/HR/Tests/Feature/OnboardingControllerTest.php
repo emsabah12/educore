@@ -69,6 +69,59 @@ final class OnboardingControllerTest extends TestCase
         $this->assertCount(2, $response->json('data.tasks'));
     }
 
+    /**
+     * §Perbaikan bug — endpoint ini SEBELUMNYA tidak pernah punya
+     * test sama sekali. index() tidak melakukan with('tasks') seperti
+     * store(), melanggar kontrak OpenAPI OnboardingTemplateResource
+     * ("tasks are eager-loaded and included here"). Frontend
+     * (HrOnboardingTemplatesPage) membaca `template.tasks.length`
+     * langsung setelah data dimuat -- begitu tenant punya minimal
+     * satu Template tersimpan, halaman langsung crash saat dibuka.
+     */
+    public function test_index_includes_tasks_for_each_template(): void
+    {
+        $this->grantRole($this->operatorMembershipId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route('api.v1.hr.onboarding.templates.store', [], false),
+                [
+                    'code' => 'INDEX-TASKS-CHECK',
+                    'name' => 'Onboarding Guru — Cek Tasks di Respons Index',
+                    'tasks' => [
+                        ['code' => 'SUBMIT_ID_CARD', 'title' => 'Kumpulkan KTP', 'category' => 'DOCUMENT', 'sequence' => 1],
+                        ['code' => 'ORIENTATION', 'title' => 'Orientasi', 'category' => 'ORIENTATION', 'sequence' => 2],
+                    ],
+                ],
+            )->assertCreated();
+
+        $response = $this
+            ->withToken($this->issueToken())
+            ->getJson(
+                route('api.v1.hr.onboarding.templates.index', [], false),
+            );
+
+        $response->assertOk();
+
+        $templates = $response->json('data');
+
+        $this->assertNotEmpty($templates);
+
+        $matchingTemplate = collect($templates)->firstWhere('code', 'INDEX-TASKS-CHECK');
+
+        $this->assertNotNull(
+            $matchingTemplate,
+            'The just-created Template must appear in the index() response.',
+        );
+
+        $this->assertCount(
+            2,
+            $matchingTemplate['tasks'],
+            'index() response must include each Template\'s tasks relation, matching the OpenAPI contract and store()\'s behaviour -- otherwise the frontend crashes reading template.tasks.length.',
+        );
+    }
+
     public function test_store_case_creates_case_for_application(): void
     {
         $this->grantRole($this->operatorMembershipId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
