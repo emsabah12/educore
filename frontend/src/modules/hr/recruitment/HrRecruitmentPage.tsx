@@ -42,6 +42,7 @@ import {
 } from '@/modules/hr/api/use-recruitment-applications-query';
 import {
     useCreateRecruitmentCandidateMutation,
+    useStoreRecruitmentCandidateIdentifierMutation,
 } from '@/modules/hr/api/use-recruitment-candidate-mutations';
 import {
     useRecruitmentCandidatesQuery,
@@ -1977,6 +1978,198 @@ function VacancySection() {
     );
 }
 
+/**
+ * §Melengkapi identitas kuat (NIK/Paspor) ke Candidate yang SUDAH
+ * ADA — bukan cuma saat pembuatan kandidat baru. Menutup gap yang
+ * membuat kandidat yang sudah terlanjur dibuat tanpa identitas
+ * SELALU gagal di "Proses Perekrutan": pesan errornya generik
+ * ("Cek identitas Kandidat...") dan tidak ada cara memperbaikinya
+ * dari UI sebelum komponen ini ada.
+ */
+function CandidateIdentifierForm({
+    candidateId,
+}: {
+    candidateId: string;
+}) {
+    const storeIdentifierMutation =
+        useStoreRecruitmentCandidateIdentifierMutation();
+
+    const [
+        isExpanded,
+        setIsExpanded,
+    ] = useState(false);
+
+    const [
+        type,
+        setType,
+    ] = useState('NATIONAL_ID');
+
+    const [
+        value,
+        setValue,
+    ] = useState('');
+
+    function handleSubmit(
+        event: React.FormEvent,
+    ) {
+        event.preventDefault();
+
+        storeIdentifierMutation.mutate(
+            {
+                candidateId,
+
+                type,
+
+                issuingCountryCode:
+                    'ID',
+
+                value,
+            },
+            {
+                onSuccess: () => {
+                    setValue('');
+                },
+            },
+        );
+    }
+
+    if (! isExpanded) {
+        return (
+            <button
+                type="button"
+                className="ml-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={
+                    () =>
+                        setIsExpanded(true)
+                }
+            >
+                + Tambah Identitas
+            </button>
+        );
+    }
+
+    return (
+        <form
+            onSubmit={handleSubmit}
+            className="mt-2 flex flex-wrap items-end gap-2 border-t pt-2"
+        >
+            <div className="space-y-1">
+                <label
+                    htmlFor={
+                        `candidate-identifier-type-${candidateId}`
+                    }
+                    className="text-xs font-medium text-muted-foreground"
+                >
+                    Jenis
+                </label>
+
+                <Select
+                    id={
+                        `candidate-identifier-type-${candidateId}`
+                    }
+                    value={type}
+                    onChange={
+                        (
+                            event,
+                        ) =>
+                            setType(
+                                event.target.value,
+                            )
+                    }
+                >
+                    <option value="NATIONAL_ID">
+                        NIK
+                    </option>
+
+                    <option value="PASSPORT">
+                        Paspor
+                    </option>
+                </Select>
+            </div>
+
+            <div className="space-y-1">
+                <label
+                    htmlFor={
+                        `candidate-identifier-value-${candidateId}`
+                    }
+                    className="text-xs font-medium text-muted-foreground"
+                >
+                    Nomor
+                </label>
+
+                <Input
+                    id={
+                        `candidate-identifier-value-${candidateId}`
+                    }
+                    value={value}
+                    required
+                    onChange={
+                        (
+                            event,
+                        ) =>
+                            setValue(
+                                event.target.value,
+                            )
+                    }
+                />
+            </div>
+
+            <Button
+                type="submit"
+                size="sm"
+                disabled={
+                    storeIdentifierMutation.isPending
+                }
+            >
+                {
+                    storeIdentifierMutation.isPending
+                        ? 'Menyimpan…'
+                        : 'Simpan Identitas'
+                }
+            </Button>
+
+            <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={
+                    () =>
+                        setIsExpanded(false)
+                }
+            >
+                Batal
+            </button>
+
+            {
+                storeIdentifierMutation.isSuccess
+                    ? (
+                        <p className="w-full text-xs text-muted-foreground">
+                            Identitas tersimpan.
+                        </p>
+                    )
+                    : null
+            }
+
+            {
+                storeIdentifierMutation.isError
+                    ? (
+                        <p
+                            role="alert"
+                            className="w-full text-xs text-destructive"
+                        >
+                            {
+                                storeIdentifierMutation.error.kind === 'response'
+                                    && storeIdentifierMutation.error.status === 409
+                                    ? 'Identitas ini sudah dipakai Kandidat lain.'
+                                    : 'Gagal menyimpan identitas. Coba lagi.'
+                            }
+                        </p>
+                    )
+                    : null
+            }
+        </form>
+    );
+}
+
 function CandidateSection() {
     const candidatesQuery =
         useRecruitmentCandidatesQuery();
@@ -1993,12 +2186,17 @@ function CandidateSection() {
         primaryEmail: '',
         primaryPhone: '',
         source: '',
+        identifierType: 'NATIONAL_ID',
+        identifierValue: '',
     });
 
     function handleSubmit(
         event: React.FormEvent,
     ) {
         event.preventDefault();
+
+        const trimmedIdentifierValue =
+            form.identifierValue.trim();
 
         createMutation.mutate(
             {
@@ -2024,6 +2222,22 @@ function CandidateSection() {
                     form.source.trim() === ''
                         ? null
                         : form.source,
+
+                identifiers:
+                    trimmedIdentifierValue === ''
+                        ? null
+                        : [
+                            {
+                                type:
+                                    form.identifierType,
+
+                                issuingCountryCode:
+                                    'ID',
+
+                                value:
+                                    trimmedIdentifierValue,
+                            },
+                        ],
             },
             {
                 onSuccess: () => {
@@ -2034,6 +2248,8 @@ function CandidateSection() {
                             primaryEmail: '',
                             primaryPhone: '',
                             source: '',
+                            identifierType: 'NATIONAL_ID',
+                            identifierValue: '',
                         },
                     );
                 },
@@ -2105,6 +2321,12 @@ function CandidateSection() {
                                                             )
                                                             : null
                                                     }
+
+                                                    <CandidateIdentifierForm
+                                                        candidateId={
+                                                            candidate.id
+                                                        }
+                                                    />
                                                 </li>
                                             ),
                                         )
@@ -2270,6 +2492,77 @@ function CandidateSection() {
                                     )
                             }
                         />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="candidate-identifier-type"
+                            className="text-xs font-medium text-muted-foreground"
+                        >
+                            Jenis Identitas (opsional)
+                        </label>
+
+                        <Select
+                            id="candidate-identifier-type"
+                            value={
+                                form.identifierType
+                            }
+                            onChange={
+                                (
+                                    event,
+                                ) =>
+                                    setForm(
+                                        {
+                                            ...form,
+
+                                            identifierType:
+                                                event.target.value,
+                                        },
+                                    )
+                            }
+                        >
+                            <option value="NATIONAL_ID">
+                                NIK
+                            </option>
+
+                            <option value="PASSPORT">
+                                Paspor
+                            </option>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="candidate-identifier-value"
+                            className="text-xs font-medium text-muted-foreground"
+                        >
+                            Nomor Identitas (opsional)
+                        </label>
+
+                        <Input
+                            id="candidate-identifier-value"
+                            value={
+                                form.identifierValue
+                            }
+                            onChange={
+                                (
+                                    event,
+                                ) =>
+                                    setForm(
+                                        {
+                                            ...form,
+
+                                            identifierValue:
+                                                event.target.value,
+                                        },
+                                    )
+                            }
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                            Wajib diisi sebelum Kandidat bisa diproses
+                            jadi Pegawai — boleh dilengkapi belakangan.
+                        </p>
                     </div>
                 </div>
 

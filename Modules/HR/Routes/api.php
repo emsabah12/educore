@@ -31,6 +31,7 @@ use Modules\HR\Http\Controllers\Api\v1\OnboardingTemplateController;
 use Modules\HR\Http\Controllers\Api\v1\PositionController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentApplicationController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateController;
+use Modules\HR\Http\Controllers\Api\v1\RecruitmentCandidateIdentifierController;
 use Modules\HR\Http\Controllers\Api\v1\RecruitmentVacancyController;
 use Modules\HR\Http\Controllers\Api\v1\WorkspaceEmployeeProvisioningController;
 
@@ -371,6 +372,15 @@ Route::middleware([
     )
         ->middleware('tenant.permission:hr.recruitment.manage')
         ->name('api.v1.hr.recruitment.candidates.store');
+
+    // §Melengkapi identifier kuat ke Candidate yang SUDAH ADA --
+    // lihat catatan lengkap di RecruitmentCandidateIdentifierController.
+    Route::post(
+        '/v1/hr/recruitment/candidates/{candidateId}/identifiers',
+        [RecruitmentCandidateIdentifierController::class, 'store']
+    )
+        ->middleware('tenant.permission:hr.recruitment.manage')
+        ->name('api.v1.hr.recruitment.candidates.identifiers.store');
 
     // HR-003 §7.6 / §8.2 — Application (Candidate x Vacancy) lifecycle.
     Route::get(

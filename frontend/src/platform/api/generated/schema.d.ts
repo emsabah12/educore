@@ -1625,6 +1625,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr/recruitment/candidates/{candidateId}/identifiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a strong identifier (e.g. a National ID) to an existing Recruitment Candidate
+         * @description Completes the "create Candidate first, attach a strong
+         *     identifier once documents are verified" path already
+         *     anticipated by POST /recruitment/candidates' identifiers
+         *     field being optional. Hiring conversion requires at least
+         *     one strong identifier on record before it can proceed; this
+         *     is the endpoint that lets an already-created Candidate
+         *     without one be completed.
+         *
+         *     The raw `value` is encrypted at rest and NEVER echoed back
+         *     in the response, encrypted or otherwise -- only metadata
+         *     (id, type, status) is returned.
+         */
+        post: operations["hrRecruitmentCandidateIdentifierStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hr/recruitment/vacancies/{vacancyId}/applications": {
         parameters: {
             query?: never;
@@ -4197,6 +4227,30 @@ export interface components {
             /** @constant */
             code: "RECRUITMENT_CANDIDATE_IDENTIFIER_CONFLICT";
             message: string;
+        };
+        RecruitmentCandidateNotFoundError: {
+            /** @constant */
+            status: "error";
+            /** @constant */
+            code: "RECRUITMENT_CANDIDATE_NOT_FOUND";
+            message: string;
+        };
+        /**
+         * @description Metadata only. The raw `value` sent in the request is NEVER
+         *     echoed back, encrypted or otherwise (see
+         *     RecruitmentCandidateIdentifierRepositoryInterface::store()).
+         */
+        RecruitmentCandidateIdentifierCreatedEntry: {
+            id: components["schemas"]["UuidV7"];
+            candidate_id: components["schemas"]["UuidV7"];
+            type: string;
+            issuing_country_code: string;
+            status: string;
+        };
+        RecruitmentCandidateIdentifierCreatedSuccess: {
+            /** @constant */
+            status: "success";
+            data: components["schemas"]["RecruitmentCandidateIdentifierCreatedEntry"];
         };
         /**
          * @description HR-003 §7.6 / §8.2 — a Candidate's application to a Vacancy.
@@ -10244,6 +10298,81 @@ export interface operations {
                 };
             };
             /** @description A given strong identifier already belongs to a different Candidate in this tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateIdentifierConflictError"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    hrRecruitmentCandidateIdentifierStore: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description UUIDv7 tab-local locator used only when a canonical operation is
+                 *     authenticated with BrowserSessionAuth. It selects one Membership
+                 *     credential already prepared in server-side Browser Session custody.
+                 *
+                 *     Omit this header for BearerAuth. The header is never authentication or
+                 *     authorization authority and cannot create a Membership context.
+                 */
+                "X-EduCore-Membership-Id"?: components["parameters"]["CanonicalBrowserMembershipLocator"];
+            };
+            path: {
+                candidateId: components["schemas"]["UuidV7"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    type: string;
+                    issuing_country_code: string;
+                    /** @description Raw identifier value (e.g. a National ID number). Encrypted at rest; never echoed back. */
+                    value: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Identifier registered (metadata only -- value never echoed back). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateIdentifierCreatedSuccess"];
+                };
+            };
+            401: components["responses"]["BrowserSessionAuthenticationRequired"];
+            /**
+             * @description Authentication or Browser Session Membership context is
+             *     missing, unavailable, or mismatched, or the current tenant
+             *     membership does not have hr.recruitment.manage permission.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationContextDeniedError"] | components["schemas"]["SubscriptionFeatureNotAvailableError"] | components["schemas"]["AuthorizationDeniedError"];
+                };
+            };
+            /** @description Recruitment Candidate was not found in the current tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruitmentCandidateNotFoundError"];
+                };
+            };
+            /** @description The given strong identifier already belongs to a different Candidate in this tenant. */
             409: {
                 headers: {
                     [name: string]: unknown;

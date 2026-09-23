@@ -5553,6 +5553,101 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/hr/recruitment/candidates/{candidateId}/identifiers:
+    post:
+      operationId: hrRecruitmentCandidateIdentifierStore
+      x-laravel-route-name: api.v1.hr.recruitment.candidates.identifiers.store
+      tags:
+        - Human Resources
+      summary: Add a strong identifier (e.g. a National ID) to an existing Recruitment Candidate
+      description: |
+        Completes the "create Candidate first, attach a strong
+        identifier once documents are verified" path already
+        anticipated by POST /recruitment/candidates' identifiers
+        field being optional. Hiring conversion requires at least
+        one strong identifier on record before it can proceed; this
+        is the endpoint that lets an already-created Candidate
+        without one be completed.
+
+        The raw `value` is encrypted at rest and NEVER echoed back
+        in the response, encrypted or otherwise -- only metadata
+        (id, type, status) is returned.
+      security:
+        - BearerAuth: []
+        - BrowserSessionAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanonicalBrowserMembershipLocator"
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UuidV7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - type
+                - issuing_country_code
+                - value
+              properties:
+                type:
+                  type: string
+                  maxLength: 50
+                issuing_country_code:
+                  type: string
+                  minLength: 2
+                  maxLength: 2
+                value:
+                  description: Raw identifier value (e.g. a National ID number). Encrypted at rest; never echoed back.
+                  type: string
+      responses:
+        "201":
+          description: Identifier registered (metadata only -- value never echoed back).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateIdentifierCreatedSuccess"
+
+        "401":
+          $ref: "#/components/responses/BrowserSessionAuthenticationRequired"
+
+        "403":
+          description: |
+            Authentication or Browser Session Membership context is
+            missing, unavailable, or mismatched, or the current tenant
+            membership does not have hr.recruitment.manage permission.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AuthenticationContextDeniedError"
+                  - $ref: "#/components/schemas/SubscriptionFeatureNotAvailableError"
+                  - $ref: "#/components/schemas/AuthorizationDeniedError"
+
+        "404":
+          description: Recruitment Candidate was not found in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateNotFoundError"
+
+        "409":
+          description: The given strong identifier already belongs to a different Candidate in this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecruitmentCandidateIdentifierConflictError"
+
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/hr/recruitment/vacancies/{vacancyId}/applications:
     get:
       operationId: hrRecruitmentApplicationIndex
@@ -12714,6 +12809,63 @@ components:
           const: RECRUITMENT_CANDIDATE_IDENTIFIER_CONFLICT
         message:
           type: string
+
+    RecruitmentCandidateNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: string
+          const: error
+        code:
+          type: string
+          const: RECRUITMENT_CANDIDATE_NOT_FOUND
+        message:
+          type: string
+
+    RecruitmentCandidateIdentifierCreatedEntry:
+      type: object
+      additionalProperties: false
+      description: |
+        Metadata only. The raw `value` sent in the request is NEVER
+        echoed back, encrypted or otherwise (see
+        RecruitmentCandidateIdentifierRepositoryInterface::store()).
+      required:
+        - id
+        - candidate_id
+        - type
+        - issuing_country_code
+        - status
+      properties:
+        id:
+          $ref: "#/components/schemas/UuidV7"
+        candidate_id:
+          $ref: "#/components/schemas/UuidV7"
+        type:
+          type: string
+        issuing_country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+        status:
+          type: string
+
+    RecruitmentCandidateIdentifierCreatedSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: "#/components/schemas/RecruitmentCandidateIdentifierCreatedEntry"
 
     RecruitmentApplicationResource:
       type: object

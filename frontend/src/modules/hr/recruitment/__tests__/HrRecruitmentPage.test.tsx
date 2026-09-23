@@ -546,6 +546,311 @@ describe(
         );
 
         it(
+            'creates a new Candidate WITH a strong identifier, closing the gap that previously always broke hire-conversion',
+            async () => {
+                let observedBody: Record<string, unknown> | null = null;
+
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/positions',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/core/organizations',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/recruitment/vacancies',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/recruitment/candidates',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/recruitment/candidates',
+                        async ({
+                            request,
+                        }) => {
+                            observedBody =
+                                await request.json() as Record<string, unknown>;
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    message: 'Candidate created.',
+                                    data: {
+                                        id: '01970000-0000-7000-8000-0000000d3ab',
+                                        tenant_id: '01970000-0000-7000-8000-0000000000ff',
+                                        person_id: null,
+                                        display_name: 'Siti Kandidat',
+                                        birth_date: null,
+                                        primary_email: null,
+                                        normalized_email: null,
+                                        primary_phone: null,
+                                        normalized_phone: null,
+                                        source: null,
+                                        status: 'ACTIVE',
+                                        created_at: '2026-01-20T00:00:00Z',
+                                        updated_at: '2026-01-20T00:00:00Z',
+                                    },
+                                },
+                                {
+                                    status: 201,
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderPage();
+
+                await screen.findByText(
+                    'Belum ada Kandidat.',
+                );
+
+                changeById(
+                    'candidate-display-name',
+                    'Siti Kandidat',
+                );
+
+                changeById(
+                    'candidate-identifier-value',
+                    '3201234567890099',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Simpan',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            observedBody,
+                        ).not.toBeNull();
+                    },
+                );
+
+                expect(
+                    observedBody,
+                ).toMatchObject(
+                    {
+                        display_name: 'Siti Kandidat',
+                        identifiers: [
+                            {
+                                type: 'NATIONAL_ID',
+                                issuing_country_code: 'ID',
+                                value: '3201234567890099',
+                            },
+                        ],
+                    },
+                );
+            },
+        );
+
+        it(
+            'completes a strong identifier for an existing Candidate that was created without one',
+            async () => {
+                let observedIdentifierBody: Record<string, unknown> | null = null;
+
+                const existingCandidateWithoutIdentifier = {
+                    id: '01970000-0000-7000-8000-0000000d3ac',
+                    tenant_id: '01970000-0000-7000-8000-0000000000ff',
+                    person_id: null,
+                    display_name: 'Warcim',
+                    birth_date: null,
+                    primary_email: null,
+                    normalized_email: null,
+                    primary_phone: null,
+                    normalized_phone: null,
+                    source: null,
+                    status: 'ACTIVE',
+                    created_at: '2026-01-20T00:00:00Z',
+                    updated_at: '2026-01-20T00:00:00Z',
+                };
+
+                apiMockServer.use(
+                    http.get(
+                        '*/api/v1/hr/positions',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/core/organizations',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/recruitment/vacancies',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 0,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.get(
+                        '*/api/v1/hr/recruitment/candidates',
+                        () =>
+                            HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: [
+                                        existingCandidateWithoutIdentifier,
+                                    ],
+                                    meta: {
+                                        current_page: 1,
+                                        last_page: 1,
+                                        per_page: 15,
+                                        total: 1,
+                                    },
+                                },
+                            ),
+                    ),
+                    http.post(
+                        '*/api/v1/hr/recruitment/candidates/:candidateId/identifiers',
+                        async ({
+                            request,
+                            params,
+                        }) => {
+                            expect(
+                                params.candidateId,
+                            ).toBe(
+                                existingCandidateWithoutIdentifier.id,
+                            );
+
+                            observedIdentifierBody =
+                                await request.json() as Record<string, unknown>;
+
+                            return HttpResponse.json(
+                                {
+                                    status: 'success',
+                                    data: {
+                                        id: '01970000-0000-7000-8000-0000000d3ad',
+                                        candidate_id: existingCandidateWithoutIdentifier.id,
+                                        type: 'NATIONAL_ID',
+                                        issuing_country_code: 'ID',
+                                        status: 'ACTIVE',
+                                    },
+                                },
+                                {
+                                    status: 201,
+                                },
+                            );
+                        },
+                    ),
+                );
+
+                renderPage();
+
+                await screen.findByText(
+                    'Warcim',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: '+ Tambah Identitas',
+                        },
+                    ),
+                );
+
+                changeById(
+                    'candidate-identifier-value-01970000-0000-7000-8000-0000000d3ac',
+                    '3209876543210099',
+                );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name: 'Simpan Identitas',
+                        },
+                    ),
+                );
+
+                await waitFor(
+                    () => {
+                        expect(
+                            screen.getByText(
+                                'Identitas tersimpan.',
+                            ),
+                        ).toBeInTheDocument();
+                    },
+                );
+
+                expect(
+                    observedIdentifierBody,
+                ).toEqual(
+                    {
+                        type: 'NATIONAL_ID',
+                        issuing_country_code: 'ID',
+                        value: '3209876543210099',
+                    },
+                );
+            },
+        );
+
+        it(
             'drives an Application through the full pipeline: submit, process, approve, hire-convert, onboard',
             async () => {
                 const openVacancy = {
