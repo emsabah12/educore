@@ -114,9 +114,15 @@ final class OnboardingCaseController extends Controller
             );
         }
 
+        // §Perbaikan bug — OnboardingCaseResource (OpenAPI) menjanjikan
+        // `tasks` sebagai field WAJIB ("eager-loaded and included
+        // here"), persis seperti store() di bawah. Tanpa load() ini,
+        // response kehilangan `tasks` sepenuhnya, dan frontend
+        // (OnboardingCaseManager) yang langsung mengganti state
+        // dengan response ini akan crash di `onboardingCase.tasks.length`.
         return response()->json([
             'status' => 'success',
-            'data' => $case,
+            'data' => $case->load('tasks'),
         ]);
     }
 
@@ -184,9 +190,13 @@ final class OnboardingCaseController extends Controller
             report($auditException);
         }
 
+        // §Perbaikan bug — sama persis dengan start() di atas: tasks
+        // WAJIB dimuat sebelum response dikembalikan, sesuai kontrak
+        // OpenAPI dan supaya frontend tidak crash saat mengganti state
+        // dengan response ini.
         return response()->json([
             'status' => 'success',
-            'data' => $case,
+            'data' => $case->load('tasks'),
         ]);
     }
 

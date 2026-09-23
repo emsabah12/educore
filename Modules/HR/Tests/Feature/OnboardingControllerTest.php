@@ -95,8 +95,22 @@ final class OnboardingControllerTest extends TestCase
         );
         $caseId = $caseResponse->json('data.id');
 
-        $this->withToken($this->issueToken())->postJson(
+        $startResponse = $this->withToken($this->issueToken())->postJson(
             route('api.v1.hr.onboarding.cases.start', ['caseId' => $caseId], false),
+        );
+
+        // §Perbaikan bug — OnboardingCaseResource (OpenAPI) menjanjikan
+        // `tasks` sebagai field WAJIB di SEMUA response case (persis
+        // seperti store()). Tanpa ini, frontend (OnboardingCaseManager)
+        // yang mengganti state dengan response start() akan crash di
+        // `onboardingCase.tasks.length` -- persis bug yang dilaporkan.
+        $startResponse
+            ->assertOk()
+            ->assertJsonPath('data.status', 'IN_PROGRESS');
+
+        $this->assertIsArray(
+            $startResponse->json('data.tasks'),
+            'start() response must include the tasks relation, matching the OpenAPI contract and store()\'s behaviour -- otherwise the frontend crashes replacing state with this response.',
         );
 
         $taskId = $this->createTaskDirectly($caseId);
@@ -116,6 +130,58 @@ final class OnboardingControllerTest extends TestCase
             'id' => $caseId,
             'status' => 'READY_FOR_ACTIVATION',
         ]);
+    }
+
+    public function test_start_response_includes_tasks_snapshotted_from_template(): void
+    {
+        $this->grantRole($this->operatorMembershipId, HrAuthorizationCatalogSeeder::HR_OFFICER_ROLE);
+
+        $templateResponse = $this
+            ->withToken($this->issueToken())
+            ->postJson(
+                route('api.v1.hr.onboarding.templates.store', [], false),
+                [
+                    'code' => 'START-RESPONSE-TASKS-CHECK',
+                    'name' => 'Onboarding Guru — Cek Tasks di Respons Start',
+                    'tasks' => [
+                        ['code' => 'SUBMIT_ID_CARD', 'title' => 'Kumpulkan KTP', 'category' => 'DOCUMENT', 'sequence' => 1],
+                        ['code' => 'ORIENTATION', 'title' => 'Orientasi', 'category' => 'ORIENTATION', 'sequence' => 2],
+                    ],
+                ],
+            );
+
+        $templateId = $templateResponse->json('data.id');
+        $applicationId = $this->createApplicationFixture();
+
+        $caseResponse = $this->withToken($this->issueToken())->postJson(
+            route('api.v1.hr.onboarding.cases.store', ['applicationId' => $applicationId], false),
+            ['template_id' => $templateId],
+        );
+
+        $caseId = $caseResponse->json('data.id');
+
+        // §Bukti paling kuat dan paling realistis untuk gap ini --
+        // Case-nya SUDAH punya 2 task ter-snapshot dari Template SEBELUM
+        // start() dipanggil. Kalau bug ini kambuh (start() tidak
+        // load('tasks')), assertion di bawah akan gagal karena
+        // data.tasks jadi array kosong -- BUKAN cuma "key tidak ada",
+        // tapi kehilangan data task yang SUDAH nyata dibuat.
+        $startResponse = $this->withToken($this->issueToken())->postJson(
+            route('api.v1.hr.onboarding.cases.start', ['caseId' => $caseId], false),
+        );
+
+        $startResponse->assertOk();
+
+        $this->assertCount(
+            2,
+            $startResponse->json('data.tasks'),
+            'start() response must include the two Tasks already snapshotted from the Template -- this is exactly what crashed the frontend Onboarding Case screen (OnboardingCaseManager reads onboardingCase.tasks.length immediately after this response replaces its state).',
+        );
+
+        $this->assertSame(
+            'Kumpulkan KTP',
+            $startResponse->json('data.tasks.0.title'),
+        );
     }
 
     public function test_waive_task_is_forbidden_with_manage_only_permission(): void
@@ -162,6 +228,12 @@ final class OnboardingControllerTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('data.status', 'CANCELLED');
+
+        // §Perbaikan bug — sama persis dengan start() di atas.
+        $this->assertIsArray(
+            $response->json('data.tasks'),
+            'cancel() response must include the tasks relation, matching the OpenAPI contract and store()\'s behaviour -- otherwise the frontend crashes replacing state with this response.',
+        );
     }
 
     public function test_cancel_case_validation_rejects_missing_reason(): void
