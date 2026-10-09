@@ -13,6 +13,31 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # EduCore: CI memakai PostgreSQL sungguhan, bukan SQLite (PRD-000 §10 F0).
+    # Samakan major version image ini dengan PostgreSQL di Laragon/produksi.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: educore
+          POSTGRES_PASSWORD: educore # hanya untuk container CI sekali pakai, bukan kredensial nyata
+          POSTGRES_DB: educore_testing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: educore_testing
+      DB_USERNAME: educore
+      DB_PASSWORD: educore
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,6 +48,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: '8.3'
+          extensions: pdo_pgsql, pgsql
           tools: composer:v2
           coverage: none
 
