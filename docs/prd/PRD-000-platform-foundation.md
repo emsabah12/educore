@@ -1,6 +1,6 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.3
+- **Versi:** 0.4 (2026-10-10: susunan tenant pertama, ruang lingkup F1, aturan validasi node)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -54,27 +54,38 @@ Model lama mengunci 2 tingkat tetap: `Organization → OrganizationUnit`, dengan
 
 ### 4.3 Pohon tenant pertama
 
-Penempatan lembaga formal per unit (mis. SMP di Unit 1, MTs di Unit 2) adalah **contoh**; susunan sebenarnya diisi saat seeding F1.
+Susunan berikut ditetapkan owner pada 2026-10-10 dan dipakai oleh seeder F1. **[OWNER]**
 
 ```text
-Tenant: Yayasan                      ← role tenant-wide = lihat semua
-├── Biro/Asisten …   (BIRO)                     ← struktur pusat; tempat koordinator bernaung
-├── SMK              (LEMBAGA, FORMAL)          ← di luar unit
-├── MA               (LEMBAGA, FORMAL)
-└── Ponpes           (LEMBAGA, PESANTREN)
-    ├── Unit 1       (UNIT)
-    │   ├── SMP              (LEMBAGA, FORMAL)  ← formal di dalam unit
-    │   ├── MDA Unit 1       (LEMBAGA, NONFORMAL)
-    │   ├── Bahasa Unit 1    (LEMBAGA, NONFORMAL)
-    │   └── Al-Qur'an Unit 1 (LEMBAGA, NONFORMAL)
-    ├── Unit 2       (UNIT) …
-    └── Unit 3       (UNIT) …
+Tenant: Yayasan                                   ← role tenant-wide = lihat semua
+├── Biro Pendidikan dan Koordinator Antar Lembaga (BIRO)  ← tempat koordinator bernaung
+├── Biro SDM dan Keuangan                         (BIRO)
+├── Biro Humas                                    (BIRO)
+├── Biro IT dan Sistem                            (BIRO)
+└── Pondok Pesantren                              (LEMBAGA, PESANTREN)
+    ├── Unit 1  (UNIT)
+    │   ├── MTs Unit 1        (LEMBAGA, FORMAL)
+    │   ├── MA Unit 1         (LEMBAGA, FORMAL)
+    │   ├── MDA Unit 1        (LEMBAGA, NONFORMAL)
+    │   ├── Bahasa Unit 1     (LEMBAGA, NONFORMAL)
+    │   └── Al-Qur'an Unit 1  (LEMBAGA, NONFORMAL)
+    ├── Unit 2  (UNIT)
+    │   ├── MTs Unit 2, MA Unit 2               (FORMAL)
+    │   └── MDA, Bahasa, Al-Qur'an Unit 2       (NONFORMAL)
+    └── Unit 3  (UNIT)
+        ├── SMP Unit 3, SMK Unit 3              (FORMAL)
+        └── MDA, Bahasa, Al-Qur'an Unit 3       (NONFORMAL)
 ```
 
+Catatan:
+- Saat ini semua lembaga formal berada di dalam unit. Lembaga formal yang langsung di bawah Yayasan tetap didukung model bila nanti dibutuhkan.
+- MDA, Bahasa, dan Al-Qur'an diasumsikan ada di ketiga unit, sesuai jawaban "tiap unit" pada OD-01. **[ASUMSI]**
+- Nama asli Yayasan dan Pondok Pesantren belum diberikan; seeder memakai nama sementara yang bisa diganti. **[ASUMSI]**
+
 Yang dihasilkan pohon ini:
-- Pimpinan Ponpes melihat Unit 1–3 dan semua lembaga di dalamnya, termasuk lembaga formal yang berada di unit. **[OWNER]**
-- Kepala Unit 1 melihat SMP, MDA, Bahasa, Al-Qur'an Unit 1, tetapi tidak melihat Unit 2 maupun data tingkat Ponpes.
-- Kepala SMK tidak melihat apa pun di Ponpes, dan sebaliknya.
+- Pimpinan Ponpes melihat Unit 1–3 dan semua lembaga di dalamnya, termasuk lembaga formal. **[OWNER]**
+- Kepala Unit 1 melihat MTs, MA, MDA, Bahasa, Al-Qur'an Unit 1, tetapi tidak melihat Unit 2 maupun data tingkat Ponpes.
+- Kepala MA Unit 1 tidak melihat MA Unit 2 (tidak berelasi), kecuali lewat penugasan fungsional.
 
 ### 4.4 Keputusan OD-02 — lembaga formal di dalam unit & koordinator
 
@@ -100,6 +111,13 @@ Yang boleh dilakukan koordinator pada lembaga binaannya (hanya melihat, atau jug
 | `code` | Unik per tenant |
 | `name`, `status` | `ACTIVE` \| `INACTIVE` |
 | `parent_id` | Node induk (nullable = langsung di bawah Yayasan) |
+
+Aturan validasi node [ASUMSI, diterapkan di F1]:
+- `code`: huruf besar, angka, dan tanda `-`; 2–50 karakter; otomatis diubah ke huruf besar; unik per tenant.
+- `LEMBAGA` wajib punya `category` dan `jenjang`; `UNIT` dan `BIRO` tidak memakai keduanya.
+- Node baru tidak boleh dibuat di bawah induk yang `INACTIVE`.
+- Node tidak boleh dinonaktifkan selama masih punya anak yang `ACTIVE` (nonaktifkan dari bawah ke atas).
+- Node tidak dihapus permanen; cukup dinonaktifkan agar riwayat data tetap utuh.
 
 ## 5. Model data pondasi
 
@@ -244,7 +262,7 @@ Siapa yang boleh mengubah aturan di (node X, jenjang J): pemilik permission peng
 | Milestone | Selesai bila |
 |---|---|
 | **F0 Setup** | Laravel + Inertia React jalan di Laragon; PostgreSQL `educore` & `educore_testing`; Pest + arch test lulus; `.gitattributes` LF; CI menjalankan lint + test di PostgreSQL |
-| **F1 Tenant & pohon lembaga** | CRUD node + pindah induk (closure ikut diperbarui); validasi siklus & kedalaman; seeder tenant pertama sesuai §4.3; test isolasi tenant |
+| **F1 Tenant & pohon lembaga** | Migrasi + service buat/pindah/nonaktifkan node (closure ikut diperbarui dalam transaksi); validasi siklus & kedalaman; seeder tenant pertama sesuai §4.3; test isolasi tenant. Halaman admin pohon lembaga dipindah ke setelah F3 karena butuh login & RBAC [OWNER, 2026-10-10] |
 | **F2 Identitas & login** | Person, User, Membership, penugasan; login global; alur 0/1/>1 Membership; pilih workspace; test tiap cabang |
 | **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji |
 | **F4 Operasional** | Audit log aksi penting; `/up` aman; script backup + catatan uji restore; README instal/jalan |
