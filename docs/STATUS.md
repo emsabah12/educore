@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** F1 — Tenant & pohon lembaga (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `733ff35` — chore: setup pondasi F0
+- **Tahap aktif:** F2 — Identitas & login global (perencanaan)
+- **Commit terakhir:** `d5f6498` — feat(core): F1 tenant dan pohon lembaga dengan closure table
 
 ## Keputusan penting
 
@@ -26,14 +26,14 @@
 - Kerangka `modules/Core`, `modules/HR`, `modules/Academic`; arch test batas modul; CI dengan PostgreSQL 16.
 - Bukti: 39 test lulus; Pint PASS; Larastan level 7 tanpa error.
 
-**F1 — Tenant & pohon lembaga: KODE SIAP**
+**F1 — Tenant & pohon lembaga: SELESAI (2026-10-10, commit `d5f6498`)**
 
 - Tabel `tenants`, `organizations`, `organization_closure` (UUIDv7).
 - Integritas di database: induk wajib di tenant yang sama (FK gabungan), kode unik per tenant, CHECK untuk type/category/status/atribut lembaga, closure lintas tenant ditolak.
 - Service `CreateOrganization`, `MoveOrganization`, `DeactivateOrganization` dengan validasi siklus, kedalaman maks 6, induk nonaktif, anak aktif; perubahan pohon diantrekan per tenant (row lock).
 - `OrganizationTree`: query closure (level, tinggi, induk, turunan) — dipakai lagi di F3 untuk otorisasi.
 - `FirstTenantSeeder`: 23 node sesuai PRD-000 §4.3, aman dijalankan berulang.
-- Bukti sementara: SQL closure & constraint diverifikasi langsung di PostgreSQL 16; 18 test Pest menunggu dijalankan di Laragon.
+- Bukti: 57 test lulus (184 assertions), termasuk 18 test pohon lembaga; Pint PASS; Larastan level 7 tanpa error; SQL closure & constraint juga diuji langsung di PostgreSQL 16.
 
 ## Struktur file utama
 
@@ -54,16 +54,16 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Catatan teknis
 
 - Kebiasaan wajib: `composer lint` sebelum commit.
+- Data contoh di test wajib mematuhi aturan validasi yang sama dengan data asli (pelajaran F1: kode node 1 karakter ditolak).
 - Tabel `users` bawaan starter kit masih punya kolom `name` dan ID bigint; disesuaikan di F2 (User → Person, UUIDv7).
 - Global scope tenant (`BelongsToTenant`) belum dipasang; menunggu TenantContext dari login di F2. Sampai saat itu, query wajib memakai filter `tenant_id` eksplisit.
 - Nama resmi Yayasan & Pondok Pesantren belum diberikan; seeder memakai nama sementara.
 
 ## Tugas berikutnya
 
-1. Verifikasi F1 di Laragon (`php artisan migrate:fresh --seed`, `php artisan test`, `composer test`) dan commit.
-2. F2 — Identitas & login global (Person, User, Membership, pilih workspace).
-3. F3 — RBAC berbasis pohon + penugasan fungsional + scoped settings.
-4. Halaman admin pohon lembaga (setelah F3).
-5. F4 — Audit, health, backup, README deploy.
-6. Push repo ke GitHub agar CI berjalan.
-7. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
+1. F2 — Identitas & login global (Person, User, Membership, pilih workspace).
+2. F3 — RBAC berbasis pohon + penugasan fungsional + scoped settings.
+3. Halaman admin pohon lembaga (setelah F3).
+4. F4 — Audit, health, backup, README deploy.
+5. Push repo ke GitHub agar CI berjalan.
+6. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
