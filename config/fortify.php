@@ -45,7 +45,8 @@ return [
     |
     */
 
-    'username' => 'email',
+    // EduCore: field login bisa berisi email ATAU username (PRD-000 §6).
+    'username' => 'login',
 
     'email' => 'email',
 

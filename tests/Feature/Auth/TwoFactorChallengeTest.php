@@ -1,17 +1,15 @@
 <?php
 
-use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
+use Modules\Core\Domain\Identity\User;
 
 beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 });
 
 test('two factor challenge redirects to login when not authenticated', function () {
-    $response = $this->get(route('two-factor.login'));
-
-    $response->assertRedirect(route('login'));
+    $this->get(route('two-factor.login'))->assertRedirect(route('login'));
 });
 
 test('two factor challenge can be rendered', function () {
@@ -23,13 +21,11 @@ test('two factor challenge can be rendered', function () {
     $user = User::factory()->withTwoFactor()->create();
 
     $this->post(route('login'), [
-        'email' => $user->email,
+        'login' => $user->email,
         'password' => 'password',
     ]);
 
     $this->get(route('two-factor.login'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('auth/two-factor-challenge'),
-        );
+        ->assertInertia(fn (Assert $page) => $page->component('auth/two-factor-challenge'));
 });

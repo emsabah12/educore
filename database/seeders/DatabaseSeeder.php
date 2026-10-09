@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Modules\Core\Database\Seeders\FirstTenantSeeder;
+use Modules\Core\Domain\Identity\User;
+use Modules\Core\Domain\Person\Person;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,10 +20,14 @@ class DatabaseSeeder extends Seeder
         // Tenant pertama + pohon lembaga (PRD-000 §4.3).
         $this->call(FirstTenantSeeder::class);
 
-        // Akun uji bawaan starter kit. Akan diganti saat F2 (Person + User + Membership).
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Akun uji development (password: "password"). Akun per peran dibuat di F2b.
+        if (! User::query()->where('email', 'test@example.com')->exists()) {
+            User::factory()
+                ->for(Person::factory()->state(['name' => 'Pengguna Uji']))
+                ->create([
+                    'email' => 'test@example.com',
+                    'username' => 'penguji',
+                ]);
+        }
     }
 }

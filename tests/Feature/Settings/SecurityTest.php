@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
+use Modules\Core\Domain\Identity\User;
 
 test('security page is displayed', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
@@ -35,10 +35,9 @@ test('security page requires password confirmation when enabled', function () {
         'confirmPassword' => true,
     ]);
 
-    $response = $this->actingAs($user)
-        ->get(route('security.edit'));
-
-    $response->assertRedirect(route('password.confirm'));
+    $this->actingAs($user)
+        ->get(route('security.edit'))
+        ->assertRedirect(route('password.confirm'));
 });
 
 test('security page renders without two factor when feature is disabled', function () {
@@ -63,16 +62,13 @@ test('security page renders without two factor when feature is disabled', functi
 test('password can be updated', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $this->actingAs($user)
         ->from(route('security.edit'))
         ->put(route('user-password.update'), [
             'current_password' => 'password',
             'password' => 'new-password',
             'password_confirmation' => 'new-password',
-        ]);
-
-    $response
+        ])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('security.edit'));
 
@@ -82,16 +78,13 @@ test('password can be updated', function () {
 test('correct password must be provided to update password', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
+    $this->actingAs($user)
         ->from(route('security.edit'))
         ->put(route('user-password.update'), [
             'current_password' => 'wrong-password',
             'password' => 'new-password',
             'password_confirmation' => 'new-password',
-        ]);
-
-    $response
+        ])
         ->assertSessionHasErrors('current_password')
         ->assertRedirect(route('security.edit'));
 });

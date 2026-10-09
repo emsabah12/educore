@@ -12,6 +12,8 @@ use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Modules\Core\Application\Identity\AuthenticateUser;
+use Modules\Core\Domain\Identity\User;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -39,6 +41,12 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureActions(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+
+        // Login global dengan email ATAU username; akun nonaktif ditolak (PRD-000 §6).
+        Fortify::authenticateUsing(fn (Request $request): ?User => app(AuthenticateUser::class)->handle(
+            $request->string(Fortify::username())->toString(),
+            $request->string('password')->toString(),
+        ));
     }
 
     /**

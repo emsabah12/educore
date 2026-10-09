@@ -1,12 +1,15 @@
+/**
+ * Data user yang dibagikan server lewat HandleInertiaRequests::sharedUser().
+ * `name` berasal dari Person (PRD-000 §5).
+ */
 export type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
+    username: string | null;
     avatar?: string;
-    email_verified_at: string | null;
+    is_superadmin: boolean;
     two_factor_enabled?: boolean;
-    created_at: string;
-    updated_at: string;
     [key: string]: unknown;
 };
 

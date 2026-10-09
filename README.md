@@ -9,15 +9,15 @@ Sistem informasi yayasan pendidikan (lembaga formal, pesantren, dan nonformal) b
 
 ## 1. Prasyarat (Windows + Laragon)
 
-| Kebutuhan | Versi | Cara cek |
-|---|---|---|
-| PHP | ≥ 8.3 dengan ekstensi `pdo_pgsql` dan `pgsql` aktif | `php -v` dan `php -m \| findstr pgsql` |
-| PostgreSQL | Sama dengan versi produksi (CI memakai 16) | `psql --version` |
-| Composer | 2.x | `composer -V` |
-| Node.js | 22 | `node -v` |
-| Git | terbaru | `git --version` |
+| Kebutuhan  | Versi                                               | Cara cek                               |
+| ---------- | --------------------------------------------------- | -------------------------------------- |
+| PHP        | ≥ 8.3 dengan ekstensi `pdo_pgsql` dan `pgsql` aktif | `php -v` dan `php -m \| findstr pgsql` |
+| PostgreSQL | Sama dengan versi produksi (CI memakai 16)          | `psql --version`                       |
+| Composer   | 2.x                                                 | `composer -V`                          |
+| Node.js    | 22                                                  | `node -v`                              |
+| Git        | terbaru                                             | `git --version`                        |
 
-Mengaktifkan ekstensi PostgreSQL di Laragon: **Menu Laragon → PHP → Extensions → centang `pdo_pgsql` dan `pgsql`**, lalu restart Laragon. Tanpa ini Laravel akan gagal dengan error *"could not find driver"*.
+Mengaktifkan ekstensi PostgreSQL di Laragon: **Menu Laragon → PHP → Extensions → centang `pdo_pgsql` dan `pgsql`**, lalu restart Laragon. Tanpa ini Laravel akan gagal dengan error _"could not find driver"_.
 
 ## 2. Instalasi pertama kali (dari nol)
 
@@ -35,7 +35,7 @@ psql -U postgres -c "ALTER DATABASE educore RENAME TO educore_legacy;"
 psql -U postgres -c "ALTER DATABASE educore_testing RENAME TO educore_legacy_testing;"
 ```
 
-Jika muncul error *"database is being accessed by other users"*, tutup aplikasi lama/DBeaver/pgAdmin yang masih terhubung, lalu ulangi.
+Jika muncul error _"database is being accessed by other users"_, tutup aplikasi lama/DBeaver/pgAdmin yang masih terhubung, lalu ulangi.
 
 ### 2.2 Buat database baru
 
@@ -58,13 +58,13 @@ Jika di akhir instalasi muncul error migrasi (biasanya karena username/password 
 
 Saat installer bertanya **"Which authentication features would you like to enable?"**, pilih sesuai PRD-000 OD-04:
 
-| Fitur | Pilihan | Alasan |
-|---|---|---|
-| Registration | **tidak** | Akun dibuat admin, bukan daftar sendiri (PRD-000 §2) |
-| Email verification | **tidak** | Akun dibuat admin dengan email yang sudah dikenal |
-| Two-factor authentication | **ya** | Lapisan keamanan untuk akun admin |
-| Password confirmation | **ya** | Konfirmasi ulang sebelum aksi sensitif |
-| Passkeys | **tidak** | Ditunda agar pondasi tetap sederhana |
+| Fitur                     | Pilihan   | Alasan                                               |
+| ------------------------- | --------- | ---------------------------------------------------- |
+| Registration              | **tidak** | Akun dibuat admin, bukan daftar sendiri (PRD-000 §2) |
+| Email verification        | **tidak** | Akun dibuat admin dengan email yang sudah dikenal    |
+| Two-factor authentication | **ya**    | Lapisan keamanan untuk akun admin                    |
+| Password confirmation     | **ya**    | Konfirmasi ulang sebelum aksi sensitif               |
+| Passkeys                  | **tidak** | Ditunda agar pondasi tetap sederhana                 |
 
 ### 2.4 Salin file pondasi EduCore
 

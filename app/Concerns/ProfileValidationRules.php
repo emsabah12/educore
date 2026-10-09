@@ -2,9 +2,9 @@
 
 namespace App\Concerns;
 
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
+use Modules\Core\Domain\Identity\User;
 
 trait ProfileValidationRules
 {
@@ -13,7 +13,7 @@ trait ProfileValidationRules
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string>>
      */
-    protected function profileRules(?int $userId = null): array
+    protected function profileRules(?string $userId = null): array
     {
         return [
             'name' => $this->nameRules(),
@@ -28,7 +28,8 @@ trait ProfileValidationRules
      */
     protected function nameRules(): array
     {
-        return ['required', 'string', 'max:255'];
+        // Panjang mengikuti kolom persons.name (PRD-000 §5).
+        return ['required', 'string', 'max:200'];
     }
 
     /**
@@ -36,7 +37,7 @@ trait ProfileValidationRules
      *
      * @return array<int, ValidationRule|array<mixed>|string>
      */
-    protected function emailRules(?int $userId = null): array
+    protected function emailRules(?string $userId = null): array
     {
         return [
             'required',

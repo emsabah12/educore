@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+// Halaman depan langsung ke beranda; tamu otomatis diarahkan ke halaman login.
+Route::redirect('/', '/dashboard')->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 });
 

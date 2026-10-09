@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Modules\Core\Domain\Identity\User;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -39,9 +40,36 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => fn (): ?array => $this->sharedUser($request),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * Data user yang dikirim ke browser. Daftar field dibuat eksplisit
+     * (bukan seluruh model) supaya kolom sensitif tidak ikut terkirim.
+     *
+     * @return array{id: string, name: string, email: string, username: string|null, is_superadmin: bool, two_factor_enabled: bool}|null
+     */
+    private function sharedUser(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return null;
+        }
+
+        // Nama milik Person (PRD-000 §5); dimuat eksplisit karena lazy loading dimatikan.
+        $user->loadMissing('person');
+
+        return [
+            'id' => $user->id,
+            'name' => $user->person->name,
+            'email' => $user->email,
+            'username' => $user->username,
+            'is_superadmin' => $user->is_superadmin,
+            'two_factor_enabled' => $user->hasEnabledTwoFactorAuthentication(),
         ];
     }
 }

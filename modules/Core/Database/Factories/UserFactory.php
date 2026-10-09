@@ -1,34 +1,40 @@
 <?php
 
-namespace Database\Factories;
+namespace Modules\Core\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Modules\Core\Domain\Identity\User;
+use Modules\Core\Domain\Identity\UserStatus;
+use Modules\Core\Domain\Person\Person;
 
 /**
+ * Hanya untuk test & data development. Password default: "password".
+ *
  * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
+    protected $model = User::class;
+
     /**
-     * The current password being used by the factory.
+     * Hash password dibuat sekali saja agar test tetap cepat.
      */
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'person_id' => Person::factory(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
+            'username' => null,
             'password' => static::$password ??= Hash::make('password'),
+            'status' => UserStatus::Active,
+            'is_superadmin' => false,
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -36,18 +42,22 @@ class UserFactory extends Factory
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function inactive(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+            'status' => UserStatus::Inactive,
+        ]);
+    }
+
+    public function superadmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_superadmin' => true,
         ]);
     }
 
     /**
-     * Indicate that the model has two-factor authentication configured.
+     * Akun dengan 2FA aktif.
      */
     public function withTwoFactor(): static
     {
