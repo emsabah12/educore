@@ -1,23 +1,24 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** F2b — Membership & konteks (perencanaan)
-- **Commit terakhir:** `9cf4060` — feat(core): F2a identitas Person dan User (+ perbaikan route untuk types:check)
+- **Tahap aktif:** F2b — Membership & konteks (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `f7f67da` — fix: ganti Route::redirect dengan route GET agar types:check lulus
 
 ## Keputusan penting
 
-| Tanggal | Keputusan | Dokumen |
-|---|---|---|
-| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain | ADR-001 |
-| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session | ADR-001 §2.1 |
-| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya | PRD-000 §4, §7 |
-| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang) | PRD-000 §4.4 |
-| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci | PRD-000 §8 |
-| 2026-10-09 | Modul awal: Core, HR, Academic | ADR-001 §2.2 |
-| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF | PRD-000 OD-04 |
-| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an | PRD-000 §4.3 |
-| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC) | PRD-000 §10 |
-| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b | PRD-000 OD-05–07 |
+| Tanggal    | Keputusan                                                                                                                                                                             | Dokumen              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain                                                                                              | ADR-001              |
+| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session                                                                                                      | ADR-001 §2.1         |
+| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya                                                                                                     | PRD-000 §4, §7       |
+| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang)                                                                | PRD-000 §4.4         |
+| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci                                                                                                                            | PRD-000 §8           |
+| 2026-10-09 | Modul awal: Core, HR, Academic                                                                                                                                                        | ADR-001 §2.2         |
+| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                  | PRD-000 OD-04        |
+| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an                                    | PRD-000 §4.3         |
+| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC)                                                                                                  | PRD-000 §10          |
+| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                  | PRD-000 OD-05–07     |
+| 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong) | PRD-000 OD-08–10, §5 |
 
 ## Fitur yang sudah ada
 
@@ -36,7 +37,7 @@
 - `FirstTenantSeeder`: 23 node sesuai PRD-000 §4.3, aman dijalankan berulang.
 - Bukti: 57 test lulus (184 assertions), termasuk 18 test pohon lembaga; Pint PASS; Larastan level 7 tanpa error; SQL closure & constraint juga diuji langsung di PostgreSQL 16.
 
-**F2a — Identitas: SELESAI (2026-10-10, commit `9cf4060` + perbaikan route)**
+**F2a — Identitas: SELESAI (2026-10-10, commit `9cf4060` + `f7f67da`)**
 
 - Tabel `persons` (name, gender) dan `users` baru di modul Core: UUIDv7, `person_id` unik, email & username huruf kecil (dijaga CHECK database), status, `is_superadmin`, kolom 2FA.
 - `User` pindah ke `Modules\Core\Domain\Identity\User`; auth Laravel & Fortify diarahkan ke sana.
@@ -44,8 +45,17 @@
 - Profil mengubah nama Person + email User dalam satu transaksi (`UpdateUserProfile`); hapus akun dihilangkan.
 - Data user ke browser dibuat eksplisit (tanpa kolom sensitif); nama diambil dari Person.
 - Halaman auth, pengaturan, 2FA, dan menu berbahasa Indonesia; `lang/id` untuk validasi, login, reset password.
-- Bukti: 71 test lulus (233 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build` & `check:fix` lulus; constraint `persons`/`users` juga diuji langsung di PostgreSQL 16.
+- Bukti: 73 test lulus (237 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; constraint `persons`/`users` juga diuji langsung di PostgreSQL 16.
 - Perbaikan: `Route::redirect()` diganti route GET biasa karena Wayfinder gagal membuat tipe untuk route yang menerima semua HTTP method (`npm run types:check`).
+
+**F2b — Membership & konteks kerja: KODE SIAP**
+
+- Tabel `memberships` (orang × yayasan) dan `organizational_assignments` (struktural, fungsional di node, fungsional tingkat Yayasan). Database menjamin membership & lembaga dari yayasan yang sama dan penugasan tidak dobel.
+- `WorkContextResolver` + middleware `work.context`: konteks yayasan & lembaga kerja dibentuk dan **divalidasi ulang setiap request**; pilihan dari browser hanya diterima bila milik pengguna sendiri (selain itu 404).
+- Halaman: Pilih yayasan, Pilih lembaga kerja, Akun belum terdaftar, Panel platform (Superadmin, masih kosong). Pengalih konteks di sidebar.
+- `TenantContext` + trait `BelongsToTenant`: data lembaga & penugasan otomatis tersaring ke yayasan aktif.
+- `DevAccountsSeeder`: 6 akun uji per peran (password `password`), hanya local/testing.
+- Bukti sementara: constraint diuji langsung di PostgreSQL 16; test Pest menunggu dijalankan di Laragon.
 
 ## Struktur file utama
 
@@ -68,12 +78,13 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Kebiasaan wajib sebelum commit: `composer lint`, `composer test`, `npm run types:check`, `npm run check:fix`.
 - Jangan pakai `Route::redirect()`; pakai route GET biasa (Wayfinder belum mendukung route semua-method).
 - Data contoh di test wajib mematuhi aturan validasi yang sama dengan data asli (pelajaran F1: kode node 1 karakter ditolak).
-- Global scope tenant (`BelongsToTenant`) belum dipasang; menunggu TenantContext dari login di F2. Sampai saat itu, query wajib memakai filter `tenant_id` eksplisit.
+- Filter tenant otomatis (`BelongsToTenant`) hanya aktif bila konteks kerja ada (request web lewat `work.context`). Konsol/seeder tetap wajib memakai filter `tenant_id` eksplisit.
+- Halaman frontend tetap di `resources/js/pages/` (konvensi starter kit), bukan `resources/js/core/` seperti sketsa ADR-001 §2.2.
 - Nama resmi Yayasan & Pondok Pesantren belum diberikan; seeder memakai nama sementara.
 
 ## Tugas berikutnya
 
-1. F2b — Membership, penugasan, pilih yayasan/workspace, TenantContext, seeder akun uji.
+1. Verifikasi F2b di Laragon dan commit.
 2. F3 — RBAC berbasis pohon + penugasan fungsional + scoped settings.
 3. Halaman admin pohon lembaga (setelah F3).
 4. F4 — Audit, health, backup, README deploy.

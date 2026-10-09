@@ -1,6 +1,7 @@
-import { Link } from '@inertiajs/react';
-import { LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { LayoutGrid, ShieldCheck } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { ContextSwitcher } from '@/components/context-switcher';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -23,7 +24,18 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+const platformNavItem: NavItem = {
+    title: 'Panel platform',
+    href: '/platform',
+    icon: ShieldCheck,
+};
+
 export function AppSidebar() {
+    const { auth } = usePage().props;
+    const navItems = auth.user?.is_superadmin
+        ? [...mainNavItems, platformNavItem]
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -39,7 +51,8 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <ContextSwitcher />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>

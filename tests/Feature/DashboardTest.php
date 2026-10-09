@@ -3,13 +3,15 @@
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Person\Person;
+use Tests\Support\CoreFixtures;
 
 test('guests are redirected to the login page', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));
 });
 
-test('authenticated users can visit the dashboard', function () {
+test('members can visit the dashboard', function () {
     $user = User::factory()->create();
+    CoreFixtures::member($user, CoreFixtures::tenant());
 
     $this->actingAs($user)->get(route('dashboard'))->assertOk();
 });
@@ -18,6 +20,7 @@ test('shared user data uses the person name and hides sensitive fields', functio
     $user = User::factory()
         ->for(Person::factory()->state(['name' => 'Siti Aminah']))
         ->create(['username' => 'siti.aminah']);
+    CoreFixtures::member($user, CoreFixtures::tenant());
 
     $this->actingAs($user)
         ->get(route('dashboard'))

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use Modules\Core\Domain\Tenancy\BelongsToTenant;
 use Modules\Core\Domain\Tenancy\Tenant;
 
 /**
@@ -15,6 +16,8 @@ use Modules\Core\Domain\Tenancy\Tenant;
  *
  * Jangan membuat/memindah node langsung lewat model ini, karena closure table
  * tidak akan ikut diperbarui. Pakai service di Modules\Core\Application\Organization.
+ *
+ * Otomatis tersaring ke yayasan aktif bila konteks kerja ada (BelongsToTenant).
  *
  * @property string $id
  * @property string $tenant_id
@@ -30,6 +33,7 @@ use Modules\Core\Domain\Tenancy\Tenant;
  */
 class Organization extends Model
 {
+    use BelongsToTenant;
     use HasUuids;
 
     protected $fillable = [

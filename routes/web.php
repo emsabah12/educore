@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Route;
 // Halaman depan langsung ke beranda; tamu otomatis diarahkan ke halaman login.
 Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
 
-Route::middleware(['auth'])->group(function () {
+// Semua halaman kerja di dalam yayasan WAJIB memakai `work.context` (PRD-000 §6).
+Route::middleware(['auth', 'work.context'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 });
 

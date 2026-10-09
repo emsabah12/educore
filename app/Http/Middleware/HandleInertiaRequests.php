@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Modules\Core\Domain\Identity\User;
+use Modules\Core\Domain\Tenancy\TenantContext;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -42,6 +43,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn (): ?array => $this->sharedUser($request),
             ],
+            // Yayasan & lembaga kerja aktif; null di halaman tanpa konteks kerja (PRD-000 §6).
+            // Dievaluasi saat halaman dirender, yaitu setelah middleware `work.context` berjalan.
+            'context' => fn (): ?array => app(TenantContext::class)->get()?->toArray(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
