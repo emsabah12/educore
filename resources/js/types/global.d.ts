@@ -13,6 +13,8 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             context: WorkContext | null;
+            /** Petunjuk menu saja; setiap aksi tetap dicek di server. */
+            permissions: string[];
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

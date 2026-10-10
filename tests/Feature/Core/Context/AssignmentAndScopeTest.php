@@ -165,7 +165,9 @@ test('seeder akun uji membuat akun per peran sesuai skenario', function () {
         ->count();
 
     expect($countAssignments('admin.yayasan'))->toBe(0)
+        ->and($countAssignments('pimpinan.ponpes'))->toBe(1)
         ->and($countAssignments('kepala.unit1'))->toBe(1)
+        ->and($countAssignments('kepala.smk'))->toBe(1)
         ->and($countAssignments('guru'))->toBe(2)
         ->and($countAssignments('koordinator.mda'))->toBe(2)
         ->and(Membership::query()->where('person_id', $byUsername('penguji')->person_id)->exists())->toBeFalse();
@@ -173,6 +175,10 @@ test('seeder akun uji membuat akun per peran sesuai skenario', function () {
     $functional = OrganizationalAssignment::query()->whereNotNull('jenjang_filter')->sole();
     expect($functional->organization_id)->toBeNull()
         ->and($functional->jenjang_filter)->toBe(Jenjang::Mda);
+
+    // F3: setiap penugasan punya role; Admin Yayasan memegang role tenant-wide.
+    expect(DB::table('membership_roles')->count())->toBe(1)
+        ->and(DB::table('organizational_assignment_roles')->count())->toBe(7);
 });
 
 test('seeder akun uji aman dijalankan dua kali', function () {
@@ -180,9 +186,11 @@ test('seeder akun uji aman dijalankan dua kali', function () {
     $this->seed(DevAccountsSeeder::class);
     $this->seed(DevAccountsSeeder::class);
 
-    expect(User::query()->count())->toBe(6)
-        ->and(Membership::query()->count())->toBe(4)
-        ->and(OrganizationalAssignment::query()->count())->toBe(5);
+    expect(User::query()->count())->toBe(8)
+        ->and(Membership::query()->count())->toBe(6)
+        ->and(OrganizationalAssignment::query()->count())->toBe(7)
+        ->and(DB::table('membership_roles')->count())->toBe(1)
+        ->and(DB::table('organizational_assignment_roles')->count())->toBe(7);
 });
 
 test('seeder akun uji menolak berjalan di production', function () {

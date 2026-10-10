@@ -1,22 +1,30 @@
 import { Form, Head } from '@inertiajs/react';
-import { Check, Network, School } from 'lucide-react';
+import { Building2, Check, Network, School } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type AssignmentOption = {
+type WorkspaceOption = {
+    /** ID penugasan, atau "tenant" untuk Seluruh Yayasan. */
     id: string;
     label: string;
     path: string | null;
-    is_functional: boolean;
+    type: 'tenant' | 'organization' | 'functional';
 };
+
+const ICONS = {
+    tenant: Building2,
+    organization: School,
+    functional: Network,
+} as const;
 
 type Props = {
     tenantName: string;
-    assignments: AssignmentOption[];
+    assignments: WorkspaceOption[];
     currentAssignmentId: string | null;
 };
 
 /**
- * Pilih lembaga kerja — muncul bila anggota punya lebih dari satu penugasan (PRD-000 §6, OD-08).
+ * Pilih lembaga kerja — muncul bila anggota punya lebih dari satu pilihan (PRD-000 §6, OD-08):
+ * penugasan-penugasannya, ditambah Seluruh Yayasan bila punya role tenant-wide.
  */
 export default function SelectWorkspace({
     tenantName,
@@ -38,9 +46,7 @@ export default function SelectWorkspace({
             ) : (
                 <div className="flex flex-col gap-3">
                     {assignments.map((assignment) => {
-                        const Icon = assignment.is_functional
-                            ? Network
-                            : School;
+                        const Icon = ICONS[assignment.type];
 
                         return (
                             <Form
@@ -71,7 +77,8 @@ export default function SelectWorkspace({
                                                         {assignment.path}
                                                     </span>
                                                 )}
-                                                {assignment.is_functional && (
+                                                {assignment.type ===
+                                                    'functional' && (
                                                     <span className="text-xs text-muted-foreground">
                                                         Penugasan fungsional
                                                     </span>
@@ -99,5 +106,5 @@ export default function SelectWorkspace({
 SelectWorkspace.layout = {
     title: 'Pilih lembaga kerja',
     description:
-        'Anda bertugas di lebih dari satu lembaga. Pilih lembaga yang ingin dibuka.',
+        'Anda punya lebih dari satu lembaga kerja. Pilih lembaga yang ingin dibuka.',
 };

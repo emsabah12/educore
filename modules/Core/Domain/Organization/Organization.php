@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use Modules\Core\Contracts\OwnedByOrganization;
 use Modules\Core\Domain\Tenancy\BelongsToTenant;
 use Modules\Core\Domain\Tenancy\Tenant;
 
@@ -31,7 +32,7 @@ use Modules\Core\Domain\Tenancy\Tenant;
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-class Organization extends Model
+class Organization extends Model implements OwnedByOrganization
 {
     use BelongsToTenant;
     use HasUuids;
@@ -75,6 +76,19 @@ class Organization extends Model
     public function isActive(): bool
     {
         return $this->status === OrganizationStatus::Active;
+    }
+
+    /**
+     * Sebuah node "dimiliki" oleh dirinya sendiri: Gate::authorize('core.organizations.view', $organization).
+     */
+    public function owningTenantId(): string
+    {
+        return $this->tenant_id;
+    }
+
+    public function owningOrganizationId(): string
+    {
+        return $this->id;
     }
 
     /**

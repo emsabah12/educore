@@ -4,6 +4,7 @@ namespace Modules\Core\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Context\WorkContextResolver;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Tenancy\TenantContext;
@@ -21,6 +22,7 @@ final class EnsureWorkContext
     public function __construct(
         private readonly WorkContextResolver $resolver,
         private readonly TenantContext $tenantContext,
+        private readonly AuthorizationService $authorization,
     ) {}
 
     public function handle(Request $request, Closure $next): Response
@@ -42,6 +44,9 @@ final class EnsureWorkContext
         }
 
         $this->tenantContext->set($resolution->context);
+
+        // Hak akses selalu dihitung ulang dari database untuk konteks request ini (PRD-000 §7.1).
+        $this->authorization->flush();
 
         return $next($request);
     }

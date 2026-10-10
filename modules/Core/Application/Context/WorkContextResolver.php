@@ -4,6 +4,7 @@ namespace Modules\Core\Application\Context;
 
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Organization\AssignmentStatus;
 use Modules\Core\Domain\Organization\Organization;
@@ -60,26 +61,29 @@ final class WorkContextResolver
         }
 
         $assignments = $this->assignments($membership);
+        $offersTenant = $this->offersTenantWorkspace($membership, $assignments);
+        $optionCount = $assignments->count() + ($offersTenant ? 1 : 0);
         $workspace = $session->get(WorkContextSession::WORKSPACE);
-        $assignment = null;
+        $assignment = $assignments->firstWhere('id', $workspace);
 
-        if ($assignments->isEmpty()) {
-            // Tanpa penugasan → konteks Seluruh Yayasan (OD-09).
-            $session->put(WorkContextSession::WORKSPACE, WorkContext::WORKSPACE_TENANT);
-        } else {
-            $assignment = $assignments->firstWhere('id', $workspace);
+        if (! $assignment instanceof OrganizationalAssignment) {
+            $assignment = null;
 
-            if (! $assignment instanceof OrganizationalAssignment) {
-                if ($assignments->count() > 1) {
+            if (! ($workspace === WorkContext::WORKSPACE_TENANT && $offersTenant)) {
+                if ($optionCount > 1) {
                     $session->forget(WorkContextSession::WORKSPACE);
 
                     return ContextResolution::redirectTo(self::ROUTE_SELECT_WORKSPACE);
                 }
 
-                // Hanya satu penugasan → langsung dipilih (OD-08).
-                /** @var OrganizationalAssignment $assignment */
-                $assignment = $assignments->first();
-                $session->put(WorkContextSession::WORKSPACE, $assignment->id);
+                // Hanya satu pilihan → langsung dipilih (OD-08). Tanpa penugasan → Seluruh Yayasan (OD-09).
+                if ($offersTenant) {
+                    $session->put(WorkContextSession::WORKSPACE, WorkContext::WORKSPACE_TENANT);
+                } else {
+                    /** @var OrganizationalAssignment $assignment */
+                    $assignment = $assignments->first();
+                    $session->put(WorkContextSession::WORKSPACE, $assignment->id);
+                }
             }
         }
 
@@ -92,7 +96,7 @@ final class WorkContextResolver
             organizationName: $assignment?->organization?->name,
             jenjangFilter: $assignment?->jenjang_filter,
             canSwitchTenant: $memberships->count() > 1,
-            canSwitchWorkspace: $assignments->count() > 1,
+            canSwitchWorkspace: $optionCount > 1,
         ));
     }
 
@@ -134,6 +138,24 @@ final class WorkContextResolver
             ->get()
             ->sortBy(fn (OrganizationalAssignment $assignment): string => WorkContext::labelFor($assignment->organization?->name, $assignment->jenjang_filter))
             ->values();
+    }
+
+    /**
+     * Apakah "Seluruh Yayasan" termasuk pilihan lembaga kerja (PRD-000 §6)?
+     * Ya bila anggota punya role tenant-wide, atau tidak punya penugasan sama sekali (OD-09).
+     *
+     * @param  Collection<int, OrganizationalAssignment>  $assignments  hasil assignments($membership)
+     */
+    public function offersTenantWorkspace(Membership $membership, Collection $assignments): bool
+    {
+        if ($assignments->isEmpty()) {
+            return true;
+        }
+
+        return DB::table('membership_roles')
+            ->where('tenant_id', $membership->tenant_id)
+            ->where('membership_id', $membership->id)
+            ->exists();
     }
 
     /**

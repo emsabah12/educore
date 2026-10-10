@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Core\Database\Seeders\AccessCatalogSeeder;
 use Modules\Core\Database\Seeders\DevAccountsSeeder;
 use Modules\Core\Database\Seeders\FirstTenantSeeder;
 
@@ -16,6 +17,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Katalog role & permission dari kode (OD-11). Aman di semua lingkungan.
+        $this->call(AccessCatalogSeeder::class);
+
         // Tenant pertama + pohon lembaga (PRD-000 §4.3).
         $this->call(FirstTenantSeeder::class);
 

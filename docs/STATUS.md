@@ -1,24 +1,25 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** F2b — Membership & konteks (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `f7f67da` — fix: ganti Route::redirect dengan route GET agar types:check lulus
+- **Tahap aktif:** F3 — RBAC berbasis pohon & aturan berjenjang (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** F2b — `feat(core): F2b membership, penugasan, dan konteks kerja` (hash belum dicatat)
 
 ## Keputusan penting
 
-| Tanggal    | Keputusan                                                                                                                                                                             | Dokumen              |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain                                                                                              | ADR-001              |
-| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session                                                                                                      | ADR-001 §2.1         |
-| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya                                                                                                     | PRD-000 §4, §7       |
-| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang)                                                                | PRD-000 §4.4         |
-| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci                                                                                                                            | PRD-000 §8           |
-| 2026-10-09 | Modul awal: Core, HR, Academic                                                                                                                                                        | ADR-001 §2.2         |
-| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                  | PRD-000 OD-04        |
-| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an                                    | PRD-000 §4.3         |
-| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC)                                                                                                  | PRD-000 §10          |
-| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                  | PRD-000 OD-05–07     |
-| 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong) | PRD-000 OD-08–10, §5 |
+| Tanggal    | Keputusan                                                                                                                                                                             | Dokumen                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain                                                                                              | ADR-001                |
+| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session                                                                                                      | ADR-001 §2.1           |
+| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya                                                                                                     | PRD-000 §4, §7         |
+| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang)                                                                | PRD-000 §4.4           |
+| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci                                                                                                                            | PRD-000 §8             |
+| 2026-10-09 | Modul awal: Core, HR, Academic                                                                                                                                                        | ADR-001 §2.2           |
+| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                  | PRD-000 OD-04          |
+| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an                                    | PRD-000 §4.3           |
+| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC)                                                                                                  | PRD-000 §10            |
+| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                  | PRD-000 OD-05–07       |
+| 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong) | PRD-000 OD-08–10, §5   |
+| 2026-10-10 | Katalog role & permission di kode + `educore:sync-access`; superadmin tanpa jalan pintas; di luar cakupan 404, di dalam cakupan tanpa izin 403                                        | PRD-000 OD-11–13, §7.1 |
 
 ## Fitur yang sudah ada
 
@@ -48,14 +49,26 @@
 - Bukti: 73 test lulus (237 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; constraint `persons`/`users` juga diuji langsung di PostgreSQL 16.
 - Perbaikan: `Route::redirect()` diganti route GET biasa karena Wayfinder gagal membuat tipe untuk route yang menerima semua HTTP method (`npm run types:check`).
 
-**F2b — Membership & konteks kerja: KODE SIAP**
+**F2b — Membership & konteks kerja: SELESAI (2026-10-10)**
 
 - Tabel `memberships` (orang × yayasan) dan `organizational_assignments` (struktural, fungsional di node, fungsional tingkat Yayasan). Database menjamin membership & lembaga dari yayasan yang sama dan penugasan tidak dobel.
 - `WorkContextResolver` + middleware `work.context`: konteks yayasan & lembaga kerja dibentuk dan **divalidasi ulang setiap request**; pilihan dari browser hanya diterima bila milik pengguna sendiri (selain itu 404).
 - Halaman: Pilih yayasan, Pilih lembaga kerja, Akun belum terdaftar, Panel platform (Superadmin, masih kosong). Pengalih konteks di sidebar.
 - `TenantContext` + trait `BelongsToTenant`: data lembaga & penugasan otomatis tersaring ke yayasan aktif.
 - `DevAccountsSeeder`: 6 akun uji per peran (password `password`), hanya local/testing.
-- Bukti sementara: constraint diuji langsung di PostgreSQL 16; test Pest menunggu dijalankan di Laragon.
+- Bukti: 103 test lulus (446 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; constraint juga diuji langsung di PostgreSQL 16.
+- Perbaikan: 4 test sempat gagal ("Unable to locate file in Vite manifest") karena test dijalankan sebelum `npm run build`; diatasi dengan `withoutVite()` di `tests/TestCase.php`.
+
+**F3 — RBAC berbasis pohon & aturan berjenjang: KODE SIAP**
+
+- Tabel `permissions`, `roles`, `role_permission`, `membership_roles` (role tenant-wide), `organizational_assignment_roles` (role per penugasan), `scoped_settings`. Database menjamin semuanya dari yayasan yang sama.
+- `AccessCatalog` + `CoreAccess`: 5 permission Core dan 5 role bawaan didefinisikan di kode; `php artisan educore:sync-access` menyalinnya ke database.
+- `AuthorizationService` + `Gate::before`: cakupan dihitung dari closure table (struktural & fungsional), dibatasi lembaga kerja aktif, dihitung ulang tiap request. `visibleNodeIds()` untuk menyaring query modul.
+- Pilihan lembaga kerja **Seluruh Yayasan** untuk pemegang role tenant-wide.
+- Scoped settings: `SettingRegistry` (definisi dari modul), `ScopedSettingResolver` (kunci teratas → terdekat → default, aturan per jenjang), `SetScopedSetting` (hak akses §8.3, validasi nilai, tolak bila dikunci dari atas).
+- Daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk menu (`permissions`).
+- `DevAccountsSeeder`: 8 akun uji dengan role (tambahan `pimpinan.ponpes`, `kepala.smk`).
+- Bukti sementara: SQL cakupan & constraint diuji langsung di PostgreSQL 16; logika urutan aturan diuji dengan skrip PHP (29 kasus); review independen atas seluruh kode. Test Pest menunggu dijalankan di Laragon.
 
 ## Struktur file utama
 
@@ -76,17 +89,20 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Catatan teknis
 
 - Kebiasaan wajib sebelum commit: `composer lint`, `composer test`, `npm run types:check`, `npm run check:fix`.
+- `tests/TestCase.php` memakai `withoutVite()`: test backend tidak bergantung pada `npm run build` (pelajaran F2b).
 - Jangan pakai `Route::redirect()`; pakai route GET biasa (Wayfinder belum mendukung route semua-method).
 - Data contoh di test wajib mematuhi aturan validasi yang sama dengan data asli (pelajaran F1: kode node 1 karakter ditolak).
 - Filter tenant otomatis (`BelongsToTenant`) hanya aktif bila konteks kerja ada (request web lewat `work.context`). Konsol/seeder tetap wajib memakai filter `tenant_id` eksplisit.
 - Halaman frontend tetap di `resources/js/pages/` (konvensi starter kit), bukan `resources/js/core/` seperti sketsa ADR-001 §2.2.
 - Nama resmi Yayasan & Pondok Pesantren belum diberikan; seeder memakai nama sementara.
+- Setiap ada permission/role baru di kode: jalankan `php artisan educore:sync-access` (juga saat deploy).
+- Untuk permission katalog, `Gate::before` memberi jawaban akhir; policy modul dengan nama ability yang sama tidak dijalankan. Aksi terhadap data tertentu wajib mengirim datanya ke Gate.
+- Pencatatan perubahan aturan ke audit log menunggu F4.
 
 ## Tugas berikutnya
 
-1. Verifikasi F2b di Laragon dan commit.
-2. F3 — RBAC berbasis pohon + penugasan fungsional + scoped settings.
-3. Halaman admin pohon lembaga (setelah F3).
-4. F4 — Audit, health, backup, README deploy.
-5. Push repo ke GitHub agar CI berjalan.
-6. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
+1. Verifikasi F3 di Laragon dan commit.
+2. Halaman admin pohon lembaga (setelah F3).
+3. F4 — Audit, health, backup, README deploy.
+4. Push repo ke GitHub agar CI berjalan.
+5. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.

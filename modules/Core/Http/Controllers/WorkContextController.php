@@ -73,21 +73,35 @@ final class WorkContextController
         }
 
         $assignments = $this->resolver->assignments($membership);
+        $offersTenant = $this->resolver->offersTenantWorkspace($membership, $assignments);
 
-        if ($assignments->count() <= 1) {
+        if ($assignments->count() + ($offersTenant ? 1 : 0) <= 1) {
             return redirect()->route('dashboard');
+        }
+
+        $options = $assignments
+            ->map(fn (OrganizationalAssignment $assignment): array => [
+                'id' => $assignment->id,
+                'label' => WorkContext::labelFor($assignment->organization?->name, $assignment->jenjang_filter),
+                'path' => $assignment->organization === null ? null : $this->resolver->pathOf($assignment->organization),
+                'type' => $assignment->isFunctional() ? WorkContext::WORKSPACE_FUNCTIONAL : WorkContext::WORKSPACE_ORGANIZATION,
+            ])
+            ->values()
+            ->all();
+
+        if ($offersTenant) {
+            // Pemilik role tenant-wide juga boleh bekerja di Seluruh Yayasan (PRD-000 §6).
+            array_unshift($options, [
+                'id' => WorkContext::WORKSPACE_TENANT,
+                'label' => 'Seluruh Yayasan',
+                'path' => null,
+                'type' => WorkContext::WORKSPACE_TENANT,
+            ]);
         }
 
         return Inertia::render('context/select-workspace', [
             'tenantName' => $membership->tenant->name,
-            'assignments' => $assignments
-                ->map(fn (OrganizationalAssignment $assignment): array => [
-                    'id' => $assignment->id,
-                    'label' => WorkContext::labelFor($assignment->organization?->name, $assignment->jenjang_filter),
-                    'path' => $assignment->organization === null ? null : $this->resolver->pathOf($assignment->organization),
-                    'is_functional' => $assignment->isFunctional(),
-                ])
-                ->all(),
+            'assignments' => $options,
             'currentAssignmentId' => $request->session()->get(WorkContextSession::WORKSPACE),
         ]);
     }
@@ -101,10 +115,16 @@ final class WorkContextController
         }
 
         $assignmentId = $request->input('assignment_id');
+        $assignments = $this->resolver->assignments($membership);
 
-        $assignment = $this->resolver
-            ->assignments($membership)
-            ->firstWhere('id', is_string($assignmentId) ? $assignmentId : null);
+        // "Seluruh Yayasan" hanya diterima bila memang termasuk pilihan pengguna ini.
+        if ($assignmentId === WorkContext::WORKSPACE_TENANT && $this->resolver->offersTenantWorkspace($membership, $assignments)) {
+            $request->session()->put(WorkContextSession::WORKSPACE, WorkContext::WORKSPACE_TENANT);
+
+            return redirect()->route('dashboard');
+        }
+
+        $assignment = $assignments->firstWhere('id', is_string($assignmentId) ? $assignmentId : null);
 
         if (! $assignment instanceof OrganizationalAssignment) {
             abort(404);

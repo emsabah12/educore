@@ -2,6 +2,8 @@
 
 namespace Tests\Support;
 
+use Modules\Core\Application\Authorization\ManageRoles;
+use Modules\Core\Application\Authorization\SyncAccessCatalog;
 use Modules\Core\Application\Membership\AssignToOrganization;
 use Modules\Core\Application\Membership\GrantMembership;
 use Modules\Core\Application\Organization\CreateOrganization;
@@ -58,5 +60,37 @@ final class CoreFixtures
     public static function assign(Membership $membership, ?Organization $organization, ?Jenjang $jenjangFilter = null): OrganizationalAssignment
     {
         return app(AssignToOrganization::class)->handle($membership, $organization?->id, $jenjangFilter);
+    }
+
+    /** Isi katalog role & permission dari kode (OD-11). */
+    public static function syncAccess(): void
+    {
+        app(SyncAccessCatalog::class)->handle();
+    }
+
+    /** Pasang role tenant-wide. Katalog wajib sudah disinkronkan. */
+    public static function tenantRole(Membership $membership, string $roleKey): Membership
+    {
+        app(ManageRoles::class)->grantTenantRole($membership, $roleKey);
+
+        return $membership;
+    }
+
+    /** Pasang role di sebuah penugasan. Katalog wajib sudah disinkronkan. */
+    public static function assignmentRole(OrganizationalAssignment $assignment, string $roleKey): OrganizationalAssignment
+    {
+        app(ManageRoles::class)->grantAssignmentRole($assignment, $roleKey);
+
+        return $assignment;
+    }
+
+    /** Cari node berdasarkan kode di sebuah yayasan. */
+    public static function node(Tenant $tenant, string $code): Organization
+    {
+        return Organization::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', $code)
+            ->firstOrFail();
     }
 }
