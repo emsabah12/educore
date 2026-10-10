@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Network, ShieldCheck } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { ContextSwitcher } from '@/components/context-switcher';
 import { NavMain } from '@/components/nav-main';
@@ -24,6 +24,13 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+// Menu hanya petunjuk; setiap halaman tetap dicek ulang di server (PRD-000 §7.1).
+const organizationsNavItem: NavItem = {
+    title: 'Lembaga',
+    href: '/lembaga',
+    icon: Network,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -31,10 +38,14 @@ const platformNavItem: NavItem = {
 };
 
 export function AppSidebar() {
-    const { auth } = usePage().props;
-    const navItems = auth.user?.is_superadmin
-        ? [...mainNavItems, platformNavItem]
-        : mainNavItems;
+    const { auth, permissions } = usePage().props;
+    const navItems = [
+        ...mainNavItems,
+        ...(permissions.includes('core.organizations.view')
+            ? [organizationsNavItem]
+            : []),
+        ...(auth.user?.is_superadmin ? [platformNavItem] : []),
+    ];
 
     return (
         <Sidebar collapsible="icon" variant="inset">

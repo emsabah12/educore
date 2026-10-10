@@ -1,6 +1,6 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.7 (2026-10-10: keputusan F3 — katalog akses dari kode, superadmin tanpa jalan pintas, 404 vs 403, rincian aturan berjenjang)
+- **Versi:** 0.8 (2026-10-10: halaman admin pohon lembaga — §4.6, OD-14)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -121,6 +121,22 @@ Aturan validasi node [ASUMSI, diterapkan di F1]:
 - Node baru tidak boleh dibuat di bawah induk yang `INACTIVE`.
 - Node tidak boleh dinonaktifkan selama masih punya anak yang `ACTIVE` (nonaktifkan dari bawah ke atas).
 - Node tidak dihapus permanen; cukup dinonaktifkan agar riwayat data tetap utuh.
+
+### 4.6 Halaman admin pohon lembaga (OD-14)
+
+Menu **Lembaga** (`/lembaga`) muncul bagi pemilik `core.organizations.view` di lembaga kerja aktif. [OWNER, 2026-10-10]
+
+- **Melihat:** hanya node yang terlihat menurut §7.2, dibatasi lembaga kerja aktif. Node yang induknya di luar cakupan tampil sebagai akar dengan keterangan jalurnya (mis. "Pondok Pesantren › Unit 1").
+- **Node nonaktif** disembunyikan secara default; pilihan "Tampilkan yang nonaktif" menampilkannya dengan label **Nonaktif**.
+- **Aksi kelola** (butuh `core.organizations.manage` di node terkait):
+    - tambah node anak (UNIT, BIRO, atau LEMBAGA dengan kategori & jenjang);
+    - ubah **nama** — **kode tidak bisa diubah** agar rujukan di data lain tetap stabil;
+    - pindah ke induk lain — induk tujuan juga wajib di dalam izin kelola;
+    - nonaktifkan (dari bawah ke atas, §4.5) dan **aktifkan kembali** (dari atas ke bawah: induk wajib aktif).
+- Menambah atau memindah node ke **tingkat Yayasan** (tanpa induk) hanya untuk pemilik izin kelola tingkat Yayasan.
+- Lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya, agar pengelola tidak mengunci dirinya sendiri. [ASUMSI]
+- Jawaban akses mengikuti OD-13: di luar cakupan 404, di dalam cakupan tanpa izin 403. Pelanggaran aturan pohon tampil sebagai pesan form berbahasa Indonesia.
+- Dengan role bawaan saat ini, hanya **Admin Yayasan** yang punya izin kelola; Kepala Lembaga hanya melihat (OD-11).
 
 ## 5. Model data pondasi
 
@@ -288,6 +304,7 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 | **F2a Identitas**               | Tabel `persons` & `users` baru (User di modul Core); login dengan email **atau** username; user nonaktif tidak bisa login; profil mengubah nama Person; fitur hapus akun dihilangkan; halaman auth & pengaturan berbahasa Indonesia [OWNER, 2026-10-10]                         |
 | **F2b Membership & konteks**    | Membership, penugasan; alur 0/1/>1 Membership; pilih workspace; validasi ulang konteks tiap request; `TenantContext`; seeder akun uji                                                                                                                                           |
 | **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji                                                                                                                                |
+| **Admin pohon lembaga**         | Halaman §4.6: lihat sesuai cakupan, tambah, ubah nama, pindah, nonaktifkan & aktifkan kembali, dengan 404/403 teruji                                                                                                                                                            |
 | **F4 Operasional**              | Audit log aksi penting; `/up` aman; script backup + catatan uji restore; README instal/jalan                                                                                                                                                                                    |
 
 ## 11. Open decisions
@@ -307,6 +324,7 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 | OD-11 | Sumber katalog role & permission                       | **DIPUTUSKAN** — didefinisikan di kode per modul, disinkronkan lewat `educore:sync-access`; halaman kelola katalog di Panel platform menyusul. Role bawaan: Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator, Staf |
 | OD-12 | Superadmin & data yayasan                              | **DIPUTUSKAN** — tidak ada jalan pintas; perlu membership + role                                                                                                                                                       |
 | OD-13 | Jawaban saat akses ditolak                             | **DIPUTUSKAN** — di luar cakupan 404, di dalam cakupan tanpa izin aksi 403                                                                                                                                             |
+| OD-14 | Isi halaman admin pohon lembaga                        | **DIPUTUSKAN** — tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; node nonaktif disembunyikan kecuali diminta (§4.6)                                                                             |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 

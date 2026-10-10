@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** F3 — RBAC berbasis pohon & aturan berjenjang (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** F2b — `feat(core): F2b membership, penugasan, dan konteks kerja` (hash belum dicatat)
+- **Tahap aktif:** Halaman admin pohon lembaga (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `ae4d595` — feat(core): F3 RBAC berbasis pohon dan aturan berjenjang
 
 ## Keputusan penting
 
@@ -20,6 +20,7 @@
 | 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                  | PRD-000 OD-05–07       |
 | 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong) | PRD-000 OD-08–10, §5   |
 | 2026-10-10 | Katalog role & permission di kode + `educore:sync-access`; superadmin tanpa jalan pintas; di luar cakupan 404, di dalam cakupan tanpa izin 403                                        | PRD-000 OD-11–13, §7.1 |
+| 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                            | PRD-000 §4.6, OD-14    |
 
 ## Fitur yang sudah ada
 
@@ -59,7 +60,7 @@
 - Bukti: 103 test lulus (446 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; constraint juga diuji langsung di PostgreSQL 16.
 - Perbaikan: 4 test sempat gagal ("Unable to locate file in Vite manifest") karena test dijalankan sebelum `npm run build`; diatasi dengan `withoutVite()` di `tests/TestCase.php`.
 
-**F3 — RBAC berbasis pohon & aturan berjenjang: KODE SIAP**
+**F3 — RBAC berbasis pohon & aturan berjenjang: SELESAI (2026-10-10, commit `ae4d595`)**
 
 - Tabel `permissions`, `roles`, `role_permission`, `membership_roles` (role tenant-wide), `organizational_assignment_roles` (role per penugasan), `scoped_settings`. Database menjamin semuanya dari yayasan yang sama.
 - `AccessCatalog` + `CoreAccess`: 5 permission Core dan 5 role bawaan didefinisikan di kode; `php artisan educore:sync-access` menyalinnya ke database.
@@ -68,7 +69,15 @@
 - Scoped settings: `SettingRegistry` (definisi dari modul), `ScopedSettingResolver` (kunci teratas → terdekat → default, aturan per jenjang), `SetScopedSetting` (hak akses §8.3, validasi nilai, tolak bila dikunci dari atas).
 - Daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk menu (`permissions`).
 - `DevAccountsSeeder`: 8 akun uji dengan role (tambahan `pimpinan.ponpes`, `kepala.smk`).
-- Bukti sementara: SQL cakupan & constraint diuji langsung di PostgreSQL 16; logika urutan aturan diuji dengan skrip PHP (29 kasus); review independen atas seluruh kode. Test Pest menunggu dijalankan di Laragon.
+- Bukti: 152 test lulus (685 assertions), termasuk 10 skenario wajib §7.3; Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; SQL cakupan & constraint juga diuji langsung di PostgreSQL 16.
+- Perbaikan: Larastan menolak `$x?->value ?? ...` (nullsafe di kiri `??` tidak perlu); cukup `$x->value ?? ...`.
+
+**Admin pohon lembaga: KODE SIAP**
+
+- Halaman `/lembaga` (menu **Lembaga**): pohon sesuai cakupan, panel detail, form tambah/ubah nama/pindah/nonaktifkan/aktifkan kembali; responsif dengan kondisi kosong & pesan error.
+- `OrganizationController` + service baru `RenameOrganization`, `ReactivateOrganization`; label Bahasa Indonesia untuk jenis & kategori node.
+- Pengaman: tujuan pindah wajib di dalam izin kelola; lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya.
+- Bukti sementara: `tsc` lulus untuk halaman baru; review independen; 20 test Pest baru menunggu dijalankan di Laragon (target 172).
 
 ## Struktur file utama
 
@@ -101,8 +110,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi F3 di Laragon dan commit.
-2. Halaman admin pohon lembaga (setelah F3).
-3. F4 — Audit, health, backup, README deploy.
-4. Push repo ke GitHub agar CI berjalan.
-5. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
+1. Verifikasi halaman admin pohon lembaga di Laragon dan commit.
+2. F4 — Audit, health, backup, README deploy.
+3. Push repo ke GitHub agar CI berjalan.
+4. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.

@@ -23,4 +23,16 @@ enum OrganizationType: string
     {
         return $this === self::Lembaga;
     }
+
+    /**
+     * Nama tampilan dalam Bahasa Indonesia.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Lembaga => 'Lembaga',
+            self::Unit => 'Unit',
+            self::Biro => 'Biro',
+        };
+    }
 }
