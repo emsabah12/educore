@@ -13,6 +13,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
+use Modules\Core\Application\Authorization\MemberAccessSummary;
 use Modules\Core\Application\Identity\LoginAccountSummary;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Organization\Organization;
@@ -87,8 +88,14 @@ final class EmployeeController
         ]);
     }
 
-    public function show(Request $request, string $employee, EmployeeVisibility $visibility, EmployeeProfile $profile, LoginAccountSummary $loginAccounts): Response
-    {
+    public function show(
+        Request $request,
+        string $employee,
+        EmployeeVisibility $visibility,
+        EmployeeProfile $profile,
+        LoginAccountSummary $loginAccounts,
+        MemberAccessSummary $memberAccess,
+    ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
         // Di luar cakupan, milik yayasan lain, atau ID asal-asalan: 404 agar keberadaannya tidak bocor.
@@ -114,11 +121,7 @@ final class EmployeeController
             'canManage' => $canManage,
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()
-                ? $loginAccounts->forMembership(
-                    $this->tenantContext->require()->tenantId,
-                    (string) Employee::query()->whereKey($employee)->value('membership_id'),
-                    $viewer instanceof User ? $viewer : null,
-                )
+                ? $this->accessData($employee, $viewer instanceof User ? $viewer : null, $loginAccounts, $memberAccess)
                 : null,
             // Bahan form aksi HR-1d, hanya untuk Admin SDM / Admin Yayasan.
             'manage' => $canManage ? [
@@ -280,6 +283,26 @@ final class EmployeeController
     private function canManageAccess(): bool
     {
         return $this->authorization->inspectTarget(CoreAccess::MEMBERSHIPS_MANAGE, null, null)->allowed();
+    }
+
+    /**
+     * Bagian "Akses login" (PRD-000 §4.7): akun (F5a) + role tingkat Yayasan & penugasan (F5b).
+     * Datanya disusun Core; HR hanya meneruskan.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function accessData(string $employeeId, ?User $viewer, LoginAccountSummary $loginAccounts, MemberAccessSummary $memberAccess): ?array
+    {
+        $context = $this->tenantContext->require();
+        $membershipId = (string) Employee::query()->whereKey($employeeId)->value('membership_id');
+
+        $login = $loginAccounts->forMembership($context->tenantId, $membershipId, $viewer);
+
+        if ($login === null) {
+            return null;
+        }
+
+        return [...$login, 'member' => $memberAccess->forMembership($context->tenantId, $membershipId, $context->membershipId)];
     }
 
     /**

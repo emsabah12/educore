@@ -1,6 +1,8 @@
 import { Form, router } from '@inertiajs/react';
 import { KeyRound, Lock, UserCheck, UserPlus, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { MemberAccess } from '@/components/core/member-access';
+import { MemberAccessPanel } from '@/components/core/member-access';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 /*
- * Bagian "Akses login" di detail pegawai (PRD-000 §4.7 F5a). Hanya dikirim server untuk
+ * Bagian "Akses login" di detail pegawai (PRD-000 §4.7 F5a akun, F5b penugasan & role). Hanya dikirim server untuk
  * Admin Yayasan; setiap aksi tetap dicek ulang di server.
  */
 
@@ -32,6 +34,8 @@ export type LoginAccess = {
     /** Alasan akun ini tidak bisa diatur dari yayasan ini (Superadmin / yayasan lain). */
     restriction: string | null;
     isSelf: boolean;
+    /** Role tingkat Yayasan & penugasan (F5b). */
+    member: MemberAccess | null;
 };
 
 type IssuedPassword = { login: string; password: string };
@@ -216,6 +220,13 @@ export function LoginAccessSection({ access }: { access: LoginAccess }) {
                         />
                     )}
                 </>
+            )}
+
+            {access.member && (
+                <MemberAccessPanel
+                    membershipId={access.membershipId}
+                    member={access.member}
+                />
             )}
 
             <IssuedPasswordDialog

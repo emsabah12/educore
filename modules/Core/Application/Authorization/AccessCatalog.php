@@ -31,6 +31,12 @@ final class AccessCatalog
     /** @var array<string, array<string, true>> role key => set permission key */
     private array $rolePermissions = [];
 
+    /** @var array<string, true> role yang ditawarkan di halaman kelola akses sebagai role tingkat Yayasan */
+    private array $tenantRoleOptions = [];
+
+    /** @var array<string, true> role yang ditawarkan saat membuat penugasan */
+    private array $assignmentRoleOptions = [];
+
     public function permission(string $key, string $name): self
     {
         if (preg_match(self::PERMISSION_KEY_PATTERN, $key) !== 1 || strlen($key) > 100) {
@@ -78,6 +84,56 @@ final class AccessCatalog
         }
 
         return $this;
+    }
+
+    /**
+     * Tawarkan role ini sebagai role tingkat Yayasan (tenant-wide) di halaman kelola akses
+     * (PRD-000 §4.7 F5b). Role yang tidak ditawarkan tidak bisa dipasang dari halaman.
+     */
+    public function offerAsTenantRole(string $roleKey): self
+    {
+        if (! isset($this->roles[$roleKey])) {
+            throw AccessException::unknownRole($roleKey);
+        }
+
+        $this->tenantRoleOptions[$roleKey] = true;
+
+        return $this;
+    }
+
+    /**
+     * Tawarkan role ini sebagai role sebuah penugasan (PRD-000 §4.7 F5b).
+     */
+    public function offerAsAssignmentRole(string $roleKey): self
+    {
+        if (! isset($this->roles[$roleKey])) {
+            throw AccessException::unknownRole($roleKey);
+        }
+
+        $this->assignmentRoleOptions[$roleKey] = true;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, string> key => nama, urut sesuai pendaftaran
+     */
+    public function tenantRoleOptions(): array
+    {
+        return array_intersect_key($this->roles, $this->tenantRoleOptions);
+    }
+
+    /**
+     * @return array<string, string> key => nama, urut sesuai pendaftaran
+     */
+    public function assignmentRoleOptions(): array
+    {
+        return array_intersect_key($this->roles, $this->assignmentRoleOptions);
+    }
+
+    public function roleName(string $roleKey): string
+    {
+        return $this->roles[$roleKey] ?? $roleKey;
     }
 
     public function hasPermission(string $key): bool

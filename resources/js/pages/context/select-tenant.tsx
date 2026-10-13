@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, router } from '@inertiajs/react';
 import { Building2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -34,6 +34,8 @@ export default function SelectTenant({
                             key={membership.id}
                             action="/konteks/yayasan"
                             method="post"
+                            // Halaman lama dari konteks sebelumnya tidak boleh dipakai lagi.
+                            onSuccess={() => router.flushAll()}
                         >
                             {({ processing }) => (
                                 <>

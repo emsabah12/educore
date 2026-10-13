@@ -63,7 +63,11 @@ const platformNavItem: NavItem = {
 };
 
 export function AppSidebar() {
-    const { auth, permissions } = usePage().props;
+    const { auth, permissions, context } = usePage().props;
+    // Halaman tingkat Yayasan (Katalog SDM, Log audit) hanya bisa dibuka dari lembaga kerja
+    // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
+    // walaupun role tingkat Yayasan-nya terpasang.
+    const atTenantLevel = context?.workspace.type === 'tenant';
     const navItems = [
         ...mainNavItems,
         ...(permissions.includes('core.organizations.view')
@@ -72,10 +76,12 @@ export function AppSidebar() {
         ...(permissions.includes('hr.employees.view')
             ? [employeesNavItem]
             : []),
-        ...(permissions.includes('hr.catalog.manage')
+        ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
             : []),
-        ...(permissions.includes('core.audit.view') ? [auditNavItem] : []),
+        ...(atTenantLevel && permissions.includes('core.audit.view')
+            ? [auditNavItem]
+            : []),
         ...(auth.user?.is_superadmin ? [platformNavItem] : []),
     ];
 
@@ -85,7 +91,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={dashboard()}>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

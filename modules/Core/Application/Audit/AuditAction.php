@@ -50,6 +50,8 @@ final class AuditAction
 
     public const ASSIGNMENT_CREATED = 'access.assignment_created';
 
+    public const ASSIGNMENT_REVOKED = 'access.assignment_revoked';
+
     public const ROLE_GRANTED = 'access.role_granted';
 
     public const ROLE_REVOKED = 'access.role_revoked';
@@ -101,6 +103,7 @@ final class AuditAction
             self::ORGANIZATION_ACTIVATED => 'Lembaga diaktifkan kembali',
             self::MEMBERSHIP_GRANTED => 'Anggota didaftarkan',
             self::ASSIGNMENT_CREATED => 'Penugasan dibuat',
+            self::ASSIGNMENT_REVOKED => 'Penugasan dicabut',
             self::ROLE_GRANTED => 'Role dipasang',
             self::ROLE_REVOKED => 'Role dicabut',
             self::CATALOG_SYNCED => 'Katalog akses disinkronkan',

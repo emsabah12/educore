@@ -48,6 +48,8 @@ final class HrAccess
             ->grant(CoreAccess::ROLE_ADMIN_YAYASAN, $all)
             ->grant(CoreAccess::ROLE_PIMPINAN, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL])
             ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL])
-            ->grant(CoreAccess::ROLE_KOORDINATOR, [self::EMPLOYEES_VIEW]);
+            ->grant(CoreAccess::ROLE_KOORDINATOR, [self::EMPLOYEES_VIEW])
+            // Admin SDM bekerja di tingkat Yayasan (OD-HR-02); dipasang dari halaman kelola akses.
+            ->offerAsTenantRole(self::ROLE_ADMIN_SDM);
     }
 }

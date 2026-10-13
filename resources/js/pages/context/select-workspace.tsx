@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, router } from '@inertiajs/react';
 import { Building2, Check, Network, School } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -53,6 +53,8 @@ export default function SelectWorkspace({
                                 key={assignment.id}
                                 action="/konteks/lembaga"
                                 method="post"
+                                // Halaman lama dari konteks sebelumnya tidak boleh dipakai lagi.
+                                onSuccess={() => router.flushAll()}
                             >
                                 {({ processing }) => (
                                     <>

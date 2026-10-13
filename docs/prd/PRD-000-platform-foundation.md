@@ -1,7 +1,7 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.13 (2026-10-15: F5a akun login dibangun; aturan pengaman akun global)
-- **Versi sebelumnya:** 0.12 (2026-10-14: kelola akses — akun login, penugasan, role; OD-20 s.d. OD-22)
+- **Versi:** 0.14 (2026-10-14: F5b penugasan & role dibangun)
+- **Versi sebelumnya:** 0.13 (F5a akun login selesai; aturan pengaman akun global), 0.12 (2026-10-14: kelola akses — akun login, penugasan, role; OD-20 s.d. OD-22)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -167,7 +167,7 @@ Akun login, penugasan, dan role diatur dari halaman **detail pegawai** (PRD-001 
 - Semua aksi tercatat di audit log (akun dibuat oleh admin, sandi diatur ulang, akun dinonaktifkan/diaktifkan, penugasan dibuat/dicabut, role dipasang/dicabut).
 - [ASUMSI] Role bawaan **Kepala Lembaga** dilepas dari `core.memberships.manage` agar sesuai OD-21.
 
-**Rincian F5a (dibangun 2026-10-15)**
+**Rincian F5a (SELESAI 2026-10-14, commit `0d26a2c`)**
 
 - Kata sandi sementara: 12 karakter acak kriptografis, selalu memuat huruf besar, huruf kecil, angka, dan simbol; tanpa karakter yang mudah tertukar (0/O, 1/l/I). Dikirim ke browser admin sekali lewat flash, tidak masuk riwayat browser [ASUMSI].
 - Wajib ganti sandi: halaman `/akun/ganti-sandi`; sandi baru tidak boleh sama dengan sandi sementara. Selain halaman itu, hanya "Keluar" yang bisa dibuka.
@@ -176,6 +176,15 @@ Akun login, penugasan, dan role diatur dari halaman **detail pegawai** (PRD-001 
 - Akun bersifat global (§5). Karena itu akun **Superadmin** dan akun yang juga **terdaftar aktif di yayasan lain** tidak bisa diatur dari halaman yayasan; bagian Akses login menampilkan alasannya [ASUMSI, pengaman].
 - Admin boleh mengatur ulang sandinya sendiri (lalu wajib menggantinya), tetapi tidak bisa menonaktifkan akunnya sendiri.
 - Audit: `account.created` (dengan `oleh_admin`), `account.password_reset`, `account.deactivated`, `account.activated`, tercatat di log yayasan. Penggantian sandi oleh pemilik tetap `account.password_changed`.
+
+**Rincian F5b (dibangun 2026-10-14, menunggu verifikasi owner)**
+
+- Pilihan role ditentukan katalog di kode (`AccessCatalog::offerAsTenantRole/offerAsAssignmentRole`): tingkat Yayasan = Admin Yayasan, Pimpinan, Admin SDM (didaftarkan modul HR); penugasan = Pimpinan, Kepala Lembaga, Koordinator, Staf. Role lain ditolak.
+- Penugasan struktural = satu lembaga/unit (beserta turunannya); fungsional = tingkat Yayasan + jenjang (§4.4). Penugasan fungsional di bawah node tertentu belum ditawarkan di halaman [ASUMSI].
+- Penugasan ke target yang sama yang pernah dicabut **diaktifkan kembali** (baris lama, role baru), karena database melarang penugasan dobel; audit `access.assignment_created` dengan `diaktifkan_kembali` [ASUMSI, disetujui owner 2026-10-14].
+- Cabut penugasan = semua role-nya dilepas + status nonaktif; audit `access.assignment_revoked` (berisi daftar role yang dilepas).
+- Admin Yayasan tidak bisa mencabut role Admin Yayasan miliknya sendiri; Admin Yayasan terakhir (anggota aktif) tidak bisa dicabut [ASUMSI, disetujui owner 2026-10-14].
+- Anggota dengan keanggotaan nonaktif tidak bisa diberi role/penugasan baru. Pengaman akun Superadmin/lintas yayasan (F5a) **tidak** berlaku untuk penugasan, karena penugasan milik yayasan ini [ASUMSI, disetujui owner 2026-10-14].
 
 ## 5. Model data pondasi
 
@@ -225,6 +234,7 @@ Dashboard — data yang tampil = node workspace + semua turunannya
 - Penugasan aktif hanya satu → lembaga kerja langsung dipilih; lebih dari satu → wajib memilih [OWNER, OD-08].
 - Membership tanpa penugasan → konteks **Seluruh Yayasan** (belum melihat data apa pun sampai role tenant-wide ada di F3) [OWNER, OD-09].
 - Pemegang role tenant-wide yang juga punya penugasan mendapat pilihan tambahan **Seluruh Yayasan** di urutan pertama. Bila role tenant-wide dicabut saat sesi berjalan, request berikutnya pindah ke penugasannya [F3].
+- Satu lembaga kerja aktif pada satu waktu. Di lembaga kerja penugasan, role tenant-wide hanya berlaku di dalam cakupan lembaga kerja itu; halaman **tingkat Yayasan** (Katalog SDM, Log audit, tambah/kelola pegawai, kelola akses) hanya terbuka dari **Seluruh Yayasan**, dan menunya disembunyikan di lembaga kerja lain [F5b, 2026-10-14].
 - Membership/yayasan/penugasan/lembaga yang dinonaktifkan saat sesi berjalan langsung berlaku di request berikutnya: pengguna diarahkan memilih ulang atau ke halaman "Belum terdaftar".
 - Superadmin tanpa membership diarahkan ke **Panel platform**.
 - Model milik tenant (lembaga, penugasan) otomatis tersaring ke yayasan aktif bila konteks kerja sudah terbentuk; perintah konsol/seeder tetap wajib memakai filter `tenant_id` eksplisit [ASUMSI].
@@ -345,7 +355,7 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 | **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji                                                                                                                                |
 | **Admin pohon lembaga**         | Halaman §4.6: lihat sesuai cakupan, tambah, ubah nama, pindah, nonaktifkan & aktifkan kembali, dengan 404/403 teruji                                                                                                                                                            |
 | **F4 Operasional**              | Audit log aksi penting (OD-15/16) + halaman log audit (OD-17); `/up` ikut memeriksa database tanpa membocorkan detail; script backup + uji restore + catatan uji restore; README instal/jalan/deploy VPS Linux (OD-18)                                                          |
-| **F5 Kelola akses**             | §4.7: F5a akun login (buat, sandi sementara, wajib ganti, atur ulang, nonaktif/aktif) dan F5b penugasan & role, dengan 403/404 dan audit teruji. **F5a dibangun 2026-10-15** (menunggu verifikasi owner); F5b berikutnya                                                        |
+| **F5 Kelola akses**             | §4.7: F5a akun login (buat, sandi sementara, wajib ganti, atur ulang, nonaktif/aktif) dan F5b penugasan & role, dengan 403/404 dan audit teruji. **F5a SELESAI 2026-10-14** (commit `0d26a2c`); **F5b dibangun 2026-10-14** (menunggu verifikasi owner)                         |
 
 ## 11. Open decisions
 

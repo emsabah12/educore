@@ -68,5 +68,14 @@ final class CoreAccess
             ->role(self::ROLE_STAF, 'Staf', [
                 self::ORGANIZATIONS_VIEW,
             ]);
+
+        // Pilihan role di halaman kelola akses (PRD-000 §4.7 F5b).
+        $catalog
+            ->offerAsTenantRole(self::ROLE_ADMIN_YAYASAN)
+            ->offerAsTenantRole(self::ROLE_PIMPINAN)
+            ->offerAsAssignmentRole(self::ROLE_PIMPINAN)
+            ->offerAsAssignmentRole(self::ROLE_KEPALA_LEMBAGA)
+            ->offerAsAssignmentRole(self::ROLE_KOORDINATOR)
+            ->offerAsAssignmentRole(self::ROLE_STAF);
     }
 }

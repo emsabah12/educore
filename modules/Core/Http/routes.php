@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\LoginAccountController;
+use Modules\Core\Http\Controllers\MemberAccessController;
 use Modules\Core\Http\Controllers\OrganizationController;
 use Modules\Core\Http\Controllers\PasswordChangeController;
 use Modules\Core\Http\Controllers\PlatformController;
@@ -53,4 +54,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid('membership')->name('access.accounts.deactivate');
     Route::post('akses/anggota/{membership}/akun/aktifkan', [LoginAccountController::class, 'activate'])
         ->whereUuid('membership')->name('access.accounts.activate');
+
+    // Penugasan & role tingkat Yayasan (PRD-000 §4.7 F5b). Hanya Admin Yayasan.
+    Route::post('akses/anggota/{membership}/role-yayasan', [MemberAccessController::class, 'grantTenantRole'])
+        ->whereUuid('membership')->name('access.tenant-roles.store');
+    Route::post('akses/anggota/{membership}/role-yayasan/cabut', [MemberAccessController::class, 'revokeTenantRole'])
+        ->whereUuid('membership')->name('access.tenant-roles.revoke');
+    Route::post('akses/anggota/{membership}/penugasan', [MemberAccessController::class, 'storeAssignment'])
+        ->whereUuid('membership')->name('access.assignments.store');
+    Route::post('akses/anggota/{membership}/penugasan/{assignment}/cabut', [MemberAccessController::class, 'revokeAssignment'])
+        ->whereUuid(['membership', 'assignment'])->name('access.assignments.revoke');
 });

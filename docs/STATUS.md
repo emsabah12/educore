@@ -1,29 +1,30 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-14
-- **Tahap aktif:** HR-1d Aksi di detail pegawai (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `e8faca0` — feat(hr): HR-1c daftar dan detail pegawai (di-push ke GitHub `emsabah12/educore`)
+- **Tahap aktif:** F5b Penugasan & role (berikutnya)
+- **Commit terakhir:** `0d26a2c` — feat(core): F5a kelola akun login (di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
-| Tanggal    | Keputusan                                                                                                                                                                               | Dokumen                    |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain                                                                                                | ADR-001                    |
-| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session                                                                                                        | ADR-001 §2.1               |
-| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya                                                                                                       | PRD-000 §4, §7             |
-| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang)                                                                  | PRD-000 §4.4               |
-| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci                                                                                                                              | PRD-000 §8                 |
-| 2026-10-09 | Modul awal: Core, HR, Academic                                                                                                                                                          | ADR-001 §2.2               |
-| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                    | PRD-000 OD-04              |
-| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an                                      | PRD-000 §4.3               |
-| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC)                                                                                                    | PRD-000 §10                |
-| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                    | PRD-000 OD-05–07           |
-| 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong)   | PRD-000 OD-08–10, §5       |
-| 2026-10-10 | Katalog role & permission di kode + `educore:sync-access`; superadmin tanpa jalan pintas; di luar cakupan 404, di dalam cakupan tanpa izin 403                                          | PRD-000 OD-11–13, §7.1     |
-| 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                              | PRD-000 §4.6, OD-14        |
-| 2026-10-13 | Akun pertama production lewat perintah interaktif `educore:create-admin` & `educore:create-superadmin`                                                                                  | PRD-000 OD-19              |
-| 2026-10-13 | HR dibangun bertahap mulai HR-1 Data Pegawai; model disederhanakan (pegawai → periode kepegawaian + penempatan); data pribadi minimal tanpa NIK; kelola pegawai satu pintu di Admin SDM | PRD-001 §3–§5, OD-HR-01–03 |
-| 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows        | PRD-000 OD-15–18           |
+| Tanggal    | Keputusan                                                                                                                                                                                                                                          | Dokumen                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| 2026-10-09 | Rebuild dari nol sebagai simplified modular monolith; dokumen lama jadi referensi domain                                                                                                                                                           | ADR-001                    |
+| 2026-10-09 | Frontend Inertia 3 + React (starter kit resmi), auth Fortify, satu jalur session                                                                                                                                                                   | ADR-001 §2.1               |
+| 2026-10-09 | Pohon lembaga fleksibel (maks 6 tingkat); induk melihat turunan, tidak sebaliknya                                                                                                                                                                  | PRD-000 §4, §7             |
+| 2026-10-09 | Lembaga formal di dalam unit = anak unit; koordinator di bawah Biro pusat dengan penugasan fungsional (filter jenjang)                                                                                                                             | PRD-000 §4.4               |
+| 2026-10-09 | Aturan berjenjang: terdekat menang, kecuali induk mengunci                                                                                                                                                                                         | PRD-000 §8                 |
+| 2026-10-09 | Modul awal: Core, HR, Academic                                                                                                                                                                                                                     | ADR-001 §2.2               |
+| 2026-10-10 | Fitur auth starter kit: registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                                                                               | PRD-000 OD-04              |
+| 2026-10-10 | Susunan tenant pertama: 4 Biro pusat + Ponpes dengan Unit 1 (MTs, MA), Unit 2 (MTs, MA), Unit 3 (SMP, SMK), masing-masing + MDA, Bahasa, Al-Qur'an                                                                                                 | PRD-000 §4.3               |
+| 2026-10-10 | F1 tanpa halaman admin; halaman pohon lembaga dibuat setelah F3 (butuh login & RBAC)                                                                                                                                                               | PRD-000 §10                |
+| 2026-10-10 | Person hanya `name` + `gender`; hapus akun mandiri dihilangkan; UI starter kit diterjemahkan ke Bahasa Indonesia; F2 dipecah F2a/F2b                                                                                                               | PRD-000 OD-05–07           |
+| 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong)                                                              | PRD-000 OD-08–10, §5       |
+| 2026-10-10 | Katalog role & permission di kode + `educore:sync-access`; superadmin tanpa jalan pintas; di luar cakupan 404, di dalam cakupan tanpa izin 403                                                                                                     | PRD-000 OD-11–13, §7.1     |
+| 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                                                                                         | PRD-000 §4.6, OD-14        |
+| 2026-10-13 | Akun pertama production lewat perintah interaktif `educore:create-admin` & `educore:create-superadmin`                                                                                                                                             | PRD-000 OD-19              |
+| 2026-10-13 | HR dibangun bertahap mulai HR-1 Data Pegawai; model disederhanakan (pegawai → periode kepegawaian + penempatan); data pribadi minimal tanpa NIK; kelola pegawai satu pintu di Admin SDM                                                            | PRD-001 §3–§5, OD-HR-01–03 |
+| 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
+| 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
 
 ## Fitur yang sudah ada
 
@@ -135,12 +136,28 @@
 - Perbaikan: Larastan menolak `whereRaw()` dengan string rakitan → helper SQL diberi tipe `literal-string`.
 - Pelajaran: SQL mentah di `whereRaw()` hanya dirakit dari teks tetap di kode (`@param/@return literal-string`); nilai dari pengguna selalu lewat binding `?`.
 
-**HR-1d — Aksi di detail pegawai: KODE SIAP**
+**HR-1d — Aksi di detail pegawai: SELESAI (2026-10-14, commit `d72eb3d`) → HR-1 Data Pegawai SELESAI**
 
 - Service: `UpdateEmployeeProfile`, `ChangeEmploymentStatus`, `ManagePlacements` (tambah, akhiri, mutasi, jadikan utama), `EndEmployment`, `RehireEmployee`; pemeriksaan bersama di `EmployeeGuard` (kunci baris pegawai, status aktif, rujukan aktif, tanggal tidak di masa depan).
 - `EmployeeActionController` + 8 route aksi; tombol aksi & form di detail pegawai (`components/hr/employee-actions.tsx`), tombol tersusun grid otomatis di HP.
 - 8 aksi audit baru (`hr.employee_updated` … `hr.employee_rehired`); ubah profil hanya mencatat nama field.
-- Bukti sementara: `EmployeeActionsTest` (10) menunggu dijalankan di Laragon (target 242).
+- Bukti: 242 test lulus (1504 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 10 langkah (termasuk HP) lancar.
+- Perbaikan: Larastan menolak `->locale('id')->translatedFormat()` (method Carbon dua fungsi) dan `array_values()` pada array yang sudah berurutan.
+- Pelajaran: hindari method getter/setter ganda (mis. Carbon `locale()`) di tengah rantai; nama bulan Indonesia disusun sendiri.
+
+## Kelola akses (PRD-000 §4.7)
+
+**F5a — Akun login: SELESAI (2026-10-14, commit `0d26a2c`)**
+
+- Migrasi: `users.email` boleh kosong (wajib email **atau** username, dijaga CHECK `users_login_identifier_check`), kolom `must_change_password`.
+- `ManageLoginAccount`: buat akun (username wajib, email opsional), atur ulang sandi, nonaktifkan, aktifkan; pengaman akun Superadmin / akun yang aktif di yayasan lain; admin tidak bisa menonaktifkan diri sendiri.
+- `TemporaryPassword` (12 karakter acak kriptografis, semua golongan karakter, tanpa karakter mirip); dikirim sekali lewat flash Inertia `issuedPassword`, tidak masuk audit log.
+- `UserSessions`: hapus sesi database + ganti token "ingat saya" saat atur ulang sandi / nonaktifkan.
+- Middleware `EnsureAccountUsable` (grup web): akun nonaktif dikeluarkan di request berikutnya; akun bersandi sementara hanya boleh ke `/akun/ganti-sandi` dan Keluar.
+- `LoginAccountController` (4 route `akses/anggota/{membership}/akun…`), `PasswordChangeController`, bagian **Akses login** di detail pegawai (`components/core/login-access.tsx`), halaman `auth/change-password`.
+- Audit baru: `account.password_reset`, `account.deactivated`, `account.activated`; `account.created` kini juga dari admin (tercatat di log yayasan).
+- Kepala Lembaga dilepas dari `core.memberships.manage`; profil boleh tanpa email bila punya username.
+- Bukti: 262 test lulus (1941 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 11 langkah (incognito, HP) lancar.
 
 ## Struktur file utama
 
@@ -173,6 +190,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-1d di Laragon dan commit → HR-1 selesai.
-2. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
+1. F5b Penugasan & role (PRD-000 §4.7): tambah/cabut penugasan + role, role tingkat Yayasan, pengaman Admin Yayasan terakhir.
+2. HR-1e (saran): impor pegawai dari Excel/CSV.
 3. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).
