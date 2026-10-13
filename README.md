@@ -50,6 +50,7 @@ DB_DATABASE=educore
 DB_USERNAME=postgres
 DB_PASSWORD="isi-password-anda"
 AUDIT_RETENTION_DAYS=365
+EDUCORE_TIMEZONE=Asia/Jakarta
 ```
 
 Siapkan database dan aset:
@@ -180,6 +181,7 @@ SESSION_SECURE_COOKIE=true
 CACHE_STORE=database
 QUEUE_CONNECTION=database
 AUDIT_RETENTION_DAYS=365
+EDUCORE_TIMEZONE=Asia/Jakarta
 ```
 
 Lalu:

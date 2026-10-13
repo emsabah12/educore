@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-14
-- **Tahap aktif:** HR-1a Katalog SDM & skema kepegawaian (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `cee8158` — feat(core): perintah akun pertama untuk production (di-push ke GitHub `emsabah12/educore`)
+- **Tahap aktif:** HR-1b Tambah pegawai (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `cd2dc2d` — feat(hr): HR-1a katalog SDM dan skema kepegawaian (di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
@@ -106,13 +106,24 @@
 
 **PRD-001 HR: v0.3 (2026-10-14)** — HR-1 Data Pegawai dirinci; HR-2 s.d. HR-6 digariskan. Keputusan: data pribadi minimal tanpa NIK (OD-HR-01); hanya Admin SDM/Admin Yayasan yang mengelola pegawai (OD-HR-02); halaman kelola akses Core dibuat sesudah HR-1, sebelum HR-3 (OD-HR-03).
 
-**HR-1a — Katalog SDM & skema kepegawaian: KODE SIAP**
+**HR-1a — Katalog SDM & skema kepegawaian: SELESAI (2026-10-13, commit `cd2dc2d`)**
 
 - Migrasi: kolom data pribadi di `persons` (tempat/tanggal lahir, HP, alamat); tabel `hr_employment_types`, `hr_employment_classifications`, `hr_positions`, `hr_employees`, `hr_employment_periods`, `hr_placements` dengan FK gabungan per yayasan, partial unique index (satu periode terbuka, satu penempatan utama, penempatan tidak dobel), dan CHECK format (diuji langsung di PostgreSQL 16).
 - `HrAccess`: 4 permission HR + role **Admin SDM**; Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator diperluas sesuai PRD-001 §5.2.
 - Katalog SDM: `CreateCatalogItem`, `UpdateCatalogItem` (ubah nama, nonaktif/aktif), `HrCatalogSeeder` (isi awal 3 + 4 + 9, aman diulang), halaman `/pegawai/katalog` + menu **Katalog SDM**.
 - Label aksi modul didaftarkan ke Core lewat `AuditAction::registerLabels()` (Core tetap tidak mengenal HR).
-- Bukti sementara: test baru `HrSchemaTest` (8) + `HrCatalogTest` (8), 2 test Core disesuaikan; menunggu dijalankan di Laragon (target 215).
+- Bukti: 215 test lulus (1132 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual di browser & HP lancar.
+- Perbaikan: test memakai akun `guru` (dua penugasan) lupa memilih lembaga kerja → 302, bukan 403. Tab katalog di HP terpotong (geser samping) → diganti grid `auto-fit` yang otomatis turun baris.
+- Pelajaran: (1) akun uji dengan lebih dari satu penugasan (`guru`, `koordinator.mda`) wajib `DevAccounts::chooseWorkspace()` dulu di test; (2) **aturan UI**: tab/filter/tombol berderet di HP memakai grid yang otomatis turun baris, bukan scroll horizontal.
+
+**HR-1b — Tambah pegawai: KODE SIAP**
+
+- Model `Employee`, `EmploymentPeriod`, `Placement` (+ enum status, pendidikan, alasan berhenti).
+- `CreateEmployee`: orang baru (Person + Membership) **atau** anggota yayasan yang sudah ada → Pegawai → periode pertama → penempatan utama, dalam satu transaksi; pemeriksaan lembaga/katalog dilakukan setelah Person dibuat sehingga kegagalan membatalkan semuanya.
+- Peringatan orang ganda (nama + tanggal lahir sama, hanya di yayasan yang sama) dengan konfirmasi; nomor induk & NUPTK unik dengan pesan ramah; nomor HP/NUPTK/nomor induk dirapikan otomatis.
+- Halaman `/pegawai/tambah` (tombol sementara di Katalog SDM); audit `hr.employee_created` tanpa nilai data pribadi.
+- `BusinessClock` + `EDUCORE_TIMEZONE` (default Asia/Jakarta) untuk aturan "tidak boleh di masa depan".
+- Bukti sementara: `CreateEmployeeTest` (8) menunggu dijalankan di Laragon (target 223).
 
 ## Struktur file utama
 
@@ -145,8 +156,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-1a di Laragon dan commit.
-2. HR-1b: service tambah pegawai (Person + Membership + Pegawai + periode + penempatan dalam satu transaksi).
-3. HR-1c: halaman daftar & detail pegawai. HR-1d: aksi mutasi/ganti status/berhenti.
-4. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
-5. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).
+1. Verifikasi HR-1b di Laragon dan commit.
+2. HR-1c: halaman daftar & detail pegawai. HR-1d: aksi mutasi/ganti status/berhenti.
+3. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
+4. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).

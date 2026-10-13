@@ -16,6 +16,11 @@ final class HrAuditAction
 
     public const CATALOG_ACTIVATED = 'hr.catalog_activated';
 
+    public const EMPLOYEE_CREATED = 'hr.employee_created';
+
+    /** Jenis subjek audit untuk data pegawai. */
+    public const SUBJECT_EMPLOYEE = 'hr_employee';
+
     /**
      * @return array<string, string> aksi => label
      */
@@ -26,6 +31,7 @@ final class HrAuditAction
             self::CATALOG_RENAMED => 'Nama katalog SDM diubah',
             self::CATALOG_DEACTIVATED => 'Katalog SDM dinonaktifkan',
             self::CATALOG_ACTIVATED => 'Katalog SDM diaktifkan kembali',
+            self::EMPLOYEE_CREATED => 'Pegawai ditambahkan',
         ];
     }
 }

@@ -1,6 +1,6 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.3 (2026-10-14: rincian HR-1a — alasan `PERUBAHAN_STATUS`, format nomor induk, halaman Katalog SDM)
+- **Versi:** 0.4 (2026-10-14: rincian HR-1b — tambah pegawai, zona waktu tanggal bisnis, peringatan orang ganda)
 - **Status:** SIAP DIBANGUN — HR-1 Data Pegawai
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
@@ -208,6 +208,13 @@ Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa
 
 **Mencegah orang ganda** [LAMA RISK-HR-004]: tanpa NIK, sistem tidak bisa yakin dua nama yang sama adalah satu orang. Form tambah memperingatkan bila sudah ada pegawai/anggota dengan nama + tanggal lahir yang sama, tetapi admin tetap boleh melanjutkan.
 
+Rincian tambah pegawai (HR-1b) [ASUMSI]:
+
+- Peringatan orang ganda hanya mencari di anggota **yayasan yang sama** (nama tanpa beda huruf besar/kecil + tanggal lahir), agar data yayasan lain tidak bocor. Admin melanjutkan dengan mencentang "ini orang yang berbeda".
+- Mode **Anggota yayasan**: nama tidak diubah dari form ini; data pribadi yang diisi melengkapi/memperbarui Person, yang dikosongkan tidak mengubah data lama. Jenis kelamin wajib bila Person belum punya.
+- "Tidak boleh di masa depan" memakai tanggal menurut zona waktu yayasan (`EDUCORE_TIMEZONE`, default Asia/Jakarta); jam server tetap UTC.
+- Sampai halaman Daftar pegawai ada (HR-1c), tombol **Tambah pegawai** ditaruh di halaman Katalog SDM; setelah simpan, form kosong kembali dengan notifikasi berhasil.
+
 ## 7. Audit (memakai `AuditLogger` Core)
 
 Dicatat: pegawai dibuat, profil diubah (field apa saja, **tanpa nilai data pribadi**), periode dibuka/ditutup, penempatan dibuat/diakhiri/jadi utama, berhenti, aktif kembali, katalog dibuat/diubah/nonaktif. Semua tampil di halaman Log audit dengan label Bahasa Indonesia. [LAMA BR-019, FR-050]
@@ -255,5 +262,5 @@ Akun login pegawai, dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 
-- **Impor pegawai dari Excel/CSV** (HR-1b): memasukkan ratusan pegawai lama satu per satu sangat lambat. Impor dengan pratinjau dan laporan baris yang gagal bisa jadi tahap kecil sesudah HR-1.
+- **Impor pegawai dari Excel/CSV** (HR-1e): memasukkan ratusan pegawai lama satu per satu sangat lambat. Impor dengan pratinjau dan laporan baris yang gagal bisa jadi tahap kecil sesudah HR-1.
 - **Ekspor daftar pegawai** (CSV) dengan saringan dan izin yang sama seperti halaman daftar [LAMA NFR-009].

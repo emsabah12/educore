@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Http\Controllers\CatalogController;
+use Modules\HR\Http\Controllers\EmployeeController;
 
 /*
  * Route web modul HR (PRD-001 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -17,4 +18,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('pegawai/katalog/{kind}/{item}', [CatalogController::class, 'update'])->whereIn('kind', $kinds)->name('hr.catalog.update');
     Route::post('pegawai/katalog/{kind}/{item}/nonaktifkan', [CatalogController::class, 'deactivate'])->whereIn('kind', $kinds)->name('hr.catalog.deactivate');
     Route::post('pegawai/katalog/{kind}/{item}/aktifkan', [CatalogController::class, 'activate'])->whereIn('kind', $kinds)->name('hr.catalog.activate');
+
+    // Tambah pegawai (PRD-001 §6). Halaman daftar & detail menyusul di HR-1c.
+    Route::get('pegawai/tambah', [EmployeeController::class, 'create'])->name('hr.employees.create');
+    Route::post('pegawai', [EmployeeController::class, 'store'])->name('hr.employees.store');
 });
