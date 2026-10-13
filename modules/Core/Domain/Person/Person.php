@@ -14,9 +14,16 @@ use Modules\Core\Domain\Identity\User;
 /**
  * Identitas manusia global (PRD-000 §5). Satu-satunya pemilik nama seseorang.
  *
+ * Data pribadi minimal (tempat/tanggal lahir, HP, alamat) ditambahkan untuk modul HR
+ * (PRD-001 §4.5, OD-HR-01). Semuanya opsional; NIK sengaja tidak disimpan.
+ *
  * @property string $id
  * @property string $name
  * @property Gender|null $gender
+ * @property string|null $birth_place
+ * @property CarbonImmutable|null $birth_date
+ * @property string|null $phone
+ * @property string|null $address
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -32,6 +39,10 @@ class Person extends Model
     protected $fillable = [
         'name',
         'gender',
+        'birth_place',
+        'birth_date',
+        'phone',
+        'address',
     ];
 
     /**
@@ -41,6 +52,7 @@ class Person extends Model
     {
         return [
             'gender' => Gender::class,
+            'birth_date' => 'immutable_date',
         ];
     }
 

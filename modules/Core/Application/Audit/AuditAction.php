@@ -5,8 +5,9 @@ namespace Modules\Core\Application\Audit;
 /**
  * Daftar aksi yang dicatat di audit log (OD-15), dengan label Bahasa Indonesia untuk halaman log.
  *
- * Modul lain boleh mencatat aksi sendiri dengan awalan modulnya, mis. `hr.employee.created`;
- * label yang tidak terdaftar di sini ditampilkan apa adanya.
+ * Modul lain mencatat aksi sendiri dengan awalan modulnya, mis. `hr.catalog_created`, dan
+ * mendaftarkan labelnya lewat registerLabels() di ServiceProvider modul tersebut (Core tidak
+ * boleh mengenal modul bisnis). Label yang tidak terdaftar ditampilkan apa adanya.
  */
 final class AuditAction
 {
@@ -55,6 +56,19 @@ final class AuditAction
     /** Aksi tingkat platform yang tidak pernah tampil di log sebuah yayasan (tidak ditawarkan di filter). */
     public const PLATFORM_ONLY = [self::CATALOG_SYNCED, self::AUDIT_PRUNED];
 
+    /** @var array<string, string> label aksi dari modul lain */
+    private static array $moduleLabels = [];
+
+    /**
+     * Dipanggil modul saat boot, mis. AuditAction::registerLabels(HrAuditAction::labels()).
+     *
+     * @param  array<string, string>  $labels  aksi => label
+     */
+    public static function registerLabels(array $labels): void
+    {
+        self::$moduleLabels = array_merge(self::$moduleLabels, $labels);
+    }
+
     /**
      * @return array<string, string> aksi => label
      */
@@ -82,7 +96,7 @@ final class AuditAction
             self::CATALOG_SYNCED => 'Katalog akses disinkronkan',
             self::SETTING_CHANGED => 'Aturan diubah',
             self::AUDIT_PRUNED => 'Log audit lama dihapus',
-        ];
+        ] + self::$moduleLabels;
     }
 
     public static function label(string $action): string

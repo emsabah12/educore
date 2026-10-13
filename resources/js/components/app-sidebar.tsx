@@ -1,5 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Network, ScrollText, ShieldCheck } from 'lucide-react';
+import {
+    LayoutGrid,
+    Network,
+    ScrollText,
+    ShieldCheck,
+    Tags,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { ContextSwitcher } from '@/components/context-switcher';
 import { NavMain } from '@/components/nav-main';
@@ -37,6 +43,12 @@ const auditNavItem: NavItem = {
     icon: ScrollText,
 };
 
+const hrCatalogNavItem: NavItem = {
+    title: 'Katalog SDM',
+    href: '/pegawai/katalog',
+    icon: Tags,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -49,6 +61,9 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(permissions.includes('core.organizations.view')
             ? [organizationsNavItem]
+            : []),
+        ...(permissions.includes('hr.catalog.manage')
+            ? [hrCatalogNavItem]
             : []),
         ...(permissions.includes('core.audit.view') ? [auditNavItem] : []),
         ...(auth.user?.is_superadmin ? [platformNavItem] : []),

@@ -11,13 +11,13 @@ Sistem informasi yayasan pendidikan (lembaga formal, pesantren, dan nonformal) b
 
 ## 1. Prasyarat
 
-| Kebutuhan | Versi | Catatan |
-|---|---|---|
-| PHP | 8.3+ dengan `pdo_pgsql`, `pgsql`, `mbstring`, `intl` | Laragon: Menu → PHP → Extensions |
-| PostgreSQL | 16 | Sama dengan CI dan production |
-| Composer | 2.x | |
-| Node.js | 22 | |
-| Git | terbaru | |
+| Kebutuhan  | Versi                                                | Catatan                          |
+| ---------- | ---------------------------------------------------- | -------------------------------- |
+| PHP        | 8.3+ dengan `pdo_pgsql`, `pgsql`, `mbstring`, `intl` | Laragon: Menu → PHP → Extensions |
+| PostgreSQL | 16                                                   | Sama dengan CI dan production    |
+| Composer   | 2.x                                                  |                                  |
+| Node.js    | 22                                                   |                                  |
+| Git        | terbaru                                              |                                  |
 
 ## 2. Instalasi untuk developer (Windows + Laragon)
 
@@ -59,7 +59,7 @@ php artisan migrate --seed
 npm run build
 ```
 
-`--seed` membuat katalog akses, pohon yayasan pertama (PRD-000 §4.3), dan **akun uji** (hanya di `local`/`testing`, OD-10).
+`--seed` membuat katalog akses, pohon yayasan pertama (PRD-000 §4.3), isi awal Katalog SDM (PRD-001 §4.3), dan **akun uji** (hanya di `local`/`testing`, OD-10).
 
 ## 3. Menjalankan saat development
 
@@ -69,16 +69,16 @@ composer run dev
 
 Buka `http://educore.test`. Semua akun uji memakai password **`password`**:
 
-| Username | Peran |
-|---|---|
-| `superadmin` | Superadmin platform (tanpa data yayasan) |
-| `admin.yayasan` | Admin Yayasan — seluruh pohon, kelola lembaga, log audit |
-| `pimpinan.ponpes` | Pimpinan Pondok Pesantren (lihat saja) |
-| `kepala.unit1` | Kepala Unit 1 |
-| `kepala.smk` | Kepala SMK Unit 3 |
-| `guru` | Staf di MA Unit 1 dan MDA Unit 1 |
-| `koordinator.mda` | Staf Biro Pendidikan + Koordinator semua MDA |
-| `penguji` | Akun tanpa yayasan |
+| Username          | Peran                                                    |
+| ----------------- | -------------------------------------------------------- |
+| `superadmin`      | Superadmin platform (tanpa data yayasan)                 |
+| `admin.yayasan`   | Admin Yayasan — seluruh pohon, kelola lembaga, log audit |
+| `pimpinan.ponpes` | Pimpinan Pondok Pesantren (lihat saja)                   |
+| `kepala.unit1`    | Kepala Unit 1                                            |
+| `kepala.smk`      | Kepala SMK Unit 3                                        |
+| `guru`            | Staf di MA Unit 1 dan MDA Unit 1                         |
+| `koordinator.mda` | Staf Biro Pendidikan + Koordinator semua MDA             |
+| `penguji`         | Akun tanpa yayasan                                       |
 
 ## 4. Sebelum commit
 
@@ -114,14 +114,15 @@ Aturan dependency: `Core → (tidak ada)`, `HR → Core`, `Academic → Core + k
 
 ## 6. Operasional
 
-| Hal | Cara | Acuan |
-|---|---|---|
-| Health check | `GET /up` → 200 bila aplikasi & database sehat; 500 dengan pesan umum bila tidak | PRD-000 §9 |
-| Katalog akses | `php artisan educore:sync-access` setiap ada permission/role baru (juga saat deploy) | OD-11 |
-| Akun pertama | `php artisan educore:create-admin <KODE-YAYASAN>` dan `php artisan educore:create-superadmin` | OD-19 |
-| Audit log | Halaman **Log audit** (Admin Yayasan, lembaga kerja Seluruh Yayasan). Log lama dihapus otomatis setiap hari pukul 02:00 sesuai `AUDIT_RETENTION_DAYS` (min. 30) | OD-15–17 |
-| Backup | `scripts/backup/backup-db.sh` (Linux) atau `backup-db.ps1` (Windows), harian | PRD-000 §9 |
-| Uji restore | `scripts/backup/restore-test.sh` / `.ps1`, bulanan, catat hasilnya | PRD-000 §9 |
+| Hal           | Cara                                                                                                                                                                                               | Acuan        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Health check  | `GET /up` → 200 bila aplikasi & database sehat; 500 dengan pesan umum bila tidak                                                                                                                   | PRD-000 §9   |
+| Katalog akses | `php artisan educore:sync-access` setiap ada permission/role baru (juga saat deploy)                                                                                                               | OD-11        |
+| Akun pertama  | `php artisan educore:create-admin <KODE-YAYASAN>` dan `php artisan educore:create-superadmin`                                                                                                      | OD-19        |
+| Katalog SDM   | Isi awal: `php artisan db:seed --class="Modules\\HR\\Database\\Seeders\\HrCatalogSeeder" --force` (hanya menambah kode yang belum ada; aman diulang). Selanjutnya dikelola di menu **Katalog SDM** | PRD-001 §4.3 |
+| Audit log     | Halaman **Log audit** (Admin Yayasan, lembaga kerja Seluruh Yayasan). Log lama dihapus otomatis setiap hari pukul 02:00 sesuai `AUDIT_RETENTION_DAYS` (min. 30)                                    | OD-15–17     |
+| Backup        | `scripts/backup/backup-db.sh` (Linux) atau `backup-db.ps1` (Windows), harian                                                                                                                       | PRD-000 §9   |
+| Uji restore   | `scripts/backup/restore-test.sh` / `.ps1`, bulanan, catat hasilnya                                                                                                                                 | PRD-000 §9   |
 
 Penghapusan log lama dan tugas terjadwal lain hanya berjalan bila `php artisan schedule:run` dipanggil setiap menit (cron di Linux, Task Scheduler di Windows).
 
@@ -191,6 +192,7 @@ npm run build
 php artisan migrate --force
 php artisan educore:sync-access
 php artisan db:seed --class="Modules\\Core\\Database\\Seeders\\FirstTenantSeeder" --force
+php artisan db:seed --class="Modules\\HR\\Database\\Seeders\\HrCatalogSeeder" --force
 php artisan optimize
 sudo chown -R $USER:www-data storage bootstrap/cache
 sudo chmod -R ug+rwx storage bootstrap/cache
@@ -288,6 +290,7 @@ npm ci
 npm run build
 php artisan migrate --force
 php artisan educore:sync-access
+php artisan db:seed --class="Modules\\HR\\Database\\Seeders\\HrCatalogSeeder" --force
 php artisan optimize
 sudo systemctl restart educore-queue
 php artisan up
