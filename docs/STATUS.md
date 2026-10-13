@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** F4 — Operasional (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `6136d7f` — feat(core): halaman admin pohon lembaga
+- **Tahap aktif:** Pondasi PRD-000 (F0–F4) SELESAI — menunggu keputusan langkah berikutnya
+- **Commit terakhir:** `b7ad82d` — feat(core): F4 audit log, log audit, health, backup, README deploy (sudah di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
@@ -80,7 +80,7 @@
 - Pengaman: tujuan pindah wajib di dalam izin kelola; lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya.
 - Bukti: 172 test lulus (823 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus.
 
-**F4 — Operasional: KODE SIAP**
+**F4 — Operasional: SELESAI (2026-10-13, commit `b7ad82d`)**
 
 - Tabel `audit_logs` append-only (trigger database menolak UPDATE/DELETE/TRUNCATE; hanya `educore:prune-audit` boleh menghapus log yang melewati masa simpan, dijadwalkan harian 02:00).
 - `AuditLogger` + pencatatan di semua service Core (pohon lembaga, anggota, penugasan, role, katalog, aturan berjenjang), event login/gagal/keluar, dan observer keamanan akun (kata sandi, email, 2FA).
@@ -88,7 +88,8 @@
 - `/up` ikut memeriksa database; bila gagal hanya pesan umum.
 - `scripts/backup/` (Linux `.sh` & Windows `.ps1`): backup harian + rotasi, uji restore ke DB sementara; `docs/operations/BACKUP-RESTORE.md`; README baru (instal, jalan, deploy VPS Linux).
 - Perbaikan bug F2a: konfirmasi password Fortify gagal karena mencari kolom `login`; sekarang memakai callback sendiri (+ test). Batas login per IP ditambahkan.
-- Bukti sementara: trigger append-only & pengecualian prune diuji di PostgreSQL 16; script `.sh` dijalankan sukses; `tsc` lulus; review independen. Test Pest menunggu dijalankan di Laragon (target 191).
+- Bukti: 191 test lulus (933 assertions); Pint PASS; Larastan level 7 tanpa error; build & `types:check` lulus; uji manual di browser lancar; `backup-db.ps1` + `restore-test.ps1` berhasil (tenants=1, organizations=23, users=8, audit_logs=51); script `.sh` diuji di PostgreSQL 16.
+- Pelajaran: nilai `option()` Artisan cukup diperlakukan sebagai teks (`(string) $option`); Larastan menolak pengecekan tipe yang berlebihan.
 
 ## Struktur file utama
 
@@ -121,6 +122,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi F4 di Laragon dan commit.
-2. Push repo ke GitHub agar CI berjalan.
+1. Pastikan CI GitHub Actions hijau untuk commit `b7ad82d`.
+2. Cara membuat admin pertama di production (perintah artisan atau Panel platform) — wajib sebelum go-live.
 3. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
+4. Kecil: peringatan lint `no-base-to-string` di halaman Log audit (perbaikan sudah disiapkan).

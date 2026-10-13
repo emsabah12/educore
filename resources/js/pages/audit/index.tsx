@@ -324,9 +324,10 @@ function formatValue(value: unknown): string {
         return value ? 'ya' : 'tidak';
     }
 
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
+    if (typeof value === 'string') {
+        return value;
     }
 
-    return String(value);
+    // Angka, objek, dan array ditampilkan sebagai JSON (bukan "[object Object]").
+    return JSON.stringify(value);
 }
