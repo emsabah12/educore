@@ -29,6 +29,7 @@ use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\Employee;
+use Modules\HR\Domain\Employee\EndReason;
 use Modules\HR\Domain\Employee\Exceptions\DuplicatePersonException;
 use Modules\HR\Domain\Employee\Exceptions\EmployeeException;
 use stdClass;
@@ -102,9 +103,28 @@ final class EmployeeController
             abort(404);
         }
 
+        $canManage = $this->canManage();
+
         return Inertia::render('hr/employees/show', [
             'employee' => $data,
-            'canManage' => $this->canManage(),
+            'canManage' => $canManage,
+            // Bahan form aksi HR-1d, hanya untuk Admin SDM / Admin Yayasan.
+            'manage' => $canManage ? [
+                'today' => BusinessClock::todayString(),
+                'values' => $profile->editValues($this->tenantContext->require()->tenantId, $employee),
+                'options' => [
+                    'employmentTypes' => $this->catalogOptions(CatalogKind::EmploymentType),
+                    'classifications' => $this->catalogOptions(CatalogKind::Classification),
+                    'positions' => $this->catalogOptions(CatalogKind::Position),
+                    'organizations' => $this->organizationOptions(),
+                    'educationLevels' => $this->educationOptions(),
+                    'genders' => $this->genderOptions(),
+                    'endReasons' => array_map(fn (EndReason $reason): array => [
+                        'value' => $reason->value,
+                        'label' => $reason->label(),
+                    ], array_filter(EndReason::cases(), fn (EndReason $reason): bool => $reason !== EndReason::StatusChanged)),
+                ],
+            ] : null,
         ]);
     }
 
@@ -120,14 +140,8 @@ final class EmployeeController
                 'classifications' => $this->catalogOptions(CatalogKind::Classification),
                 'positions' => $this->catalogOptions(CatalogKind::Position),
                 'organizations' => $this->organizationOptions(),
-                'educationLevels' => array_map(fn (EducationLevel $level): array => [
-                    'value' => $level->value,
-                    'label' => $level->label(),
-                ], EducationLevel::cases()),
-                'genders' => array_map(fn (Gender $gender): array => [
-                    'value' => $gender->value,
-                    'label' => $gender->label(),
-                ], Gender::cases()),
+                'educationLevels' => $this->educationOptions(),
+                'genders' => $this->genderOptions(),
             ],
         ]);
     }
@@ -222,6 +236,28 @@ final class EmployeeController
     private function authorize(): void
     {
         $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->authorize();
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function educationOptions(): array
+    {
+        return array_map(fn (EducationLevel $level): array => [
+            'value' => $level->value,
+            'label' => $level->label(),
+        ], EducationLevel::cases());
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function genderOptions(): array
+    {
+        return array_map(fn (Gender $gender): array => [
+            'value' => $gender->value,
+            'label' => $gender->label(),
+        ], Gender::cases());
     }
 
     private function canManage(): bool

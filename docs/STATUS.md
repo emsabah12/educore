@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-14
-- **Tahap aktif:** HR-1c Daftar & detail pegawai (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `740249c` — feat(hr): HR-1b tambah pegawai (di-push ke GitHub `emsabah12/educore`)
+- **Tahap aktif:** HR-1d Aksi di detail pegawai (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `e8faca0` — feat(hr): HR-1c daftar dan detail pegawai (di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
@@ -125,13 +125,22 @@
 - `BusinessClock` + `EDUCORE_TIMEZONE` (default Asia/Jakarta) untuk aturan "tidak boleh di masa depan".
 - Bukti: 223 test lulus (1245 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual (orang baru, anggota, peringatan orang ganda, nomor induk ganda, tanggal masa depan, audit, tampilan HP) lancar.
 
-**HR-1c — Daftar & detail pegawai: KODE SIAP**
+**HR-1c — Daftar & detail pegawai: SELESAI (2026-10-13, commit `e8faca0`)**
 
 - `EmployeeVisibility`: siapa melihat pegawai mana (PRD-001 §5.3) sebagai saringan SQL sebelum paginasi; pemegang izin tingkat Yayasan melihat semua termasuk pegawai tanpa penempatan.
 - `EmployeeDirectory` + `EmployeeFilters`: cari nama/nomor induk, saringan lembaga (ikut turunan), jabatan, jenis, status kepegawaian, aktif/berhenti; 25 per halaman (maks 100).
 - `EmployeeProfile` + `ServiceLength`: detail pegawai, riwayat periode & penempatan, masa kerja; data pribadi hanya dengan `hr.employees.view_personal`.
 - Halaman `/pegawai` (menu **Pegawai**, tabel di desktop, kartu di HP) dan `/pegawai/{id}`; tombol Tambah pegawai pindah dari Katalog SDM ke daftar; setelah tambah langsung ke detail.
-- Bukti sementara: `EmployeeDirectoryTest` (9) + `CreateEmployeeTest` disesuaikan; menunggu dijalankan di Laragon (target 232).
+- Bukti: 232 test lulus (1380 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 4 akun (Admin, Kepala Unit 1, Koordinator MDA, Guru) dan tampilan HP lancar.
+- Perbaikan: Larastan menolak `whereRaw()` dengan string rakitan → helper SQL diberi tipe `literal-string`.
+- Pelajaran: SQL mentah di `whereRaw()` hanya dirakit dari teks tetap di kode (`@param/@return literal-string`); nilai dari pengguna selalu lewat binding `?`.
+
+**HR-1d — Aksi di detail pegawai: KODE SIAP**
+
+- Service: `UpdateEmployeeProfile`, `ChangeEmploymentStatus`, `ManagePlacements` (tambah, akhiri, mutasi, jadikan utama), `EndEmployment`, `RehireEmployee`; pemeriksaan bersama di `EmployeeGuard` (kunci baris pegawai, status aktif, rujukan aktif, tanggal tidak di masa depan).
+- `EmployeeActionController` + 8 route aksi; tombol aksi & form di detail pegawai (`components/hr/employee-actions.tsx`), tombol tersusun grid otomatis di HP.
+- 8 aksi audit baru (`hr.employee_updated` … `hr.employee_rehired`); ubah profil hanya mencatat nama field.
+- Bukti sementara: `EmployeeActionsTest` (10) menunggu dijalankan di Laragon (target 242).
 
 ## Struktur file utama
 
@@ -164,7 +173,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-1c di Laragon dan commit.
-2. HR-1d: aksi di detail pegawai — ubah profil, ganti status kepegawaian, tambah/akhiri penempatan, mutasi, jadikan utama, berhentikan, aktifkan kembali.
-3. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
-4. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).
+1. Verifikasi HR-1d di Laragon dan commit → HR-1 selesai.
+2. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
+3. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).

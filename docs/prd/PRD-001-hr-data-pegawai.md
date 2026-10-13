@@ -1,6 +1,6 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.5 (2026-10-14: rincian HR-1c — daftar & detail pegawai)
+- **Versi:** 0.6 (2026-10-14: rincian HR-1d — aksi di detail pegawai; tiga asumsi disetujui owner)
 - **Status:** SIAP DIBANGUN — HR-1 Data Pegawai
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
@@ -222,6 +222,23 @@ Rincian tambah pegawai (HR-1b) [ASUMSI]:
 - Mode **Anggota yayasan**: nama tidak diubah dari form ini; data pribadi yang diisi melengkapi/memperbarui Person, yang dikosongkan tidak mengubah data lama. Jenis kelamin wajib bila Person belum punya.
 - "Tidak boleh di masa depan" memakai tanggal menurut zona waktu yayasan (`EDUCORE_TIMEZONE`, default Asia/Jakarta); jam server tetap UTC.
 - Sampai halaman Daftar pegawai ada (HR-1c), tombol **Tambah pegawai** ditaruh di halaman Katalog SDM; setelah simpan, form kosong kembali dengan notifikasi berhasil.
+
+### 6.1 Aksi di detail pegawai (HR-1d)
+
+Hanya Admin SDM / Admin Yayasan di tingkat Yayasan (OD-HR-02). Tanpa izin → 403; pegawai/penempatan di luar yayasan → 404.
+
+| Aksi                     | Aturan                                                                                                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ubah profil              | Isian lengkap (kolom kosong = data dihapus). Nama boleh diubah dan ikut berubah di akun login [OWNER, 2026-10-13]                                                                        |
+| Ganti status kepegawaian | Pegawai aktif; tanggal berlaku sesudah awal periode berjalan; periode lama ditutup sehari sebelumnya dengan alasan `PERUBAHAN_STATUS`; jenis & status sama ditolak                       |
+| Tambah penempatan        | Pegawai aktif; tidak sebelum awal periode berjalan; jabatan sama di lembaga sama tidak dobel; jadi utama bila diminta atau belum ada utama                                               |
+| Akhiri penempatan        | Tidak sebelum awal penempatan; bila penempatan utama dan masih ada penempatan lain, wajib memilih pengganti utama                                                                        |
+| Mutasi                   | Penempatan lama ditutup sehari sebelum tanggal mutasi, penempatan baru dibuka pada tanggal mutasi; status utama ikut pindah                                                              |
+| Jadikan utama            | Memindah tanda utama; tetap maksimal satu                                                                                                                                                |
+| Berhentikan              | Alasan (bukan `PERUBAHAN_STATUS`) + catatan opsional; tanggal tidak sebelum awal periode/penempatan terakhir; periode & semua penempatan ditutup; akun login & keanggotaan tidak berubah |
+| Aktifkan kembali         | Pegawai berhenti; tanggal mulai sesudah tanggal berhenti terakhir; **wajib** penempatan baru (utama) [OWNER, 2026-10-13]                                                                 |
+
+Semua tanggal boleh di masa lalu (merapikan data lama), tidak boleh di masa depan karena belum ada penjadwal otomatis [OWNER, 2026-10-13].
 
 ## 7. Audit (memakai `AuditLogger` Core)
 

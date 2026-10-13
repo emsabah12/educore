@@ -1,7 +1,29 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Lock } from 'lucide-react';
+import {
+    ArrowLeft,
+    ArrowRightLeft,
+    BadgeCheck,
+    Lock,
+    MapPinPlus,
+    Pencil,
+    RotateCcw,
+    UserX,
+} from 'lucide-react';
+import { useState } from 'react';
+import type { ManageData } from '@/components/hr/employee-actions';
+import {
+    AddPlacementForm,
+    EndEmploymentForm,
+    EndPlacementForm,
+    MakePrimaryButton,
+    ProfileForm,
+    RehireForm,
+    StatusForm,
+    TransferForm,
+} from '@/components/hr/employee-actions';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type Placement = {
     id: string;
@@ -48,7 +70,12 @@ type Employee = {
 type Props = {
     employee: Employee;
     canManage: boolean;
+    manage: ManageData | null;
 };
+
+type EmployeeAction = 'profile' | 'status' | 'addPlacement' | 'end' | 'rehire';
+
+type PlacementAction = { id: string; kind: 'transfer' | 'end' };
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -64,10 +91,25 @@ function formatDate(value: string | null): string {
 }
 
 /**
- * Detail pegawai (PRD-001 §6), baca-saja. Aksi ubah/mutasi/berhenti menyusul di HR-1d.
+ * Detail pegawai (PRD-001 §6). Aksi (HR-1d) hanya tampil untuk Admin SDM / Admin Yayasan;
+ * server tetap memeriksa ulang setiap aksi.
  */
-export default function EmployeeDetail({ employee }: Props) {
+export default function EmployeeDetail({ employee, manage }: Props) {
     const lastPeriod = employee.periods[0];
+    const isActive = employee.status === 'AKTIF';
+    const [action, setAction] = useState<EmployeeAction | null>(null);
+    const [placementAction, setPlacementAction] =
+        useState<PlacementAction | null>(null);
+
+    const toggle = (next: EmployeeAction) => {
+        setPlacementAction(null);
+        setAction((current) => (current === next ? null : next));
+    };
+
+    const close = () => {
+        setAction(null);
+        setPlacementAction(null);
+    };
 
     return (
         <>
@@ -120,6 +162,86 @@ export default function EmployeeDetail({ employee }: Props) {
                         </Badge>
                     </div>
                 </div>
+
+                {manage && (
+                    <section aria-label="Kelola pegawai" className="space-y-3">
+                        {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2">
+                            <ActionButton
+                                active={action === 'profile'}
+                                onClick={() => toggle('profile')}
+                                icon={<Pencil />}
+                                label="Ubah profil"
+                            />
+                            {isActive ? (
+                                <>
+                                    <ActionButton
+                                        active={action === 'status'}
+                                        onClick={() => toggle('status')}
+                                        icon={<BadgeCheck />}
+                                        label="Ganti status"
+                                    />
+                                    <ActionButton
+                                        active={action === 'addPlacement'}
+                                        onClick={() => toggle('addPlacement')}
+                                        icon={<MapPinPlus />}
+                                        label="Tambah penempatan"
+                                    />
+                                    <ActionButton
+                                        active={action === 'end'}
+                                        onClick={() => toggle('end')}
+                                        icon={<UserX />}
+                                        label="Berhentikan"
+                                        destructive
+                                    />
+                                </>
+                            ) : (
+                                <ActionButton
+                                    active={action === 'rehire'}
+                                    onClick={() => toggle('rehire')}
+                                    icon={<RotateCcw />}
+                                    label="Aktifkan kembali"
+                                />
+                            )}
+                        </div>
+
+                        {action === 'profile' && (
+                            <ProfileForm
+                                employeeId={employee.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                        {action === 'status' && (
+                            <StatusForm
+                                employeeId={employee.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                        {action === 'addPlacement' && (
+                            <AddPlacementForm
+                                employeeId={employee.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                        {action === 'end' && (
+                            <EndEmploymentForm
+                                employeeId={employee.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                        {action === 'rehire' && (
+                            <RehireForm
+                                employeeId={employee.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                    </section>
+                )}
 
                 <Section title="Data kepegawaian">
                     <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
@@ -182,7 +304,82 @@ export default function EmployeeDetail({ employee }: Props) {
                             Tidak ada penempatan yang berjalan.
                         </p>
                     ) : (
-                        <PlacementList items={employee.placements.current} />
+                        <ul className="divide-y">
+                            {employee.placements.current.map((placement) => (
+                                <li
+                                    key={placement.id}
+                                    className="space-y-3 py-3"
+                                >
+                                    <PlacementRow placement={placement} />
+
+                                    {manage && isActive && (
+                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setAction(null);
+                                                    setPlacementAction({
+                                                        id: placement.id,
+                                                        kind: 'transfer',
+                                                    });
+                                                }}
+                                            >
+                                                <ArrowRightLeft />
+                                                Mutasi
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setAction(null);
+                                                    setPlacementAction({
+                                                        id: placement.id,
+                                                        kind: 'end',
+                                                    });
+                                                }}
+                                            >
+                                                Akhiri
+                                            </Button>
+                                            {!placement.is_primary && (
+                                                <MakePrimaryButton
+                                                    employeeId={employee.id}
+                                                    placementId={placement.id}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {manage &&
+                                        placementAction?.id === placement.id &&
+                                        placementAction.kind === 'transfer' && (
+                                            <TransferForm
+                                                employeeId={employee.id}
+                                                placement={placement}
+                                                manage={manage}
+                                                onDone={close}
+                                            />
+                                        )}
+                                    {manage &&
+                                        placementAction?.id === placement.id &&
+                                        placementAction.kind === 'end' && (
+                                            <EndPlacementForm
+                                                employeeId={employee.id}
+                                                placement={placement}
+                                                others={employee.placements.current.filter(
+                                                    (other) =>
+                                                        other.id !==
+                                                        placement.id,
+                                                )}
+                                                manage={manage}
+                                                onDone={close}
+                                            />
+                                        )}
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </Section>
 
@@ -275,37 +472,65 @@ function Item({
     );
 }
 
+function ActionButton({
+    active,
+    onClick,
+    icon,
+    label,
+    destructive = false,
+}: {
+    active: boolean;
+    onClick: () => void;
+    icon: React.ReactNode;
+    label: string;
+    destructive?: boolean;
+}) {
+    return (
+        <Button
+            type="button"
+            variant={active ? 'default' : 'outline'}
+            onClick={onClick}
+            aria-expanded={active}
+            className={destructive && !active ? 'text-destructive' : undefined}
+        >
+            {icon}
+            {label}
+        </Button>
+    );
+}
+
 function PlacementList({ items }: { items: Placement[] }) {
     return (
         <ul className="divide-y">
             {items.map((placement) => (
-                <li
-                    key={placement.id}
-                    className="flex flex-wrap items-start justify-between gap-2 py-3"
-                >
-                    <div className="min-w-0">
-                        <p className="font-medium break-words">
-                            {placement.position}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            {placement.organization} (
-                            <span className="font-mono">
-                                {placement.organization_code}
-                            </span>
-                            )
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            {formatDate(placement.start_date)} –{' '}
-                            {placement.end_date
-                                ? formatDate(placement.end_date)
-                                : 'sekarang'}
-                        </p>
-                    </div>
-                    {placement.is_primary && (
-                        <Badge variant="secondary">Utama</Badge>
-                    )}
+                <li key={placement.id} className="py-3">
+                    <PlacementRow placement={placement} />
                 </li>
             ))}
         </ul>
+    );
+}
+
+function PlacementRow({ placement }: { placement: Placement }) {
+    return (
+        <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+                <p className="font-medium break-words">{placement.position}</p>
+                <p className="text-sm text-muted-foreground">
+                    {placement.organization} (
+                    <span className="font-mono">
+                        {placement.organization_code}
+                    </span>
+                    )
+                </p>
+                <p className="text-xs text-muted-foreground">
+                    {formatDate(placement.start_date)} –{' '}
+                    {placement.end_date
+                        ? formatDate(placement.end_date)
+                        : 'sekarang'}
+                </p>
+            </div>
+            {placement.is_primary && <Badge variant="secondary">Utama</Badge>}
+        </div>
     );
 }

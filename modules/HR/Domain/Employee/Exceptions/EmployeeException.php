@@ -75,6 +75,14 @@ final class EmployeeException extends DomainException
         return new self('nuptk', 'NUPTK ini sudah dipakai pegawai lain.');
     }
 
+    /**
+     * Pelanggaran aturan lain (urutan tanggal, status pegawai, dsb.) dengan pesan khusus.
+     */
+    public static function rule(string $field, string $message): self
+    {
+        return new self($field, $message);
+    }
+
     public static function conflict(): self
     {
         return new self('form', 'Data berubah saat disimpan (mungkin oleh pengguna lain). Periksa lalu simpan ulang.');

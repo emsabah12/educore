@@ -3,6 +3,7 @@
 namespace Modules\HR\Application\Employee;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Support\BusinessClock;
@@ -76,6 +77,41 @@ final class EmployeeProfile
             'periods' => array_reverse($periods),
             'placements' => $placements,
         ];
+    }
+
+    /**
+     * Nilai mentah untuk form aksi (HR-1d): isian "Ubah profil" dan status kepegawaian berjalan.
+     * Hanya dipanggil untuk pengelola (Admin SDM / Admin Yayasan).
+     *
+     * @return array<string, string|null>
+     */
+    public function editValues(string $tenantId, string $employeeId): array
+    {
+        $row = DB::table('hr_employees as e')
+            ->join('memberships as m', 'm.id', '=', 'e.membership_id')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->leftJoin('hr_employment_periods as ep', function (JoinClause $join): void {
+                $join->on('ep.employee_id', '=', 'e.id')->whereNull('ep.end_date');
+            })
+            ->where('e.tenant_id', $tenantId)
+            ->where('e.id', $employeeId)
+            ->first([
+                'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address',
+                'e.employee_number', 'e.nuptk', 'e.education_level', 'e.education_major',
+                'ep.employment_type_id', 'ep.classification_id', 'ep.start_date as period_start',
+            ]);
+
+        if ($row === null) {
+            return [];
+        }
+
+        $values = [];
+
+        foreach ((array) $row as $key => $value) {
+            $values[(string) $key] = $value === null ? null : (string) $value;
+        }
+
+        return $values;
     }
 
     /**
