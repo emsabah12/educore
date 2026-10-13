@@ -24,6 +24,10 @@ final class AuditAction
 
     public const TWO_FACTOR_DISABLED = 'account.two_factor_disabled';
 
+    public const ACCOUNT_CREATED = 'account.created';
+
+    public const SUPERADMIN_GRANTED = 'account.superadmin_granted';
+
     public const ORGANIZATION_CREATED = 'organization.created';
 
     public const ORGANIZATION_RENAMED = 'organization.renamed';
@@ -64,6 +68,8 @@ final class AuditAction
             self::EMAIL_CHANGED => 'Email diubah',
             self::TWO_FACTOR_ENABLED => 'Verifikasi dua langkah diaktifkan',
             self::TWO_FACTOR_DISABLED => 'Verifikasi dua langkah dimatikan',
+            self::ACCOUNT_CREATED => 'Akun dibuat',
+            self::SUPERADMIN_GRANTED => 'Akun dijadikan Superadmin',
             self::ORGANIZATION_CREATED => 'Lembaga ditambahkan',
             self::ORGANIZATION_RENAMED => 'Nama lembaga diubah',
             self::ORGANIZATION_MOVED => 'Lembaga dipindahkan',

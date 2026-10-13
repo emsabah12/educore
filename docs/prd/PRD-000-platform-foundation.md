@@ -1,6 +1,6 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.9 (2026-10-13: F4 operasional — audit log, halaman log audit, backup, deploy; OD-15 s.d. OD-18)
+- **Versi:** 0.10 (2026-10-13: akun pertama untuk production — OD-19)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -28,12 +28,12 @@ Membangun pondasi yang aman dan stabil sebelum modul bisnis (HR, Academic):
 
 ## 3. Pengguna (MVP)
 
-| Peran                          | Kebutuhan                                                                          | Sumber         |
-| ------------------------------ | ---------------------------------------------------------------------------------- | -------------- |
-| Superadmin platform            | Membuat tenant, mengelola katalog role/permission; tanpa Membership                | [LAMA] PRD-002 |
-| Pimpinan/Admin Yayasan         | Melihat & mengelola seluruh pohon lembaga                                          | [OWNER]        |
-| Kepala/Admin lembaga atau unit | Mengelola node-nya **dan semua turunannya**; tidak melihat induk atau node sebelah | [OWNER]        |
-| Pengguna biasa (guru, staf)    | Login, memilih lembaga, mengakses menu sesuai permission                           | [LAMA]         |
+| Peran | Kebutuhan | Sumber |
+|---|---|---|
+| Superadmin platform | Membuat tenant, mengelola katalog role/permission; tanpa Membership | [LAMA] PRD-002 |
+| Pimpinan/Admin Yayasan | Melihat & mengelola seluruh pohon lembaga | [OWNER] |
+| Kepala/Admin lembaga atau unit | Mengelola node-nya **dan semua turunannya**; tidak melihat induk atau node sebelah | [OWNER] |
+| Pengguna biasa (guru, staf) | Login, memilih lembaga, mengakses menu sesuai permission | [LAMA] |
 
 ## 4. Pohon lembaga (OD-01 — DIPUTUSKAN)
 
@@ -78,13 +78,11 @@ Tenant: Yayasan                                   ← role tenant-wide = lihat s
 ```
 
 Catatan:
-
 - Saat ini semua lembaga formal berada di dalam unit. Lembaga formal yang langsung di bawah Yayasan tetap didukung model bila nanti dibutuhkan.
 - MDA, Bahasa, dan Al-Qur'an diasumsikan ada di ketiga unit, sesuai jawaban "tiap unit" pada OD-01. **[ASUMSI]**
 - Nama asli Yayasan dan Pondok Pesantren belum diberikan; seeder memakai nama sementara yang bisa diganti. **[ASUMSI]**
 
 Yang dihasilkan pohon ini:
-
 - Pimpinan Ponpes melihat Unit 1–3 dan semua lembaga di dalamnya, termasuk lembaga formal. **[OWNER]**
 - Kepala Unit 1 melihat MTs, MA, MDA, Bahasa, Al-Qur'an Unit 1, tetapi tidak melihat Unit 2 maupun data tingkat Ponpes.
 - Kepala MA Unit 1 tidak melihat MA Unit 2 (tidak berelasi), kecuali lewat penugasan fungsional.
@@ -96,26 +94,25 @@ Yang dihasilkan pohon ini:
 
 Konsekuensi desain untuk poin 2: koordinator membina lembaga yang secara struktur berada di cabang lain (MDA Unit 1–3 ada di bawah Ponpes). Hubungan ini tidak bisa diwakili oleh pohon saja, sehingga dipakai **dua jenis penugasan** [ASUMSI]:
 
-| Jenis penugasan                                    | Contoh                                                  | Cakupan                                                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Struktural** (default)                           | Koordinator MDA sebagai staf Biro Pendidikan            | Node Biro + turunannya (aturan pohon biasa)                                                                     |
+| Jenis penugasan | Contoh | Cakupan |
+|---|---|---|
+| **Struktural** (default) | Koordinator MDA sebagai staf Biro Pendidikan | Node Biro + turunannya (aturan pohon biasa) |
 | **Fungsional** (penugasan dengan filter `jenjang`) | Koordinator MDA: node = Yayasan, filter jenjang = `MDA` | Semua node ber-jenjang MDA di bawah Yayasan (MDA Unit 1, 2, 3, dan MDA yang dibuat kemudian) beserta turunannya |
 
 Yang boleh dilakukan koordinator pada lembaga binaannya (hanya melihat, atau juga mengelola) ditentukan oleh **role** yang dipasang di penugasan fungsional itu, sama seperti penugasan lain.
 
 ### 4.5 Atribut node [ASUMSI]
 
-| Field            | Isi                                                                                 |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| `type`           | `LEMBAGA` \| `UNIT` \| `BIRO` (struktur pusat seperti Biro/Asisten)                 |
-| `category`       | `FORMAL` \| `NONFORMAL` \| `PESANTREN` (wajib untuk `LEMBAGA`)                      |
-| `jenjang`        | Kode jenis lembaga: `SMP`, `MTS`, `SMK`, `MA`, `MDA`, `BAHASA`, `ALQURAN`, `PONPES` |
-| `code`           | Unik per tenant                                                                     |
-| `name`, `status` | `ACTIVE` \| `INACTIVE`                                                              |
-| `parent_id`      | Node induk (nullable = langsung di bawah Yayasan)                                   |
+| Field | Isi |
+|---|---|
+| `type` | `LEMBAGA` \| `UNIT` \| `BIRO` (struktur pusat seperti Biro/Asisten) |
+| `category` | `FORMAL` \| `NONFORMAL` \| `PESANTREN` (wajib untuk `LEMBAGA`) |
+| `jenjang` | Kode jenis lembaga: `SMP`, `MTS`, `SMK`, `MA`, `MDA`, `BAHASA`, `ALQURAN`, `PONPES` |
+| `code` | Unik per tenant |
+| `name`, `status` | `ACTIVE` \| `INACTIVE` |
+| `parent_id` | Node induk (nullable = langsung di bawah Yayasan) |
 
 Aturan validasi node [ASUMSI, diterapkan di F1]:
-
 - `code`: huruf besar, angka, dan tanda `-`; 2–50 karakter; otomatis diubah ke huruf besar; unik per tenant.
 - `LEMBAGA` wajib punya `category` dan `jenjang`; `UNIT` dan `BIRO` tidak memakai keduanya.
 - Node baru tidak boleh dibuat di bawah induk yang `INACTIVE`.
@@ -129,10 +126,10 @@ Menu **Lembaga** (`/lembaga`) muncul bagi pemilik `core.organizations.view` di l
 - **Melihat:** hanya node yang terlihat menurut §7.2, dibatasi lembaga kerja aktif. Node yang induknya di luar cakupan tampil sebagai akar dengan keterangan jalurnya (mis. "Pondok Pesantren › Unit 1").
 - **Node nonaktif** disembunyikan secara default; pilihan "Tampilkan yang nonaktif" menampilkannya dengan label **Nonaktif**.
 - **Aksi kelola** (butuh `core.organizations.manage` di node terkait):
-    - tambah node anak (UNIT, BIRO, atau LEMBAGA dengan kategori & jenjang);
-    - ubah **nama** — **kode tidak bisa diubah** agar rujukan di data lain tetap stabil;
-    - pindah ke induk lain — induk tujuan juga wajib di dalam izin kelola;
-    - nonaktifkan (dari bawah ke atas, §4.5) dan **aktifkan kembali** (dari atas ke bawah: induk wajib aktif).
+  - tambah node anak (UNIT, BIRO, atau LEMBAGA dengan kategori & jenjang);
+  - ubah **nama** — **kode tidak bisa diubah** agar rujukan di data lain tetap stabil;
+  - pindah ke induk lain — induk tujuan juga wajib di dalam izin kelola;
+  - nonaktifkan (dari bawah ke atas, §4.5) dan **aktifkan kembali** (dari atas ke bawah: induk wajib aktif).
 - Menambah atau memindah node ke **tingkat Yayasan** (tanpa induk) hanya untuk pemilik izin kelola tingkat Yayasan.
 - Lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya, agar pengelola tidak mengunci dirinya sendiri. [ASUMSI]
 - Jawaban akses mengikuti OD-13: di luar cakupan 404, di dalam cakupan tanpa izin 403. Pelanggaran aturan pohon tampil sebagai pesan form berbahasa Indonesia.
@@ -142,21 +139,21 @@ Menu **Lembaga** (`/lembaga`) muncul bagi pemilik `core.organizations.view` di l
 
 Semua ID memakai UUIDv7 [LAMA]. Semua tabel milik tenant punya `tenant_id` + index [LAMA].
 
-| Entitas                                   | Field minimal                                                                                                                                          | Aturan                                                                                                                                                                                                                                                                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tenants`                                 | name, code, status                                                                                                                                     | `ACTIVE`/`SUSPENDED`; tenant non-aktif tidak bisa diakses [LAMA]                                                                                                                                                                                                                                                                              |
-| `organizations`                           | tenant_id, parent_id?, type, category?, jenjang?, code, name, status                                                                                   | `UNIQUE(tenant_id, code)`; parent wajib di tenant sama; tanpa siklus; kedalaman ≤ 6 [OWNER]                                                                                                                                                                                                                                                   |
-| `organization_closure`                    | tenant_id, ancestor_id, descendant_id, depth                                                                                                           | Closure table untuk query "semua turunan" / "semua induk" secepat satu join [ASUMSI]; diperbarui dalam transaksi saat node dibuat/dipindah                                                                                                                                                                                                    |
-| `persons`                                 | name, gender? (`L`/`P`)                                                                                                                                | Nama manusia hanya di Person [LAMA ADR-013]. Tanggal lahir, tempat lahir, dan identitas lain ditambahkan saat PRD HR/Academic membutuhkannya [OWNER, 2026-10-10]                                                                                                                                                                              |
-| `person_identifiers`                      | person_id, type (mis. NIK), encrypted_value, value_fingerprint                                                                                         | NIK terenkripsi + fingerprint untuk pencarian [LAMA]. **Ditunda** ke PRD HR/Academic [OWNER, 2026-10-10]                                                                                                                                                                                                                                      |
-| `users`                                   | person_id, email, username?, password, status, is_superadmin, kolom 2FA                                                                                | `User → Person`, tanpa `tenant_id` [LAMA]; satu Person maksimal satu User; email & username disimpan huruf kecil; username 3–50 karakter (`a-z 0-9 . _ -`) [ASUMSI]                                                                                                                                                                           |
-| `memberships`                             | person_id, tenant_id, status                                                                                                                           | `UNIQUE(person_id, tenant_id)` [LAMA]                                                                                                                                                                                                                                                                                                         |
-| `organizational_assignments`              | tenant_id, membership_id, organization_id?, jenjang_filter?, status                                                                                    | Satu orang boleh punya banyak penugasan [LAMA]; `jenjang_filter` terisi = penugasan fungsional (§4.4). `organization_id` kosong hanya boleh untuk penugasan fungsional di tingkat Yayasan (mis. Koordinator MDA: semua MDA di seluruh Yayasan). Penugasan yang sama tidak boleh dobel [ASUMSI, 2026-10-10]                                    |
-| `roles`, `permissions`, `role_permission` | key, name                                                                                                                                              | Katalog global; permission `modul.resource.aksi`, mis. `hr.employees.view` [LAMA]. Didefinisikan di kode tiap modul lalu disalin ke database dengan `php artisan educore:sync-access` (juga saat deploy). Permission yang hilang dari kode ikut terhapus; role yang hilang dari kode dikosongkan [OWNER, OD-11]                               |
-| `membership_roles`                        | membership_id, role_id                                                                                                                                 | Role tenant-wide (berlaku di seluruh pohon) [LAMA]                                                                                                                                                                                                                                                                                            |
-| `organizational_assignment_roles`         | organizational_assignment_id, role_id                                                                                                                  | Role di node penugasan + seluruh turunannya [OWNER]                                                                                                                                                                                                                                                                                           |
-| `scoped_settings`                         | tenant_id, organization_id?, jenjang?, key, value (jsonb), is_enforced                                                                                 | Aturan berjenjang, lihat §8 [OWNER + ASUMSI]                                                                                                                                                                                                                                                                                                  |
-| `audit_logs`                              | tenant_id?, actor_user_id?, actor_membership_id?, organization_id?, action, subject_type?, subject_id?, changes (jsonb)?, ip?, user_agent?, created_at | Append-only dijaga trigger database; hanya `educore:prune-audit` boleh menghapus baris yang melewati masa simpan (OD-16). `actor_user_id` kosong = sistem/tamu; `tenant_id` kosong = kejadian akun di luar yayasan. Aksi dari konsol dicatat tanpa IP/user agent. Tanpa foreign key ke data yang dirujuk agar log tetap utuh [OWNER + ASUMSI] |
+| Entitas | Field minimal | Aturan |
+|---|---|---|
+| `tenants` | name, code, status | `ACTIVE`/`SUSPENDED`; tenant non-aktif tidak bisa diakses [LAMA] |
+| `organizations` | tenant_id, parent_id?, type, category?, jenjang?, code, name, status | `UNIQUE(tenant_id, code)`; parent wajib di tenant sama; tanpa siklus; kedalaman ≤ 6 [OWNER] |
+| `organization_closure` | tenant_id, ancestor_id, descendant_id, depth | Closure table untuk query "semua turunan" / "semua induk" secepat satu join [ASUMSI]; diperbarui dalam transaksi saat node dibuat/dipindah |
+| `persons` | name, gender? (`L`/`P`) | Nama manusia hanya di Person [LAMA ADR-013]. Tanggal lahir, tempat lahir, dan identitas lain ditambahkan saat PRD HR/Academic membutuhkannya [OWNER, 2026-10-10] |
+| `person_identifiers` | person_id, type (mis. NIK), encrypted_value, value_fingerprint | NIK terenkripsi + fingerprint untuk pencarian [LAMA]. **Ditunda** ke PRD HR/Academic [OWNER, 2026-10-10] |
+| `users` | person_id, email, username?, password, status, is_superadmin, kolom 2FA | `User → Person`, tanpa `tenant_id` [LAMA]; satu Person maksimal satu User; email & username disimpan huruf kecil; username 3–50 karakter (`a-z 0-9 . _ -`) [ASUMSI] |
+| `memberships` | person_id, tenant_id, status | `UNIQUE(person_id, tenant_id)` [LAMA] |
+| `organizational_assignments` | tenant_id, membership_id, organization_id?, jenjang_filter?, status | Satu orang boleh punya banyak penugasan [LAMA]; `jenjang_filter` terisi = penugasan fungsional (§4.4). `organization_id` kosong hanya boleh untuk penugasan fungsional di tingkat Yayasan (mis. Koordinator MDA: semua MDA di seluruh Yayasan). Penugasan yang sama tidak boleh dobel [ASUMSI, 2026-10-10] |
+| `roles`, `permissions`, `role_permission` | key, name | Katalog global; permission `modul.resource.aksi`, mis. `hr.employees.view` [LAMA]. Didefinisikan di kode tiap modul lalu disalin ke database dengan `php artisan educore:sync-access` (juga saat deploy). Permission yang hilang dari kode ikut terhapus; role yang hilang dari kode dikosongkan [OWNER, OD-11] |
+| `membership_roles` | membership_id, role_id | Role tenant-wide (berlaku di seluruh pohon) [LAMA] |
+| `organizational_assignment_roles` | organizational_assignment_id, role_id | Role di node penugasan + seluruh turunannya [OWNER] |
+| `scoped_settings` | tenant_id, organization_id?, jenjang?, key, value (jsonb), is_enforced | Aturan berjenjang, lihat §8 [OWNER + ASUMSI] |
+| `audit_logs` | tenant_id?, actor_user_id?, actor_membership_id?, organization_id?, action, subject_type?, subject_id?, changes (jsonb)?, ip?, user_agent?, created_at | Append-only dijaga trigger database; hanya `educore:prune-audit` boleh menghapus baris yang melewati masa simpan (OD-16). `actor_user_id` kosong = sistem/tamu; `tenant_id` kosong = kejadian akun di luar yayasan. Aksi dari konsol dicatat tanpa IP/user agent. Tanpa foreign key ke data yang dirujuk agar log tetap utuh [OWNER + ASUMSI] |
 
 Setiap data bisnis di modul (pegawai, siswa, kelas, dst.) wajib menyimpan `organization_id` pemiliknya. Ini yang dipakai untuk aturan lihat-ke-bawah. **[ASUMSI]**
 
@@ -233,18 +230,18 @@ Disediakan helper Core `AuthorizationService::visibleNodeIds($permission)`, yang
 
 ### 7.3 Contoh uji wajib
 
-| Skenario                                                                              | Hasil                                                        |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Pimpinan Ponpes membuka data pegawai MDA Unit 2                                       | Boleh                                                        |
-| Kepala Unit 1 membuka data Unit 2                                                     | 404                                                          |
-| Kepala MDA Unit 1 membuka data tingkat Ponpes                                         | 404                                                          |
-| Kepala SMK (Unit 3) membuka data Ponpes, Unit 3, atau lembaga lain                    | 404                                                          |
-| Kepala Unit 1 membuka data lembaga formal yang berada di Unit 1 (MTs/MA, sesuai §4.3) | Boleh                                                        |
-| Koordinator MDA (fungsional, filter MDA) membuka data MDA Unit 3                      | Boleh                                                        |
-| Koordinator MDA membuka data Bahasa Unit 1 atau SMP                                   | 404                                                          |
-| MDA baru dibuat di Unit 2                                                             | Langsung masuk cakupan Koordinator MDA tanpa penugasan ulang |
-| Admin tenant A membuka data tenant B                                                  | 404                                                          |
-| Penugasan dicabut saat sesi masih aktif                                               | Request berikutnya ditolak                                   |
+| Skenario | Hasil |
+|---|---|
+| Pimpinan Ponpes membuka data pegawai MDA Unit 2 | Boleh |
+| Kepala Unit 1 membuka data Unit 2 | 404 |
+| Kepala MDA Unit 1 membuka data tingkat Ponpes | 404 |
+| Kepala SMK (Unit 3) membuka data Ponpes, Unit 3, atau lembaga lain | 404 |
+| Kepala Unit 1 membuka data lembaga formal yang berada di Unit 1 (MTs/MA, sesuai §4.3) | Boleh |
+| Koordinator MDA (fungsional, filter MDA) membuka data MDA Unit 3 | Boleh |
+| Koordinator MDA membuka data Bahasa Unit 1 atau SMP | 404 |
+| MDA baru dibuat di Unit 2 | Langsung masuk cakupan Koordinator MDA tanpa penugasan ulang |
+| Admin tenant A membuka data tenant B | 404 |
+| Penugasan dicabut saat sesi masih aktif | Request berikutnya ditolak |
 
 ## 8. Aturan berjenjang (scoped settings)
 
@@ -274,7 +271,6 @@ Kolom opsional `jenjang` di `scoped_settings` memungkinkan aturan seperti "untuk
 Siapa yang boleh mengubah aturan di (node X, jenjang J): pemilik permission pengelolaan aturan yang cakupan penugasannya memuat X untuk jenjang J.
 
 Rincian yang diterapkan di F3 [ASUMSI]:
-
 - Aturan khusus jenjang J di node X berlaku untuk setiap lembaga berjenjang J di bawah X **beserta turunannya**, sama dengan cakupan penugasan fungsional (§7.1).
 - Di tingkat yang sama, aturan khusus jenjang lebih spesifik daripada aturan umum, baik saat mencari nilai terkunci maupun nilai terdekat. Antar aturan jenjang di tingkat yang sama, yang jenjang-nya lebih dekat ke node tujuan yang menang (mis. MDA lebih spesifik daripada PONPES untuk MDA Unit 2).
 - Menulis aturan ditolak dengan pesan jelas bila target sudah dikunci oleh aturan terkunci di tingkat yang **lebih atas**.
@@ -282,53 +278,54 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 
 ## 9. Kebutuhan non-fungsional
 
-| Area                | Target                                                                                                                                                          | Label                              |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Skala               | ±50.000 user total lintas tenant; tenant pertama 1 yayasan                                                                                                      | [OWNER]                            |
-| Respons halaman     | p95 ≤ 500 ms di server untuk halaman normal                                                                                                                     | [ASUMSI] — divalidasi di load test |
-| Pagination          | Maks 100 baris per halaman                                                                                                                                      | [LAMA HR-015]                      |
-| N+1                 | `Model::preventLazyLoading()` aktif di dev/test                                                                                                                 | [ASUMSI]                           |
-| Session/cache/queue | Driver `database` dulu; Redis setelah load test                                                                                                                 | [LAMA]                             |
-| Backup              | `pg_dump` harian (simpan 14 hari di server + salinan mingguan di luar server) + uji restore bulanan di DB terpisah; script Linux & Windows di `scripts/backup/` | [ASUMSI]                           |
-| Health              | `/up` hanya OK/gagal, tanpa detail dependency                                                                                                                   | [LAMA HR-016 §3]                   |
-| Keamanan            | Secret hanya di `.env`; cookie HttpOnly + Secure; CSRF bawaan; validasi semua input                                                                             | [LAMA ADR-030]                     |
-| Error               | Pesan ramah dalam Bahasa Indonesia; detail teknis hanya di log                                                                                                  | [LAMA]                             |
-| UI                  | Responsif, Bahasa Indonesia, state kosong/loading/error                                                                                                         | Instruksi proyek                   |
+| Area | Target | Label |
+|---|---|---|
+| Skala | ±50.000 user total lintas tenant; tenant pertama 1 yayasan | [OWNER] |
+| Respons halaman | p95 ≤ 500 ms di server untuk halaman normal | [ASUMSI] — divalidasi di load test |
+| Pagination | Maks 100 baris per halaman | [LAMA HR-015] |
+| N+1 | `Model::preventLazyLoading()` aktif di dev/test | [ASUMSI] |
+| Session/cache/queue | Driver `database` dulu; Redis setelah load test | [LAMA] |
+| Backup | `pg_dump` harian (simpan 14 hari di server + salinan mingguan di luar server) + uji restore bulanan di DB terpisah; script Linux & Windows di `scripts/backup/` | [ASUMSI] |
+| Health | `/up` hanya OK/gagal, tanpa detail dependency | [LAMA HR-016 §3] |
+| Keamanan | Secret hanya di `.env`; cookie HttpOnly + Secure; CSRF bawaan; validasi semua input | [LAMA ADR-030] |
+| Error | Pesan ramah dalam Bahasa Indonesia; detail teknis hanya di log | [LAMA] |
+| UI | Responsif, Bahasa Indonesia, state kosong/loading/error | Instruksi proyek |
 
 ## 10. Milestone & kriteria selesai
 
-| Milestone                       | Selesai bila                                                                                                                                                                                                                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **F0 Setup**                    | Laravel + Inertia React jalan di Laragon; PostgreSQL `educore` & `educore_testing`; Pest + arch test lulus; `.gitattributes` LF; CI menjalankan lint + test di PostgreSQL                                                                                                       |
-| **F1 Tenant & pohon lembaga**   | Migrasi + service buat/pindah/nonaktifkan node (closure ikut diperbarui dalam transaksi); validasi siklus & kedalaman; seeder tenant pertama sesuai §4.3; test isolasi tenant. Halaman admin pohon lembaga dipindah ke setelah F3 karena butuh login & RBAC [OWNER, 2026-10-10] |
-| **F2a Identitas**               | Tabel `persons` & `users` baru (User di modul Core); login dengan email **atau** username; user nonaktif tidak bisa login; profil mengubah nama Person; fitur hapus akun dihilangkan; halaman auth & pengaturan berbahasa Indonesia [OWNER, 2026-10-10]                         |
-| **F2b Membership & konteks**    | Membership, penugasan; alur 0/1/>1 Membership; pilih workspace; validasi ulang konteks tiap request; `TenantContext`; seeder akun uji                                                                                                                                           |
-| **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji                                                                                                                                |
-| **Admin pohon lembaga**         | Halaman §4.6: lihat sesuai cakupan, tambah, ubah nama, pindah, nonaktifkan & aktifkan kembali, dengan 404/403 teruji                                                                                                                                                            |
-| **F4 Operasional**              | Audit log aksi penting (OD-15/16) + halaman log audit (OD-17); `/up` ikut memeriksa database tanpa membocorkan detail; script backup + uji restore + catatan uji restore; README instal/jalan/deploy VPS Linux (OD-18)                                                          |
+| Milestone | Selesai bila |
+|---|---|
+| **F0 Setup** | Laravel + Inertia React jalan di Laragon; PostgreSQL `educore` & `educore_testing`; Pest + arch test lulus; `.gitattributes` LF; CI menjalankan lint + test di PostgreSQL |
+| **F1 Tenant & pohon lembaga** | Migrasi + service buat/pindah/nonaktifkan node (closure ikut diperbarui dalam transaksi); validasi siklus & kedalaman; seeder tenant pertama sesuai §4.3; test isolasi tenant. Halaman admin pohon lembaga dipindah ke setelah F3 karena butuh login & RBAC [OWNER, 2026-10-10] |
+| **F2a Identitas** | Tabel `persons` & `users` baru (User di modul Core); login dengan email **atau** username; user nonaktif tidak bisa login; profil mengubah nama Person; fitur hapus akun dihilangkan; halaman auth & pengaturan berbahasa Indonesia [OWNER, 2026-10-10] |
+| **F2b Membership & konteks** | Membership, penugasan; alur 0/1/>1 Membership; pilih workspace; validasi ulang konteks tiap request; `TenantContext`; seeder akun uji |
+| **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji |
+| **Admin pohon lembaga** | Halaman §4.6: lihat sesuai cakupan, tambah, ubah nama, pindah, nonaktifkan & aktifkan kembali, dengan 404/403 teruji |
+| **F4 Operasional** | Audit log aksi penting (OD-15/16) + halaman log audit (OD-17); `/up` ikut memeriksa database tanpa membocorkan detail; script backup + uji restore + catatan uji restore; README instal/jalan/deploy VPS Linux (OD-18) |
 
 ## 11. Open decisions
 
-| ID    | Topik                                                  | Status                                                                                                                                                                                                                                                                                                                                                                        |
-| ----- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-01 | Posisi lembaga nonformal & model topologi              | **DIPUTUSKAN** — pohon fleksibel, lihat §4                                                                                                                                                                                                                                                                                                                                    |
-| OD-02 | Lembaga formal di dalam unit & koordinator lintas unit | **DIPUTUSKAN** — formal di unit = anak unit; koordinator di bawah Biro pusat + penugasan fungsional (§4.4)                                                                                                                                                                                                                                                                    |
-| OD-03 | Kedalaman maksimum pohon                               | **DIPUTUSKAN** — 6 tingkat                                                                                                                                                                                                                                                                                                                                                    |
-| OD-04 | Fitur auth bawaan starter kit                          | **DIPUTUSKAN** — registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF                                                                                                                                                                                                                                                                                 |
-| OD-05 | Field Person di F2                                     | **DIPUTUSKAN** — `name` + `gender`; lainnya menunggu PRD HR/Academic                                                                                                                                                                                                                                                                                                          |
-| OD-06 | Hapus akun mandiri                                     | **DIPUTUSKAN** — dihilangkan; akun dinonaktifkan admin agar riwayat data utuh                                                                                                                                                                                                                                                                                                 |
-| OD-07 | Bahasa halaman bawaan starter kit                      | **DIPUTUSKAN** — diterjemahkan ke Bahasa Indonesia di F2a, termasuk pesan validasi & error login                                                                                                                                                                                                                                                                              |
-| OD-08 | Penugasan tunggal                                      | **DIPUTUSKAN** — otomatis dipilih tanpa halaman pilihan                                                                                                                                                                                                                                                                                                                       |
-| OD-09 | Membership tanpa penugasan                             | **DIPUTUSKAN** — masuk dengan konteks "Seluruh Yayasan"                                                                                                                                                                                                                                                                                                                       |
-| OD-10 | Akun uji development                                   | **DIPUTUSKAN** — seeder akun uji hanya berjalan di lingkungan `local`/`testing`                                                                                                                                                                                                                                                                                               |
-| OD-11 | Sumber katalog role & permission                       | **DIPUTUSKAN** — didefinisikan di kode per modul, disinkronkan lewat `educore:sync-access`; halaman kelola katalog di Panel platform menyusul. Role bawaan: Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator, Staf                                                                                                                                                        |
-| OD-12 | Superadmin & data yayasan                              | **DIPUTUSKAN** — tidak ada jalan pintas; perlu membership + role                                                                                                                                                                                                                                                                                                              |
-| OD-13 | Jawaban saat akses ditolak                             | **DIPUTUSKAN** — di luar cakupan 404, di dalam cakupan tanpa izin aksi 403                                                                                                                                                                                                                                                                                                    |
-| OD-14 | Isi halaman admin pohon lembaga                        | **DIPUTUSKAN** — tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; node nonaktif disembunyikan kecuali diminta (§4.6)                                                                                                                                                                                                                                    |
-| OD-15 | Aksi yang dicatat di audit log                         | **DIPUTUSKAN** — login berhasil/gagal/keluar; ganti kata sandi, email, 2FA; tambah/ubah nama/pindah/nonaktif/aktif lembaga; anggota, penugasan, pasang/cabut role, sinkronisasi katalog; perubahan aturan berjenjang (nilai lama & baru). IP & user agent disimpan. Kata sandi/rahasia tidak pernah dicatat; isian login gagal hanya disimpan bila cocok dengan akun yang ada |
-| OD-16 | Masa simpan audit log                                  | **DIPUTUSKAN** — 1 tahun (`AUDIT_RETENTION_DAYS=365`, minimal 30), dihapus otomatis setiap hari                                                                                                                                                                                                                                                                               |
-| OD-17 | Halaman log audit                                      | **DIPUTUSKAN** — baca-saja untuk Admin Yayasan (permission `core.audit.view`, lembaga kerja Seluruh Yayasan); filter tanggal, pelaku, jenis aksi; 50 baris per halaman. Menampilkan log yayasan itu + kejadian akun milik anggotanya                                                                                                                                          |
-| OD-18 | Target server production                               | **BELUM PASTI** — README mengasumsikan VPS Linux (Ubuntu 24.04, Nginx, PHP-FPM 8.3, PostgreSQL 16); script backup tersedia untuk Linux & Windows                                                                                                                                                                                                                              |
+| ID | Topik | Status |
+|---|---|---|
+| OD-01 | Posisi lembaga nonformal & model topologi | **DIPUTUSKAN** — pohon fleksibel, lihat §4 |
+| OD-02 | Lembaga formal di dalam unit & koordinator lintas unit | **DIPUTUSKAN** — formal di unit = anak unit; koordinator di bawah Biro pusat + penugasan fungsional (§4.4) |
+| OD-03 | Kedalaman maksimum pohon | **DIPUTUSKAN** — 6 tingkat |
+| OD-04 | Fitur auth bawaan starter kit | **DIPUTUSKAN** — registrasi & verifikasi email OFF, 2FA & konfirmasi password ON, passkey OFF |
+| OD-05 | Field Person di F2 | **DIPUTUSKAN** — `name` + `gender`; lainnya menunggu PRD HR/Academic |
+| OD-06 | Hapus akun mandiri | **DIPUTUSKAN** — dihilangkan; akun dinonaktifkan admin agar riwayat data utuh |
+| OD-07 | Bahasa halaman bawaan starter kit | **DIPUTUSKAN** — diterjemahkan ke Bahasa Indonesia di F2a, termasuk pesan validasi & error login |
+| OD-08 | Penugasan tunggal | **DIPUTUSKAN** — otomatis dipilih tanpa halaman pilihan |
+| OD-09 | Membership tanpa penugasan | **DIPUTUSKAN** — masuk dengan konteks "Seluruh Yayasan" |
+| OD-10 | Akun uji development | **DIPUTUSKAN** — seeder akun uji hanya berjalan di lingkungan `local`/`testing` |
+| OD-11 | Sumber katalog role & permission | **DIPUTUSKAN** — didefinisikan di kode per modul, disinkronkan lewat `educore:sync-access`; halaman kelola katalog di Panel platform menyusul. Role bawaan: Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator, Staf |
+| OD-12 | Superadmin & data yayasan | **DIPUTUSKAN** — tidak ada jalan pintas; perlu membership + role |
+| OD-13 | Jawaban saat akses ditolak | **DIPUTUSKAN** — di luar cakupan 404, di dalam cakupan tanpa izin aksi 403 |
+| OD-14 | Isi halaman admin pohon lembaga | **DIPUTUSKAN** — tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; node nonaktif disembunyikan kecuali diminta (§4.6) |
+| OD-15 | Aksi yang dicatat di audit log | **DIPUTUSKAN** — login berhasil/gagal/keluar; ganti kata sandi, email, 2FA; tambah/ubah nama/pindah/nonaktif/aktif lembaga; anggota, penugasan, pasang/cabut role, sinkronisasi katalog; perubahan aturan berjenjang (nilai lama & baru). IP & user agent disimpan. Kata sandi/rahasia tidak pernah dicatat; isian login gagal hanya disimpan bila cocok dengan akun yang ada |
+| OD-16 | Masa simpan audit log | **DIPUTUSKAN** — 1 tahun (`AUDIT_RETENTION_DAYS=365`, minimal 30), dihapus otomatis setiap hari |
+| OD-17 | Halaman log audit | **DIPUTUSKAN** — baca-saja untuk Admin Yayasan (permission `core.audit.view`, lembaga kerja Seluruh Yayasan); filter tanggal, pelaku, jenis aksi; 50 baris per halaman. Menampilkan log yayasan itu + kejadian akun milik anggotanya |
+| OD-18 | Target server production | **BELUM PASTI** — README mengasumsikan VPS Linux (Ubuntu 24.04, Nginx, PHP-FPM 8.3, PostgreSQL 16); script backup tersedia untuk Linux & Windows |
+| OD-19 | Akun pertama di production | **DIPUTUSKAN** — perintah interaktif `educore:create-admin <kode>` (akun + keanggotaan + role Admin Yayasan dalam satu transaksi) dan `educore:create-superadmin`; kata sandi hanya lewat input tersembunyi; akun yang sudah ada bisa dinaikkan setelah konfirmasi; semuanya tercatat di audit log [OWNER, 2026-10-13] |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 

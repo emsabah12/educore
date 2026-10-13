@@ -16,6 +16,8 @@ use Modules\Core\Application\Authorization\AccessScope;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Settings\SettingRegistry;
+use Modules\Core\Console\CreateAdminCommand;
+use Modules\Core\Console\CreateSuperadminCommand;
 use Modules\Core\Console\PruneAuditCommand;
 use Modules\Core\Console\SyncAccessCommand;
 use Modules\Core\Domain\Identity\User;
@@ -65,7 +67,12 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->registerHealthCheck();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SyncAccessCommand::class, PruneAuditCommand::class]);
+            $this->commands([
+                SyncAccessCommand::class,
+                PruneAuditCommand::class,
+                CreateSuperadminCommand::class,
+                CreateAdminCommand::class,
+            ]);
         }
     }
 
