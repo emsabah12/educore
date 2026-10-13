@@ -38,9 +38,8 @@ class SecurityController extends Controller
      */
     public function update(PasswordUpdateRequest $request): RedirectResponse
     {
-        $request->user()->update([
-            'password' => $request->password,
-        ]);
+        // Sekaligus mengakhiri status "wajib ganti sandi" bila ada (PRD-000 §4.7).
+        $request->user()->changeOwnPassword($request->string('password')->toString());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

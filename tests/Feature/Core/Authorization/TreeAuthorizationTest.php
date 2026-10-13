@@ -212,7 +212,6 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
     $this->actingAs(DevAccounts::user('kepala.unit1'))
         ->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('permissions', [
-            CoreAccess::MEMBERSHIPS_MANAGE,
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,

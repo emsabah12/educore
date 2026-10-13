@@ -54,9 +54,9 @@ final class CoreAccess
                 self::ORGANIZATIONS_VIEW,
                 self::SETTINGS_VIEW,
             ])
+            // Kelola akses hanya Admin Yayasan (OD-21), jadi Kepala Lembaga tanpa MEMBERSHIPS_MANAGE.
             ->role(self::ROLE_KEPALA_LEMBAGA, 'Kepala Lembaga', [
                 self::ORGANIZATIONS_VIEW,
-                self::MEMBERSHIPS_MANAGE,
                 self::SETTINGS_VIEW,
                 self::SETTINGS_MANAGE,
             ])

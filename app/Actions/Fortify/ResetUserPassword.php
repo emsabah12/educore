@@ -22,8 +22,7 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $user->forceFill([
-            'password' => $input['password'],
-        ])->save();
+        // Sandi dipilih pemilik akun sendiri lewat tautan email: status "wajib ganti sandi" selesai.
+        $user->changeOwnPassword($input['password']);
     }
 }

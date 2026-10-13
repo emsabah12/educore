@@ -20,7 +20,9 @@ final class UserAuditObserver
 
     public function updated(User $user): void
     {
-        if ($user->wasChanged('password')) {
+        // Sandi sementara dari admin dicatat sendiri oleh ManageLoginAccount (PASSWORD_RESET),
+        // jadi di sini hanya penggantian oleh pemilik akun (flag "wajib ganti" sudah mati).
+        if ($user->wasChanged('password') && ! $user->must_change_password) {
             $this->record(AuditAction::PASSWORD_CHANGED, $user);
         }
 

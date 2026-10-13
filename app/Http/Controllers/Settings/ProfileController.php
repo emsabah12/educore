@@ -27,7 +27,7 @@ class ProfileController extends Controller
 
     public function update(ProfileUpdateRequest $request, UpdateUserProfile $updateUserProfile): RedirectResponse
     {
-        /** @var array{name: string, email: string} $data */
+        /** @var array{name: string, email: string|null} $data */
         $data = $request->validated();
 
         $updateUserProfile->handle($request->user(), $data['name'], $data['email']);

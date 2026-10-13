@@ -1,6 +1,7 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.11 (2026-10-14: data pribadi minimal di Person untuk modul HR — PRD-001 §4.5)
+- **Versi:** 0.13 (2026-10-15: F5a akun login dibangun; aturan pengaman akun global)
+- **Versi sebelumnya:** 0.12 (2026-10-14: kelola akses — akun login, penugasan, role; OD-20 s.d. OD-22)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -138,6 +139,44 @@ Menu **Lembaga** (`/lembaga`) muncul bagi pemilik `core.organizations.view` di l
 - Jawaban akses mengikuti OD-13: di luar cakupan 404, di dalam cakupan tanpa izin 403. Pelanggaran aturan pohon tampil sebagai pesan form berbahasa Indonesia.
 - Dengan role bawaan saat ini, hanya **Admin Yayasan** yang punya izin kelola; Kepala Lembaga hanya melihat (OD-11).
 
+### 4.7 Kelola akses (OD-20 s.d. OD-22) [OWNER, 2026-10-14]
+
+Akun login, penugasan, dan role diatur dari halaman **detail pegawai** (PRD-001 §6), bagian **Akses login**. Logika & route milik Core; HR hanya menampilkannya (arah dependency HR → Core tetap).
+
+**Siapa:** hanya **Admin Yayasan** (`core.memberships.manage` di tingkat Yayasan, lembaga kerja Seluruh Yayasan) [OWNER, OD-21]. Selain itu → 403.
+
+**F5a — Akun login**
+
+| Aksi                        | Aturan                                                                                                                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Buat akun login             | Hanya untuk pegawai yang belum punya akun [OWNER, OD-22]. Username wajib (format §5), email opsional [ASUMSI]. Sistem membuat **kata sandi sementara** acak (12 karakter) yang tampil **sekali** untuk diserahkan langsung [OWNER, OD-20] |
+| Wajib ganti sandi           | Akun dengan sandi sementara diarahkan ke halaman ganti sandi setelah login dan tidak bisa membuka halaman lain sebelum menggantinya [ASUMSI]                                                                                              |
+| Atur ulang sandi            | Membuat sandi sementara baru (tampil sekali); sesi login lain milik akun itu diakhiri [ASUMSI]                                                                                                                                            |
+| Nonaktifkan / aktifkan akun | Akun nonaktif tidak bisa login (pesan login umum, §6); data tidak dihapus (OD-06). Admin tidak bisa menonaktifkan akunnya sendiri [ASUMSI]                                                                                                |
+
+**F5b — Penugasan & role**
+
+| Aksi                 | Aturan                                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tambah penugasan     | Struktural (lembaga) atau fungsional (tingkat Yayasan + jenjang, §4.4), **wajib** dengan satu role (Pimpinan, Kepala Lembaga, Koordinator, Staf) [ASUMSI] |
+| Cabut penugasan      | Status penugasan menjadi nonaktif; berlaku di request berikutnya (§6)                                                                                     |
+| Role tingkat Yayasan | Pasang/cabut role tenant-wide (Admin Yayasan, Admin SDM, Pimpinan). Role Admin Yayasan terakhir di yayasan tidak bisa dicabut [ASUMSI]                    |
+
+- Penugasan **terpisah** dari penempatan HR: jabatan tidak memberi hak akses (PRD-001 §4.1). Admin memasang penugasan secara sadar.
+- Kata sandi sementara tidak pernah disimpan dalam bentuk asli, tidak dicatat di audit log, dan tidak dikirim ulang.
+- Semua aksi tercatat di audit log (akun dibuat oleh admin, sandi diatur ulang, akun dinonaktifkan/diaktifkan, penugasan dibuat/dicabut, role dipasang/dicabut).
+- [ASUMSI] Role bawaan **Kepala Lembaga** dilepas dari `core.memberships.manage` agar sesuai OD-21.
+
+**Rincian F5a (dibangun 2026-10-15)**
+
+- Kata sandi sementara: 12 karakter acak kriptografis, selalu memuat huruf besar, huruf kecil, angka, dan simbol; tanpa karakter yang mudah tertukar (0/O, 1/l/I). Dikirim ke browser admin sekali lewat flash, tidak masuk riwayat browser [ASUMSI].
+- Wajib ganti sandi: halaman `/akun/ganti-sandi`; sandi baru tidak boleh sama dengan sandi sementara. Selain halaman itu, hanya "Keluar" yang bisa dibuka.
+- Akun nonaktif yang masih punya sesi terbuka (termasuk "ingat saya") dikeluarkan di request berikutnya.
+- Buat akun hanya untuk anggota yang keanggotaannya di yayasan masih aktif [ASUMSI].
+- Akun bersifat global (§5). Karena itu akun **Superadmin** dan akun yang juga **terdaftar aktif di yayasan lain** tidak bisa diatur dari halaman yayasan; bagian Akses login menampilkan alasannya [ASUMSI, pengaman].
+- Admin boleh mengatur ulang sandinya sendiri (lalu wajib menggantinya), tetapi tidak bisa menonaktifkan akunnya sendiri.
+- Audit: `account.created` (dengan `oleh_admin`), `account.password_reset`, `account.deactivated`, `account.activated`, tercatat di log yayasan. Penggantian sandi oleh pemilik tetap `account.password_changed`.
+
 ## 5. Model data pondasi
 
 Semua ID memakai UUIDv7 [LAMA]. Semua tabel milik tenant punya `tenant_id` + index [LAMA].
@@ -149,7 +188,7 @@ Semua ID memakai UUIDv7 [LAMA]. Semua tabel milik tenant punya `tenant_id` + ind
 | `organization_closure`                    | tenant_id, ancestor_id, descendant_id, depth                                                                                                           | Closure table untuk query "semua turunan" / "semua induk" secepat satu join [ASUMSI]; diperbarui dalam transaksi saat node dibuat/dipindah                                                                                                                                                                                                    |
 | `persons`                                 | name, gender? (`L`/`P`), birth_place?, birth_date?, phone?, address?                                                                                   | Nama manusia hanya di Person [LAMA ADR-013]. Tempat/tanggal lahir, HP, dan alamat ditambahkan untuk HR (PRD-001 §4.5, OD-HR-01); yang tampil ke pengguna dibatasi permission modul [OWNER, 2026-10-13]                                                                                                                                        |
 | `person_identifiers`                      | person_id, type (mis. NIK), encrypted_value, value_fingerprint                                                                                         | NIK terenkripsi + fingerprint untuk pencarian [LAMA]. **Ditunda** ke PRD HR/Academic [OWNER, 2026-10-10]                                                                                                                                                                                                                                      |
-| `users`                                   | person_id, email, username?, password, status, is_superadmin, kolom 2FA                                                                                | `User → Person`, tanpa `tenant_id` [LAMA]; satu Person maksimal satu User; email & username disimpan huruf kecil; username 3–50 karakter (`a-z 0-9 . _ -`) [ASUMSI]                                                                                                                                                                           |
+| `users`                                   | person_id, email?, username?, password, status, is_superadmin, must_change_password, kolom 2FA                                                         | `User → Person`, tanpa `tenant_id` [LAMA]; satu Person maksimal satu User; email & username disimpan huruf kecil; username 3–50 karakter (`a-z 0-9 . _ -`) [ASUMSI]. Email boleh kosong untuk akun yang dibuat admin, tetapi akun wajib punya email **atau** username (§4.7) [ASUMSI, 2026-10-14]                                             |
 | `memberships`                             | person_id, tenant_id, status                                                                                                                           | `UNIQUE(person_id, tenant_id)` [LAMA]                                                                                                                                                                                                                                                                                                         |
 | `organizational_assignments`              | tenant_id, membership_id, organization_id?, jenjang_filter?, status                                                                                    | Satu orang boleh punya banyak penugasan [LAMA]; `jenjang_filter` terisi = penugasan fungsional (§4.4). `organization_id` kosong hanya boleh untuk penugasan fungsional di tingkat Yayasan (mis. Koordinator MDA: semua MDA di seluruh Yayasan). Penugasan yang sama tidak boleh dobel [ASUMSI, 2026-10-10]                                    |
 | `roles`, `permissions`, `role_permission` | key, name                                                                                                                                              | Katalog global; permission `modul.resource.aksi`, mis. `hr.employees.view` [LAMA]. Didefinisikan di kode tiap modul lalu disalin ke database dengan `php artisan educore:sync-access` (juga saat deploy). Permission yang hilang dari kode ikut terhapus; role yang hilang dari kode dikosongkan [OWNER, OD-11]                               |
@@ -306,6 +345,7 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 | **F3 RBAC & aturan berjenjang** | Katalog role/permission; role tenant-wide & per node; `visibleNodeIds`; semua skenario §7.3 lulus; resolusi `scoped_settings` sesuai §8.2 teruji                                                                                                                                |
 | **Admin pohon lembaga**         | Halaman §4.6: lihat sesuai cakupan, tambah, ubah nama, pindah, nonaktifkan & aktifkan kembali, dengan 404/403 teruji                                                                                                                                                            |
 | **F4 Operasional**              | Audit log aksi penting (OD-15/16) + halaman log audit (OD-17); `/up` ikut memeriksa database tanpa membocorkan detail; script backup + uji restore + catatan uji restore; README instal/jalan/deploy VPS Linux (OD-18)                                                          |
+| **F5 Kelola akses**             | §4.7: F5a akun login (buat, sandi sementara, wajib ganti, atur ulang, nonaktif/aktif) dan F5b penugasan & role, dengan 403/404 dan audit teruji. **F5a dibangun 2026-10-15** (menunggu verifikasi owner); F5b berikutnya                                                        |
 
 ## 11. Open decisions
 
@@ -330,6 +370,10 @@ Rincian yang diterapkan di F3 [ASUMSI]:
 | OD-17 | Halaman log audit                                      | **DIPUTUSKAN** — baca-saja untuk Admin Yayasan (permission `core.audit.view`, lembaga kerja Seluruh Yayasan); filter tanggal, pelaku, jenis aksi; 50 baris per halaman. Menampilkan log yayasan itu + kejadian akun milik anggotanya                                                                                                                                          |
 | OD-18 | Target server production                               | **BELUM PASTI** — README mengasumsikan VPS Linux (Ubuntu 24.04, Nginx, PHP-FPM 8.3, PostgreSQL 16); script backup tersedia untuk Linux & Windows                                                                                                                                                                                                                              |
 | OD-19 | Akun pertama di production                             | **DIPUTUSKAN** — perintah interaktif `educore:create-admin <kode>` (akun + keanggotaan + role Admin Yayasan dalam satu transaksi) dan `educore:create-superadmin`; kata sandi hanya lewat input tersembunyi; akun yang sudah ada bisa dinaikkan setelah konfirmasi; semuanya tercatat di audit log [OWNER, 2026-10-13]                                                        |
+
+| OD-20 | Kata sandi pertama akun pegawai | **DIPUTUSKAN** — sandi sementara acak tampil sekali, wajib diganti saat login pertama; tanpa email/SMTP [OWNER, 2026-10-14] |
+| OD-21 | Siapa mengelola akun, penugasan, role | **DIPUTUSKAN** — hanya Admin Yayasan [OWNER, 2026-10-14] |
+| OD-22 | Untuk siapa akun dibuat | **DIPUTUSKAN** — dari data pegawai (detail pegawai); orang yang belum menjadi pegawai belum bisa diberi akun lewat aplikasi [OWNER, 2026-10-14] |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 

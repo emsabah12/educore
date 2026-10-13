@@ -5,7 +5,8 @@
 export type User = {
     id: string;
     name: string;
-    email: string;
+    /** Boleh kosong bila akun login memakai username (PRD-000 §4.7). */
+    email: string | null;
     username: string | null;
     avatar?: string;
     is_superadmin: boolean;

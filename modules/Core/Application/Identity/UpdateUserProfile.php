@@ -8,11 +8,12 @@ use Modules\Core\Domain\Person\Person;
 
 /**
  * Pengguna mengubah profilnya sendiri: nama (milik Person) dan email (milik User).
- * Keduanya disimpan dalam satu transaksi (PRD-000 §5, [LAMA] §14).
+ * Keduanya disimpan dalam satu transaksi (PRD-000 §5, [LAMA] §14). Email boleh null bila akun
+ * punya username (PRD-000 §4.7).
  */
 final class UpdateUserProfile
 {
-    public function handle(User $user, string $name, string $email): void
+    public function handle(User $user, string $name, ?string $email): void
     {
         DB::transaction(function () use ($user, $name, $email): void {
             $person = Person::query()->findOrFail($user->person_id);

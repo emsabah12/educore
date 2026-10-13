@@ -58,7 +58,7 @@ class HandleInertiaRequests extends Middleware
      * Data user yang dikirim ke browser. Daftar field dibuat eksplisit
      * (bukan seluruh model) supaya kolom sensitif tidak ikut terkirim.
      *
-     * @return array{id: string, name: string, email: string, username: string|null, is_superadmin: bool, two_factor_enabled: bool}|null
+     * @return array{id: string, name: string, email: string|null, username: string|null, is_superadmin: bool, two_factor_enabled: bool}|null
      */
     private function sharedUser(Request $request): ?array
     {

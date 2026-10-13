@@ -18,8 +18,10 @@ class ProfileUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('email'))) {
+            $email = Str::lower(trim($this->input('email')));
+
             $this->merge([
-                'email' => Str::lower(trim($this->input('email'))),
+                'email' => $email === '' ? null : $email,
             ]);
         }
     }
@@ -31,6 +33,9 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->profileRules($this->user()?->id);
+        $user = $this->user();
+
+        // Email boleh dikosongkan bila akun punya username untuk login (PRD-000 §4.7).
+        return $this->profileRules($user?->id, emailRequired: $user?->username === null);
     }
 }

@@ -13,11 +13,11 @@ trait ProfileValidationRules
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string>>
      */
-    protected function profileRules(?string $userId = null): array
+    protected function profileRules(?string $userId = null, bool $emailRequired = true): array
     {
         return [
             'name' => $this->nameRules(),
-            'email' => $this->emailRules($userId),
+            'email' => $this->emailRules($userId, $emailRequired),
         ];
     }
 
@@ -34,13 +34,15 @@ trait ProfileValidationRules
 
     /**
      * Get the validation rules used to validate user emails.
+     * Akun wajib punya email atau username (CHECK users_login_identifier_check).
      *
      * @return array<int, ValidationRule|array<mixed>|string>
      */
-    protected function emailRules(?string $userId = null): array
+    protected function emailRules(?string $userId = null, bool $required = true): array
     {
         return [
-            'required',
+            // Email opsional bila akun punya username untuk login (PRD-000 §4.7).
+            $required ? 'required' : 'nullable',
             'string',
             'email',
             'max:255',

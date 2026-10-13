@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\AuditLogController;
+use Modules\Core\Http\Controllers\LoginAccountController;
 use Modules\Core\Http\Controllers\OrganizationController;
+use Modules\Core\Http\Controllers\PasswordChangeController;
 use Modules\Core\Http\Controllers\PlatformController;
 use Modules\Core\Http\Controllers\WorkContextController;
 
@@ -22,6 +24,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('belum-terdaftar', [WorkContextController::class, 'unregistered'])->name('context.unregistered');
 
     Route::get('platform', [PlatformController::class, 'index'])->name('platform.home');
+
+    // Wajib ganti kata sandi sementara (PRD-000 §4.7 F5a); dijaga middleware EnsureAccountUsable.
+    Route::get('akun/ganti-sandi', [PasswordChangeController::class, 'edit'])->name('password.force.edit');
+    Route::put('akun/ganti-sandi', [PasswordChangeController::class, 'update'])
+        ->middleware('throttle:6,1')
+        ->name('password.force.update');
 });
 
 // Halaman kerja di dalam yayasan: pohon lembaga (PRD-000 §4.6) dan log audit (OD-17).
@@ -35,4 +43,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
 
     // Log audit baca-saja (OD-17).
     Route::get('audit', [AuditLogController::class, 'index'])->name('audit.index');
+
+    // Kelola akun login anggota, dari detail pegawai (PRD-000 §4.7 F5a). Hanya Admin Yayasan.
+    Route::post('akses/anggota/{membership}/akun', [LoginAccountController::class, 'store'])
+        ->whereUuid('membership')->name('access.accounts.store');
+    Route::post('akses/anggota/{membership}/akun/atur-ulang-sandi', [LoginAccountController::class, 'resetPassword'])
+        ->whereUuid('membership')->name('access.accounts.reset');
+    Route::post('akses/anggota/{membership}/akun/nonaktifkan', [LoginAccountController::class, 'deactivate'])
+        ->whereUuid('membership')->name('access.accounts.deactivate');
+    Route::post('akses/anggota/{membership}/akun/aktifkan', [LoginAccountController::class, 'activate'])
+        ->whereUuid('membership')->name('access.accounts.activate');
 });

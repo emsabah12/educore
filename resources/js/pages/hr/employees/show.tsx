@@ -10,6 +10,8 @@ import {
     UserX,
 } from 'lucide-react';
 import { useState } from 'react';
+import type { LoginAccess } from '@/components/core/login-access';
+import { LoginAccessSection } from '@/components/core/login-access';
 import type { ManageData } from '@/components/hr/employee-actions';
 import {
     AddPlacementForm,
@@ -71,6 +73,8 @@ type Props = {
     employee: Employee;
     canManage: boolean;
     manage: ManageData | null;
+    /** Hanya untuk Admin Yayasan (PRD-000 §4.7). */
+    access: LoginAccess | null;
 };
 
 type EmployeeAction = 'profile' | 'status' | 'addPlacement' | 'end' | 'rehire';
@@ -94,7 +98,7 @@ function formatDate(value: string | null): string {
  * Detail pegawai (PRD-001 §6). Aksi (HR-1d) hanya tampil untuk Admin SDM / Admin Yayasan;
  * server tetap memeriksa ulang setiap aksi.
  */
-export default function EmployeeDetail({ employee, manage }: Props) {
+export default function EmployeeDetail({ employee, manage, access }: Props) {
     const lastPeriod = employee.periods[0];
     const isActive = employee.status === 'AKTIF';
     const [action, setAction] = useState<EmployeeAction | null>(null);
@@ -382,6 +386,8 @@ export default function EmployeeDetail({ employee, manage }: Props) {
                         </ul>
                     )}
                 </Section>
+
+                {access && <LoginAccessSection access={access} />}
 
                 {employee.placements.history.length > 0 && (
                     <Section title="Riwayat penempatan">

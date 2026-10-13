@@ -57,15 +57,23 @@ export default function Profile() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Alamat email</Label>
+                                <Label htmlFor="email">
+                                    Alamat email
+                                    {auth.user.username !== null && (
+                                        <span className="font-normal text-muted-foreground">
+                                            {' '}
+                                            (opsional)
+                                        </span>
+                                    )}
+                                </Label>
 
                                 <Input
                                     id="email"
                                     type="email"
                                     className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
+                                    defaultValue={auth.user.email ?? ''}
                                     name="email"
-                                    required
+                                    required={auth.user.username === null}
                                     autoComplete="username"
                                     placeholder="Alamat email"
                                 />

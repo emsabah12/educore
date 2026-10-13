@@ -29,6 +29,13 @@ final class AuditAction
 
     public const SUPERADMIN_GRANTED = 'account.superadmin_granted';
 
+    /** Admin membuat kata sandi sementara baru untuk akun orang lain (PRD-000 §4.7 F5a). */
+    public const PASSWORD_RESET = 'account.password_reset';
+
+    public const ACCOUNT_DEACTIVATED = 'account.deactivated';
+
+    public const ACCOUNT_ACTIVATED = 'account.activated';
+
     public const ORGANIZATION_CREATED = 'organization.created';
 
     public const ORGANIZATION_RENAMED = 'organization.renamed';
@@ -84,6 +91,9 @@ final class AuditAction
             self::TWO_FACTOR_DISABLED => 'Verifikasi dua langkah dimatikan',
             self::ACCOUNT_CREATED => 'Akun dibuat',
             self::SUPERADMIN_GRANTED => 'Akun dijadikan Superadmin',
+            self::PASSWORD_RESET => 'Kata sandi diatur ulang admin',
+            self::ACCOUNT_DEACTIVATED => 'Akun login dinonaktifkan',
+            self::ACCOUNT_ACTIVATED => 'Akun login diaktifkan',
             self::ORGANIZATION_CREATED => 'Lembaga ditambahkan',
             self::ORGANIZATION_RENAMED => 'Nama lembaga diubah',
             self::ORGANIZATION_MOVED => 'Lembaga dipindahkan',

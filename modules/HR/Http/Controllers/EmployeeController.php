@@ -12,6 +12,9 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Authorization\CoreAccess;
+use Modules\Core\Application\Identity\LoginAccountSummary;
+use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Person\Gender;
@@ -84,7 +87,7 @@ final class EmployeeController
         ]);
     }
 
-    public function show(string $employee, EmployeeVisibility $visibility, EmployeeProfile $profile): Response
+    public function show(Request $request, string $employee, EmployeeVisibility $visibility, EmployeeProfile $profile, LoginAccountSummary $loginAccounts): Response
     {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -104,10 +107,19 @@ final class EmployeeController
         }
 
         $canManage = $this->canManage();
+        $viewer = $request->user();
 
         return Inertia::render('hr/employees/show', [
             'employee' => $data,
             'canManage' => $canManage,
+            // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
+            'access' => $this->canManageAccess()
+                ? $loginAccounts->forMembership(
+                    $this->tenantContext->require()->tenantId,
+                    (string) Employee::query()->whereKey($employee)->value('membership_id'),
+                    $viewer instanceof User ? $viewer : null,
+                )
+                : null,
             // Bahan form aksi HR-1d, hanya untuk Admin SDM / Admin Yayasan.
             'manage' => $canManage ? [
                 'today' => BusinessClock::todayString(),
@@ -263,6 +275,11 @@ final class EmployeeController
     private function canManage(): bool
     {
         return $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed();
+    }
+
+    private function canManageAccess(): bool
+    {
+        return $this->authorization->inspectTarget(CoreAccess::MEMBERSHIPS_MANAGE, null, null)->allowed();
     }
 
     /**

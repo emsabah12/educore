@@ -19,10 +19,11 @@ use Modules\Core\Domain\Person\Person;
  *
  * @property string $id
  * @property string $person_id
- * @property string $email
+ * @property string|null $email
  * @property string|null $username
  * @property string $password
  * @property UserStatus $status
+ * @property bool $must_change_password
  * @property bool $is_superadmin
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -42,7 +43,7 @@ class User extends Authenticatable
     use TwoFactorAuthenticatable;
 
     /**
-     * `status` dan `is_superadmin` sengaja TIDAK bisa diisi massal,
+     * `status`, `is_superadmin`, dan `must_change_password` sengaja TIDAK bisa diisi massal,
      * supaya tidak bisa diubah lewat form biasa.
      */
     protected $fillable = [
@@ -65,6 +66,7 @@ class User extends Authenticatable
     protected $attributes = [
         'status' => 'ACTIVE',
         'is_superadmin' => false,
+        'must_change_password' => false,
     ];
 
     /**
@@ -76,6 +78,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'status' => UserStatus::class,
             'is_superadmin' => 'boolean',
+            'must_change_password' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
         ];
     }
@@ -104,18 +107,37 @@ class User extends Authenticatable
     }
 
     /**
+     * Ganti kata sandi oleh pemiliknya sendiri: status "wajib ganti sandi" ikut selesai.
+     */
+    public function changeOwnPassword(string $password): void
+    {
+        $this->password = $password;
+        $this->must_change_password = false;
+        $this->save();
+    }
+
+    /**
      * Email & username selalu disimpan huruf kecil tanpa spasi di tepi, sehingga
      * login tidak peka huruf besar/kecil. Database juga menolak huruf besar
      * (CHECK users_email_lowercase_check & users_username_format_check).
+     * Isian kosong disimpan sebagai null (email opsional, PRD-000 §4.7).
      */
     protected static function booted(): void
     {
         static::saving(function (User $user): void {
-            $user->email = Str::lower(trim($user->email));
-
-            if ($user->username !== null) {
-                $user->username = Str::lower(trim($user->username));
-            }
+            $user->email = self::normalizeIdentifier($user->email);
+            $user->username = self::normalizeIdentifier($user->username);
         });
+    }
+
+    private static function normalizeIdentifier(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = Str::lower(trim($value));
+
+        return $value === '' ? null : $value;
     }
 }
