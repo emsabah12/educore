@@ -5,6 +5,7 @@ import {
     ScrollText,
     ShieldCheck,
     Tags,
+    Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { ContextSwitcher } from '@/components/context-switcher';
@@ -43,6 +44,12 @@ const auditNavItem: NavItem = {
     icon: ScrollText,
 };
 
+const employeesNavItem: NavItem = {
+    title: 'Pegawai',
+    href: '/pegawai',
+    icon: Users,
+};
+
 const hrCatalogNavItem: NavItem = {
     title: 'Katalog SDM',
     href: '/pegawai/katalog',
@@ -61,6 +68,9 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(permissions.includes('core.organizations.view')
             ? [organizationsNavItem]
+            : []),
+        ...(permissions.includes('hr.employees.view')
+            ? [employeesNavItem]
             : []),
         ...(permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]

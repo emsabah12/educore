@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { Pencil, Plus, UserPlus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -26,7 +26,6 @@ type Props = {
     kinds: CatalogKind[];
     activeKind: string;
     items: CatalogItem[];
-    canCreateEmployee: boolean;
 };
 
 const BASE_URL = '/pegawai/katalog';
@@ -35,12 +34,7 @@ const BASE_URL = '/pegawai/katalog';
  * Halaman Katalog SDM (PRD-001 §6): jenis pegawai, status kepegawaian, jabatan.
  * Hak akses sudah dicek server; item tidak pernah dihapus, hanya dinonaktifkan.
  */
-export default function HrCatalog({
-    kinds,
-    activeKind,
-    items,
-    canCreateEmployee,
-}: Props) {
+export default function HrCatalog({ kinds, activeKind, items }: Props) {
     const kind = kinds.find((candidate) => candidate.value === activeKind);
     const label = kind?.label ?? 'Katalog';
 
@@ -49,22 +43,10 @@ export default function HrCatalog({
             <Head title="Katalog SDM" />
 
             <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <Heading
-                        title="Katalog SDM"
-                        description="Pilihan yang dipakai di data pegawai seluruh yayasan."
-                    />
-
-                    {/* Sementara di sini sampai halaman Daftar pegawai ada (HR-1c). */}
-                    {canCreateEmployee && (
-                        <Button asChild>
-                            <Link href="/pegawai/tambah">
-                                <UserPlus />
-                                Tambah pegawai
-                            </Link>
-                        </Button>
-                    )}
-                </div>
+                <Heading
+                    title="Katalog SDM"
+                    description="Pilihan yang dipakai di data pegawai seluruh yayasan."
+                />
 
                 {/* Grid otomatis: tab yang tidak muat di satu baris pindah ke baris berikutnya (HP). */}
                 <nav

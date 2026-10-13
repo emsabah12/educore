@@ -1,6 +1,6 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.4 (2026-10-14: rincian HR-1b — tambah pegawai, zona waktu tanggal bisnis, peringatan orang ganda)
+- **Versi:** 0.5 (2026-10-14: rincian HR-1c — daftar & detail pegawai)
 - **Status:** SIAP DIBANGUN — HR-1 Data Pegawai
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
@@ -190,6 +190,14 @@ Pegawai terlihat di node N bila **salah satu penempatannya** ada di `visibleNode
 
 Saringan dijalankan di query database sebelum paginasi. Test wajib membuktikan pegawai lembaga sebelah tidak pernah muncul. [LAMA HR-017 INV-HR-011]
 
+Rincian daftar & detail (HR-1c) [ASUMSI]:
+
+- Saringan **lembaga** ikut turunannya (memilih Unit 1 juga menampilkan pegawai MTs Unit 1); saringan **jenis/status kepegawaian** memakai periode terakhir pegawai; saringan **jabatan** memakai penempatan berjalan.
+- Di halaman detail, **semua** penempatan pegawai yang terlihat ikut tampil, termasuk di lembaga lain (mis. Kepala Unit 1 melihat bahwa guru MTs Unit 1 juga mengajar di MDA Unit 2).
+- Data pribadi di detail hanya tampil bila pegawai itu terlihat dengan `hr.employees.view_personal`; bila tidak, bagian Data pribadi menampilkan keterangan terkunci.
+- Masa kerja: periode yang bersambung digabung, lalu dihitung bulan penuh sampai hari ini (tanggal yayasan); tampil "X tahun Y bulan".
+- Parameter `per_page` (1–100) boleh dipakai; nilai saringan yang tidak sah diabaikan.
+
 Jawaban akses mengikuti OD-13: pegawai di luar cakupan → **404**; di dalam cakupan tanpa izin aksi → **403**.
 
 ## 6. Halaman HR-1
@@ -200,7 +208,7 @@ Menu **Pegawai** (`/pegawai`) muncul bagi pemilik `hr.employees.view`. Menu **Ka
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Daftar pegawai | Cari nama/nomor induk; filter lembaga, jenis, status kepegawaian, jabatan, aktif/berhenti (default: aktif); 25 baris per halaman; jumlah total tampil. Responsif: tabel di desktop, kartu di HP                                              |
 | Tambah pegawai | Pilih **orang baru** atau **anggota yayasan yang sudah ada** (mis. pemilik akun yang belum punya profil pegawai). Lalu isi nama, L/P, data pribadi (§4.5), nomor induk, jenis, status, tanggal mulai, penempatan pertama (lembaga + jabatan) |
-| Detail pegawai | Profil; periode kepegawaian (riwayat); penempatan aktif & riwayat; masa kerja (jumlah hari dari semua periode, ditampilkan sebagai tahun-bulan)                                                                                              |
+| Detail pegawai | Profil; periode kepegawaian (riwayat); penempatan aktif & riwayat; masa kerja (tahun-bulan, periode bersambung digabung)                                                                                                                     |
 | Aksi di detail | Ubah profil, Ganti status kepegawaian, Tambah penempatan, Mutasi, Akhiri penempatan, Jadikan utama, Berhentikan, Aktifkan kembali                                                                                                            |
 | Katalog SDM    | Tiga tab (Jenis pegawai, Status kepegawaian, Jabatan): tambah, ubah nama, nonaktifkan / aktifkan kembali                                                                                                                                     |
 

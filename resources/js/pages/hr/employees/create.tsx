@@ -59,11 +59,11 @@ export default function CreateEmployee({ today, members, options }: Props) {
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4">
                 <div>
                     <Link
-                        href="/pegawai/katalog"
+                        href="/pegawai"
                         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                     >
                         <ArrowLeft className="size-4" />
-                        Katalog SDM
+                        Daftar pegawai
                     </Link>
                 </div>
 

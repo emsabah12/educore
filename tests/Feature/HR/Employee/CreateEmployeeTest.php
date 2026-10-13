@@ -106,10 +106,10 @@ test('Admin Yayasan membuka form tambah pegawai; hanya pilihan yang aktif yang d
             ->has('members', 6),
         );
 
-    // Tombol "Tambah pegawai" ditawarkan di halaman Katalog SDM (sementara, sampai HR-1c).
+    // Tombol "Tambah pegawai" ditawarkan di halaman Daftar pegawai.
     $this->actingAs($this->admin)
-        ->get(route('hr.catalog.index'))
-        ->assertInertia(fn (Assert $page) => $page->where('canCreateEmployee', true));
+        ->get(route('hr.employees.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('canCreate', true));
 });
 
 test('hanya Admin SDM / Admin Yayasan di tingkat Yayasan yang boleh menambah pegawai', function () {
@@ -131,12 +131,14 @@ test('hanya Admin SDM / Admin Yayasan di tingkat Yayasan yang boleh menambah peg
 test('orang baru: data diri, kepegawaian, periode, dan penempatan tersimpan sekali simpan', function () {
     $usersBefore = User::query()->count();
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->post(route('hr.employees.store'), hrFormPegawai($this->tenant))
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('hr.employees.create'));
+        ->assertSessionHasNoErrors();
 
     $employee = Employee::query()->where('employee_number', 'YYS/2026.001')->sole();
+
+    // Setelah simpan langsung ke halaman detail pegawai baru (HR-1c).
+    $response->assertRedirect(route('hr.employees.show', ['employee' => $employee->id]));
     $person = Person::query()->findOrFail(Membership::query()->findOrFail($employee->membership_id)->person_id);
     $period = EmploymentPeriod::query()->where('employee_id', $employee->id)->sole();
     $placement = Placement::query()->where('employee_id', $employee->id)->sole();

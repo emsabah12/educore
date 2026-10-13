@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-14
-- **Tahap aktif:** HR-1b Tambah pegawai (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `cd2dc2d` — feat(hr): HR-1a katalog SDM dan skema kepegawaian (di-push ke GitHub `emsabah12/educore`)
+- **Tahap aktif:** HR-1c Daftar & detail pegawai (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `740249c` — feat(hr): HR-1b tambah pegawai (di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
@@ -116,14 +116,22 @@
 - Perbaikan: test memakai akun `guru` (dua penugasan) lupa memilih lembaga kerja → 302, bukan 403. Tab katalog di HP terpotong (geser samping) → diganti grid `auto-fit` yang otomatis turun baris.
 - Pelajaran: (1) akun uji dengan lebih dari satu penugasan (`guru`, `koordinator.mda`) wajib `DevAccounts::chooseWorkspace()` dulu di test; (2) **aturan UI**: tab/filter/tombol berderet di HP memakai grid yang otomatis turun baris, bukan scroll horizontal.
 
-**HR-1b — Tambah pegawai: KODE SIAP**
+**HR-1b — Tambah pegawai: SELESAI (2026-10-13, commit `740249c`)**
 
 - Model `Employee`, `EmploymentPeriod`, `Placement` (+ enum status, pendidikan, alasan berhenti).
 - `CreateEmployee`: orang baru (Person + Membership) **atau** anggota yayasan yang sudah ada → Pegawai → periode pertama → penempatan utama, dalam satu transaksi; pemeriksaan lembaga/katalog dilakukan setelah Person dibuat sehingga kegagalan membatalkan semuanya.
 - Peringatan orang ganda (nama + tanggal lahir sama, hanya di yayasan yang sama) dengan konfirmasi; nomor induk & NUPTK unik dengan pesan ramah; nomor HP/NUPTK/nomor induk dirapikan otomatis.
 - Halaman `/pegawai/tambah` (tombol sementara di Katalog SDM); audit `hr.employee_created` tanpa nilai data pribadi.
 - `BusinessClock` + `EDUCORE_TIMEZONE` (default Asia/Jakarta) untuk aturan "tidak boleh di masa depan".
-- Bukti sementara: `CreateEmployeeTest` (8) menunggu dijalankan di Laragon (target 223).
+- Bukti: 223 test lulus (1245 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual (orang baru, anggota, peringatan orang ganda, nomor induk ganda, tanggal masa depan, audit, tampilan HP) lancar.
+
+**HR-1c — Daftar & detail pegawai: KODE SIAP**
+
+- `EmployeeVisibility`: siapa melihat pegawai mana (PRD-001 §5.3) sebagai saringan SQL sebelum paginasi; pemegang izin tingkat Yayasan melihat semua termasuk pegawai tanpa penempatan.
+- `EmployeeDirectory` + `EmployeeFilters`: cari nama/nomor induk, saringan lembaga (ikut turunan), jabatan, jenis, status kepegawaian, aktif/berhenti; 25 per halaman (maks 100).
+- `EmployeeProfile` + `ServiceLength`: detail pegawai, riwayat periode & penempatan, masa kerja; data pribadi hanya dengan `hr.employees.view_personal`.
+- Halaman `/pegawai` (menu **Pegawai**, tabel di desktop, kartu di HP) dan `/pegawai/{id}`; tombol Tambah pegawai pindah dari Katalog SDM ke daftar; setelah tambah langsung ke detail.
+- Bukti sementara: `EmployeeDirectoryTest` (9) + `CreateEmployeeTest` disesuaikan; menunggu dijalankan di Laragon (target 232).
 
 ## Struktur file utama
 
@@ -156,7 +164,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-1b di Laragon dan commit.
-2. HR-1c: halaman daftar & detail pegawai. HR-1d: aksi mutasi/ganti status/berhenti.
+1. Verifikasi HR-1c di Laragon dan commit.
+2. HR-1d: aksi di detail pegawai — ubah profil, ganti status kepegawaian, tambah/akhiri penempatan, mutasi, jadikan utama, berhentikan, aktifkan kembali.
 3. Halaman kelola akses Core (akun login, penugasan, role) — sebelum HR-3.
 4. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).

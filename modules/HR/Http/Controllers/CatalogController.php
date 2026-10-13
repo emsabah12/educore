@@ -62,8 +62,6 @@ final class CatalogController
             'kinds' => $kinds,
             'activeKind' => $kind->value,
             'items' => $items,
-            // Tombol "Tambah pegawai" sementara ada di sini sampai halaman daftar pegawai ada (HR-1c).
-            'canCreateEmployee' => $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed(),
         ]);
     }
 

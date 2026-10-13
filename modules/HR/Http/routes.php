@@ -19,7 +19,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/katalog/{kind}/{item}/nonaktifkan', [CatalogController::class, 'deactivate'])->whereIn('kind', $kinds)->name('hr.catalog.deactivate');
     Route::post('pegawai/katalog/{kind}/{item}/aktifkan', [CatalogController::class, 'activate'])->whereIn('kind', $kinds)->name('hr.catalog.activate');
 
-    // Tambah pegawai (PRD-001 §6). Halaman daftar & detail menyusul di HR-1c.
+    // Pegawai (PRD-001 §6). `pegawai/tambah` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
+    Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');
     Route::get('pegawai/tambah', [EmployeeController::class, 'create'])->name('hr.employees.create');
     Route::post('pegawai', [EmployeeController::class, 'store'])->name('hr.employees.store');
+    Route::get('pegawai/{employee}', [EmployeeController::class, 'show'])->whereUuid('employee')->name('hr.employees.show');
 });

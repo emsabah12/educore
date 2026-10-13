@@ -6,6 +6,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -19,6 +20,10 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\CreateEmployee;
+use Modules\HR\Application\Employee\EmployeeDirectory;
+use Modules\HR\Application\Employee\EmployeeFilters;
+use Modules\HR\Application\Employee\EmployeeProfile;
+use Modules\HR\Application\Employee\EmployeeVisibility;
 use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Domain\Catalog\CatalogKind;
@@ -26,10 +31,15 @@ use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\Employee;
 use Modules\HR\Domain\Employee\Exceptions\DuplicatePersonException;
 use Modules\HR\Domain\Employee\Exceptions\EmployeeException;
+use stdClass;
 
 /**
- * Tambah pegawai (PRD-001 §6). Hanya Admin SDM / Admin Yayasan di tingkat Yayasan (OD-HR-02),
- * sehingga butuh `hr.employees.manage` dari role tenant-wide di lembaga kerja Seluruh Yayasan.
+ * Halaman pegawai (PRD-001 §6).
+ *
+ * - Daftar & detail: `hr.employees.view`; yang tampil disaring EmployeeVisibility (§5.3).
+ *   Tanpa izin di mana pun → 403; pegawai di luar cakupan atau yayasan lain → 404 (OD-13).
+ * - Tambah: hanya Admin SDM / Admin Yayasan di tingkat Yayasan (OD-HR-02), yaitu
+ *   `hr.employees.manage` dari role tenant-wide di lembaga kerja Seluruh Yayasan.
  */
 final class EmployeeController
 {
@@ -40,6 +50,63 @@ final class EmployeeController
         private readonly AuthorizationService $authorization,
         private readonly TenantContext $tenantContext,
     ) {}
+
+    public function index(Request $request, EmployeeDirectory $directory, EmployeeVisibility $visibility): Response
+    {
+        Gate::authorize(HrAccess::EMPLOYEES_VIEW);
+
+        $filters = EmployeeFilters::fromArray($request->query->all());
+        $page = $directory->search($filters);
+
+        /** @var list<stdClass> $rows */
+        $rows = array_values($page->items());
+
+        return Inertia::render('hr/employees/index', [
+            'employees' => [
+                'data' => $directory->present($rows),
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'total' => $page->total(),
+                'from' => $page->firstItem(),
+                'to' => $page->lastItem(),
+                'prev_page_url' => $page->previousPageUrl(),
+                'next_page_url' => $page->nextPageUrl(),
+            ],
+            'filters' => $filters->toArray(),
+            'options' => [
+                'organizations' => $this->filterOrganizationOptions($visibility),
+                'employmentTypes' => $this->catalogOptions(CatalogKind::EmploymentType, includeInactive: true),
+                'classifications' => $this->catalogOptions(CatalogKind::Classification, includeInactive: true),
+                'positions' => $this->catalogOptions(CatalogKind::Position, includeInactive: true),
+            ],
+            'canCreate' => $this->canManage(),
+        ]);
+    }
+
+    public function show(string $employee, EmployeeVisibility $visibility, EmployeeProfile $profile): Response
+    {
+        Gate::authorize(HrAccess::EMPLOYEES_VIEW);
+
+        // Di luar cakupan, milik yayasan lain, atau ID asal-asalan: 404 agar keberadaannya tidak bocor.
+        if (! $visibility->canSee($employee, HrAccess::EMPLOYEES_VIEW)) {
+            abort(404);
+        }
+
+        $data = $profile->load(
+            $this->tenantContext->require()->tenantId,
+            $employee,
+            withPersonal: $visibility->canSee($employee, HrAccess::EMPLOYEES_VIEW_PERSONAL),
+        );
+
+        if ($data === null) {
+            abort(404);
+        }
+
+        return Inertia::render('hr/employees/show', [
+            'employee' => $data,
+            'canManage' => $this->canManage(),
+        ]);
+    }
 
     public function create(): Response
     {
@@ -144,7 +211,7 @@ final class EmployeeController
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $this->personName($employee).' berhasil ditambahkan sebagai pegawai.']);
 
-        return to_route('hr.employees.create');
+        return to_route('hr.employees.show', ['employee' => $employee->id]);
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
@@ -157,17 +224,50 @@ final class EmployeeController
         $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->authorize();
     }
 
+    private function canManage(): bool
+    {
+        return $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed();
+    }
+
     /**
-     * Item katalog yang masih aktif (yang nonaktif tidak bisa dipilih untuk data baru).
+     * Pilihan lembaga untuk saringan daftar: node yang boleh dilihat (nonaktif ikut, untuk riwayat).
      *
      * @return list<array{value: string, label: string}>
      */
-    private function catalogOptions(CatalogKind $kind): array
+    private function filterOrganizationOptions(EmployeeVisibility $visibility): array
+    {
+        $query = Organization::query()->orderBy('code');
+
+        if (! $visibility->seesWholeTenant(HrAccess::EMPLOYEES_VIEW)) {
+            $query->whereIn('id', $this->authorization->visibleNodeIds(HrAccess::EMPLOYEES_VIEW));
+        }
+
+        $options = [];
+
+        foreach ($query->get() as $organization) {
+            $suffix = $organization->isActive() ? '' : ' — nonaktif';
+            $options[] = ['value' => $organization->id, 'label' => "{$organization->name} ({$organization->code}){$suffix}"];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Item katalog. Untuk data baru hanya yang aktif; untuk saringan daftar, yang nonaktif ikut (riwayat).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function catalogOptions(CatalogKind $kind, bool $includeInactive = false): array
     {
         $options = [];
 
-        foreach ($kind->query()->where('is_active', true)->orderBy('name')->get() as $item) {
-            $options[] = ['value' => $item->id, 'label' => $item->name];
+        $items = $kind->query()
+            ->when(! $includeInactive, fn ($query) => $query->where('is_active', true))
+            ->orderBy('name')
+            ->get();
+
+        foreach ($items as $item) {
+            $options[] = ['value' => $item->id, 'label' => $item->is_active ? $item->name : "{$item->name} — nonaktif"];
         }
 
         return $options;
