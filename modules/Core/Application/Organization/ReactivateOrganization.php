@@ -3,6 +3,8 @@
 namespace Modules\Core\Application\Organization;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Exceptions\OrganizationTreeException;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
@@ -16,6 +18,10 @@ use Modules\Core\Domain\Organization\OrganizationStatus;
 final class ReactivateOrganization
 {
     use LocksTenantTree;
+
+    public function __construct(
+        private readonly AuditLogger $audit,
+    ) {}
 
     /**
      * @throws OrganizationTreeException
@@ -45,6 +51,15 @@ final class ReactivateOrganization
 
             $organization->status = OrganizationStatus::Active;
             $organization->save();
+
+            $this->audit->record(
+                AuditAction::ORGANIZATION_ACTIVATED,
+                AuditLogger::SUBJECT_ORGANIZATION,
+                $organization->id,
+                ['status' => [OrganizationStatus::Inactive->value, OrganizationStatus::Active->value]],
+                organizationId: $organization->id,
+                tenantId: $tenantId,
+            );
 
             return $organization;
         });

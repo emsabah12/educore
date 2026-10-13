@@ -22,9 +22,9 @@ test('sinkronisasi mengisi katalog bawaan Core dan aman diulang', function () {
     $this->artisan('educore:sync-access')->assertSuccessful();
     $this->artisan('educore:sync-access')->assertSuccessful();
 
-    expect(Permission::query()->count())->toBe(5)
+    expect(Permission::query()->count())->toBe(6)
         ->and(Role::query()->count())->toBe(5)
-        ->and(DB::table('role_permission')->count())->toBe(5 + 2 + 4 + 3 + 1);
+        ->and(DB::table('role_permission')->count())->toBe(6 + 2 + 4 + 3 + 1);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 

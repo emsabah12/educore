@@ -4,162 +4,62 @@ Sistem informasi yayasan pendidikan (lembaga formal, pesantren, dan nonformal) b
 
 - Arsitektur: [`docs/adr/ADR-001-rebuild-simplified-modular-monolith.md`](docs/adr/ADR-001-rebuild-simplified-modular-monolith.md)
 - Kebutuhan pondasi: [`docs/prd/PRD-000-platform-foundation.md`](docs/prd/PRD-000-platform-foundation.md)
+- Status & keputusan terbaru: [`docs/STATUS.md`](docs/STATUS.md)
+- Backup & uji restore: [`docs/operations/BACKUP-RESTORE.md`](docs/operations/BACKUP-RESTORE.md)
 
 ---
 
-## 1. Prasyarat (Windows + Laragon)
+## 1. Prasyarat
 
-| Kebutuhan  | Versi                                               | Cara cek                               |
-| ---------- | --------------------------------------------------- | -------------------------------------- |
-| PHP        | ≥ 8.3 dengan ekstensi `pdo_pgsql` dan `pgsql` aktif | `php -v` dan `php -m \| findstr pgsql` |
-| PostgreSQL | Sama dengan versi produksi (CI memakai 16)          | `psql --version`                       |
-| Composer   | 2.x                                                 | `composer -V`                          |
-| Node.js    | 22                                                  | `node -v`                              |
-| Git        | terbaru                                             | `git --version`                        |
+| Kebutuhan  | Versi                                                | Catatan                          |
+| ---------- | ---------------------------------------------------- | -------------------------------- |
+| PHP        | 8.3+ dengan `pdo_pgsql`, `pgsql`, `mbstring`, `intl` | Laragon: Menu → PHP → Extensions |
+| PostgreSQL | 16                                                   | Sama dengan CI dan production    |
+| Composer   | 2.x                                                  |                                  |
+| Node.js    | 22                                                   |                                  |
+| Git        | terbaru                                              |                                  |
 
-Mengaktifkan ekstensi PostgreSQL di Laragon: **Menu Laragon → PHP → Extensions → centang `pdo_pgsql` dan `pgsql`**, lalu restart Laragon. Tanpa ini Laravel akan gagal dengan error _"could not find driver"_.
+## 2. Instalasi untuk developer (Windows + Laragon)
 
-## 2. Instalasi pertama kali (dari nol)
-
-Semua perintah dijalankan di **Terminal Laragon** (Menu → Terminal).
-
-### 2.1 Amankan proyek lama
-
-Folder dan nama database lama dipakai ulang, jadi yang lama diganti nama dulu supaya tidak tertimpa:
+Jalankan **satu perintah per baris** di terminal Laragon, dari `C:\laragon\www`.
 
 ```bash
-cd C:\laragon\www
-ren educore educore-legacy
-
-psql -U postgres -c "ALTER DATABASE educore RENAME TO educore_legacy;"
-psql -U postgres -c "ALTER DATABASE educore_testing RENAME TO educore_legacy_testing;"
+git clone <url-repo> educore
+cd educore
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
 ```
 
-Jika muncul error _"database is being accessed by other users"_, tutup aplikasi lama/DBeaver/pgAdmin yang masih terhubung, lalu ulangi.
-
-### 2.2 Buat database baru
+Buat dua database (aplikasi dan test):
 
 ```bash
 psql -U postgres -c "CREATE DATABASE educore;"
 psql -U postgres -c "CREATE DATABASE educore_testing;"
 ```
 
-### 2.3 Buat proyek dengan installer resmi Laravel
-
-```bash
-composer global require laravel/installer
-cd C:\laragon\www
-laravel new educore --react --pest --database=pgsql --npm --git
-```
-
-Jika `laravel` tidak dikenali, tambahkan `%APPDATA%\Composer\vendor\bin` ke PATH lalu buka ulang terminal.
-
-Jika di akhir instalasi muncul error migrasi (biasanya karena username/password database belum benar), abaikan dulu — kredensial dibetulkan di langkah 2.5 dan migrasi dijalankan ulang di langkah 2.6.
-
-Saat installer bertanya **"Which authentication features would you like to enable?"**, pilih sesuai PRD-000 OD-04:
-
-| Fitur                     | Pilihan   | Alasan                                               |
-| ------------------------- | --------- | ---------------------------------------------------- |
-| Registration              | **tidak** | Akun dibuat admin, bukan daftar sendiri (PRD-000 §2) |
-| Email verification        | **tidak** | Akun dibuat admin dengan email yang sudah dikenal    |
-| Two-factor authentication | **ya**    | Lapisan keamanan untuk akun admin                    |
-| Password confirmation     | **ya**    | Konfirmasi ulang sebelum aksi sensitif               |
-| Passkeys                  | **tidak** | Ditunda agar pondasi tetap sederhana                 |
-
-### 2.4 Salin file pondasi EduCore
-
-Salin seluruh isi paket `educore-f0` ke `C:\laragon\www\educore` dan **timpa** file yang sama namanya:
-
-```text
-.github/workflows/tests.yml
-bootstrap/providers.php
-docs/
-modules/
-phpstan.neon
-phpunit.xml
-README.md
-tests/Architecture/ModuleBoundaryTest.php
-tests/Feature/Core/FoundationSetupTest.php
-```
-
-Lalu ekstrak `docs.zip` (dokumentasi lama) ke folder `docs-legacy/`.
-
-### 2.5 Ubah 4 file secara manual
-
-**a) `composer.json`** — daftarkan namespace modul dan hapus pembuatan file SQLite:
-
-```json
-"autoload": {
-    "psr-4": {
-        "App\\": "app/",
-        "Modules\\": "modules/",
-        "Database\\Factories\\": "database/factories/",
-        "Database\\Seeders\\": "database/seeders/"
-    }
-},
-```
-
-Di bagian `"post-create-project-cmd"`, hapus baris ini:
-
-```json
-"@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-```
-
-**b) `config/database.php`** baris `'default'`:
-
-```php
-'default' => env('DB_CONNECTION', 'pgsql'),
-```
-
-**c) `app/Providers/AppServiceProvider.php`** — tambahkan import di atas dan satu baris di `configureDefaults()`:
-
-```php
-use Illuminate\Database\Eloquent\Model;
-```
-
-```php
-protected function configureDefaults(): void
-{
-    Date::use(CarbonImmutable::class);
-
-    // Tangkap query N+1 sejak dini: error di local/testing, diam di production (PRD-000 §9).
-    Model::preventLazyLoading(! app()->isProduction());
-
-    // ... baris DB::prohibitDestructiveCommands dan Password::defaults tetap seperti semula
-}
-```
-
-**d) `.env` dan `.env.example`**:
+Isi `.env` sesuai PostgreSQL Anda. Password yang berisi spasi atau karakter khusus wajib diberi tanda kutip:
 
 ```dotenv
-APP_NAME=EduCore
 APP_URL=http://educore.test
-APP_LOCALE=id
-APP_FAKER_LOCALE=id_ID
-
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=educore
 DB_USERNAME=postgres
-DB_PASSWORD=
+DB_PASSWORD="isi-password-anda"
+AUDIT_RETENTION_DAYS=365
 ```
 
-Isi `DB_USERNAME`/`DB_PASSWORD` di `.env` sesuai PostgreSQL Anda. Di `.env.example` biarkan password kosong — **jangan pernah commit password asli**.
-
-### 2.6 Jalankan & verifikasi
+Siapkan database dan aset:
 
 ```bash
-composer dump-autoload
-php artisan migrate
-php artisan test
-composer test
+php artisan migrate --seed
+npm run build
 ```
 
-Hasil yang diharapkan:
-
-- `php artisan test` → semua hijau, termasuk 5 test di `Architecture` dan 5 test di `Feature/Core/FoundationSetupTest`.
-- `composer test` → Pint (format), Larastan (analisis statis) dan seluruh test lulus.
+`--seed` membuat katalog akses, pohon yayasan pertama (PRD-000 §4.3), dan **akun uji** (hanya di `local`/`testing`, OD-10).
 
 ## 3. Menjalankan saat development
 
@@ -167,11 +67,31 @@ Hasil yang diharapkan:
 composer run dev
 ```
 
-Buka `http://educore.test` (virtual host otomatis Laragon) atau `http://localhost:8000`.
+Buka `http://educore.test`. Semua akun uji memakai password **`password`**:
 
-Queue worker di Windows: gunakan `php artisan queue:work` (Horizon tidak berjalan di Windows karena butuh ekstensi `pcntl`).
+| Username          | Peran                                                    |
+| ----------------- | -------------------------------------------------------- |
+| `superadmin`      | Superadmin platform (tanpa data yayasan)                 |
+| `admin.yayasan`   | Admin Yayasan — seluruh pohon, kelola lembaga, log audit |
+| `pimpinan.ponpes` | Pimpinan Pondok Pesantren (lihat saja)                   |
+| `kepala.unit1`    | Kepala Unit 1                                            |
+| `kepala.smk`      | Kepala SMK Unit 3                                        |
+| `guru`            | Staf di MA Unit 1 dan MDA Unit 1                         |
+| `koordinator.mda` | Staf Biro Pendidikan + Koordinator semua MDA             |
+| `penguji`         | Akun tanpa yayasan                                       |
 
-## 4. Struktur proyek
+## 4. Sebelum commit
+
+```bash
+composer lint
+composer test
+npm run types:check
+npm run check:fix
+```
+
+`composer test` menjalankan Pint, Larastan level 7, dan seluruh test Pest di PostgreSQL.
+
+## 5. Struktur proyek
 
 ```text
 app/                    # shell Laravel (auth Fortify, middleware global)
@@ -182,16 +102,188 @@ modules/
     ├── Domain/         # entitas & aturan bisnis
     ├── Application/    # use case / service
     ├── Contracts/      # interface publik untuk modul lain
-    ├── Http/           # controller, request, routes.php
-    └── Database/Migrations/
+    ├── Http/           # controller, routes.php
+    └── Database/       # migrasi & seeder
 resources/js/           # halaman & komponen React (Inertia)
-tests/Architecture/     # penjaga batas modul
-docs/                   # ADR & PRD (sumber kebenaran)
-docs-legacy/            # dokumentasi repo lama (referensi saja)
+scripts/backup/         # backup & uji restore (Linux .sh, Windows .ps1)
+tests/                  # Pest: Architecture + Feature
+docs/                   # PRD, ADR, STATUS, operasional (sumber kebenaran)
 ```
 
 Aturan dependency: `Core → (tidak ada)`, `HR → Core`, `Academic → Core + kontrak publik HR`. Pelanggaran otomatis membuat test gagal.
 
-## 5. Deploy
+## 6. Operasional
 
-Belum didefinisikan — dijadwalkan di milestone F4 (PRD-000 §10).
+| Hal           | Cara                                                                                                                                                            | Acuan      |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Health check  | `GET /up` → 200 bila aplikasi & database sehat; 500 dengan pesan umum bila tidak                                                                                | PRD-000 §9 |
+| Katalog akses | `php artisan educore:sync-access` setiap ada permission/role baru (juga saat deploy)                                                                            | OD-11      |
+| Audit log     | Halaman **Log audit** (Admin Yayasan, lembaga kerja Seluruh Yayasan). Log lama dihapus otomatis setiap hari pukul 02:00 sesuai `AUDIT_RETENTION_DAYS` (min. 30) | OD-15–17   |
+| Backup        | `scripts/backup/backup-db.sh` (Linux) atau `backup-db.ps1` (Windows), harian                                                                                    | PRD-000 §9 |
+| Uji restore   | `scripts/backup/restore-test.sh` / `.ps1`, bulanan, catat hasilnya                                                                                              | PRD-000 §9 |
+
+Penghapusan log lama dan tugas terjadwal lain hanya berjalan bila `php artisan schedule:run` dipanggil setiap menit (cron di Linux, Task Scheduler di Windows).
+
+## 7. Deploy ke VPS Linux
+
+Asumsi (OD-18): Ubuntu 24.04 LTS, Nginx, PHP-FPM 8.3, PostgreSQL 16, satu server. Ganti `educore.example.id` dengan domain Anda.
+
+### 7.1 Paket server (sekali)
+
+```bash
+sudo apt update
+sudo apt install -y nginx postgresql-16 postgresql-client-16 git unzip \
+  php8.3-fpm php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-intl php8.3-curl php8.3-zip php8.3-bcmath
+```
+
+Pasang Composer 2 dan Node.js 22 sesuai panduan resmi masing-masing.
+
+### 7.2 Database
+
+```bash
+sudo -u postgres createuser --pwprompt educore
+sudo -u postgres createdb --owner=educore educore
+sudo -u postgres psql -c "ALTER ROLE educore CREATEDB;"
+```
+
+`CREATEDB` dibutuhkan script uji restore untuk membuat database uji sementara.
+
+### 7.3 Kode aplikasi
+
+```bash
+sudo mkdir -p /var/www/educore && sudo chown $USER:www-data /var/www/educore
+git clone <url-repo> /var/www/educore
+cd /var/www/educore
+cp .env.example .env
+```
+
+Isi `.env` production — **jangan pernah commit file ini**:
+
+```dotenv
+APP_NAME=EduCore
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://educore.example.id
+APP_LOCALE=id
+
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=educore
+DB_USERNAME=educore
+DB_PASSWORD="password-kuat"
+
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+AUDIT_RETENTION_DAYS=365
+```
+
+Lalu:
+
+```bash
+composer install --no-dev --optimize-autoloader
+php artisan key:generate
+npm ci
+npm run build
+php artisan migrate --force
+php artisan educore:sync-access
+php artisan db:seed --class="Modules\\Core\\Database\\Seeders\\FirstTenantSeeder" --force
+php artisan optimize
+sudo chown -R $USER:www-data storage bootstrap/cache
+sudo chmod -R ug+rwx storage bootstrap/cache
+```
+
+Seeder akun uji **tidak** berjalan di production (OD-10). Akun admin pertama dibuat lewat proses terpisah (menunggu Panel platform).
+
+### 7.4 Nginx
+
+`/etc/nginx/sites-available/educore`:
+
+```nginx
+server {
+    listen 80;
+    server_name educore.example.id;
+    root /var/www/educore/public;
+    index index.php;
+
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+    client_max_body_size 20M;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/educore /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d educore.example.id
+```
+
+### 7.5 Tugas terjadwal, queue, dan backup
+
+`crontab -e` sebagai user aplikasi:
+
+```cron
+* * * * * cd /var/www/educore && php artisan schedule:run >> /dev/null 2>&1
+30 1 * * * bash /var/www/educore/scripts/backup/backup-db.sh >> /var/log/educore/backup.log 2>&1
+0 3 1 * * bash /var/www/educore/scripts/backup/restore-test.sh >> /var/log/educore/restore-test.log 2>&1
+```
+
+Buat folder log & backup: `sudo mkdir -p /var/log/educore /var/backups/educore && sudo chown $USER /var/log/educore /var/backups/educore`.
+
+Queue worker dengan systemd, `/etc/systemd/system/educore-queue.service`:
+
+```ini
+[Unit]
+Description=EduCore queue worker
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/educore
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now educore-queue
+```
+
+### 7.6 Update versi (setiap deploy)
+
+```bash
+cd /var/www/educore
+php artisan down
+git pull
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan educore:sync-access
+php artisan optimize
+sudo systemctl restart educore-queue
+php artisan up
+curl -fsS https://educore.example.id/up
+```
+
+Selalu pastikan ada backup terbaru sebelum `migrate --force`.

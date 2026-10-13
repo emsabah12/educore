@@ -5,6 +5,8 @@ namespace Modules\Core\Application\Settings;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Domain\Organization\Jenjang;
@@ -22,7 +24,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
  *   3. pengguna punya `core.settings.manage` yang cakupannya memuat target (§8.3) — 403/404;
  *   4. target belum dikunci oleh tingkat di atasnya.
  *
- * Pencatatan ke audit log (§8.2) disambungkan di F4 saat tabel audit_logs tersedia.
+ * Setiap penyimpanan dicatat di audit log beserta nilai lama & baru (§8.2, F4).
  */
 final class SetScopedSetting
 {
@@ -32,6 +34,7 @@ final class SetScopedSetting
         private readonly SettingRegistry $registry,
         private readonly ScopedSettingResolver $resolver,
         private readonly SettingPrecedence $precedence,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -109,9 +112,28 @@ final class SetScopedSetting
             ->where('key', $target['key'])
             ->first() ?? new ScopedSetting($target);
 
+        $isNew = ! $setting->exists;
+        $oldValue = $isNew ? null : $setting->value;
+        $oldEnforced = $isNew ? null : $setting->is_enforced;
+
         $setting->value = $value;
         $setting->is_enforced = $enforced;
         $setting->save();
+
+        // Setiap perubahan aturan dicatat beserta nilai lama & baru (PRD-000 §8.2).
+        $this->audit->record(
+            AuditAction::SETTING_CHANGED,
+            AuditLogger::SUBJECT_SETTING,
+            $setting->id,
+            [
+                'key' => $target['key'],
+                'jenjang' => $target['jenjang'],
+                'value' => [$oldValue, $value],
+                'is_enforced' => [$oldEnforced, $enforced],
+            ],
+            organizationId: $target['organization_id'],
+            tenantId: $target['tenant_id'],
+        );
 
         return $setting;
     }

@@ -3,6 +3,8 @@
 namespace Modules\Core\Application\Authorization;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Authorization\Exceptions\AccessException;
 use Modules\Core\Domain\Authorization\Role;
 use Modules\Core\Domain\Organization\OrganizationalAssignment;
@@ -19,6 +21,10 @@ use Modules\Core\Domain\Tenancy\Membership;
  */
 final class ManageRoles
 {
+    public function __construct(
+        private readonly AuditLogger $audit,
+    ) {}
+
     /**
      * @throws AccessException
      */
@@ -28,24 +34,42 @@ final class ManageRoles
             throw AccessException::membershipInactive();
         }
 
-        $now = now();
+        $roleId = $this->roleId($roleKey);
 
-        DB::table('membership_roles')->insertOrIgnore([
-            'tenant_id' => $membership->tenant_id,
-            'membership_id' => $membership->id,
-            'role_id' => $this->roleId($roleKey),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        // Perubahan role dan catatan auditnya selalu tersimpan bersamaan.
+        DB::transaction(function () use ($membership, $roleId, $roleKey): void {
+            $now = now();
+
+            $inserted = DB::table('membership_roles')->insertOrIgnore([
+                'tenant_id' => $membership->tenant_id,
+                'membership_id' => $membership->id,
+                'role_id' => $roleId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            // Hanya dicatat bila memang ada perubahan (memasang dua kali tidak menambah log).
+            if ($inserted > 0) {
+                $this->recordMembershipRole(AuditAction::ROLE_GRANTED, $membership, $roleKey);
+            }
+        });
     }
 
     public function revokeTenantRole(Membership $membership, string $roleKey): void
     {
-        DB::table('membership_roles')
-            ->where('tenant_id', $membership->tenant_id)
-            ->where('membership_id', $membership->id)
-            ->where('role_id', $this->roleId($roleKey))
-            ->delete();
+        $roleId = $this->roleId($roleKey);
+
+        DB::transaction(function () use ($membership, $roleId, $roleKey): void {
+            $deleted = DB::table('membership_roles')
+                ->where('tenant_id', $membership->tenant_id)
+                ->where('membership_id', $membership->id)
+                ->where('role_id', $roleId)
+                ->delete();
+
+            if ($deleted > 0) {
+                $this->recordMembershipRole(AuditAction::ROLE_REVOKED, $membership, $roleKey);
+            }
+        });
     }
 
     /**
@@ -57,24 +81,63 @@ final class ManageRoles
             throw AccessException::assignmentInactive();
         }
 
-        $now = now();
+        $roleId = $this->roleId($roleKey);
 
-        DB::table('organizational_assignment_roles')->insertOrIgnore([
-            'tenant_id' => $assignment->tenant_id,
-            'organizational_assignment_id' => $assignment->id,
-            'role_id' => $this->roleId($roleKey),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        DB::transaction(function () use ($assignment, $roleId, $roleKey): void {
+            $now = now();
+
+            $inserted = DB::table('organizational_assignment_roles')->insertOrIgnore([
+                'tenant_id' => $assignment->tenant_id,
+                'organizational_assignment_id' => $assignment->id,
+                'role_id' => $roleId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            if ($inserted > 0) {
+                $this->recordAssignmentRole(AuditAction::ROLE_GRANTED, $assignment, $roleKey);
+            }
+        });
     }
 
     public function revokeAssignmentRole(OrganizationalAssignment $assignment, string $roleKey): void
     {
-        DB::table('organizational_assignment_roles')
-            ->where('tenant_id', $assignment->tenant_id)
-            ->where('organizational_assignment_id', $assignment->id)
-            ->where('role_id', $this->roleId($roleKey))
-            ->delete();
+        $roleId = $this->roleId($roleKey);
+
+        DB::transaction(function () use ($assignment, $roleId, $roleKey): void {
+            $deleted = DB::table('organizational_assignment_roles')
+                ->where('tenant_id', $assignment->tenant_id)
+                ->where('organizational_assignment_id', $assignment->id)
+                ->where('role_id', $roleId)
+                ->delete();
+
+            if ($deleted > 0) {
+                $this->recordAssignmentRole(AuditAction::ROLE_REVOKED, $assignment, $roleKey);
+            }
+        });
+    }
+
+    private function recordMembershipRole(string $action, Membership $membership, string $roleKey): void
+    {
+        $this->audit->record(
+            $action,
+            AuditLogger::SUBJECT_MEMBERSHIP,
+            $membership->id,
+            ['role' => $roleKey, 'scope' => 'tenant'],
+            tenantId: $membership->tenant_id,
+        );
+    }
+
+    private function recordAssignmentRole(string $action, OrganizationalAssignment $assignment, string $roleKey): void
+    {
+        $this->audit->record(
+            $action,
+            AuditLogger::SUBJECT_ASSIGNMENT,
+            $assignment->id,
+            ['role' => $roleKey, 'scope' => 'assignment', 'jenjang_filter' => $assignment->jenjang_filter?->value],
+            organizationId: $assignment->organization_id,
+            tenantId: $assignment->tenant_id,
+        );
     }
 
     private function roleId(string $roleKey): string

@@ -5,6 +5,8 @@ namespace Modules\Core\Application\Organization;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Exceptions\OrganizationTreeException;
 use Modules\Core\Domain\Organization\Organization;
 
@@ -21,6 +23,7 @@ final class CreateOrganization
 
     public function __construct(
         private readonly OrganizationTree $tree,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -62,6 +65,22 @@ final class CreateOrganization
             }
 
             $this->tree->insertLeaf($data->tenantId, $organization->id, $data->parentId);
+
+            $this->audit->record(
+                AuditAction::ORGANIZATION_CREATED,
+                AuditLogger::SUBJECT_ORGANIZATION,
+                $organization->id,
+                [
+                    'code' => $code,
+                    'name' => $name,
+                    'type' => $data->type->value,
+                    'category' => $data->category?->value,
+                    'jenjang' => $data->jenjang?->value,
+                    'parent_id' => $data->parentId,
+                ],
+                organizationId: $organization->id,
+                tenantId: $data->tenantId,
+            );
 
             return $organization;
         });

@@ -4,6 +4,8 @@ namespace Modules\Core\Application\Membership;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Exceptions\MembershipException;
 use Modules\Core\Domain\Tenancy\Membership;
@@ -18,6 +20,10 @@ use Modules\Core\Domain\Tenancy\Tenant;
  */
 final class GrantMembership
 {
+    public function __construct(
+        private readonly AuditLogger $audit,
+    ) {}
+
     /**
      * @throws MembershipException
      */
@@ -39,18 +45,38 @@ final class GrantMembership
                 ->first();
 
             if ($membership === null) {
-                return Membership::query()->create([
+                $membership = Membership::query()->create([
                     'person_id' => $personId,
                     'tenant_id' => $tenantId,
                 ]);
+
+                $this->recordGranted($membership, ['person_id' => $personId]);
+
+                return $membership;
             }
 
             if (! $membership->isActive()) {
                 $membership->status = MembershipStatus::Active;
                 $membership->save();
+
+                $this->recordGranted($membership, ['status' => [MembershipStatus::Inactive->value, MembershipStatus::Active->value]]);
             }
 
             return $membership;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $changes
+     */
+    private function recordGranted(Membership $membership, array $changes): void
+    {
+        $this->audit->record(
+            AuditAction::MEMBERSHIP_GRANTED,
+            AuditLogger::SUBJECT_MEMBERSHIP,
+            $membership->id,
+            $changes,
+            tenantId: $membership->tenant_id,
+        );
     }
 }

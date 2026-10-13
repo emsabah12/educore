@@ -5,6 +5,8 @@ namespace Modules\Core\Application\Membership;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationalAssignment;
@@ -20,6 +22,10 @@ use Modules\Core\Domain\Tenancy\Membership;
  */
 final class AssignToOrganization
 {
+    public function __construct(
+        private readonly AuditLogger $audit,
+    ) {}
+
     /**
      * @throws MembershipException
      */
@@ -63,12 +69,28 @@ final class AssignToOrganization
         }
 
         try {
-            return DB::transaction(fn (): OrganizationalAssignment => OrganizationalAssignment::query()->create([
-                'tenant_id' => $membership->tenant_id,
-                'membership_id' => $membership->id,
-                'organization_id' => $organizationId,
-                'jenjang_filter' => $jenjangFilter,
-            ]));
+            return DB::transaction(function () use ($membership, $organizationId, $jenjangFilter): OrganizationalAssignment {
+                $assignment = OrganizationalAssignment::query()->create([
+                    'tenant_id' => $membership->tenant_id,
+                    'membership_id' => $membership->id,
+                    'organization_id' => $organizationId,
+                    'jenjang_filter' => $jenjangFilter,
+                ]);
+
+                $this->audit->record(
+                    AuditAction::ASSIGNMENT_CREATED,
+                    AuditLogger::SUBJECT_ASSIGNMENT,
+                    $assignment->id,
+                    [
+                        'membership_id' => $membership->id,
+                        'jenjang_filter' => $jenjangFilter?->value,
+                    ],
+                    organizationId: $organizationId,
+                    tenantId: $membership->tenant_id,
+                );
+
+                return $assignment;
+            });
         } catch (UniqueConstraintViolationException) {
             // Jaga-jaga bila dua permintaan yang sama masuk bersamaan.
             throw MembershipException::duplicateAssignment();

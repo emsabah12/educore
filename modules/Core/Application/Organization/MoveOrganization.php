@@ -3,6 +3,8 @@
 namespace Modules\Core\Application\Organization;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Exceptions\OrganizationTreeException;
 use Modules\Core\Domain\Organization\Organization;
 
@@ -15,6 +17,7 @@ final class MoveOrganization
 
     public function __construct(
         private readonly OrganizationTree $tree,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -67,8 +70,18 @@ final class MoveOrganization
 
             $this->tree->moveSubtree($tenantId, $organization->id, $newParentId);
 
+            $oldParentId = $organization->parent_id;
             $organization->parent_id = $newParentId;
             $organization->save();
+
+            $this->audit->record(
+                AuditAction::ORGANIZATION_MOVED,
+                AuditLogger::SUBJECT_ORGANIZATION,
+                $organization->id,
+                ['parent_id' => [$oldParentId, $newParentId]],
+                organizationId: $organization->id,
+                tenantId: $tenantId,
+            );
 
             return $organization;
         });

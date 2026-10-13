@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-10
-- **Tahap aktif:** Halaman admin pohon lembaga (kode siap, menunggu verifikasi di Laragon)
-- **Commit terakhir:** `ae4d595` — feat(core): F3 RBAC berbasis pohon dan aturan berjenjang
+- **Tahap aktif:** F4 — Operasional (kode siap, menunggu verifikasi di Laragon)
+- **Commit terakhir:** `6136d7f` — feat(core): halaman admin pohon lembaga
 
 ## Keputusan penting
 
@@ -21,6 +21,7 @@
 | 2026-10-10 | Penugasan tunggal otomatis dipilih; tanpa penugasan → konteks Seluruh Yayasan; akun uji hanya local/testing; penugasan fungsional boleh di tingkat Yayasan (`organization_id` kosong) | PRD-000 OD-08–10, §5   |
 | 2026-10-10 | Katalog role & permission di kode + `educore:sync-access`; superadmin tanpa jalan pintas; di luar cakupan 404, di dalam cakupan tanpa izin 403                                        | PRD-000 OD-11–13, §7.1 |
 | 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                            | PRD-000 §4.6, OD-14    |
+| 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows      | PRD-000 OD-15–18       |
 
 ## Fitur yang sudah ada
 
@@ -72,12 +73,22 @@
 - Bukti: 152 test lulus (685 assertions), termasuk 10 skenario wajib §7.3; Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus; SQL cakupan & constraint juga diuji langsung di PostgreSQL 16.
 - Perbaikan: Larastan menolak `$x?->value ?? ...` (nullsafe di kiri `??` tidak perlu); cukup `$x->value ?? ...`.
 
-**Admin pohon lembaga: KODE SIAP**
+**Admin pohon lembaga: SELESAI (2026-10-10, commit `6136d7f`)**
 
 - Halaman `/lembaga` (menu **Lembaga**): pohon sesuai cakupan, panel detail, form tambah/ubah nama/pindah/nonaktifkan/aktifkan kembali; responsif dengan kondisi kosong & pesan error.
 - `OrganizationController` + service baru `RenameOrganization`, `ReactivateOrganization`; label Bahasa Indonesia untuk jenis & kategori node.
 - Pengaman: tujuan pindah wajib di dalam izin kelola; lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya.
-- Bukti sementara: `tsc` lulus untuk halaman baru; review independen; 20 test Pest baru menunggu dijalankan di Laragon (target 172).
+- Bukti: 172 test lulus (823 assertions); Pint PASS; Larastan level 7 tanpa error; `npm run build`, `types:check` & `check:fix` lulus.
+
+**F4 — Operasional: KODE SIAP**
+
+- Tabel `audit_logs` append-only (trigger database menolak UPDATE/DELETE/TRUNCATE; hanya `educore:prune-audit` boleh menghapus log yang melewati masa simpan, dijadwalkan harian 02:00).
+- `AuditLogger` + pencatatan di semua service Core (pohon lembaga, anggota, penugasan, role, katalog, aturan berjenjang), event login/gagal/keluar, dan observer keamanan akun (kata sandi, email, 2FA).
+- Halaman **Log audit** (`/audit`, permission baru `core.audit.view` untuk Admin Yayasan) dengan filter tanggal, pelaku, jenis aksi.
+- `/up` ikut memeriksa database; bila gagal hanya pesan umum.
+- `scripts/backup/` (Linux `.sh` & Windows `.ps1`): backup harian + rotasi, uji restore ke DB sementara; `docs/operations/BACKUP-RESTORE.md`; README baru (instal, jalan, deploy VPS Linux).
+- Perbaikan bug F2a: konfirmasi password Fortify gagal karena mencari kolom `login`; sekarang memakai callback sendiri (+ test). Batas login per IP ditambahkan.
+- Bukti sementara: trigger append-only & pengecualian prune diuji di PostgreSQL 16; script `.sh` dijalankan sukses; `tsc` lulus; review independen. Test Pest menunggu dijalankan di Laragon (target 191).
 
 ## Struktur file utama
 
@@ -110,7 +121,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi halaman admin pohon lembaga di Laragon dan commit.
-2. F4 — Audit, health, backup, README deploy.
-3. Push repo ke GitHub agar CI berjalan.
-4. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.
+1. Verifikasi F4 di Laragon dan commit.
+2. Push repo ke GitHub agar CI berjalan.
+3. Susun PRD HR baru (dari HR-001 s.d. HR-016) dan PRD Academic.

@@ -3,6 +3,8 @@
 namespace Modules\Core\Application\Authorization;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Audit\AuditAction;
+use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Authorization\Permission;
 use Modules\Core\Domain\Authorization\Role;
 
@@ -20,6 +22,7 @@ final class SyncAccessCatalog
 {
     public function __construct(
         private readonly AccessCatalog $catalog,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -57,12 +60,17 @@ final class SyncAccessCatalog
                 }
             }
 
-            return [
+            $result = [
                 'permissions' => count($permissions),
                 'roles' => count($roles),
                 'removed_permissions' => (int) $removed,
                 'emptied_roles' => $emptied,
             ];
+
+            // Katalog bersifat global (bukan milik satu yayasan).
+            $this->audit->record(AuditAction::CATALOG_SYNCED, changes: $result, global: true);
+
+            return $result;
         });
     }
 }

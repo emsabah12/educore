@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Network, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Network, ScrollText, ShieldCheck } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { ContextSwitcher } from '@/components/context-switcher';
 import { NavMain } from '@/components/nav-main';
@@ -31,6 +31,12 @@ const organizationsNavItem: NavItem = {
     icon: Network,
 };
 
+const auditNavItem: NavItem = {
+    title: 'Log audit',
+    href: '/audit',
+    icon: ScrollText,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -44,6 +50,7 @@ export function AppSidebar() {
         ...(permissions.includes('core.organizations.view')
             ? [organizationsNavItem]
             : []),
+        ...(permissions.includes('core.audit.view') ? [auditNavItem] : []),
         ...(auth.user?.is_superadmin ? [platformNavItem] : []),
     ];
 

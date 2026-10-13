@@ -19,6 +19,8 @@ final class CoreAccess
 
     public const SETTINGS_MANAGE = 'core.settings.manage';
 
+    public const AUDIT_VIEW = 'core.audit.view';
+
     public const ROLE_ADMIN_YAYASAN = 'admin-yayasan';
 
     public const ROLE_PIMPINAN = 'pimpinan';
@@ -36,7 +38,8 @@ final class CoreAccess
             ->permission(self::ORGANIZATIONS_MANAGE, 'Kelola pohon lembaga')
             ->permission(self::MEMBERSHIPS_MANAGE, 'Kelola anggota & penugasan')
             ->permission(self::SETTINGS_VIEW, 'Lihat aturan')
-            ->permission(self::SETTINGS_MANAGE, 'Kelola aturan');
+            ->permission(self::SETTINGS_MANAGE, 'Kelola aturan')
+            ->permission(self::AUDIT_VIEW, 'Lihat log audit');
 
         $catalog
             ->role(self::ROLE_ADMIN_YAYASAN, 'Admin Yayasan', [
@@ -45,6 +48,7 @@ final class CoreAccess
                 self::MEMBERSHIPS_MANAGE,
                 self::SETTINGS_VIEW,
                 self::SETTINGS_MANAGE,
+                self::AUDIT_VIEW,
             ])
             ->role(self::ROLE_PIMPINAN, 'Pimpinan', [
                 self::ORGANIZATIONS_VIEW,

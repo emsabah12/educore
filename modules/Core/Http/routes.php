@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\OrganizationController;
 use Modules\Core\Http\Controllers\PlatformController;
 use Modules\Core\Http\Controllers\WorkContextController;
@@ -23,7 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('platform', [PlatformController::class, 'index'])->name('platform.home');
 });
 
-// Halaman admin pohon lembaga (PRD-000 §4.6, OD-14).
+// Halaman kerja di dalam yayasan: pohon lembaga (PRD-000 §4.6) dan log audit (OD-17).
 Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('lembaga', [OrganizationController::class, 'index'])->name('organizations.index');
     Route::post('lembaga', [OrganizationController::class, 'store'])->name('organizations.store');
@@ -31,4 +32,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('lembaga/{organization}/induk', [OrganizationController::class, 'move'])->name('organizations.move');
     Route::post('lembaga/{organization}/nonaktifkan', [OrganizationController::class, 'deactivate'])->name('organizations.deactivate');
     Route::post('lembaga/{organization}/aktifkan', [OrganizationController::class, 'activate'])->name('organizations.activate');
+
+    // Log audit baca-saja (OD-17).
+    Route::get('audit', [AuditLogController::class, 'index'])->name('audit.index');
 });

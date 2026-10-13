@@ -3,18 +3,27 @@
 namespace Modules\Core;
 
 use Illuminate\Auth\Access\Response;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Modules\Core\Application\Audit\AuthAuditSubscriber;
+use Modules\Core\Application\Audit\UserAuditObserver;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Authorization\AccessScope;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Settings\SettingRegistry;
+use Modules\Core\Console\PruneAuditCommand;
 use Modules\Core\Console\SyncAccessCommand;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Http\Middleware\EnsureWorkContext;
 use Modules\Core\Support\ModuleServiceProvider;
+use RuntimeException;
+use Throwable;
 
 /**
  * Modul Core: Tenancy, pohon lembaga, Person, User, Membership,
@@ -52,10 +61,41 @@ class CoreServiceProvider extends ModuleServiceProvider
         CoreAccess::register($this->app->make(AccessCatalog::class));
 
         $this->registerGate();
+        $this->registerAudit();
+        $this->registerHealthCheck();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SyncAccessCommand::class]);
+            $this->commands([SyncAccessCommand::class, PruneAuditCommand::class]);
         }
+    }
+
+    /**
+     * Jejak audit (OD-15): login/keluar lewat event auth, keamanan akun lewat observer User,
+     * aksi lain langsung dari service. Log lama dihapus harian sesuai masa simpan (OD-16).
+     */
+    private function registerAudit(): void
+    {
+        Event::subscribe(AuthAuditSubscriber::class);
+        User::observe(UserAuditObserver::class);
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('educore:prune-audit')->dailyAt('02:00')->withoutOverlapping();
+        });
+    }
+
+    /**
+     * `/up` ikut memeriksa koneksi database. Bila gagal, pesan yang tampil sengaja umum,
+     * tanpa nama host, database, atau pesan SQL (PRD-000 §9, [LAMA] HR-016 §3).
+     */
+    private function registerHealthCheck(): void
+    {
+        Event::listen(DiagnosingHealth::class, function (): void {
+            try {
+                DB::select('select 1');
+            } catch (Throwable) {
+                throw new RuntimeException('Layanan sedang bermasalah.');
+            }
+        });
     }
 
     /**

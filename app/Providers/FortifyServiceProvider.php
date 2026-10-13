@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Actions\Fortify\ResetUserPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -47,6 +48,12 @@ class FortifyServiceProvider extends ServiceProvider
             $request->string(Fortify::username())->toString(),
             $request->string('password')->toString(),
         ));
+
+        // Konfirmasi ulang password. Wajib callback sendiri: bawaan Fortify mencari user
+        // berdasarkan kolom `fortify.username` (= "login"), yang bukan kolom di tabel users.
+        Fortify::confirmPasswordsUsing(fn (User $user, ?string $password): bool => is_string($password)
+            && $password !== ''
+            && Hash::check($password, $user->password));
     }
 
     /**
@@ -86,7 +93,12 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            // Per akun+IP (bawaan kit), ditambah batas per IP agar satu IP tidak bisa membanjiri
+            // percobaan (dan audit log) dengan mengganti-ganti isian login (F4).
+            return [
+                Limit::perMinute(5)->by($throttleKey),
+                Limit::perMinute(30)->by('ip|'.$request->ip()),
+            ];
         });
 
     }
