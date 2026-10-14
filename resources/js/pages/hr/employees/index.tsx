@@ -1,5 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Search, UserPlus } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    FileUp,
+    Search,
+    UserPlus,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -111,12 +117,21 @@ export default function Employees({
                     />
 
                     {canCreate && (
-                        <Button asChild>
-                            <Link href={`${BASE_URL}/tambah`}>
-                                <UserPlus />
-                                Tambah pegawai
-                            </Link>
-                        </Button>
+                        // Grid otomatis: tombol turun ke baris berikutnya di layar sempit.
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                            <Button variant="outline" asChild>
+                                <Link href={`${BASE_URL}/impor`}>
+                                    <FileUp />
+                                    Impor
+                                </Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href={`${BASE_URL}/tambah`}>
+                                    <UserPlus />
+                                    Tambah pegawai
+                                </Link>
+                            </Button>
+                        </div>
                     )}
                 </div>
 

@@ -1,7 +1,7 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.6 (2026-10-14: rincian HR-1d — aksi di detail pegawai; tiga asumsi disetujui owner)
-- **Status:** SIAP DIBANGUN — HR-1 Data Pegawai
+- **Versi:** 0.7 (2026-10-14: rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e disetujui (2026-10-14); HR-1e-a template, unggah & pratinjau dibangun, HR-1e-b simpan menyusul; HR-2 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -35,6 +35,7 @@ Prinsip:
 | Tahap                              | Isi                                                                                                                                                                         | Catatan                                                 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | **HR-1 Data Pegawai**              | Katalog (jenis pegawai, status kepegawaian, jabatan), profil pegawai, periode kepegawaian, penempatan + jabatan, berhenti / aktif kembali, daftar dan detail pegawai, audit | **Dirinci di PRD ini**                                  |
+| **HR-1e Impor pegawai**            | Impor pegawai baru dari Excel/CSV dengan template, pratinjau, dan simpan sekaligus (§6.2)                                                                                   | Dipilih owner sesudah F5 [OWNER, 2026-10-14]            |
 | HR-2 Dokumen & SK                  | Arsip SK/kontrak (file privat), masa berlaku dan pengingat                                                                                                                  | Butuh keputusan penyimpanan file                        |
 | Core: Kelola akses                 | Halaman buat akun login, penugasan, pasang/cabut role                                                                                                                       | **Dibuat sesudah HR-1, sebelum HR-3** [OWNER, OD-HR-03] |
 | HR-3 Cuti & Izin + layanan mandiri | Jenis cuti, jatah, pengajuan, persetujuan berjenjang (memakai aturan berjenjang PRD-000 §8)                                                                                 | Pegawai perlu akun login                                |
@@ -223,6 +224,44 @@ Rincian tambah pegawai (HR-1b) [ASUMSI]:
 - "Tidak boleh di masa depan" memakai tanggal menurut zona waktu yayasan (`EDUCORE_TIMEZONE`, default Asia/Jakarta); jam server tetap UTC.
 - Sampai halaman Daftar pegawai ada (HR-1c), tombol **Tambah pegawai** ditaruh di halaman Katalog SDM; setelah simpan, form kosong kembali dengan notifikasi berhasil.
 
+### 6.2 Impor pegawai dari Excel/CSV (HR-1e) [OWNER, 2026-10-14]
+
+Untuk memasukkan data pegawai lama sekaligus. **Hanya membuat pegawai baru** (orang baru + keanggotaan + pegawai + periode pertama + penempatan utama), persis seperti form Tambah pegawai mode orang baru (§6, §4.4 invarian 4). Tidak mengubah pegawai yang sudah ada dan tidak membuat akun login.
+
+**Siapa:** Admin SDM / Admin Yayasan di lembaga kerja Seluruh Yayasan (`hr.employees.manage`, OD-HR-02). Selain itu → 403.
+
+**Alur** (halaman `/pegawai/impor`, tombol **Impor** di daftar pegawai):
+
+1. **Unduh template** `.xlsx`. Lembar _Pegawai_ berisi judul kolom; kolom kode, NUPTK, HP, dan nomor induk berformat teks agar nol di depan tidak hilang. Lembar _Petunjuk_ berisi arti kolom dan daftar kode yang sah di yayasan ini (jenis pegawai, status kepegawaian, jabatan, lembaga aktif, pendidikan).
+2. **Unggah** `.xlsx` atau `.csv` (pemisah `,` atau `;`, UTF-8). Maks. **1.000 baris** dan **2 MB** per file [ASUMSI].
+3. **Pratinjau**: setiap baris diberi tanda **Siap**, **Peringatan**, atau **Salah** dengan pesan per kolom, plus ringkasan jumlahnya. Tidak ada yang disimpan pada langkah ini.
+4. **Simpan**: hanya bisa bila **tidak ada baris Salah** — semua baris disimpan dalam **satu transaksi**; bila satu gagal, tidak ada yang tersimpan [OWNER, OD-HR-05]. Bila ada Peringatan, admin wajib mencentang "Saya sudah memeriksa; semua orang ini berbeda" [OWNER, OD-HR-05].
+
+**Kolom template** (`*` wajib; aturan isi sama dengan form, §4.3–§4.5):
+
+| Kolom                                      | Isi                                                                    |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| nama*                                      | Maks. 200 karakter                                                     |
+| jenis_kelamin*                             | `L` / `P`                                                              |
+| tempat_lahir, tanggal_lahir, no_hp, alamat | Opsional (data pribadi §4.5)                                           |
+| nomor_induk, nuptk                         | Opsional; unik per yayasan                                             |
+| pendidikan, jurusan                        | Opsional; pendidikan memakai kode §4.3 (`SD` … `S3`, `LAINNYA`)        |
+| jenis_pegawai* , status_kepegawaian        | **Kode** katalog yang aktif (mis. `TETAP`, `GTY`); status boleh kosong |
+| tanggal_mulai*                             | Tidak di masa depan                                                    |
+| kode_lembaga*, jabatan*                    | **Kode** lembaga aktif dan kode jabatan aktif → penempatan utama       |
+
+**Aturan pratinjau** [ASUMSI]:
+
+- Tanggal diterima sebagai sel tanggal Excel, `YYYY-MM-DD`, atau `DD/MM/YYYY`. Kode tidak peka huruf besar/kecil. Spasi di tepi dibuang; baris yang seluruhnya kosong dilewati.
+- **Salah**: kolom wajib kosong, format/kode tidak sah, nomor induk/NUPTK sudah dipakai pegawai lain **atau dobel di dalam file**, judul kolom wajib tidak ditemukan.
+- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6).
+- Saat **Simpan**, file dibaca dan diperiksa **ulang** (data bisa berubah sejak pratinjau).
+- File unggahan disimpan sementara di penyimpanan privat server hanya sampai disimpan/dibatalkan, dan dihapus otomatis bila tertinggal lebih dari 24 jam. Isinya tidak masuk log aplikasi maupun audit log.
+
+**Audit**: tiap pegawai tercatat `hr.employee_created` seperti biasa, ditambah satu catatan `hr.employees_imported` berisi jumlah baris (tanpa nama file dan tanpa data pribadi).
+
+**Teknis** [disetujui owner 2026-10-14]: library `openspout/openspout` ~5.3 (membaca/menulis xlsx secara streaming; butuh ekstensi PHP `zip`, `xmlreader`, `dom`). [ASUMSI] NUPTK dan nomor HP yang tersimpan sebagai **angka** di Excel ditolak, karena 0 di depan hilang atau digit ke-16 bisa berubah; nomor induk berupa angka bulat tetap diterima. File sementara di `storage/app/private/hr-imports`, disapu `hr:prune-imports` tiap jam.
+
 ### 6.1 Aksi di detail pegawai (HR-1d)
 
 Hanya Admin SDM / Admin Yayasan di tingkat Yayasan (OD-HR-02). Tanpa izin → 403; pegawai/penempatan di luar yayasan → 404.
@@ -274,18 +313,18 @@ Dicatat: pegawai dibuat, profil diubah (field apa saja, **tanpa nilai data priba
 
 ## 10. Di luar HR-1
 
-Akun login pegawai, dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor massal, dan layanan mandiri. Semuanya di tahap berikutnya (§3).
+Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **mengubah** pegawai yang sudah ada, dan layanan mandiri. (Akun login sudah tersedia lewat F5 Kelola akses; impor pegawai baru lewat HR-1e §6.2.) Semuanya di tahap berikutnya (§3).
 
 ## 11. Open decisions
 
-| ID       | Topik                                                                                                                   | Status                                                                                                                                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK. **Tanpa NIK**; NIK menyusul saat ekspor Dapodik/EMIS (§4.5) [OWNER, 2026-10-13] |
-| OD-HR-02 | Hak menambah/mengubah pegawai                                                                                           | **DIPUTUSKAN** — hanya Admin SDM pusat (dan Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-13]                                                                  |
-| OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                              |
-| OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                    |
+| ID       | Topik                                                                                                                   | Status                                                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK. **Tanpa NIK**; NIK menyusul saat ekspor Dapodik/EMIS (§4.5) [OWNER, 2026-10-13]                                  |
+| OD-HR-02 | Hak menambah/mengubah pegawai                                                                                           | **DIPUTUSKAN** — hanya Admin SDM pusat (dan Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-13]                                                                                                   |
+| OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                                                               |
+| OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                                                     |
+| OD-HR-05 | Impor pegawai (HR-1e)                                                                                                   | **DIPUTUSKAN** — file Excel (.xlsx) + CSV dengan template; simpan hanya bila semua baris benar (semua atau tidak); orang ganda = peringatan + konfirmasi; impor hanya membuat pegawai baru [OWNER, 2026-10-14] |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 
-- **Impor pegawai dari Excel/CSV** (HR-1e): memasukkan ratusan pegawai lama satu per satu sangat lambat. Impor dengan pratinjau dan laporan baris yang gagal bisa jadi tahap kecil sesudah HR-1.
 - **Ekspor daftar pegawai** (CSV) dengan saringan dan izin yang sama seperti halaman daftar [LAMA NFR-009].
