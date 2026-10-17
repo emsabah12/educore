@@ -34,6 +34,9 @@ final class HrAuditAction
 
     public const EMPLOYEE_REHIRED = 'hr.employee_rehired';
 
+    /** Satu catatan ringkasan per impor; tiap pegawai tetap tercatat EMPLOYEE_CREATED (PRD-001 §6.2). */
+    public const EMPLOYEES_IMPORTED = 'hr.employees_imported';
+
     /** Jenis subjek audit untuk data pegawai. */
     public const SUBJECT_EMPLOYEE = 'hr_employee';
 
@@ -56,6 +59,7 @@ final class HrAuditAction
             self::PLACEMENT_PRIMARY_CHANGED => 'Penempatan utama diganti',
             self::EMPLOYMENT_ENDED => 'Pegawai diberhentikan',
             self::EMPLOYEE_REHIRED => 'Pegawai diaktifkan kembali',
+            self::EMPLOYEES_IMPORTED => 'Pegawai diimpor dari file',
         ];
     }
 }

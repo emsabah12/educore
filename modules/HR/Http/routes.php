@@ -29,6 +29,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/impor', [EmployeeImportController::class, 'index'])->name('hr.employees.import');
     Route::get('pegawai/impor/template', [EmployeeImportController::class, 'template'])->name('hr.employees.import.template');
     Route::post('pegawai/impor', [EmployeeImportController::class, 'upload'])->name('hr.employees.import.upload');
+    Route::post('pegawai/impor/simpan', [EmployeeImportController::class, 'save'])->name('hr.employees.import.save');
     Route::post('pegawai/impor/batal', [EmployeeImportController::class, 'cancel'])->name('hr.employees.import.cancel');
 
     Route::get('pegawai/{employee}', [EmployeeController::class, 'show'])->whereUuid('employee')->name('hr.employees.show');

@@ -1,7 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.7 (2026-10-14: rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e disetujui (2026-10-14); HR-1e-a template, unggah & pratinjau dibangun, HR-1e-b simpan menyusul; HR-2 dst. belum dirinci
+- **Versi:** 0.9 (2026-10-17: peringatan orang ganda impor juga berdasarkan nama saja)
+- **Versi sebelumnya:** 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e-a SELESAI (commit `b5cc66f`); HR-1e-b simpan dibangun (menunggu verifikasi); HR-2 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -254,11 +255,13 @@ Untuk memasukkan data pegawai lama sekaligus. **Hanya membuat pegawai baru** (or
 
 - Tanggal diterima sebagai sel tanggal Excel, `YYYY-MM-DD`, atau `DD/MM/YYYY`. Kode tidak peka huruf besar/kecil. Spasi di tepi dibuang; baris yang seluruhnya kosong dilewati.
 - **Salah**: kolom wajib kosong, format/kode tidak sah, nomor induk/NUPTK sudah dipakai pegawai lain **atau dobel di dalam file**, judul kolom wajib tidak ditemukan.
-- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6).
+- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6). Ditambah [ASUMSI, temuan uji owner 2026-10-17]: **nama saja** sama (tanpa beda huruf besar/kecil & spasi ganda), dengan tanggal lahir orang lama ditampilkan — menangkap tanggal yang terbaca beda format di Excel, data lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
 - Saat **Simpan**, file dibaca dan diperiksa **ulang** (data bisa berubah sejak pratinjau).
 - File unggahan disimpan sementara di penyimpanan privat server hanya sampai disimpan/dibatalkan, dan dihapus otomatis bila tertinggal lebih dari 24 jam. Isinya tidak masuk log aplikasi maupun audit log.
 
 **Audit**: tiap pegawai tercatat `hr.employee_created` seperti biasa, ditambah satu catatan `hr.employees_imported` berisi jumlah baris (tanpa nama file dan tanpa data pribadi).
+
+**Simpan (HR-1e-b)**: setelah berhasil, file sementara dihapus dan admin diarahkan ke daftar pegawai dengan notifikasi jumlah pegawai tersimpan. Bila gagal, pesan menyebut nomor baris dan alasannya; file tetap ada sehingga admin bisa memperbaiki lalu unggah ulang. Proses simpan diberi batas waktu 5 menit (bawaan PHP 30 detik) agar 1.000 baris sempat tersimpan [ASUMSI].
 
 **Teknis** [disetujui owner 2026-10-14]: library `openspout/openspout` ~5.3 (membaca/menulis xlsx secara streaming; butuh ekstensi PHP `zip`, `xmlreader`, `dom`). [ASUMSI] NUPTK dan nomor HP yang tersimpan sebagai **angka** di Excel ditolak, karena 0 di depan hilang atau digit ke-16 bisa berubah; nomor induk berupa angka bulat tetap diterima. File sementara di `storage/app/private/hr-imports`, disapu `hr:prune-imports` tiap jam.
 

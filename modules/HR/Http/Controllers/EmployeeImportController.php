@@ -15,20 +15,25 @@ use Modules\HR\Application\Import\EmployeeImportColumns;
 use Modules\HR\Application\Import\EmployeeImportReader;
 use Modules\HR\Application\Import\EmployeeImportTemplate;
 use Modules\HR\Application\Import\EmployeeImportValidator;
+use Modules\HR\Application\Import\ImportEmployees;
 use Modules\HR\Application\Import\ImportFileException;
+use Modules\HR\Application\Import\ImportSaveException;
 use Modules\HR\Application\Import\PendingImportStore;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Impor pegawai dari Excel/CSV (HR-1e, PRD-001 §6.2): template, unggah, pratinjau, batal.
+ * Impor pegawai dari Excel/CSV (HR-1e, PRD-001 §6.2): template, unggah, pratinjau, simpan, batal.
  *
  * Hanya Admin SDM / Admin Yayasan di lembaga kerja Seluruh Yayasan (`hr.employees.manage`,
- * OD-HR-02): selain itu 403. Pratinjau tidak menyimpan data pegawai apa pun.
+ * OD-HR-02): selain itu 403. Pratinjau tidak menyimpan data pegawai apa pun; Simpan menyimpan
+ * semua baris sekaligus atau tidak sama sekali (OD-HR-05).
  */
 final class EmployeeImportController
 {
     /** Batas ukuran file dalam kilobyte (PRD-001 §6.2). */
     public const MAX_KILOBYTES = 2048;
+
+    private const SAVE_TIME_LIMIT_SECONDS = 300;
 
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -115,6 +120,37 @@ final class EmployeeImportController
         $this->store->put($request->session(), $file, $this->tenantId());
 
         return redirect()->route('hr.employees.import');
+    }
+
+    public function save(Request $request, ImportEmployees $importEmployees): RedirectResponse
+    {
+        $this->authorize();
+
+        $pending = $this->store->current($request->session(), $this->tenantId());
+
+        if ($pending === null) {
+            throw ValidationException::withMessages(['save' => 'Belum ada file impor. Unggah file terlebih dahulu.']);
+        }
+
+        // Impor ratusan pegawai butuh waktu lebih lama dari batas bawaan PHP (30 detik).
+        set_time_limit(self::SAVE_TIME_LIMIT_SECONDS);
+
+        try {
+            $count = $importEmployees->handle(
+                $this->tenantId(),
+                $pending['path'],
+                $pending['extension'],
+                $request->boolean('confirm_warnings'),
+            );
+        } catch (ImportFileException|ImportSaveException $exception) {
+            throw ValidationException::withMessages(['save' => $exception->getMessage()]);
+        }
+
+        $this->store->forget($request->session());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$count} pegawai berhasil diimpor."]);
+
+        return redirect()->route('hr.employees.index');
     }
 
     public function cancel(Request $request): RedirectResponse

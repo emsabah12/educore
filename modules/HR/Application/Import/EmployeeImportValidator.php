@@ -384,55 +384,78 @@ final class EmployeeImportValidator
     }
 
     /**
-     * Peringatan orang ganda: nama (tanpa beda huruf besar/kecil) + tanggal lahir sama dengan anggota
-     * yayasan ini atau dengan baris lain di file. Hanya yayasan yang sama (PRD-001 §6).
+     * Peringatan orang ganda (PRD-001 §6.2), hanya di yayasan yang sama:
+     *
+     * - nama + tanggal lahir sama dengan anggota yayasan atau baris lain di file;
+     * - [ASUMSI, temuan uji owner 2026-10-17] NAMA saja sama, dengan tanggal lahir orang lama
+     *   ditampilkan. Menangkap tanggal yang terbaca beda format di Excel (12/04 ↔ 04/12), data
+     *   lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
+     *
+     * Nama dibandingkan tanpa beda huruf besar/kecil dan spasi ganda.
      *
      * @param  list<ImportRowDraft>  $drafts
      */
     private function checkSimilarPeople(string $tenantId, array $drafts): void
     {
-        $birthDates = array_values(array_unique($this->filled(array_map(
-            fn (ImportRowDraft $draft): ?string => $draft->name === null ? null : $draft->birthDate,
+        $names = array_values(array_unique($this->filled(array_map(
+            fn (ImportRowDraft $draft): ?string => $draft->name === null ? null : $this->normalizeName($draft->name),
             $drafts,
         ))));
 
-        /** @var array<string, list<string>> $existing "nama|tanggal" => daftar keterangan */
+        /** @var array<string, list<array{label: string, birthDate: string|null}>> $existing nama => anggota */
         $existing = [];
 
-        if ($birthDates !== []) {
+        if ($names !== []) {
             $people = DB::table('persons as p')
                 ->join('memberships as m', 'm.person_id', '=', 'p.id')
                 ->leftJoin('hr_employees as e', 'e.membership_id', '=', 'm.id')
                 ->where('m.tenant_id', $tenantId)
-                ->whereIn('p.birth_date', $birthDates)
+                ->whereIn(DB::raw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g'))"), $names)
+                ->orderBy('p.name')
                 ->get(['p.name', 'p.birth_date', 'e.id as employee_id']);
 
             foreach ($people as $person) {
-                $key = $this->personKey((string) $person->name, substr((string) $person->birth_date, 0, 10));
-                $existing[$key][] = (string) $person->name.($person->employee_id === null ? ' (anggota)' : ' (pegawai)');
+                $birthDate = $person->birth_date === null ? null : substr((string) $person->birth_date, 0, 10);
+                $label = (string) $person->name.' ('.($person->employee_id === null ? 'anggota' : 'pegawai')
+                    .', '.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate).')';
+
+                $existing[$this->normalizeName((string) $person->name)][] = ['label' => $label, 'birthDate' => $birthDate];
             }
         }
 
-        /** @var array<string, int> $seen */
+        /** @var array<string, list<array{line: int, birthDate: string|null}>> $seen nama => baris sebelumnya */
         $seen = [];
 
         foreach ($drafts as $draft) {
-            if ($draft->name === null || $draft->birthDate === null) {
+            if ($draft->name === null) {
                 continue;
             }
 
-            $key = $this->personKey($draft->name, $draft->birthDate);
+            $name = $this->normalizeName($draft->name);
 
-            if (isset($existing[$key])) {
-                $draft->warnings[] = 'Nama dan tanggal lahir sama dengan anggota yayasan: '.implode(', ', array_slice($existing[$key], 0, 3)).'.';
+            if (isset($existing[$name])) {
+                $sameBirth = array_filter($existing[$name], fn (array $person): bool => $draft->birthDate !== null && $person['birthDate'] === $draft->birthDate);
+                $labels = implode(', ', array_slice(array_map(fn (array $person): string => $person['label'], $existing[$name]), 0, 3));
+
+                $draft->warnings[] = $sameBirth !== []
+                    ? "Nama dan tanggal lahir sama dengan anggota yayasan: {$labels}."
+                    : "Nama sama dengan anggota yayasan: {$labels}. Pastikan bukan orang yang sama.";
             }
 
-            if (isset($seen[$key])) {
-                $draft->warnings[] = 'Nama dan tanggal lahir sama dengan baris '.$seen[$key].'.';
-            } else {
-                $seen[$key] = $draft->line;
+            if (isset($seen[$name])) {
+                $first = $seen[$name][0];
+                $draft->warnings[] = $draft->birthDate !== null && $first['birthDate'] === $draft->birthDate
+                    ? 'Nama dan tanggal lahir sama dengan baris '.$first['line'].'.'
+                    : 'Nama sama dengan baris '.$first['line'].'.';
             }
+
+            $seen[$name][] = ['line' => $draft->line, 'birthDate' => $draft->birthDate];
         }
+    }
+
+    private function normalizeName(string $name): string
+    {
+        return mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($name)));
     }
 
     /**
@@ -450,11 +473,6 @@ final class EmployeeImportValidator
         }
 
         return $filled;
-    }
-
-    private function personKey(string $name, string $birthDate): string
-    {
-        return mb_strtolower(trim($name)).'|'.$birthDate;
     }
 
     // ── Hasil ─────────────────────────────────────────────────────────────────

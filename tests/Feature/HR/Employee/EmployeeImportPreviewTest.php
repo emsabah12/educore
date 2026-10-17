@@ -367,13 +367,33 @@ test('nama + tanggal lahir yang sama dengan anggota yayasan atau baris lain hany
     ]);
 
     expect($preview->rows[0]->status())->toBe(EmployeeImportRow::WARNING)
-        ->and($preview->rows[0]->warnings[0])->toContain('Siti Aminah (pegawai)')
+        ->and($preview->rows[0]->warnings[0])->toBe('Nama dan tanggal lahir sama dengan anggota yayasan: Siti Aminah (pegawai, lahir 1988-04-12).')
         ->and($preview->rows[1]->status())->toBe(EmployeeImportRow::READY)
         ->and($preview->rows[2]->warnings)->toBe(['Nama dan tanggal lahir sama dengan baris 3.'])
-        ->and($preview->rows[3]->status())->toBe(EmployeeImportRow::READY)
+        // Nama sama walau tanggal lahir beda tetap diperingatkan (temuan uji owner 2026-10-17).
+        ->and($preview->rows[3]->warnings)->toBe(['Nama sama dengan baris 3.'])
         ->and($preview->canSave())->toBeTrue()
         ->and($preview->hasWarnings())->toBeTrue()
         ->and($preview->rows[0]->data?->confirmDuplicate)->toBeTrue();
+});
+
+test('nama sama dengan anggota yayasan tetap diperingatkan walau tanggal lahir beda atau kosong', function () {
+    imporPegawaiLama($this->tenant, 'Siti  Aminah', birthDate: '1988-04-12');
+    imporPegawaiLama($this->tenant, 'Hasan Basri');
+
+    $preview = imporPeriksa($this->tenant, [
+        // Tanggal tertukar format Excel: 4 Desember, bukan 12 April.
+        imporBaris(['nama' => 'siti aminah', 'tanggal_lahir' => '1988-12-04']),
+        imporBaris(['nama' => 'Siti Aminah']),
+        imporBaris(['nama' => 'Hasan Basri', 'tanggal_lahir' => '1980-01-01']),
+        imporBaris(['nama' => 'Hasan Basrie']),
+    ]);
+
+    expect($preview->rows[0]->warnings[0])->toBe('Nama sama dengan anggota yayasan: Siti  Aminah (pegawai, lahir 1988-04-12). Pastikan bukan orang yang sama.')
+        ->and($preview->rows[1]->status())->toBe(EmployeeImportRow::WARNING)
+        ->and($preview->rows[2]->warnings[0])->toBe('Nama sama dengan anggota yayasan: Hasan Basri (pegawai, tanpa tanggal lahir). Pastikan bukan orang yang sama.')
+        ->and($preview->rows[3]->status())->toBe(EmployeeImportRow::READY)
+        ->and($preview->canSave())->toBeTrue();
 });
 
 test('anggota yayasan lain dengan nama dan tanggal lahir sama tidak memicu peringatan', function () {

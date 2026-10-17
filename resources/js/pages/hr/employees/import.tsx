@@ -277,33 +277,87 @@ function PreviewSection({
                 </Button>
             )}
 
-            <div className="space-y-2 border-t pt-4">
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
-                    <Button type="button" disabled>
-                        Simpan {preview.total} pegawai
-                    </Button>
-                    <Form
-                        action="/pegawai/impor/batal"
-                        method="post"
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                disabled={processing}
-                                className="w-full"
-                            >
-                                Batalkan impor
-                            </Button>
-                        )}
-                    </Form>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                    Tombol Simpan aktif di tahap berikutnya (HR-1e-b).
-                </p>
+            <div className="space-y-3 border-t pt-4">
+                <SaveForm preview={preview} />
+
+                {/* Form terpisah (bukan di dalam form simpan): form HTML tidak boleh bersarang. */}
+                <Form
+                    action="/pegawai/impor/batal"
+                    method="post"
+                    options={{ preserveScroll: true }}
+                    className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex"
+                >
+                    {({ processing }) => (
+                        <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={processing}
+                        >
+                            Batalkan impor
+                        </Button>
+                    )}
+                </Form>
             </div>
         </Step>
+    );
+}
+
+/**
+ * Simpan semua baris sekaligus (OD-HR-05): hanya bila tidak ada baris Salah, dan peringatan
+ * orang ganda harus dikonfirmasi. Server memeriksa ulang semuanya.
+ */
+function SaveForm({ preview }: { preview: Preview }) {
+    const [confirmed, setConfirmed] = useState(false);
+    const needsConfirmation = preview.warning > 0;
+    const blocked = !preview.canSave || (needsConfirmation && !confirmed);
+
+    return (
+        <Form
+            action="/pegawai/impor/simpan"
+            method="post"
+            options={{ preserveScroll: true }}
+            className="space-y-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    {needsConfirmation && preview.canSave && (
+                        <label className="flex items-start gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="confirm_warnings"
+                                value="1"
+                                checked={confirmed}
+                                onChange={(event) =>
+                                    setConfirmed(event.target.checked)
+                                }
+                                className="mt-0.5 size-4 shrink-0"
+                            />
+                            <span>
+                                Saya sudah memeriksa {preview.warning} baris
+                                bertanda peringatan; semua orang ini berbeda dan
+                                boleh ditambahkan sebagai pegawai baru.
+                            </span>
+                        </label>
+                    )}
+
+                    <InputError message={errors.save} />
+
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
+                        <Button type="submit" disabled={blocked || processing}>
+                            {processing
+                                ? 'Menyimpan…'
+                                : `Simpan ${preview.total} pegawai`}
+                        </Button>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                        {preview.canSave
+                            ? 'Semua baris disimpan sekaligus. Bila satu baris gagal, tidak ada yang disimpan. Akun login tidak dibuat otomatis.'
+                            : 'Simpan tersedia setelah semua baris benar.'}
+                    </p>
+                </>
+            )}
+        </Form>
     );
 }
 
