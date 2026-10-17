@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-17
-- **Tahap aktif:** form Tambah pegawai — peringatan nama sama (kode siap, menunggu verifikasi); berikutnya PRD Academic
-- **Commit terakhir:** `7902d3a` — feat(hr): HR-1e-b simpan impor pegawai (di-push ke GitHub `emsabah12/educore`)
+- **Tahap aktif:** AC-1a — skema Academic, Operator Akademik, kalender akademik (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `6a419f1` — feat(hr): peringatan nama sama di form tambah pegawai
 
 ## Keputusan penting
 
@@ -23,9 +23,11 @@
 | 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                                                                                         | PRD-000 §4.6, OD-14        |
 | 2026-10-13 | Akun pertama production lewat perintah interaktif `educore:create-admin` & `educore:create-superadmin`                                                                                                                                             | PRD-000 OD-19              |
 | 2026-10-13 | HR dibangun bertahap mulai HR-1 Data Pegawai; model disederhanakan (pegawai → periode kepegawaian + penempatan); data pribadi minimal tanpa NIK; kelola pegawai satu pintu di Admin SDM                                                            | PRD-001 §3–§5, OD-HR-01–03 |
-| 2026-10-14 | Impor pegawai Excel/CSV: template + pratinjau, simpan semua atau tidak, orang ganda = peringatan + konfirmasi; library openspout ~5.3 (PHP 8.3) | PRD-001 §6.2, OD-HR-05 |
-| 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir | PRD-001 §6, §6.2 |
-| 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi | PRD-000 §6 |
+| 2026-10-14 | Impor pegawai Excel/CSV: template + pratinjau, simpan semua atau tidak, orang ganda = peringatan + konfirmasi; library openspout ~5.3 (PHP 8.3)                                                                                                    | PRD-001 §6.2, OD-HR-05     |
+| 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
+| 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
+| 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi                                                                                                                                         | PRD-000 §6                 |
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
 | 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
 
@@ -148,13 +150,14 @@
 - Perbaikan: Larastan menolak `->locale('id')->translatedFormat()` (method Carbon dua fungsi) dan `array_values()` pada array yang sudah berurutan.
 - Pelajaran: hindari method getter/setter ganda (mis. Carbon `locale()`) di tengah rantai; nama bulan Indonesia disusun sendiri.
 
-**HR-1e — Impor pegawai dari Excel/CSV: SELESAI (2026-10-17, commit `b5cc66f` + `7902d3a`)**
+**HR-1e — Impor pegawai dari Excel/CSV: SELESAI (2026-10-17, commit `b5cc66f` + `7902d3a` + `6a419f1`)**
 
 - Library `openspout/openspout` ~5.3.0 (versi terakhir yang mendukung PHP 8.3); butuh ekstensi `zip`, `xmlreader`, `dom`.
 - `EmployeeImportTemplate` (lembar Pegawai berformat Teks/tanggal, Petunjuk, Kode milik yayasan), `EmployeeImportReader` (xlsx/csv, pemisah `,`/`;`, UTF-8/Windows-1252, maks. 1.000 baris), `EmployeeImportValidator` (aturan sama dengan form + kode, dobel di file, NUPTK/HP berupa angka ditolak), `PendingImportStore` (file privat, ID di session, `hr:prune-imports` tiap jam), `ImportEmployees` (periksa ulang, satu transaksi lewat `CreateEmployee`, audit `hr.employees_imported`).
 - Halaman `/pegawai/impor` (tombol **Impor** di daftar pegawai): unduh template → unggah → pratinjau Siap/Peringatan/Salah → Simpan (konfirmasi bila ada peringatan) / Batalkan.
 - Bukti: 328 test lulus sebelum perbaikan peringatan (perbaikan menambah 1 test → 329); Pint PASS; Larastan level 7 tanpa error; build lulus; uji manual (xlsx, csv `;`, peringatan + konfirmasi, simpan) lancar.
 - Perbaikan: Larastan menolak `instanceof` yang pasti benar pada nilai dari library bertipe ketat; peringatan orang ganda tidak muncul saat uji owner → kini juga berdasarkan **nama saja** dengan tanggal lahir orang lama ditampilkan.
+- Lanjutan (2026-10-17): form **Tambah pegawai** ikut memperingatkan bila nama sama (tanggal lahir sama, beda, atau kosong); pesan menyebut tanggal lahir orang lama. Bukti: **330 test lulus (2305 assertions)**; Pint PASS; Larastan level 7 tanpa error; uji manual owner lancar.
 - Pelajaran: (1) Excel bisa membaca tanggal berbeda menurut format regional Windows (12/04 ↔ 04/12) — pengaman orang ganda tidak boleh hanya bergantung pada tanggal lahir; (2) pilih versi library sesuai PHP CI (`~5.3.0`), jangan otomatis terbaru; (3) jangan menambah `instanceof` untuk nilai dari library yang sudah bertipe ketat.
 
 ## Kelola akses (PRD-000 §4.7)
@@ -179,6 +182,18 @@
 - Perbaikan saat uji manual: (1) menu Katalog SDM & Log audit hanya tampil di lembaga kerja **Seluruh Yayasan** (sebelumnya muncul di lembaga kerja penugasan lalu ditolak server); (2) **prefetch** link navigasi dimatikan dan cache halaman Inertia dibersihkan setelah ganti yayasan/lembaga kerja — sebelumnya halaman simpanan dari lembaga kerja lama tampil selama 30 detik sehingga konteks terlihat "pindah sendiri"; (3) test audit tidak lagi bergantung urutan `created_at` (presisi detik).
 - Bukti: 283 test lulus (2093 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual (incognito, pindah lembaga kerja, HP) lancar.
 - Pelajaran: (1) data bergantung konteks kerja → jangan pakai prefetch/cache halaman; (2) menu adalah petunjuk, tetapi harus memakai aturan yang sama dengan server (izin **dan** tingkat lembaga kerja); (3) di test, cari baris audit berdasarkan isi/ID, bukan urutan waktu.
+
+## Modul Academic
+
+**PRD-002 Academic: v0.3 (2026-10-17)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–08); rincian teknis AC-1a.
+
+**AC-1a — Skema, Operator Akademik, kalender akademik: KODE SIAP (2026-10-17, menunggu verifikasi)**
+
+- Migrasi 8 tabel `ac_*` sekaligus: kalender/tahun ajaran/semester, siswa (NISN), orang tua/wali, pendaftaran per lembaga, kelas, anggota kelas. Constraint (satu pendaftaran terbuka per lembaga, satu tahun berjalan per kalender, kelas & pendaftaran di lembaga yang sama, satu kelas terbuka per tahun ajaran) diuji langsung di PostgreSQL 16.
+- `AcademicAccess`: 5 permission + role **Operator Akademik** (ditawarkan di Kelola akses sebagai role penugasan); Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator diperluas.
+- Kalender: `ManageCalendars` (Kalender Yayasan bawaan, tambah, ubah nama), `SaveAcademicYear` (tahun ajaran + 1–4 semester), `SetCurrentYear`, `AssignCalendar` (aturan berjenjang `academic.calendar`), `AcademicCalendarResolver`, `CalendarOverview`.
+- Halaman `/akademik/kalender` (menu **Kalender akademik**, hanya Seluruh Yayasan); seeder `AcademicCalendarSeeder` (semua lingkungan) & `AcademicDevSeeder` (akun `operator.smp` + contoh tahun ajaran, local/testing).
+- Target bukti: 363 test (33 test baru); Pint, Larastan, `types:check`, build.
 
 ## Struktur file utama
 
@@ -211,5 +226,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi form Tambah pegawai: peringatan nama sama.
-2. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).
+1. Verifikasi AC-1a (PANDUAN-AC-1A.md), lalu catat hash commit di sini.
+2. AC-1b tambah siswa → AC-1c daftar & detail → AC-1d kelas → AC-1e impor siswa.

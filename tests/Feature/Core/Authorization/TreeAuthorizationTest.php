@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Gate;
+use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Authorization\ManageRoles;
 use Modules\Core\Database\Seeders\DevAccountsSeeder;
@@ -212,6 +213,8 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
     $this->actingAs(DevAccounts::user('kepala.unit1'))
         ->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('permissions', [
+            AcademicAccess::STUDENTS_VIEW,
+            AcademicAccess::STUDENTS_VIEW_PERSONAL,
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,

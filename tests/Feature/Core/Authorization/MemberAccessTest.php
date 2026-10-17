@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Authorization\CoreAccess;
@@ -113,6 +114,7 @@ test('katalog menawarkan role tingkat Yayasan dan role penugasan sesuai PRD', fu
         CoreAccess::ROLE_KEPALA_LEMBAGA,
         CoreAccess::ROLE_KOORDINATOR,
         CoreAccess::ROLE_STAF,
+        AcademicAccess::ROLE_OPERATOR_AKADEMIK,
     ]);
 
     expect(fn () => (new AccessCatalog)->offerAsTenantRole('tidak-ada'))->toThrow(AccessException::class);
@@ -381,7 +383,7 @@ test('ringkasan akses memuat role tingkat Yayasan, penugasan aktif, dan pilihan 
         ->and(array_column($summary['assignments'], 'label'))->toBe(['Biro Pendidikan dan Koordinator Antar Lembaga', 'Semua MDA (Seluruh Yayasan)'])
         ->and(array_column($summary['assignments'], 'functional'))->toBe([false, true])
         ->and($summary['assignments'][1]['roles'])->toBe(['Koordinator'])
-        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF]);
+        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF, AcademicAccess::ROLE_OPERATOR_AKADEMIK]);
 
     $diriSendiri = app(MemberAccessSummary::class)->forMembership($this->tenant->id, $adminMembership->id, $adminMembership->id);
 

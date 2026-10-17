@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    CalendarDays,
     LayoutGrid,
     Network,
     ScrollText,
@@ -56,6 +57,12 @@ const hrCatalogNavItem: NavItem = {
     icon: Tags,
 };
 
+const academicCalendarNavItem: NavItem = {
+    title: 'Kalender akademik',
+    href: '/akademik/kalender',
+    icon: CalendarDays,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -64,7 +71,7 @@ const platformNavItem: NavItem = {
 
 export function AppSidebar() {
     const { auth, permissions, context } = usePage().props;
-    // Halaman tingkat Yayasan (Katalog SDM, Log audit) hanya bisa dibuka dari lembaga kerja
+    // Halaman tingkat Yayasan (Katalog SDM, Kalender akademik, Log audit) hanya bisa dibuka dari lembaga kerja
     // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
     // walaupun role tingkat Yayasan-nya terpasang.
     const atTenantLevel = context?.workspace.type === 'tenant';
@@ -78,6 +85,9 @@ export function AppSidebar() {
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
+            : []),
+        ...(atTenantLevel && permissions.includes('academic.calendar.manage')
+            ? [academicCalendarNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('core.audit.view')
             ? [auditNavItem]

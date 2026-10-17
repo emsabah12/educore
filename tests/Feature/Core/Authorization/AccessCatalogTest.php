@@ -3,6 +3,7 @@
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Authorization\ManageRoles;
@@ -19,20 +20,24 @@ use Tests\Support\CoreFixtures;
  * Katalog role & permission dari kode (OD-11) dan pemasangan role (PRD-000 §5).
  */
 
-test('sinkronisasi mengisi katalog bawaan Core dan HR dan aman diulang', function () {
+test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulang', function () {
     $this->artisan('educore:sync-access')->assertSuccessful();
     $this->artisan('educore:sync-access')->assertSuccessful();
 
     // Core: 6 permission, 5 role. HR (PRD-001 §5): 4 permission, role Admin SDM, dan perluasan role Core.
-    // role_permission: Admin Yayasan 6+4, Pimpinan 2+2, Kepala Lembaga 3+2, Koordinator 3+1, Staf 1, Admin SDM 4.
-    expect(Permission::query()->count())->toBe(10)
-        ->and(Role::query()->count())->toBe(6)
-        ->and(DB::table('role_permission')->count())->toBe(10 + 4 + 5 + 4 + 1 + 4);
+    // Academic (PRD-002 §5): 5 permission, role Operator Akademik, dan perluasan role Core.
+    // role_permission: Admin Yayasan 6+4+5, Pimpinan 2+2+2, Kepala Lembaga 3+2+2, Koordinator 3+1+1, Staf 1,
+    // Admin SDM 4, Operator Akademik 4.
+    expect(Permission::query()->count())->toBe(15)
+        ->and(Role::query()->count())->toBe(7)
+        ->and(DB::table('role_permission')->count())->toBe(15 + 6 + 7 + 5 + 1 + 4 + 4);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
     expect($kepala->name)->toBe('Kepala Lembaga')
         ->and($kepala->permissions->pluck('key')->sort()->values()->all())->toBe([
+            AcademicAccess::STUDENTS_VIEW,
+            AcademicAccess::STUDENTS_VIEW_PERSONAL,
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,
@@ -53,6 +58,7 @@ test('permission yang dihapus dari kode ikut hilang dari database dan dari role'
     $catalogBaru = new AccessCatalog;
     CoreAccess::register($catalogBaru);
     HrAccess::register($catalogBaru);
+    AcademicAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();
@@ -141,6 +147,7 @@ test('role yang dihapus dari kode dikosongkan sehingga tidak memberi hak apa pun
     $catalogBaru = new AccessCatalog;
     CoreAccess::register($catalogBaru);
     HrAccess::register($catalogBaru);
+    AcademicAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();
