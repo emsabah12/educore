@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-14
-- **Tahap aktif:** F5b Penugasan & role (berikutnya)
-- **Commit terakhir:** `0d26a2c` — feat(core): F5a kelola akun login (di-push ke GitHub `emsabah12/educore`)
+- **Diperbarui:** 2026-10-17
+- **Tahap aktif:** form Tambah pegawai — peringatan nama sama (kode siap, menunggu verifikasi); berikutnya PRD Academic
+- **Commit terakhir:** `7902d3a` — feat(hr): HR-1e-b simpan impor pegawai (di-push ke GitHub `emsabah12/educore`)
 
 ## Keputusan penting
 
@@ -23,6 +23,9 @@
 | 2026-10-10 | Halaman admin pohon lembaga: tambah, ubah nama (kode tetap), pindah, nonaktifkan, aktifkan kembali; nonaktif disembunyikan kecuali diminta                                                                                                         | PRD-000 §4.6, OD-14        |
 | 2026-10-13 | Akun pertama production lewat perintah interaktif `educore:create-admin` & `educore:create-superadmin`                                                                                                                                             | PRD-000 OD-19              |
 | 2026-10-13 | HR dibangun bertahap mulai HR-1 Data Pegawai; model disederhanakan (pegawai → periode kepegawaian + penempatan); data pribadi minimal tanpa NIK; kelola pegawai satu pintu di Admin SDM                                                            | PRD-001 §3–§5, OD-HR-01–03 |
+| 2026-10-14 | Impor pegawai Excel/CSV: template + pratinjau, simpan semua atau tidak, orang ganda = peringatan + konfirmasi; library openspout ~5.3 (PHP 8.3) | PRD-001 §6.2, OD-HR-05 |
+| 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir | PRD-001 §6, §6.2 |
+| 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi | PRD-000 §6 |
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
 | 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
 
@@ -145,6 +148,15 @@
 - Perbaikan: Larastan menolak `->locale('id')->translatedFormat()` (method Carbon dua fungsi) dan `array_values()` pada array yang sudah berurutan.
 - Pelajaran: hindari method getter/setter ganda (mis. Carbon `locale()`) di tengah rantai; nama bulan Indonesia disusun sendiri.
 
+**HR-1e — Impor pegawai dari Excel/CSV: SELESAI (2026-10-17, commit `b5cc66f` + `7902d3a`)**
+
+- Library `openspout/openspout` ~5.3.0 (versi terakhir yang mendukung PHP 8.3); butuh ekstensi `zip`, `xmlreader`, `dom`.
+- `EmployeeImportTemplate` (lembar Pegawai berformat Teks/tanggal, Petunjuk, Kode milik yayasan), `EmployeeImportReader` (xlsx/csv, pemisah `,`/`;`, UTF-8/Windows-1252, maks. 1.000 baris), `EmployeeImportValidator` (aturan sama dengan form + kode, dobel di file, NUPTK/HP berupa angka ditolak), `PendingImportStore` (file privat, ID di session, `hr:prune-imports` tiap jam), `ImportEmployees` (periksa ulang, satu transaksi lewat `CreateEmployee`, audit `hr.employees_imported`).
+- Halaman `/pegawai/impor` (tombol **Impor** di daftar pegawai): unduh template → unggah → pratinjau Siap/Peringatan/Salah → Simpan (konfirmasi bila ada peringatan) / Batalkan.
+- Bukti: 328 test lulus sebelum perbaikan peringatan (perbaikan menambah 1 test → 329); Pint PASS; Larastan level 7 tanpa error; build lulus; uji manual (xlsx, csv `;`, peringatan + konfirmasi, simpan) lancar.
+- Perbaikan: Larastan menolak `instanceof` yang pasti benar pada nilai dari library bertipe ketat; peringatan orang ganda tidak muncul saat uji owner → kini juga berdasarkan **nama saja** dengan tanggal lahir orang lama ditampilkan.
+- Pelajaran: (1) Excel bisa membaca tanggal berbeda menurut format regional Windows (12/04 ↔ 04/12) — pengaman orang ganda tidak boleh hanya bergantung pada tanggal lahir; (2) pilih versi library sesuai PHP CI (`~5.3.0`), jangan otomatis terbaru; (3) jangan menambah `instanceof` untuk nilai dari library yang sudah bertipe ketat.
+
 ## Kelola akses (PRD-000 §4.7)
 
 **F5a — Akun login: SELESAI (2026-10-14, commit `0d26a2c`)**
@@ -158,6 +170,15 @@
 - Audit baru: `account.password_reset`, `account.deactivated`, `account.activated`; `account.created` kini juga dari admin (tercatat di log yayasan).
 - Kepala Lembaga dilepas dari `core.memberships.manage`; profil boleh tanpa email bila punya username.
 - Bukti: 262 test lulus (1941 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 11 langkah (incognito, HP) lancar.
+
+**F5b — Penugasan & role: SELESAI (2026-10-14, commit `5f7ef8c`) → F5 Kelola akses SELESAI**
+
+- `AccessCatalog::offerAsTenantRole/offerAsAssignmentRole`: pilihan role di halaman ditentukan kode (tingkat Yayasan: Admin Yayasan, Pimpinan, Admin SDM dari modul HR; penugasan: Pimpinan, Kepala Lembaga, Koordinator, Staf).
+- `ManageMemberAccess`: pasang/cabut role tingkat Yayasan (tidak bisa mencabut Admin Yayasan milik sendiri; Admin Yayasan terakhir dijaga dengan kunci baris), tambah penugasan struktural/fungsional wajib satu role (penugasan yang pernah dicabut diaktifkan kembali), cabut penugasan (role dilepas, status nonaktif, audit `access.assignment_revoked`).
+- `MemberAccessSummary` + `MemberAccessController` (4 route `akses/anggota/{membership}/role-yayasan…`, `…/penugasan…`); panel Role tingkat Yayasan & Penugasan di bagian Akses login detail pegawai (`components/core/member-access.tsx`), cabut selalu dengan konfirmasi.
+- Perbaikan saat uji manual: (1) menu Katalog SDM & Log audit hanya tampil di lembaga kerja **Seluruh Yayasan** (sebelumnya muncul di lembaga kerja penugasan lalu ditolak server); (2) **prefetch** link navigasi dimatikan dan cache halaman Inertia dibersihkan setelah ganti yayasan/lembaga kerja — sebelumnya halaman simpanan dari lembaga kerja lama tampil selama 30 detik sehingga konteks terlihat "pindah sendiri"; (3) test audit tidak lagi bergantung urutan `created_at` (presisi detik).
+- Bukti: 283 test lulus (2093 assertions); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual (incognito, pindah lembaga kerja, HP) lancar.
+- Pelajaran: (1) data bergantung konteks kerja → jangan pakai prefetch/cache halaman; (2) menu adalah petunjuk, tetapi harus memakai aturan yang sama dengan server (izin **dan** tingkat lembaga kerja); (3) di test, cari baris audit berdasarkan isi/ID, bukan urutan waktu.
 
 ## Struktur file utama
 
@@ -190,6 +211,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. F5b Penugasan & role (PRD-000 §4.7): tambah/cabut penugasan + role, role tingkat Yayasan, pengaman Admin Yayasan terakhir.
-2. HR-1e (saran): impor pegawai dari Excel/CSV.
-3. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).
+1. Verifikasi form Tambah pegawai: peringatan nama sama.
+2. Susun PRD Academic (termasuk satu orang bisa menjadi siswa SMP sekaligus santri MDA, PRD-000 §12).

@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.9 (2026-10-17: peringatan orang ganda impor juga berdasarkan nama saja)
-- **Versi sebelumnya:** 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e-a SELESAI (commit `b5cc66f`); HR-1e-b simpan dibangun (menunggu verifikasi); HR-2 dst. belum dirinci
+- **Versi:** 0.10 (2026-10-17: form Tambah pegawai juga memperingatkan nama sama)
+- **Versi sebelumnya:** 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); HR-2 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -220,7 +220,7 @@ Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa
 
 Rincian tambah pegawai (HR-1b) [ASUMSI]:
 
-- Peringatan orang ganda hanya mencari di anggota **yayasan yang sama** (nama tanpa beda huruf besar/kecil + tanggal lahir), agar data yayasan lain tidak bocor. Admin melanjutkan dengan mencentang "ini orang yang berbeda".
+- Peringatan orang ganda hanya mencari di anggota **yayasan yang sama**, agar data yayasan lain tidak bocor. [OWNER, 2026-10-17] Pemicunya **nama sama** (tanpa beda huruf besar/kecil & spasi ganda), dengan atau tanpa tanggal lahir — sama dengan impor (§6.2). Pesan menyebut tanggal lahir orang lama dan apakah tanggal lahirnya juga sama. Admin melanjutkan dengan mencentang "ini orang yang berbeda".
 - Mode **Anggota yayasan**: nama tidak diubah dari form ini; data pribadi yang diisi melengkapi/memperbarui Person, yang dikosongkan tidak mengubah data lama. Jenis kelamin wajib bila Person belum punya.
 - "Tidak boleh di masa depan" memakai tanggal menurut zona waktu yayasan (`EDUCORE_TIMEZONE`, default Asia/Jakarta); jam server tetap UTC.
 - Sampai halaman Daftar pegawai ada (HR-1c), tombol **Tambah pegawai** ditaruh di halaman Katalog SDM; setelah simpan, form kosong kembali dengan notifikasi berhasil.
@@ -255,7 +255,7 @@ Untuk memasukkan data pegawai lama sekaligus. **Hanya membuat pegawai baru** (or
 
 - Tanggal diterima sebagai sel tanggal Excel, `YYYY-MM-DD`, atau `DD/MM/YYYY`. Kode tidak peka huruf besar/kecil. Spasi di tepi dibuang; baris yang seluruhnya kosong dilewati.
 - **Salah**: kolom wajib kosong, format/kode tidak sah, nomor induk/NUPTK sudah dipakai pegawai lain **atau dobel di dalam file**, judul kolom wajib tidak ditemukan.
-- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6). Ditambah [ASUMSI, temuan uji owner 2026-10-17]: **nama saja** sama (tanpa beda huruf besar/kecil & spasi ganda), dengan tanggal lahir orang lama ditampilkan — menangkap tanggal yang terbaca beda format di Excel, data lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
+- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6). Ditambah [OWNER, 2026-10-17]: **nama saja** sama (tanpa beda huruf besar/kecil & spasi ganda), dengan tanggal lahir orang lama ditampilkan — menangkap tanggal yang terbaca beda format di Excel, data lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
 - Saat **Simpan**, file dibaca dan diperiksa **ulang** (data bisa berubah sejak pratinjau).
 - File unggahan disimpan sementara di penyimpanan privat server hanya sampai disimpan/dibatalkan, dan dihapus otomatis bila tertinggal lebih dari 24 jam. Isinya tidak masuk log aplikasi maupun audit log.
 

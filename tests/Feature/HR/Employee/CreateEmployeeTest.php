@@ -293,6 +293,26 @@ test('nomor induk dan NUPTK tidak boleh dipakai dua pegawai', function () {
         ->and(Person::query()->where('name', 'Ahmad Fauzi')->exists())->toBeFalse();
 });
 
+test('nama sama walau tanggal lahir beda atau kosong tetap memunculkan peringatan', function () {
+    $this->actingAs($this->admin)->post(route('hr.employees.store'), hrFormPegawai($this->tenant))->assertSessionHasNoErrors();
+
+    // Tanggal lahir beda (mis. salah ketik) dan tanggal lahir kosong.
+    foreach (['1991-05-17', ''] as $birthDate) {
+        $this->actingAs($this->admin)
+            ->post(route('hr.employees.store'), hrFormPegawai($this->tenant, [
+                'name' => 'siti  aminah',
+                'birth_date' => $birthDate,
+                'employee_number' => '',
+                'nuptk' => '',
+            ]))
+            ->assertSessionHasErrors('duplicate');
+
+        expect(session('errors')->first('duplicate'))->toBe('Sudah ada anggota yayasan dengan nama yang sama: Siti Aminah (pegawai, lahir 1990-05-17). Bila orangnya sama, pilih "Anggota yayasan". Bila memang orang berbeda, centang konfirmasi lalu simpan ulang.');
+    }
+
+    expect(Employee::query()->count())->toBe(1);
+});
+
 test('nama dan tanggal lahir yang sama memunculkan peringatan; setelah dikonfirmasi boleh disimpan', function () {
     $this->actingAs($this->admin)->post(route('hr.employees.store'), hrFormPegawai($this->tenant))->assertSessionHasNoErrors();
 
@@ -302,7 +322,7 @@ test('nama dan tanggal lahir yang sama memunculkan peringatan; setelah dikonfirm
         ->post(route('hr.employees.store'), $kedua)
         ->assertSessionHasErrors('duplicate');
 
-    expect(session('errors')->first('duplicate'))->toContain('Siti Aminah (pegawai)')
+    expect(session('errors')->first('duplicate'))->toContain('nama dan tanggal lahir yang sama: Siti Aminah (pegawai, lahir 1990-05-17)')
         ->and(Employee::query()->count())->toBe(1);
 
     $this->actingAs($this->admin)

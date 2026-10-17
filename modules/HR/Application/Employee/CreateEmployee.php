@@ -138,11 +138,11 @@ final class CreateEmployee
             throw EmployeeException::genderRequired();
         }
 
-        if (! $data->confirmDuplicate && $data->birthDate !== null) {
-            $matches = $this->similarMembers($data->tenantId, $name, $data->birthDate);
+        if (! $data->confirmDuplicate) {
+            [$matches, $sameBirthDate] = $this->similarMembers($data->tenantId, $name, $data->birthDate);
 
             if ($matches !== []) {
-                throw new DuplicatePersonException($matches);
+                throw new DuplicatePersonException($matches, $sameBirthDate);
             }
         }
 
@@ -221,30 +221,38 @@ final class CreateEmployee
     }
 
     /**
-     * Anggota yayasan ini dengan nama (tanpa beda huruf besar/kecil) dan tanggal lahir yang sama.
-     * Hanya mencari di yayasan yang sama, agar data yayasan lain tidak bocor.
+     * Anggota yayasan ini dengan NAMA yang sama (tanpa beda huruf besar/kecil & spasi ganda), beserta
+     * tanggal lahirnya agar admin bisa menilai. Hanya yayasan yang sama, agar data yayasan lain tidak
+     * bocor. [ASUMSI, disetujui owner 2026-10-17] Disamakan dengan impor (PRD-001 §6.2): dulu hanya
+     * nama + tanggal lahir, sehingga tanggal yang salah ketik/kosong lolos tanpa peringatan.
      *
-     * @return list<string>
+     * @return array{0: list<string>, 1: bool} keterangan orang yang mirip, dan apakah ada yang tanggal lahirnya juga sama
      */
-    private function similarMembers(string $tenantId, string $name, string $birthDate): array
+    private function similarMembers(string $tenantId, string $name, ?string $birthDate): array
     {
+        $normalized = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($name)));
+
         $rows = DB::table('persons as p')
             ->join('memberships as m', 'm.person_id', '=', 'p.id')
             ->leftJoin('hr_employees as e', 'e.membership_id', '=', 'm.id')
             ->where('m.tenant_id', $tenantId)
-            ->whereRaw('lower(p.name) = lower(?)', [$name])
-            ->where('p.birth_date', $birthDate)
+            ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [$normalized])
             ->orderBy('p.name')
             ->limit(5)
-            ->get(['p.name', 'e.id as employee_id']);
+            ->get(['p.name', 'p.birth_date', 'e.id as employee_id']);
 
         $matches = [];
+        $sameBirthDate = false;
 
         foreach ($rows as $row) {
-            $matches[] = (string) $row->name.($row->employee_id === null ? ' (anggota)' : ' (pegawai)');
+            $rowBirthDate = $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10);
+            $sameBirthDate = $sameBirthDate || ($birthDate !== null && $rowBirthDate === $birthDate);
+
+            $matches[] = (string) $row->name.' ('.($row->employee_id === null ? 'anggota' : 'pegawai')
+                .', '.($rowBirthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$rowBirthDate).')';
         }
 
-        return $matches;
+        return [$matches, $sameBirthDate];
     }
 
     // ── Rujukan ───────────────────────────────────────────────────────────────
