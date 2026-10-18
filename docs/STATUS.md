@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-17
-- **Tahap aktif:** AC-1a — skema Academic, Operator Akademik, kalender akademik (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `6a419f1` — feat(hr): peringatan nama sama di form tambah pegawai
+- **Tahap aktif:** AC-1c-a — daftar & detail siswa (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `ccc183b` — feat(academic): AC-1a skema, Operator Akademik, kalender akademik
 
 ## Keputusan penting
 
@@ -27,6 +27,7 @@
 | 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
 | 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
 | 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-18 | Data diri siswa boleh diubah Operator Akademik lembaga mana pun tempat siswa aktif (+ Admin Yayasan); lembaga tetap melihat alumninya                                                                                                              | PRD-002 OD-AC-09, §5.3     |
 | 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi                                                                                                                                         | PRD-000 §6                 |
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
 | 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
@@ -185,15 +186,32 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.3 (2026-10-17)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–08); rincian teknis AC-1a.
+**PRD-002 Academic: v0.5 (2026-10-18)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c.
 
-**AC-1a — Skema, Operator Akademik, kalender akademik: KODE SIAP (2026-10-17, menunggu verifikasi)**
+**AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
 - Migrasi 8 tabel `ac_*` sekaligus: kalender/tahun ajaran/semester, siswa (NISN), orang tua/wali, pendaftaran per lembaga, kelas, anggota kelas. Constraint (satu pendaftaran terbuka per lembaga, satu tahun berjalan per kalender, kelas & pendaftaran di lembaga yang sama, satu kelas terbuka per tahun ajaran) diuji langsung di PostgreSQL 16.
 - `AcademicAccess`: 5 permission + role **Operator Akademik** (ditawarkan di Kelola akses sebagai role penugasan); Admin Yayasan, Pimpinan, Kepala Lembaga, Koordinator diperluas.
 - Kalender: `ManageCalendars` (Kalender Yayasan bawaan, tambah, ubah nama), `SaveAcademicYear` (tahun ajaran + 1–4 semester), `SetCurrentYear`, `AssignCalendar` (aturan berjenjang `academic.calendar`), `AcademicCalendarResolver`, `CalendarOverview`.
 - Halaman `/akademik/kalender` (menu **Kalender akademik**, hanya Seluruh Yayasan); seeder `AcademicCalendarSeeder` (semua lingkungan) & `AcademicDevSeeder` (akun `operator.smp` + contoh tahun ajaran, local/testing).
-- Target bukti: 363 test (33 test baru); Pint, Larastan, `types:check`, build.
+- Bukti: 363 test lulus (33 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 10 langkah (termasuk HP) lancar.
+
+**AC-1b — Tambah siswa: SELESAI (2026-10-18)**
+
+- Model `Student`, `Enrollment` (OwnedByOrganization), `StudentGuardian` + enum jenis masuk, alasan keluar, hubungan.
+- `CreateStudent`: orang baru **atau** orang yang sama (dipilih dari calon nama sama, `DuplicateCandidates`) → profil siswa → pendaftaran → 0–4 orang tua/wali, satu transaksi; NISN unik per yayasan, nomor induk tidak dipakai siswa lain di lembaga itu; orang tua dengan nama + HP sama dipakai ulang.
+- Halaman `/siswa/tambah` (menu **Siswa** sementara); lembaga dicek lewat Gate (di luar cakupan 404, tanpa izin 403).
+- Audit `academic.student_created`, `academic.enrollment_created`, `academic.guardian_linked` (nama field data pribadi saja).
+- Pesan kesalahan dikumpulkan sekaligus per isian + ringkasan di atas tombol Simpan (permintaan owner 2026-10-18).
+- Bukti: 390 test lulus (27 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
+- Catatan pengiriman: paket perbaikan diberi nama baru (`-v2`) agar tidak tertukar dengan unduhan lama yang bernama sama.
+- Pelajaran: Larastan menolak pemeriksaan `!== null` yang sudah pasti benar karena dicek beberapa baris sebelumnya (`notIdentical.alwaysTrue`); setelah nilai dipastikan, jangan diperiksa lagi.
+
+**AC-1c-a — Daftar & detail siswa: KODE SIAP (2026-10-18, menunggu verifikasi)**
+
+- `StudentVisibility` (saringan SQL sebelum paginasi; pendaftaran terbuka maupun ditutup di node terlihat), `StudentFilters`, `StudentDirectory`, `StudentProfile`.
+- Halaman `/siswa` (menu **Siswa** untuk `academic.students.view`, tabel di desktop, kartu di HP) dan `/siswa/{id}` (data pribadi & orang tua/wali hanya dengan `view_personal`; semua pendaftaran tampil); tambah siswa kini langsung ke detail.
+- Target bukti: 397 test (7 test baru).
 
 ## Struktur file utama
 
@@ -226,5 +244,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1a (PANDUAN-AC-1A.md), lalu catat hash commit di sini.
-2. AC-1b tambah siswa → AC-1c daftar & detail → AC-1d kelas → AC-1e impor siswa.
+1. Verifikasi AC-1c-a (PANDUAN-AC-1C-A.md).
+2. AC-1c-b aksi di detail siswa → AC-1d kelas → AC-1e impor siswa.

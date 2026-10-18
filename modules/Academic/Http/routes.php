@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
+use Modules\Academic\Http\Controllers\StudentController;
 
 /*
  * Route web modul Academic (PRD-002 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -17,4 +18,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('akademik/kalender/{calendar}/tahun-ajaran', [CalendarController::class, 'storeYear'])->whereUuid('calendar')->name('academic.years.store');
     Route::patch('akademik/tahun-ajaran/{year}', [CalendarController::class, 'updateYear'])->whereUuid('year')->name('academic.years.update');
     Route::post('akademik/tahun-ajaran/{year}/berjalan', [CalendarController::class, 'setCurrent'])->whereUuid('year')->name('academic.years.current');
+
+    // Siswa (PRD-002 §6). Daftar & detail (AC-1c-a): pemilik izin lihat siswa, disaring per pohon lembaga.
+    // Tambah (AC-1b): Operator Akademik di lembaganya, Admin Yayasan di semua lembaga.
+    // `siswa/tambah` didaftarkan sebelum `siswa/{student}`.
+    Route::get('siswa', [StudentController::class, 'index'])->name('academic.students.index');
+    Route::get('siswa/tambah', [StudentController::class, 'create'])->name('academic.students.create');
+    Route::post('siswa', [StudentController::class, 'store'])->name('academic.students.store');
+    Route::get('siswa/{student}', [StudentController::class, 'show'])->whereUuid('student')->name('academic.students.show');
 });

@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     CalendarDays,
+    GraduationCap,
     LayoutGrid,
     Network,
     ScrollText,
@@ -57,6 +58,12 @@ const hrCatalogNavItem: NavItem = {
     icon: Tags,
 };
 
+const studentsNavItem: NavItem = {
+    title: 'Siswa',
+    href: '/siswa',
+    icon: GraduationCap,
+};
+
 const academicCalendarNavItem: NavItem = {
     title: 'Kalender akademik',
     href: '/akademik/kalender',
@@ -82,6 +89,9 @@ export function AppSidebar() {
             : []),
         ...(permissions.includes('hr.employees.view')
             ? [employeesNavItem]
+            : []),
+        ...(permissions.includes('academic.students.view')
+            ? [studentsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]

@@ -20,9 +20,19 @@ final class AcademicAuditAction
 
     public const YEAR_SET_CURRENT = 'academic.year_set_current';
 
+    public const STUDENT_CREATED = 'academic.student_created';
+
+    public const ENROLLMENT_CREATED = 'academic.enrollment_created';
+
+    public const GUARDIAN_LINKED = 'academic.guardian_linked';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
+
+    public const SUBJECT_STUDENT = 'ac_student';
+
+    public const SUBJECT_ENROLLMENT = 'ac_enrollment';
 
     /**
      * @return array<string, string> aksi => label
@@ -35,6 +45,9 @@ final class AcademicAuditAction
             self::YEAR_CREATED => 'Tahun ajaran ditambahkan',
             self::YEAR_UPDATED => 'Tahun ajaran diubah',
             self::YEAR_SET_CURRENT => 'Tahun ajaran berjalan diganti',
+            self::STUDENT_CREATED => 'Siswa ditambahkan',
+            self::ENROLLMENT_CREATED => 'Siswa didaftarkan ke lembaga',
+            self::GUARDIAN_LINKED => 'Orang tua/wali ditautkan',
         ];
     }
 }

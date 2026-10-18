@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 0.3 (2026-10-17: rincian teknis AC-1a — skema, kalender akademik)
-- **Versi sebelumnya:** 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1 Data Siswa & Kelas disetujui owner; AC-1a dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Versi:** 0.5 (2026-10-18: AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri)
+- **Versi sebelumnya:** 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b SELESAI (2026-10-18); AC-1c-a dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -183,6 +183,16 @@ Siswa umumnya **anak di bawah umur**, maka:
 
 **Mencegah orang ganda**: sama dengan HR [OWNER, 2026-10-17] — peringatan bila **nama sama** dengan anggota yayasan ini (tanggal lahir orang lama ditampilkan), admin boleh lanjut dengan konfirmasi. Untuk siswa, NISN yang sama **ditolak** (bukan peringatan). Saat memilih orang tua/wali, form menawarkan orang tua yang sudah ada (pencarian nama + nomor HP) sebelum membuat yang baru. [ASUMSI]
 
+Rincian AC-1b [OWNER, 2026-10-17 — usulan A, B, C disetujui]:
+
+- **A. Orang yang sama** (mis. santri MDA yang mendaftar SMP): form **tidak** menampilkan daftar seluruh anggota yayasan. Bila nama yang diketik sama (tanpa beda huruf besar/kecil & spasi ganda) dengan anggota aktif yayasan ini, muncul maks. 5 calon dengan keterangan peran Academic dan tanggal lahir, mis. _"Ahmad Fauzi — siswa MDA Unit 3, lahir 2013-04-12"_. Operator memilih **"Ini orang yang sama"** (hanya pendaftaran baru; profil siswa dibuat bila belum ada) atau **"Orang berbeda"** (orang baru). ID calon yang dikirim browser diperiksa ulang: wajib termasuk orang dengan nama itu.
+- Untuk orang yang sama: nama **tidak** diubah; data pribadi yang diisi hanya **melengkapi yang masih kosong** (data yang dicatat lembaga lain tidak tertimpa); NISN yang diisi harus sama dengan yang tercatat, atau melengkapi bila masih kosong.
+- **B. Orang tua yang sudah ada**: bila **nama dan nomor HP** sama persis dengan anggota yayasan, orang itu dipakai ulang (kakak-adik berbagi orang tua); pesan berhasil menyebutnya. Nama sama tetapi HP berbeda/kosong = orang baru. Pencarian & pemilihan orang tua secara manual di detail siswa (AC-1c).
+- Kontak utama hanya dipasang bila siswa **belum** punya kontak utama, agar kontak yang dicatat lembaga lain tidak berubah diam-diam; orang tua yang sudah tertaut ke siswa itu tidak dibuat ulang. [ASUMSI]
+- Gagal di langkah mana pun (mis. orang tua ditulis dua kali) → tidak ada yang tersimpan, termasuk orang & keanggotaan baru.
+- **Pesan kesalahan jelas** [OWNER, 2026-10-18]: sebelum membuat orang baru, semua masalah dikumpulkan **sekaligus** dan ditandai di isiannya masing-masing (jenis kelamin kosong, NISN terpakai, nomor induk terpakai) bersama kotak peringatan nama sama. Bila NISN yang diisi milik salah satu calon nama sama, pesan NISN menunjuk ke kotak peringatan (kemungkinan orang yang sama) tanpa membuka data orang lain. Di atas tombol Simpan tampil ringkasan "Ada N isian yang perlu diperbaiki" beserta nama isiannya.
+- **C. Menu sementara**: menu **Siswa** (pemilik `academic.students.manage`) mengarah ke `/siswa/tambah`; setelah simpan, form kosong kembali dengan notifikasi. Daftar siswa menyusul di AC-1c. Pilihan kelas di form menyusul setelah kelas ada (AC-1d).
+
 ## 5. Siapa melihat apa
 
 ### 5.1 Permission baru (di modul Academic, disinkronkan lewat `educore:sync-access`) [ASUMSI]
@@ -217,7 +227,8 @@ Role **Operator Akademik** ditawarkan sebagai role penugasan di halaman Kelola a
 Siswa terlihat bila **salah satu pendaftarannya** ada di `visibleNodeIds('academic.students.view')` dan di dalam lembaga kerja aktif (PRD-000 §7.2):
 
 - Siswa **aktif**: pendaftaran yang masih terbuka.
-- Siswa yang sudah **keluar/lulus**: pendaftaran terakhir yang ditutup, supaya lembaga terakhirnya tetap melihat riwayatnya (pola HR-1 §5.3).
+- Siswa yang sudah **keluar/lulus**: pendaftaran yang sudah ditutup **tetap dihitung**, sehingga setiap lembaga melihat alumni/riwayat siswanya — termasuk siswa yang lulus MDA tetapi masih aktif di SMP (MDA tetap melihatnya sebagai alumni). [tafsiran 2026-10-18: aturan "pendaftaran terakhir" ala HR tidak cocok karena status siswa per lembaga, bukan per orang]
+- **Status di daftar dihitung terhadap lembaga yang terlihat** (dan saringan lembaga): _Aktif_ = punya pendaftaran terbuka di sana; _Keluar/lulus_ = pernah terdaftar di sana tetapi tidak ada lagi yang terbuka. Admin Yayasan melihat status seluruh yayasan.
 - Di detail, **semua** pendaftaran siswa yang terlihat ikut tampil (mis. Kepala SMP Unit 3 melihat bahwa siswanya juga santri MDA Unit 3). [ASUMSI]
 - **Kelas** terlihat bila lembaganya di dalam cakupan.
 - **Mengelola** siswa/kelas hanya pada lembaga di dalam cakupan izin kelola. Operator SMP tidak bisa menutup pendaftaran MDA siswa yang sama.
@@ -280,12 +291,13 @@ Dicatat: kalender/tahun ajaran/semester dibuat/diubah/dijadikan berjalan; siswa 
 
 ## 11. Rencana pengerjaan AC-1 [OWNER, 2026-10-17]
 
-| Sub-tahap | Isi                                                                                                                                  |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| AC-1a     | Skema semua tabel, permission & role Operator Akademik, kalender akademik + aturan `academic.calendar`, halaman Kalender akademik    |
-| AC-1b     | Tambah siswa (orang baru / anggota), pendaftaran pertama, orang tua/wali, peringatan orang ganda                                     |
-| AC-1c     | Daftar & detail siswa (penyaringan §5.3), aksi di detail (ubah profil, daftarkan ke lembaga lain, tutup pendaftaran, orang tua/wali) |
-| AC-1d     | Kontrak HR `ActiveEmployees`, kelas/rombel, wali kelas, masukkan siswa massal, pindah/keluarkan                                      |
+| Sub-tahap | Isi                                                                                                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-1a     | Skema semua tabel, permission & role Operator Akademik, kalender akademik + aturan `academic.calendar`, halaman Kalender akademik                                                      |
+| AC-1b     | Tambah siswa (orang baru / anggota), pendaftaran pertama, orang tua/wali, peringatan orang ganda                                                                                       |
+| AC-1c-a   | Daftar & detail siswa (penyaringan §5.3); menu **Siswa** → `/siswa`; setelah tambah siswa langsung ke detail                                                                           |
+| AC-1c-b   | Aksi di detail: ubah data diri (OD-AC-09), daftarkan ke lembaga lain, tutup pendaftaran, tambah/ubah/lepas orang tua/wali (termasuk cari orang tua lewat nomor HP), ganti kontak utama |
+| AC-1d     | Kontrak HR `ActiveEmployees`, kelas/rombel, wali kelas, masukkan siswa massal, pindah/keluarkan                                                                                        |
 
 ## 12. Di luar AC-1
 
@@ -293,16 +305,17 @@ Kenaikan kelas massal, mata pelajaran, jadwal, presensi, nilai, rapor, akun oran
 
 ## 13. Open decisions
 
-| ID       | Topik                                                                         | Status                                                                                                                                     |
-| -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| OD-AC-01 | Cakupan tahap pertama                                                         | **DIPUTUSKAN** — data siswa + pendaftaran + tahun ajaran + kelas/rombel + wali kelas; jadwal, presensi, nilai menyusul [OWNER, 2026-10-17] |
-| OD-AC-02 | Data pribadi siswa                                                            | **DIPUTUSKAN** — minimal seperti pegawai (tanpa NIK) + NISN + kontak orang tua/wali [OWNER, 2026-10-17]                                    |
-| OD-AC-03 | Tahun ajaran & semester                                                       | **DIPUTUSKAN** — default yayasan, lembaga boleh beda [OWNER, 2026-10-17]; mekanismenya kalender + aturan berjenjang (§4.4) **[ASUMSI]**    |
-| OD-AC-04 | Siapa mengelola data siswa & kelas                                            | **DIPUTUSKAN** — role baru Operator Akademik per lembaga (+ Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-17]               |
-| OD-AC-05 | Orang tua/wali sebagai Person                                                 | **DIPUTUSKAN** — Person + Membership tanpa akun; tanpa pekerjaan/penghasilan/NIK [OWNER, 2026-10-17]                                       |
-| OD-AC-06 | Wali kelas/guru melihat siswa kelasnya sendiri                                | **DIPUTUSKAN** — ditunda ke AC-3 (butuh hak akses berbasis kelas, bukan pohon lembaga) [OWNER, 2026-10-17]                                 |
-| OD-AC-07 | Impor siswa dari Excel/CSV                                                    | **DIPUTUSKAN** — AC-1e sesudah AC-1, memakai pola HR-1e [OWNER, 2026-10-17]                                                                |
-| OD-AC-08 | Model data, permission, penyaringan, kalender lewat aturan berjenjang (§4–§5) | **DISETUJUI** — owner menyetujui semua usulan v0.1 [OWNER, 2026-10-17]                                                                     |
+| ID       | Topik                                                                         | Status                                                                                                                                                       |
+| -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OD-AC-01 | Cakupan tahap pertama                                                         | **DIPUTUSKAN** — data siswa + pendaftaran + tahun ajaran + kelas/rombel + wali kelas; jadwal, presensi, nilai menyusul [OWNER, 2026-10-17]                   |
+| OD-AC-02 | Data pribadi siswa                                                            | **DIPUTUSKAN** — minimal seperti pegawai (tanpa NIK) + NISN + kontak orang tua/wali [OWNER, 2026-10-17]                                                      |
+| OD-AC-03 | Tahun ajaran & semester                                                       | **DIPUTUSKAN** — default yayasan, lembaga boleh beda [OWNER, 2026-10-17]; mekanismenya kalender + aturan berjenjang (§4.4) **[ASUMSI]**                      |
+| OD-AC-04 | Siapa mengelola data siswa & kelas                                            | **DIPUTUSKAN** — role baru Operator Akademik per lembaga (+ Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-17]                                 |
+| OD-AC-05 | Orang tua/wali sebagai Person                                                 | **DIPUTUSKAN** — Person + Membership tanpa akun; tanpa pekerjaan/penghasilan/NIK [OWNER, 2026-10-17]                                                         |
+| OD-AC-06 | Wali kelas/guru melihat siswa kelasnya sendiri                                | **DIPUTUSKAN** — ditunda ke AC-3 (butuh hak akses berbasis kelas, bukan pohon lembaga) [OWNER, 2026-10-17]                                                   |
+| OD-AC-07 | Impor siswa dari Excel/CSV                                                    | **DIPUTUSKAN** — AC-1e sesudah AC-1, memakai pola HR-1e [OWNER, 2026-10-17]                                                                                  |
+| OD-AC-09 | Siapa boleh mengubah data diri siswa yang terdaftar di beberapa lembaga       | **DIPUTUSKAN** — Operator Akademik dari lembaga mana pun tempat siswa masih aktif, dan Admin Yayasan; setiap perubahan tercatat di audit [OWNER, 2026-10-18] |
+| OD-AC-08 | Model data, permission, penyaringan, kalender lewat aturan berjenjang (§4–§5) | **DISETUJUI** — owner menyetujui semua usulan v0.1 [OWNER, 2026-10-17]                                                                                       |
 
 ## 14. Saran tambahan (di luar ruang lingkup)
 
