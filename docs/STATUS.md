@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-18
-- **Tahap aktif:** AC-1c-b1 — ubah data diri & pendaftaran siswa (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `759ac3d` — feat(academic): AC-1c-a daftar dan detail siswa (berisi AC-1b + AC-1c-a)
+- **Diperbarui:** 2026-10-19
+- **Tahap aktif:** AC-1c-b2 — orang tua/wali di detail siswa (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `1b572e8` — feat(academic): AC-1c-b1 ubah data diri dan pendaftaran siswa
 
 ## Keputusan penting
 
@@ -27,6 +27,7 @@
 | 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
 | 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
 | 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-19 | Orang tua/wali: cari HP hanya di antara orang tua/wali tercatat; orang tua yang juga pegawai/siswa hanya bisa diubah hubungannya; lepas kontak utama wajib pilih pengganti                                                                         | PRD-002 §11 (AC-1c-b2)     |
 | 2026-10-18 | AC-1c-b dipecah b1 (data diri & pendaftaran, termasuk ubah pendaftaran) dan b2 (orang tua/wali); cari orang tua lewat HP cocok persis tanpa nama anak                                                                                              | PRD-002 §11, §4.5          |
 | 2026-10-18 | Data diri siswa boleh diubah Operator Akademik lembaga mana pun tempat siswa aktif (+ Admin Yayasan); lembaga tetap melihat alumninya                                                                                                              | PRD-002 OD-AC-09, §5.3     |
 | 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi                                                                                                                                         | PRD-000 §6                 |
@@ -187,7 +188,7 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.6 (2026-10-18)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1.
+**PRD-002 Academic: v0.7 (2026-10-19)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -215,15 +216,23 @@
 - Bukti: 397 test lulus (2883 assertions, 7 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
 - Pelajaran test: `actingAs()` di `beforeEach` tetap berlaku untuk semua request di test itu. Untuk menguji "tamu", panggil `$this->app['auth']->forgetGuards()` dulu.
 
-**AC-1c-b1 — Ubah data diri & pendaftaran: KODE SIAP (2026-10-18, menunggu verifikasi)**
+**AC-1c-b1 — Ubah data diri & pendaftaran: SELESAI (2026-10-19, commit `1b572e8`)**
 
 - `UpdateStudentProfile` (data diri + NISN, OD-AC-09), `ManageEnrollments` (daftarkan ke lembaga lain, ubah, tutup; dipakai juga `CreateStudent`), `StudentManageAccess` (siapa boleh apa).
 - `StudentActionController` + route `PATCH siswa/{id}`, `POST siswa/{id}/pendaftaran`, `PATCH …/pendaftaran/{id}`, `POST …/pendaftaran/{id}/tutup`.
 - Detail siswa: tombol **Ubah data diri**, **Daftarkan ke lembaga lain**, dan per pendaftaran **Ubah** / **Tutup** (hanya bagi yang berhak); form menampilkan ringkasan kesalahan.
 - Audit `academic.student_updated`, `academic.enrollment_updated`, `academic.enrollment_closed`.
-- Target bukti: 410 test (14 test baru).
+- Bukti: 410 test lulus (14 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
 - Pelajaran test: untuk menimpa isian di test pakai `array_merge($dasar, $timpa)`, bukan `$dasar + $timpa` (operator `+` mempertahankan nilai kiri, sehingga timpaan diam-diam diabaikan).
 - `composer test` kini memakai `Composer\Config::disableProcessTimeout`: dengan 400+ test, durasinya mendekati batas bawaan Composer 300 detik dan sempat terhenti.
+
+**AC-1c-b2 — Orang tua/wali di detail siswa: KODE SIAP (2026-10-19, menunggu verifikasi)**
+
+- `ManageGuardians` (cari HP, tambah baru/dari pencarian, ubah, lepas, kontak utama); aturan "nama + HP sama dipakai ulang" kini satu tempat dan dipakai juga `CreateStudent`.
+- Kontrak publik HR pertama: `Modules\HR\Contracts\EmployeeLookup` (+ `EloquentEmployeeLookup`, dipasang di `HRServiceProvider::register`).
+- `StudentGuardianController` + route `GET siswa/{id}/orang-tua/cari` (JSON, throttle 30/menit), `POST/PATCH/DELETE siswa/{id}/orang-tua…`, `POST …/kontak-utama`.
+- Detail siswa: tombol Tambah orang tua/wali, dan per orang Ubah / Jadikan kontak utama / Lepas.
+- Target bukti: 420 test (10 test baru).
 
 ## Struktur file utama
 
@@ -256,5 +265,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1c-b1 (PANDUAN-AC-1C-B1.md).
-2. AC-1c-b2 orang tua/wali di detail siswa → AC-1d kelas → AC-1e impor siswa.
+1. Verifikasi AC-1c-b2 (PANDUAN-AC-1C-B2.md).
+2. AC-1d kelas → AC-1e impor siswa.

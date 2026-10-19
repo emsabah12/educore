@@ -17,10 +17,14 @@ use Modules\Core\Domain\Person\Gender;
  * - Data pribadi siswa dan seluruh data orang tua/wali hanya diisi bila $withPersonal (§4.5).
  *
  * @phpstan-type EnrollmentRow array{id: string, organization_id: string, organization: string, organization_code: string, student_number: string|null, entry_type: string, entry_type_code: string, start_date: string, end_date: string|null, end_reason: string|null, end_note: string|null, open: bool}
- * @phpstan-type GuardianRow array{name: string, relation: string, gender: string|null, phone: string|null, is_primary: bool}
+ * @phpstan-type GuardianRow array{id: string, name: string, relation: string, relation_code: string, gender: string|null, gender_code: string|null, phone: string|null, is_primary: bool, locked: bool, other_students: int}
  */
 final class StudentProfile
 {
+    public function __construct(
+        private readonly ManageGuardians $guardians,
+    ) {}
+
     /**
      * @return array{
      *     id: string,
@@ -62,7 +66,7 @@ final class StudentProfile
                 'phone' => $row->phone === null ? null : (string) $row->phone,
                 'address' => $row->address === null ? null : (string) $row->address,
             ] : null,
-            'guardians' => $withPersonal ? $this->guardians($studentId) : null,
+            'guardians' => $withPersonal ? $this->guardianRows($tenantId, $studentId) : null,
             'enrollments' => $enrollments,
         ];
     }
@@ -150,11 +154,13 @@ final class StudentProfile
     }
 
     /**
-     * Orang tua/wali; kontak utama di depan.
+     * Orang tua/wali; kontak utama di depan. `locked` = orang ini juga pegawai/siswa (data dirinya
+     * tidak diubah dari sini); `other_students` = jumlah siswa lain yang memakai orang tua/wali ini
+     * (tanpa nama, PRD-002 §4.5).
      *
      * @return list<GuardianRow>
      */
-    private function guardians(string $studentId): array
+    private function guardianRows(string $tenantId, string $studentId): array
     {
         $rows = DB::table('ac_student_guardians as g')
             ->join('memberships as m', 'm.id', '=', 'g.guardian_membership_id')
@@ -162,8 +168,18 @@ final class StudentProfile
             ->where('g.student_id', $studentId)
             ->orderByDesc('g.is_primary_contact')
             ->orderBy('p.name')
-            ->get(['p.name', 'p.gender', 'p.phone', 'g.relation', 'g.is_primary_contact']);
+            ->get([
+                'g.id', 'g.guardian_membership_id', 'g.relation', 'g.is_primary_contact', 'p.name', 'p.gender', 'p.phone',
+                DB::raw('(SELECT count(*) FROM ac_student_guardians og WHERE og.guardian_membership_id = g.guardian_membership_id AND og.student_id <> g.student_id) AS other_students'),
+            ]);
 
+        $membershipIds = [];
+
+        foreach ($rows as $row) {
+            $membershipIds[] = (string) $row->guardian_membership_id;
+        }
+
+        $locked = array_flip($this->guardians->lockedMembershipIds($tenantId, $membershipIds));
         $guardians = [];
 
         foreach ($rows as $row) {
@@ -171,11 +187,16 @@ final class StudentProfile
             $gender = $row->gender === null ? null : Gender::tryFrom((string) $row->gender);
 
             $guardians[] = [
+                'id' => (string) $row->id,
                 'name' => (string) $row->name,
                 'relation' => $relation === null ? (string) $row->relation : $relation->label(),
+                'relation_code' => (string) $row->relation,
                 'gender' => $gender?->label(),
+                'gender_code' => $gender?->value,
                 'phone' => $row->phone === null ? null : (string) $row->phone,
                 'is_primary' => (bool) $row->is_primary_contact,
+                'locked' => isset($locked[(string) $row->guardian_membership_id]),
+                'other_students' => (int) $row->other_students,
             ];
         }
 

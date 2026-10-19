@@ -1,0 +1,456 @@
+<?php
+
+namespace Modules\Academic\Application\Student;
+
+use Closure;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Modules\Academic\Application\Audit\AcademicAuditAction;
+use Modules\Academic\Domain\Student\Exceptions\StudentException;
+use Modules\Academic\Domain\Student\GuardianRelation;
+use Modules\Academic\Domain\Student\Student;
+use Modules\Academic\Domain\Student\StudentGuardian;
+use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Application\Membership\GrantMembership;
+use Modules\Core\Domain\Person\Gender;
+use Modules\Core\Domain\Person\Person;
+use Modules\Core\Domain\Tenancy\Membership;
+use Modules\Core\Domain\Tenancy\MembershipStatus;
+use Modules\HR\Contracts\EmployeeLookup;
+
+/**
+ * Orang tua/wali di detail siswa (PRD-002 §4.5, §6; AC-1c-b2):
+ *
+ * - search()       cari orang tua/wali yang SUDAH tercatat lewat nomor HP yang cocok persis;
+ *                  hasilnya hanya nama, tanpa nama anak-anaknya [OWNER, 2026-10-18/19];
+ * - addNew()       orang baru (atau dipakai ulang bila nama + HP sama, aturan B AC-1b);
+ * - addExisting()  orang dari hasil pencarian (ID dari browser diperiksa ulang dengan HP-nya);
+ * - update()       hubungan + data diri; orang yang juga pegawai/siswa hanya boleh diubah hubungannya;
+ * - unlink()       lepas tautan (orangnya tetap ada); kontak utama yang dilepas wajib diganti bila
+ *                  masih ada orang tua/wali lain;
+ * - makePrimary()  ganti kontak utama.
+ *
+ * Hak akses (StudentManageAccess::canManageGuardians) dicek pemanggil. Membuat orang tua/wali tidak
+ * membuat akun login dan tidak memberi hak akses apa pun. Audit tanpa nilai data pribadi.
+ */
+final class ManageGuardians
+{
+    public const SEARCH_LIMIT = 5;
+
+    public function __construct(
+        private readonly GrantMembership $grantMembership,
+        private readonly EmployeeLookup $employees,
+        private readonly AuditLogger $audit,
+    ) {}
+
+    // ── Pencarian ────────────────────────────────────────────────────────────
+
+    /**
+     * @return list<array{membership_id: string, name: string, already_linked: bool}>
+     */
+    public function search(string $tenantId, string $studentId, string $phone): array
+    {
+        $rows = $this->guardiansWithPhone($tenantId, $phone)
+            ->orderBy('p.name')
+            ->orderBy('m.id')
+            ->limit(self::SEARCH_LIMIT)
+            ->get(['m.id', 'p.name']);
+
+        $linked = $this->linkedMembershipIds($studentId);
+        $results = [];
+
+        foreach ($rows as $row) {
+            $results[] = [
+                'membership_id' => (string) $row->id,
+                'name' => (string) $row->name,
+                'already_linked' => in_array((string) $row->id, $linked, true),
+            ];
+        }
+
+        return $results;
+    }
+
+    // ── Tambah ───────────────────────────────────────────────────────────────
+
+    /**
+     * @return array{0: StudentGuardian, 1: bool} tautan baru, dan apakah orangnya sudah ada
+     *
+     * @throws StudentException
+     */
+    public function addNew(string $tenantId, string $studentId, GuardianData $guardian, bool $makePrimary): array
+    {
+        $this->assertGuardianInput($guardian->name, $guardian->phone);
+
+        return $this->transaction(function () use ($tenantId, $studentId, $guardian, $makePrimary): array {
+            $student = $this->lockStudent($tenantId, $studentId);
+            [$membership, $reused] = $this->membershipFor($tenantId, $guardian);
+            $link = $this->link($student, $membership, $guardian->relation, $makePrimary, $reused);
+
+            return [$link, $reused];
+        });
+    }
+
+    /**
+     * @throws StudentException
+     */
+    public function addExisting(string $tenantId, string $studentId, string $membershipId, string $phone, GuardianRelation $relation, bool $makePrimary): StudentGuardian
+    {
+        return $this->transaction(function () use ($tenantId, $studentId, $membershipId, $phone, $relation, $makePrimary): StudentGuardian {
+            $student = $this->lockStudent($tenantId, $studentId);
+
+            // ID dari browser tidak dipercaya: wajib orang tua/wali yang tercatat dengan HP itu.
+            $valid = Str::isUuid($membershipId)
+                && $this->guardiansWithPhone($tenantId, $phone)->where('m.id', $membershipId)->exists();
+
+            if (! $valid) {
+                throw StudentException::make('membership_id', 'Pilihan orang tidak cocok dengan nomor HP yang dicari. Cari ulang lalu pilih dari hasilnya.');
+            }
+
+            $membership = Membership::query()->withoutGlobalScope('tenant')->whereKey($membershipId)->firstOrFail();
+
+            return $this->link($student, $membership, $relation, $makePrimary, true);
+        });
+    }
+
+    /**
+     * Orang tua/wali untuk isian "orang baru": dipakai ulang bila NAMA dan NOMOR HP sama persis dengan
+     * anggota yayasan (kakak-adik berbagi orang tua) [usulan B AC-1b]; selain itu orang baru.
+     * Pemanggil wajib di dalam transaksi.
+     *
+     * @return array{0: Membership, 1: bool} membership orang tua/wali, dan apakah orangnya sudah ada
+     */
+    public function membershipFor(string $tenantId, GuardianData $guardian): array
+    {
+        if ($guardian->phone !== null) {
+            $personId = DB::table('persons as p')
+                ->join('memberships as m', 'm.person_id', '=', 'p.id')
+                ->where('m.tenant_id', $tenantId)
+                ->where('p.phone', $guardian->phone)
+                ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [StudentInput::comparableName($guardian->name)])
+                ->orderBy('p.id')
+                ->value('p.id');
+
+            if (is_string($personId)) {
+                $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+
+                if ($person->gender === null && $guardian->gender !== null) {
+                    $person->gender = $guardian->gender;
+                    $person->save();
+                }
+
+                return [$this->grantMembership->handle($person->id, $tenantId), true];
+            }
+        }
+
+        $person = Person::query()->create([
+            'name' => $guardian->name,
+            'gender' => $guardian->gender,
+            'phone' => $guardian->phone,
+        ]);
+
+        return [$this->grantMembership->handle($person->id, $tenantId), false];
+    }
+
+    // ── Ubah ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Data diri ($name, $gender, $phone) diabaikan bila orang ini juga pegawai atau siswa: datanya
+     * dikelola dari menu masing-masing [OWNER, 2026-10-19].
+     *
+     * @return list<string> field yang berubah
+     *
+     * @throws StudentException
+     */
+    public function update(string $tenantId, string $studentId, string $linkId, GuardianRelation $relation, string $name, ?Gender $gender, ?string $phone): array
+    {
+        return $this->transaction(function () use ($tenantId, $studentId, $linkId, $relation, $name, $gender, $phone): array {
+            $this->lockStudent($tenantId, $studentId);
+            $link = $this->lockLink($studentId, $linkId);
+            $link->relation = $relation;
+            $changed = array_keys($link->getDirty());
+
+            if (! $this->isLocked($tenantId, $link->guardian_membership_id)) {
+                $this->assertGuardianInput($name, $phone);
+
+                $membership = Membership::query()->withoutGlobalScope('tenant')->whereKey($link->guardian_membership_id)->firstOrFail();
+                $person = Person::query()->whereKey($membership->person_id)->lockForUpdate()->firstOrFail();
+                $person->fill(['name' => $name, 'gender' => $gender, 'phone' => $phone]);
+                $changed = array_merge($changed, array_keys($person->getDirty()));
+                $person->save();
+            }
+
+            if ($changed === []) {
+                return [];
+            }
+
+            $link->save();
+
+            $this->audit->record(
+                AcademicAuditAction::GUARDIAN_UPDATED,
+                AcademicAuditAction::SUBJECT_STUDENT,
+                $studentId,
+                ['field_diubah' => $changed],
+                tenantId: $tenantId,
+            );
+
+            return $changed;
+        });
+    }
+
+    // ── Lepas & kontak utama ─────────────────────────────────────────────────
+
+    /**
+     * @throws StudentException
+     */
+    public function unlink(string $tenantId, string $studentId, string $linkId, ?string $newPrimaryLinkId): void
+    {
+        $this->transaction(function () use ($tenantId, $studentId, $linkId, $newPrimaryLinkId): bool {
+            $this->lockStudent($tenantId, $studentId);
+            $link = $this->lockLink($studentId, $linkId);
+            $others = StudentGuardian::query()
+                ->withoutGlobalScope('tenant')
+                ->where('student_id', $studentId)
+                ->whereKeyNot($link->id)
+                ->lockForUpdate()
+                ->get();
+
+            $replacement = null;
+
+            if ($link->is_primary_contact && $others->isNotEmpty()) {
+                $replacement = $newPrimaryLinkId === null ? null : $others->firstWhere('id', $newPrimaryLinkId);
+
+                if (! $replacement instanceof StudentGuardian) {
+                    throw StudentException::make('new_primary_id', 'Orang ini kontak utama. Pilih orang tua/wali lain sebagai kontak utama pengganti.');
+                }
+            }
+
+            $relation = $link->relation->value;
+            $wasPrimary = $link->is_primary_contact;
+            $link->delete();
+
+            if ($replacement instanceof StudentGuardian) {
+                $replacement->is_primary_contact = true;
+                $replacement->save();
+            }
+
+            $this->audit->record(
+                AcademicAuditAction::GUARDIAN_UNLINKED,
+                AcademicAuditAction::SUBJECT_STUDENT,
+                $studentId,
+                [
+                    'hubungan' => $relation,
+                    'kontak_utama' => $wasPrimary,
+                    'kontak_utama_diganti' => $replacement instanceof StudentGuardian,
+                ],
+                tenantId: $tenantId,
+            );
+
+            return true;
+        });
+    }
+
+    /**
+     * @throws StudentException
+     */
+    public function makePrimary(string $tenantId, string $studentId, string $linkId): void
+    {
+        $this->transaction(function () use ($tenantId, $studentId, $linkId): bool {
+            $this->lockStudent($tenantId, $studentId);
+            $link = $this->lockLink($studentId, $linkId);
+
+            if ($link->is_primary_contact) {
+                return false;
+            }
+
+            $this->clearPrimary($studentId);
+            $link->is_primary_contact = true;
+            $link->save();
+
+            $this->audit->record(
+                AcademicAuditAction::PRIMARY_CONTACT_CHANGED,
+                AcademicAuditAction::SUBJECT_STUDENT,
+                $studentId,
+                ['hubungan' => $link->relation->value],
+                tenantId: $tenantId,
+            );
+
+            return true;
+        });
+    }
+
+    // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Orang yang juga punya profil pegawai atau siswa di yayasan ini: data dirinya tidak diubah dari
+     * bagian orang tua/wali.
+     *
+     * @param  list<string>  $membershipIds
+     * @return list<string>
+     */
+    public function lockedMembershipIds(string $tenantId, array $membershipIds): array
+    {
+        if ($membershipIds === []) {
+            return [];
+        }
+
+        $students = [];
+
+        foreach (DB::table('ac_students')->where('tenant_id', $tenantId)->whereIn('membership_id', $membershipIds)->pluck('membership_id') as $id) {
+            $students[] = (string) $id;
+        }
+
+        return array_values(array_unique(array_merge($students, $this->employees->employeeMembershipIds($tenantId, $membershipIds))));
+    }
+
+    private function isLocked(string $tenantId, string $membershipId): bool
+    {
+        return $this->lockedMembershipIds($tenantId, [$membershipId]) !== [];
+    }
+
+    /**
+     * Anggota aktif yayasan yang SUDAH tercatat sebagai orang tua/wali siswa mana pun, dengan HP itu.
+     */
+    private function guardiansWithPhone(string $tenantId, string $phone): Builder
+    {
+        return DB::table('memberships as m')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->where('m.tenant_id', $tenantId)
+            ->where('m.status', MembershipStatus::Active->value)
+            ->where('p.phone', $phone)
+            ->whereExists(function (Builder $links): void {
+                $links->select(DB::raw(1))
+                    ->from('ac_student_guardians as g')
+                    ->whereColumn('g.guardian_membership_id', 'm.id');
+            });
+    }
+
+    private function link(Student $student, Membership $membership, GuardianRelation $relation, bool $makePrimary, bool $reused): StudentGuardian
+    {
+        if ($membership->id === $student->membership_id) {
+            throw StudentException::make('name', 'Orang tua/wali tidak boleh siswa itu sendiri.');
+        }
+
+        $existing = StudentGuardian::query()
+            ->withoutGlobalScope('tenant')
+            ->where('student_id', $student->id)
+            ->lockForUpdate()
+            ->get();
+
+        if ($existing->contains('guardian_membership_id', $membership->id)) {
+            throw StudentException::make('form', 'Orang ini sudah tercatat sebagai orang tua/wali siswa ini.');
+        }
+
+        if ($existing->count() >= StudentInput::MAX_GUARDIANS) {
+            throw StudentException::make('form', 'Paling banyak '.StudentInput::MAX_GUARDIANS.' orang tua/wali. Lepas salah satu dulu.');
+        }
+
+        // Orang tua/wali pertama otomatis menjadi kontak utama [ASUMSI].
+        $primary = $makePrimary || ! $existing->contains('is_primary_contact', true);
+
+        if ($primary) {
+            $this->clearPrimary($student->id);
+        }
+
+        $link = new StudentGuardian;
+        $link->fill([
+            'tenant_id' => $student->tenant_id,
+            'student_id' => $student->id,
+            'guardian_membership_id' => $membership->id,
+            'relation' => $relation,
+            'is_primary_contact' => $primary,
+        ]);
+        $link->save();
+
+        $this->audit->record(
+            AcademicAuditAction::GUARDIAN_LINKED,
+            AcademicAuditAction::SUBJECT_STUDENT,
+            $student->id,
+            [
+                'hubungan' => $relation->value,
+                'kontak_utama' => $primary,
+                'orang_sudah_ada' => $reused,
+            ],
+            tenantId: $student->tenant_id,
+        );
+
+        return $link;
+    }
+
+    private function clearPrimary(string $studentId): void
+    {
+        StudentGuardian::query()
+            ->withoutGlobalScope('tenant')
+            ->where('student_id', $studentId)
+            ->where('is_primary_contact', true)
+            ->update(['is_primary_contact' => false, 'updated_at' => now()]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function linkedMembershipIds(string $studentId): array
+    {
+        $ids = [];
+
+        foreach (DB::table('ac_student_guardians')->where('student_id', $studentId)->pluck('guardian_membership_id') as $id) {
+            $ids[] = (string) $id;
+        }
+
+        return $ids;
+    }
+
+    private function lockStudent(string $tenantId, string $studentId): Student
+    {
+        $student = Str::isUuid($studentId)
+            ? Student::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($studentId)->lockForUpdate()->first()
+            : null;
+
+        if (! $student instanceof Student) {
+            throw StudentException::make('form', 'Siswa tidak ditemukan di yayasan ini.');
+        }
+
+        return $student;
+    }
+
+    private function lockLink(string $studentId, string $linkId): StudentGuardian
+    {
+        $link = Str::isUuid($linkId)
+            ? StudentGuardian::query()->withoutGlobalScope('tenant')->where('student_id', $studentId)->whereKey($linkId)->lockForUpdate()->first()
+            : null;
+
+        if (! $link instanceof StudentGuardian) {
+            throw StudentException::make('form', 'Orang tua/wali ini tidak tercatat untuk siswa ini.');
+        }
+
+        return $link;
+    }
+
+    private function assertGuardianInput(string $name, ?string $phone): void
+    {
+        if (trim($name) === '' || mb_strlen($name) > StudentInput::NAME_MAX_LENGTH) {
+            throw StudentException::make('name', 'Nama orang tua/wali wajib diisi, maksimal 200 karakter.');
+        }
+
+        if ($phone !== null && preg_match(StudentInput::PHONE_PATTERN, $phone) !== 1) {
+            throw StudentException::make('phone', 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.');
+        }
+    }
+
+    /**
+     * @template T
+     *
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    private function transaction(Closure $callback): mixed
+    {
+        try {
+            return DB::transaction($callback);
+        } catch (UniqueConstraintViolationException) {
+            // Dua operator menyimpan bersamaan (orang yang sama / kontak utama ganda).
+            throw StudentException::conflict();
+        }
+    }
+}

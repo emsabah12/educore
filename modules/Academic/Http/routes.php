@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
+use Modules\Academic\Http\Controllers\StudentGuardianController;
 
 /*
  * Route web modul Academic (PRD-002 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -35,4 +36,15 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.update');
     Route::post('siswa/{student}/pendaftaran/{enrollment}/tutup', [StudentActionController::class, 'closeEnrollment'])
         ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.close');
+
+    // Orang tua/wali di detail siswa (AC-1c-b2). Pencarian HP dibatasi 30 kali/menit agar tidak dipakai menebak nomor.
+    Route::get('siswa/{student}/orang-tua/cari', [StudentGuardianController::class, 'search'])
+        ->whereUuid('student')->middleware('throttle:30,1')->name('academic.guardians.search');
+    Route::post('siswa/{student}/orang-tua', [StudentGuardianController::class, 'store'])->whereUuid('student')->name('academic.guardians.store');
+    Route::patch('siswa/{student}/orang-tua/{guardian}', [StudentGuardianController::class, 'update'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardians.update');
+    Route::delete('siswa/{student}/orang-tua/{guardian}', [StudentGuardianController::class, 'destroy'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardians.destroy');
+    Route::post('siswa/{student}/orang-tua/{guardian}/kontak-utama', [StudentGuardianController::class, 'makePrimary'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardians.primary');
 });

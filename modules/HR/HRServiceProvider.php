@@ -8,7 +8,9 @@ use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Employee\EloquentEmployeeLookup;
 use Modules\HR\Console\PruneImportsCommand;
+use Modules\HR\Contracts\EmployeeLookup;
 
 /**
  * Modul HR (kepegawaian), spesifikasi: PRD-001.
@@ -21,6 +23,12 @@ class HRServiceProvider extends ModuleServiceProvider
     protected function modulePath(): string
     {
         return __DIR__;
+    }
+
+    public function register(): void
+    {
+        // Kontrak publik untuk modul lain (Modules\HR\Contracts).
+        $this->app->singleton(EmployeeLookup::class, EloquentEmployeeLookup::class);
     }
 
     public function boot(): void

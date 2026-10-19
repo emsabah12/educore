@@ -35,6 +35,7 @@ final class CreateStudent
         private readonly GrantMembership $grantMembership,
         private readonly DuplicateCandidates $duplicateCandidates,
         private readonly ManageEnrollments $enrollments,
+        private readonly ManageGuardians $guardians,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -341,7 +342,7 @@ final class CreateStudent
         $reused = 0;
 
         foreach ($data->guardians as $index => $guardian) {
-            [$membership, $isReused] = $this->guardianMembership($data->tenantId, $guardian);
+            [$membership, $isReused] = $this->guardians->membershipFor($data->tenantId, $guardian);
 
             if ($membership->id === $studentMembership->id) {
                 throw StudentException::guardianIsStudent($index);
@@ -395,41 +396,6 @@ final class CreateStudent
         }
 
         return [$linked, $reused];
-    }
-
-    /**
-     * @return array{0: Membership, 1: bool} membership orang tua/wali, dan apakah orangnya sudah ada
-     */
-    private function guardianMembership(string $tenantId, GuardianData $guardian): array
-    {
-        if ($guardian->phone !== null) {
-            $personId = DB::table('persons as p')
-                ->join('memberships as m', 'm.person_id', '=', 'p.id')
-                ->where('m.tenant_id', $tenantId)
-                ->where('p.phone', $guardian->phone)
-                ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [StudentInput::comparableName($guardian->name)])
-                ->orderBy('p.id')
-                ->value('p.id');
-
-            if (is_string($personId)) {
-                $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
-
-                if ($person->gender === null && $guardian->gender !== null) {
-                    $person->gender = $guardian->gender;
-                    $person->save();
-                }
-
-                return [$this->grantMembership->handle($person->id, $tenantId), true];
-            }
-        }
-
-        $person = Person::query()->create([
-            'name' => $guardian->name,
-            'gender' => $guardian->gender,
-            'phone' => $guardian->phone,
-        ]);
-
-        return [$this->grantMembership->handle($person->id, $tenantId), false];
     }
 
     // ── Rujukan & validasi ────────────────────────────────────────────────────

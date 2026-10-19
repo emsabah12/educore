@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 0.6 (2026-10-18: AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP)
-- **Versi sebelumnya:** 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c-b1 dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Versi:** 0.7 (2026-10-19: rincian AC-1c-b2 orang tua/wali; kontrak HR `EmployeeLookup`)
+- **Versi sebelumnya:** 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c-b1 SELESAI (commit `1b572e8`); AC-1c-b2 dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -255,6 +255,7 @@ Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa
 ## 7. Batas modul
 
 - Arah dependency: `Academic → Core, HR` (ADR-001 §2.2). Academic hanya memakai **kontrak publik HR** (arch test sudah ada).
+- Kontrak HR `Modules\HR\Contracts\EmployeeLookup` (AC-1c-b2): membership mana yang punya profil pegawai; dipakai untuk mengunci data diri orang tua/wali yang juga pegawai. Tidak membuka data kepegawaian.
 - Kontrak HR baru [ASUMSI]: `Modules\HR\Contracts\ActiveEmployees` — daftar pegawai aktif yang punya penempatan berjalan di sebuah lembaga (id, nama) dan pemeriksaan "pegawai X aktif di lembaga Y". Dipakai untuk memilih dan memvalidasi wali kelas.
 - **Jabatan "Wali Kelas" di HR tidak otomatis menjadi wali kelas** di Academic, dan menjadi wali kelas **tidak memberi hak akses** apa pun (jabatan bukan hak akses, PRD-001 §4.1). [LAMA]
 - Wali kelas yang berhenti/dimutasi tetap tercatat di kelas lama; kelas aktif menampilkan tanda "wali kelas tidak aktif lagi di lembaga ini" agar operator menggantinya. [ASUMSI]
@@ -308,6 +309,16 @@ Rincian AC-1c-b1 [OWNER, 2026-10-18 — usulan disetujui]:
 - **Ubah pendaftaran**: memperbaiki nomor induk, tanggal masuk, jenis masuk, baik pendaftaran berjalan maupun riwayat; tanggal masuk tidak boleh sesudah tanggal keluar atau sesudah siswa masuk kelas pertamanya. Hanya di lembaga yang dikelola.
 - **Tutup pendaftaran**: tanggal keluar (tidak sebelum tanggal masuk, tidak di masa depan, tidak sebelum siswa masuk kelasnya), alasan, keterangan (wajib bila "Lainnya", maks. 500). Kelas terbuka di lembaga itu ikut ditutup di tanggal yang sama. Audit tidak menyimpan isi keterangan. Membatalkan penutupan belum tersedia (lihat §14).
 - Audit baru: `academic.student_updated`, `academic.enrollment_updated`, `academic.enrollment_closed`.
+
+Rincian AC-1c-b2 [OWNER, 2026-10-19 — usulan disetujui]:
+
+- **Siapa boleh**: sama dengan ubah data diri (OD-AC-09): Operator Akademik di lembaga mana pun tempat siswa aktif + Admin Yayasan; wajib berhak melihat data pribadi.
+- **Cari lewat HP**: hanya di antara orang yang **sudah tercatat sebagai orang tua/wali** (bukan seluruh anggota yayasan, agar HP pegawai tidak bisa dicari dari halaman siswa); nomor harus cocok persis setelah dirapikan; maks. 5 hasil berisi nama saja; dibatasi 30 pencarian/menit per pengguna. ID orang yang dipilih diperiksa ulang bersama nomor HP-nya.
+- **Tambah orang baru**: aturan B AC-1b (nama + HP sama → dipakai ulang). Orang tua/wali pertama otomatis menjadi kontak utama; pilihan "Jadikan kontak utama" memindah tanda. Maks. 4, tidak dobel, bukan siswa itu sendiri.
+- **Ubah**: hubungan + nama, L/P, HP. Bila orangnya juga **pegawai atau siswa**, hanya hubungan yang bisa diubah (data diri dari menu Pegawai/Siswa). Form memberi tahu jumlah siswa lain yang memakai orang tua/wali yang sama (tanpa nama).
+- **Lepas**: hanya tautan yang dihapus; orangnya tetap. Kontak utama yang dilepas wajib diganti bila masih ada orang tua/wali lain; bila tidak ada, siswa boleh tanpa kontak utama.
+- **Ganti kontak utama**: dari orang tua/wali yang sudah tertaut.
+- Audit baru: `academic.guardian_updated`, `academic.guardian_unlinked`, `academic.primary_contact_changed` (tanpa nilai data pribadi).
 
 ## 12. Di luar AC-1
 

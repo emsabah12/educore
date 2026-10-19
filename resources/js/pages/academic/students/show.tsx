@@ -3,12 +3,21 @@ import {
     ArrowLeft,
     Building2,
     DoorClosed,
+    Link2Off,
     Lock,
     Pencil,
+    Plus,
     UserPen,
     UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
+import type { GuardianRow } from '@/components/academic/guardian-actions';
+import {
+    AddGuardianForm,
+    EditGuardianForm,
+    MakePrimaryButton,
+    UnlinkGuardianForm,
+} from '@/components/academic/guardian-actions';
 import type { StudentManageData } from '@/components/academic/student-actions';
 import {
     CloseEnrollmentForm,
@@ -36,14 +45,6 @@ type Enrollment = {
     can_manage: boolean;
 };
 
-type Guardian = {
-    name: string;
-    relation: string;
-    gender: string | null;
-    phone: string | null;
-    is_primary: boolean;
-};
-
 type Student = {
     id: string;
     name: string;
@@ -56,7 +57,7 @@ type Student = {
         phone: string | null;
         address: string | null;
     } | null;
-    guardians: Guardian[] | null;
+    guardians: GuardianRow[] | null;
     enrollments: { current: Enrollment[]; history: Enrollment[] };
 };
 
@@ -71,7 +72,10 @@ type OpenAction =
     | { kind: 'profile' }
     | { kind: 'enroll' }
     | { kind: 'editEnrollment'; id: string }
-    | { kind: 'closeEnrollment'; id: string };
+    | { kind: 'closeEnrollment'; id: string }
+    | { kind: 'addGuardian' }
+    | { kind: 'editGuardian'; id: string }
+    | { kind: 'unlinkGuardian'; id: string };
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -246,43 +250,15 @@ export default function StudentDetail({ student, canCreate, manage }: Props) {
                 <Section title="Orang tua/wali">
                     {student.guardians === null ? (
                         lockedNote
-                    ) : student.guardians.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            Belum ada orang tua/wali yang dicatat.
-                        </p>
                     ) : (
-                        <ul className="divide-y">
-                            {student.guardians.map((guardian, index) => (
-                                <li
-                                    key={index}
-                                    className="flex flex-wrap items-start justify-between gap-2 py-3"
-                                >
-                                    <div className="min-w-0 space-y-0.5">
-                                        <p className="font-medium break-words">
-                                            {guardian.name}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {[
-                                                guardian.relation,
-                                                guardian.gender,
-                                            ]
-                                                .filter(Boolean)
-                                                .join(' · ')}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        {guardian.phone && (
-                                            <span className="font-mono text-sm">
-                                                {guardian.phone}
-                                            </span>
-                                        )}
-                                        {guardian.is_primary && (
-                                            <Badge>Kontak utama</Badge>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                        <GuardianList
+                            guardians={student.guardians}
+                            studentId={student.id}
+                            manage={manage?.guardians ? manage : null}
+                            action={action}
+                            onToggle={toggle}
+                            onDone={close}
+                        />
                     )}
                 </Section>
 
@@ -423,6 +399,169 @@ function EnrollmentList({
                 </li>
             ))}
         </ul>
+    );
+}
+
+function GuardianList({
+    guardians,
+    studentId,
+    manage,
+    action,
+    onToggle,
+    onDone,
+}: {
+    guardians: GuardianRow[];
+    studentId: string;
+    manage: StudentManageData | null;
+    action: OpenAction | null;
+    onToggle: (next: OpenAction) => void;
+    onDone: () => void;
+}) {
+    const isOpen = (kind: OpenAction['kind'], id: string) =>
+        action !== null &&
+        action.kind === kind &&
+        'id' in action &&
+        action.id === id;
+    const canAdd = manage !== null && guardians.length < manage.maxGuardians;
+
+    return (
+        <div className="space-y-3">
+            {guardians.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada orang tua/wali yang dicatat.
+                </p>
+            ) : (
+                <ul className="divide-y">
+                    {guardians.map((guardian) => (
+                        <li key={guardian.id} className="space-y-2 py-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 space-y-0.5">
+                                    <p className="font-medium break-words">
+                                        {guardian.name}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {[guardian.relation, guardian.gender]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {guardian.phone && (
+                                        <span className="font-mono text-sm">
+                                            {guardian.phone}
+                                        </span>
+                                    )}
+                                    {guardian.is_primary && (
+                                        <Badge>Kontak utama</Badge>
+                                    )}
+                                </div>
+                            </div>
+
+                            {manage && (
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={
+                                            isOpen('editGuardian', guardian.id)
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            onToggle({
+                                                kind: 'editGuardian',
+                                                id: guardian.id,
+                                            })
+                                        }
+                                    >
+                                        <Pencil />
+                                        Ubah
+                                    </Button>
+                                    {!guardian.is_primary && (
+                                        <MakePrimaryButton
+                                            studentId={studentId}
+                                            guardian={guardian}
+                                        />
+                                    )}
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={
+                                            isOpen(
+                                                'unlinkGuardian',
+                                                guardian.id,
+                                            )
+                                                ? 'destructive'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            onToggle({
+                                                kind: 'unlinkGuardian',
+                                                id: guardian.id,
+                                            })
+                                        }
+                                    >
+                                        <Link2Off />
+                                        Lepas
+                                    </Button>
+                                </div>
+                            )}
+
+                            {manage && isOpen('editGuardian', guardian.id) && (
+                                <EditGuardianForm
+                                    studentId={studentId}
+                                    guardian={guardian}
+                                    manage={manage}
+                                    onDone={onDone}
+                                />
+                            )}
+                            {manage &&
+                                isOpen('unlinkGuardian', guardian.id) && (
+                                    <UnlinkGuardianForm
+                                        studentId={studentId}
+                                        guardian={guardian}
+                                        others={guardians.filter(
+                                            (other) => other.id !== guardian.id,
+                                        )}
+                                        onDone={onDone}
+                                    />
+                                )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {manage &&
+                (canAdd ? (
+                    <>
+                        <Button
+                            type="button"
+                            variant={
+                                action?.kind === 'addGuardian'
+                                    ? 'default'
+                                    : 'outline'
+                            }
+                            onClick={() => onToggle({ kind: 'addGuardian' })}
+                            className="w-full sm:w-auto"
+                        >
+                            <Plus />
+                            Tambah orang tua/wali
+                        </Button>
+                        {action?.kind === 'addGuardian' && (
+                            <AddGuardianForm
+                                studentId={studentId}
+                                manage={manage}
+                                onDone={onDone}
+                            />
+                        )}
+                    </>
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        Sudah {manage.maxGuardians} orang tua/wali (batas
+                        maksimal). Lepas salah satu untuk menambah yang lain.
+                    </p>
+                ))}
+        </div>
     );
 }
 

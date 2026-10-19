@@ -25,11 +25,14 @@ export type ProfileValues = {
 export type StudentManageData = {
     today: string;
     profile: ProfileValues | null;
+    guardians: boolean;
+    maxGuardians: number;
     enrollTargets: Option[];
     options: {
         genders: Option[];
         entryTypes: Option[];
         endReasons: Option[];
+        relations: Option[];
     };
 };
 
@@ -42,10 +45,10 @@ export type EnrollmentRef = {
     end_date: string | null;
 };
 
-const selectClass =
+export const selectClass =
     'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
 
-const textareaClass =
+export const textareaClass =
     'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm dark:bg-input/30';
 
 /** Nama isian untuk ringkasan kesalahan. */
@@ -64,6 +67,9 @@ const fieldLabels: Record<string, string> = {
     end_date: 'Tanggal keluar',
     end_reason: 'Alasan',
     end_note: 'Keterangan',
+    relation: 'Hubungan',
+    membership_id: 'Orang yang dipilih',
+    new_primary_id: 'Kontak utama pengganti',
     form: 'Formulir',
 };
 
@@ -415,7 +421,7 @@ function EnrollmentFields({
     );
 }
 
-function ActionForm({
+export function ActionForm({
     title,
     action,
     method = 'post',
@@ -428,7 +434,7 @@ function ActionForm({
 }: {
     title: string;
     action: string;
-    method?: 'post' | 'patch';
+    method?: 'post' | 'patch' | 'delete';
     errorBag: string;
     submitLabel: string;
     destructive?: boolean;
@@ -516,7 +522,7 @@ function ErrorSummary({
     );
 }
 
-function Field({
+export function Field({
     id,
     label,
     required = false,
@@ -545,7 +551,7 @@ function Field({
     );
 }
 
-function SelectOptions({
+export function SelectOptions({
     id,
     name,
     options,

@@ -16,6 +16,7 @@ use Modules\Core\Domain\Organization\OrganizationType;
  *   siswa masih aktif, dan Admin Yayasan (izin kelola tingkat Yayasan). Wajib juga berhak melihat
  *   data pribadi, karena form menampilkan isinya.
  * - Pendaftaran: hanya di lembaga yang ada di cakupan izin kelola (dicek lewat Gate per pendaftaran).
+ * - Orang tua/wali (AC-1c-b2): sama dengan data diri.
  * - Daftarkan ke lembaga lain: lembaga aktif di cakupan izin kelola yang belum punya pendaftaran
  *   terbuka untuk siswa ini.
  *
@@ -50,6 +51,15 @@ final class StudentManageAccess
             ->whereNull('end_date')
             ->whereIn('organization_id', $nodeIds)
             ->exists();
+    }
+
+    /**
+     * Orang tua/wali melekat pada siswa, bukan pada salah satu lembaganya: aturannya sama dengan
+     * data diri (OD-AC-09) [OWNER, 2026-10-18].
+     */
+    public function canManageGuardians(string $studentId): bool
+    {
+        return $this->canEditProfile($studentId);
     }
 
     public function canManageOrganization(string $organizationId): bool

@@ -127,11 +127,15 @@ final class StudentController
             $manage = [
                 'today' => BusinessClock::todayString(),
                 'profile' => $canEditProfile ? $profile->editValues($tenantId, $student) : null,
+                // Orang tua/wali: aturannya sama dengan data diri (AC-1c-b2).
+                'guardians' => $canEditProfile,
+                'maxGuardians' => StudentInput::MAX_GUARDIANS,
                 'enrollTargets' => $access->enrollTargets($student),
                 'options' => [
                     'genders' => $this->enumOptions(Gender::cases()),
                     'entryTypes' => $this->enumOptions(EntryType::cases()),
                     'endReasons' => $this->enumOptions(EnrollmentEndReason::cases()),
+                    'relations' => $this->enumOptions(GuardianRelation::cases()),
                 ],
             ];
         }
