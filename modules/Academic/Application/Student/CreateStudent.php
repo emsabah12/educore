@@ -4,7 +4,6 @@ namespace Modules\Academic\Application\Student;
 
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Domain\Student\Enrollment;
 use Modules\Academic\Domain\Student\Exceptions\StudentCheckFailed;
@@ -14,7 +13,6 @@ use Modules\Academic\Domain\Student\StudentGuardian;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Application\Membership\GrantMembership;
 use Modules\Core\Domain\Organization\Organization;
-use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Support\BusinessClock;
@@ -36,6 +34,7 @@ final class CreateStudent
     public function __construct(
         private readonly GrantMembership $grantMembership,
         private readonly DuplicateCandidates $duplicateCandidates,
+        private readonly ManageEnrollments $enrollments,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -57,7 +56,7 @@ final class CreateStudent
 
     private function create(NewStudentData $data): StudentCreated
     {
-        $organization = $this->activeLembaga($data->tenantId, $data->organizationId);
+        $organization = $this->enrollments->activeLembaga($data->tenantId, $data->organizationId);
 
         $newPerson = $data->existingMembershipId === null;
 
@@ -68,7 +67,7 @@ final class CreateStudent
         }
 
         [$student, $newStudent] = $this->studentFor($data, $membership);
-        $enrollment = $this->enroll($data, $student, $organization);
+        $enrollment = $this->enrollments->openFor($student, $organization, $data->studentNumber, $data->startDate, $data->entryType);
         [$linked, $reused] = $this->linkGuardians($data, $student, $membership);
 
         if ($newStudent) {
@@ -313,48 +312,6 @@ final class CreateStudent
         return [$student, true];
     }
 
-    private function enroll(NewStudentData $data, Student $student, Organization $organization): Enrollment
-    {
-        $enrollments = Enrollment::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $data->tenantId)
-            ->where('organization_id', $organization->id);
-
-        $alreadyOpen = (clone $enrollments)
-            ->where('student_id', $student->id)
-            ->whereNull('end_date')
-            ->exists();
-
-        if ($alreadyOpen) {
-            throw StudentException::alreadyEnrolled();
-        }
-
-        // Nomor induk tidak boleh pernah dipakai siswa LAIN di lembaga ini (PRD-002 §4.2).
-        if ($data->studentNumber !== null) {
-            $taken = (clone $enrollments)
-                ->where('student_number', $data->studentNumber)
-                ->where('student_id', '<>', $student->id)
-                ->exists();
-
-            if ($taken) {
-                throw StudentException::duplicateStudentNumber($data->studentNumber);
-            }
-        }
-
-        $enrollment = new Enrollment;
-        $enrollment->fill([
-            'tenant_id' => $data->tenantId,
-            'student_id' => $student->id,
-            'organization_id' => $organization->id,
-            'student_number' => $data->studentNumber,
-            'entry_type' => $data->entryType,
-            'start_date' => $data->startDate,
-        ]);
-        $enrollment->save();
-
-        return $enrollment;
-    }
-
     // ── Orang tua/wali ────────────────────────────────────────────────────────
 
     /**
@@ -477,27 +434,6 @@ final class CreateStudent
 
     // ── Rujukan & validasi ────────────────────────────────────────────────────
 
-    private function activeLembaga(string $tenantId, string $id): Organization
-    {
-        $organization = Str::isUuid($id)
-            ? Organization::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($id)->first()
-            : null;
-
-        if (! $organization instanceof Organization) {
-            throw StudentException::organizationNotFound();
-        }
-
-        if ($organization->type !== OrganizationType::Lembaga) {
-            throw StudentException::notALembaga();
-        }
-
-        if (! $organization->isActive()) {
-            throw StudentException::organizationInactive();
-        }
-
-        return $organization;
-    }
-
     private function assertNisnFree(string $tenantId, string $nisn): void
     {
         $taken = Student::query()
@@ -522,7 +458,7 @@ final class CreateStudent
 
         $today = BusinessClock::todayString();
 
-        if (! $this->isDate($data->startDate)) {
+        if (! StudentInput::isDate($data->startDate)) {
             throw StudentException::make('start_date', 'Tanggal masuk tidak valid.');
         }
 
@@ -530,7 +466,7 @@ final class CreateStudent
             throw StudentException::futureDate('start_date', 'Tanggal masuk');
         }
 
-        if ($data->birthDate !== null && ! $this->isDate($data->birthDate)) {
+        if ($data->birthDate !== null && ! StudentInput::isDate($data->birthDate)) {
             throw StudentException::make('birth_date', 'Tanggal lahir tidak valid.');
         }
 
@@ -567,18 +503,6 @@ final class CreateStudent
         if ($data->guardians !== [] && ($data->primaryGuardian === null || ! isset($data->guardians[$data->primaryGuardian]))) {
             throw StudentException::primaryGuardianInvalid();
         }
-    }
-
-    /**
-     * Tanggal kalender yang sah dengan format YYYY-MM-DD (perbandingan string aman untuk format ini).
-     */
-    private function isDate(string $value): bool
-    {
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $parts) !== 1) {
-            return false;
-        }
-
-        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
     }
 
     private function fromUniqueViolation(UniqueConstraintViolationException $exception, NewStudentData $data): StudentException

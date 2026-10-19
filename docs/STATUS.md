@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-17
-- **Tahap aktif:** AC-1c-a — daftar & detail siswa (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `ccc183b` — feat(academic): AC-1a skema, Operator Akademik, kalender akademik
+- **Diperbarui:** 2026-10-18
+- **Tahap aktif:** AC-1c-b1 — ubah data diri & pendaftaran siswa (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `759ac3d` — feat(academic): AC-1c-a daftar dan detail siswa (berisi AC-1b + AC-1c-a)
 
 ## Keputusan penting
 
@@ -27,6 +27,7 @@
 | 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
 | 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
 | 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-18 | AC-1c-b dipecah b1 (data diri & pendaftaran, termasuk ubah pendaftaran) dan b2 (orang tua/wali); cari orang tua lewat HP cocok persis tanpa nama anak                                                                                              | PRD-002 §11, §4.5          |
 | 2026-10-18 | Data diri siswa boleh diubah Operator Akademik lembaga mana pun tempat siswa aktif (+ Admin Yayasan); lembaga tetap melihat alumninya                                                                                                              | PRD-002 OD-AC-09, §5.3     |
 | 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi                                                                                                                                         | PRD-000 §6                 |
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
@@ -186,7 +187,7 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.5 (2026-10-18)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c.
+**PRD-002 Academic: v0.6 (2026-10-18)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -196,7 +197,7 @@
 - Halaman `/akademik/kalender` (menu **Kalender akademik**, hanya Seluruh Yayasan); seeder `AcademicCalendarSeeder` (semua lingkungan) & `AcademicDevSeeder` (akun `operator.smp` + contoh tahun ajaran, local/testing).
 - Bukti: 363 test lulus (33 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual 10 langkah (termasuk HP) lancar.
 
-**AC-1b — Tambah siswa: SELESAI (2026-10-18)**
+**AC-1b — Tambah siswa: SELESAI (2026-10-18, commit `759ac3d` bersama AC-1c-a)**
 
 - Model `Student`, `Enrollment` (OwnedByOrganization), `StudentGuardian` + enum jenis masuk, alasan keluar, hubungan.
 - `CreateStudent`: orang baru **atau** orang yang sama (dipilih dari calon nama sama, `DuplicateCandidates`) → profil siswa → pendaftaran → 0–4 orang tua/wali, satu transaksi; NISN unik per yayasan, nomor induk tidak dipakai siswa lain di lembaga itu; orang tua dengan nama + HP sama dipakai ulang.
@@ -207,11 +208,22 @@
 - Catatan pengiriman: paket perbaikan diberi nama baru (`-v2`) agar tidak tertukar dengan unduhan lama yang bernama sama.
 - Pelajaran: Larastan menolak pemeriksaan `!== null` yang sudah pasti benar karena dicek beberapa baris sebelumnya (`notIdentical.alwaysTrue`); setelah nilai dipastikan, jangan diperiksa lagi.
 
-**AC-1c-a — Daftar & detail siswa: KODE SIAP (2026-10-18, menunggu verifikasi)**
+**AC-1c-a — Daftar & detail siswa: SELESAI (2026-10-18, commit `759ac3d`)**
 
 - `StudentVisibility` (saringan SQL sebelum paginasi; pendaftaran terbuka maupun ditutup di node terlihat), `StudentFilters`, `StudentDirectory`, `StudentProfile`.
 - Halaman `/siswa` (menu **Siswa** untuk `academic.students.view`, tabel di desktop, kartu di HP) dan `/siswa/{id}` (data pribadi & orang tua/wali hanya dengan `view_personal`; semua pendaftaran tampil); tambah siswa kini langsung ke detail.
-- Target bukti: 397 test (7 test baru).
+- Bukti: 397 test lulus (2883 assertions, 7 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
+- Pelajaran test: `actingAs()` di `beforeEach` tetap berlaku untuk semua request di test itu. Untuk menguji "tamu", panggil `$this->app['auth']->forgetGuards()` dulu.
+
+**AC-1c-b1 — Ubah data diri & pendaftaran: KODE SIAP (2026-10-18, menunggu verifikasi)**
+
+- `UpdateStudentProfile` (data diri + NISN, OD-AC-09), `ManageEnrollments` (daftarkan ke lembaga lain, ubah, tutup; dipakai juga `CreateStudent`), `StudentManageAccess` (siapa boleh apa).
+- `StudentActionController` + route `PATCH siswa/{id}`, `POST siswa/{id}/pendaftaran`, `PATCH …/pendaftaran/{id}`, `POST …/pendaftaran/{id}/tutup`.
+- Detail siswa: tombol **Ubah data diri**, **Daftarkan ke lembaga lain**, dan per pendaftaran **Ubah** / **Tutup** (hanya bagi yang berhak); form menampilkan ringkasan kesalahan.
+- Audit `academic.student_updated`, `academic.enrollment_updated`, `academic.enrollment_closed`.
+- Target bukti: 410 test (14 test baru).
+- Pelajaran test: untuk menimpa isian di test pakai `array_merge($dasar, $timpa)`, bukan `$dasar + $timpa` (operator `+` mempertahankan nilai kiri, sehingga timpaan diam-diam diabaikan).
+- `composer test` kini memakai `Composer\Config::disableProcessTimeout`: dengan 400+ test, durasinya mendekati batas bawaan Composer 300 detik dan sempat terhenti.
 
 ## Struktur file utama
 
@@ -244,5 +256,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1c-a (PANDUAN-AC-1C-A.md).
-2. AC-1c-b aksi di detail siswa → AC-1d kelas → AC-1e impor siswa.
+1. Verifikasi AC-1c-b1 (PANDUAN-AC-1C-B1.md).
+2. AC-1c-b2 orang tua/wali di detail siswa → AC-1d kelas → AC-1e impor siswa.

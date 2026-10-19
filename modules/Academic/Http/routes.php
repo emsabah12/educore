@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
+use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 
 /*
@@ -26,4 +27,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('siswa/tambah', [StudentController::class, 'create'])->name('academic.students.create');
     Route::post('siswa', [StudentController::class, 'store'])->name('academic.students.store');
     Route::get('siswa/{student}', [StudentController::class, 'show'])->whereUuid('student')->name('academic.students.show');
+
+    // Aksi di detail siswa (AC-1c-b1). Hak akses dicek per aksi di controller (OD-AC-09, §5.3).
+    Route::patch('siswa/{student}', [StudentActionController::class, 'updateProfile'])->whereUuid('student')->name('academic.students.update');
+    Route::post('siswa/{student}/pendaftaran', [StudentActionController::class, 'enroll'])->whereUuid('student')->name('academic.enrollments.store');
+    Route::patch('siswa/{student}/pendaftaran/{enrollment}', [StudentActionController::class, 'updateEnrollment'])
+        ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.update');
+    Route::post('siswa/{student}/pendaftaran/{enrollment}/tutup', [StudentActionController::class, 'closeEnrollment'])
+        ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.close');
 });

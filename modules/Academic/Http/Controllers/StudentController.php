@@ -18,8 +18,10 @@ use Modules\Academic\Application\Student\NewStudentData;
 use Modules\Academic\Application\Student\StudentDirectory;
 use Modules\Academic\Application\Student\StudentFilters;
 use Modules\Academic\Application\Student\StudentInput;
+use Modules\Academic\Application\Student\StudentManageAccess;
 use Modules\Academic\Application\Student\StudentProfile;
 use Modules\Academic\Application\Student\StudentVisibility;
+use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\Exceptions\StudentCheckFailed;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
@@ -34,7 +36,8 @@ use Modules\Core\Support\BusinessClock;
 use stdClass;
 
 /**
- * Halaman siswa (PRD-002 §6): daftar & detail (AC-1c-a), tambah siswa (AC-1b).
+ * Halaman siswa (PRD-002 §6): daftar & detail (AC-1c-a), tambah siswa (AC-1b). Aksi di detail ada di
+ * StudentActionController (AC-1c-b); detail mengirim bahan form-nya (`manage`) hanya kepada pengelola.
  *
  * Daftar & detail: `academic.students.view`, disaring per pohon lembaga (StudentVisibility, §5.3);
  * siswa di luar cakupan → 404. Data pribadi & orang tua/wali hanya dengan `view_personal`.
@@ -82,7 +85,7 @@ final class StudentController
         ]);
     }
 
-    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile): Response
+    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile, StudentManageAccess $access): Response
     {
         Gate::authorize(AcademicAccess::STUDENTS_VIEW);
 
@@ -91,8 +94,9 @@ final class StudentController
             abort(404);
         }
 
+        $tenantId = $this->tenantContext->require()->tenantId;
         $data = $profile->load(
-            $this->tenantContext->require()->tenantId,
+            $tenantId,
             $student,
             withPersonal: $visibility->canSee($student, AcademicAccess::STUDENTS_VIEW_PERSONAL),
         );
@@ -101,9 +105,41 @@ final class StudentController
             abort(404);
         }
 
+        $managesAnywhere = $access->managesAnywhere();
+
+        // Penanda per pendaftaran: boleh diubah/ditutup oleh pengguna ini (lembaganya di cakupan kelola).
+        $enrollments = ['current' => [], 'history' => []];
+
+        foreach (['current', 'history'] as $group) {
+            foreach ($data['enrollments'][$group] as $enrollment) {
+                $enrollment['can_manage'] = $managesAnywhere && $access->canManageOrganization($enrollment['organization_id']);
+                $enrollments[$group][] = $enrollment;
+            }
+        }
+
+        $data['enrollments'] = $enrollments;
+
+        $manage = null;
+
+        if ($managesAnywhere) {
+            $canEditProfile = $access->canEditProfile($student);
+
+            $manage = [
+                'today' => BusinessClock::todayString(),
+                'profile' => $canEditProfile ? $profile->editValues($tenantId, $student) : null,
+                'enrollTargets' => $access->enrollTargets($student),
+                'options' => [
+                    'genders' => $this->enumOptions(Gender::cases()),
+                    'entryTypes' => $this->enumOptions(EntryType::cases()),
+                    'endReasons' => $this->enumOptions(EnrollmentEndReason::cases()),
+                ],
+            ];
+        }
+
         return Inertia::render('academic/students/show', [
             'student' => $data,
-            'canCreate' => $this->authorization->allows(AcademicAccess::STUDENTS_MANAGE),
+            'canCreate' => $managesAnywhere,
+            'manage' => $manage,
         ]);
     }
 
@@ -324,7 +360,7 @@ final class StudentController
     }
 
     /**
-     * @param  list<Gender|EntryType|GuardianRelation>  $cases
+     * @param  list<Gender|EntryType|GuardianRelation|EnrollmentEndReason>  $cases
      * @return list<array{value: string, label: string}>
      */
     private function enumOptions(array $cases): array

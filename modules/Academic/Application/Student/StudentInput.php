@@ -84,4 +84,16 @@ final class StudentInput
     {
         return mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($name)));
     }
+
+    /**
+     * Tanggal kalender yang sah dengan format YYYY-MM-DD (perbandingan string aman untuk format ini).
+     */
+    public static function isDate(string $value): bool
+    {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $parts) !== 1) {
+            return false;
+        }
+
+        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
+    }
 }

@@ -1,20 +1,39 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Lock, UserPlus } from 'lucide-react';
+import {
+    ArrowLeft,
+    Building2,
+    DoorClosed,
+    Lock,
+    Pencil,
+    UserPen,
+    UserPlus,
+} from 'lucide-react';
+import { useState } from 'react';
+import type { StudentManageData } from '@/components/academic/student-actions';
+import {
+    CloseEnrollmentForm,
+    EditEnrollmentForm,
+    EnrollForm,
+    ProfileForm,
+} from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 type Enrollment = {
     id: string;
+    organization_id: string;
     organization: string;
     organization_code: string;
     student_number: string | null;
     entry_type: string;
+    entry_type_code: string;
     start_date: string;
     end_date: string | null;
     end_reason: string | null;
     end_note: string | null;
     open: boolean;
+    can_manage: boolean;
 };
 
 type Guardian = {
@@ -44,7 +63,15 @@ type Student = {
 type Props = {
     student: Student;
     canCreate: boolean;
+    manage: StudentManageData | null;
 };
+
+/** Aksi yang sedang terbuka: satu form pada satu waktu. */
+type OpenAction =
+    | { kind: 'profile' }
+    | { kind: 'enroll' }
+    | { kind: 'editEnrollment'; id: string }
+    | { kind: 'closeEnrollment'; id: string };
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -61,9 +88,23 @@ function formatDate(value: string | null): string {
 
 /**
  * Detail siswa (PRD-002 §6, AC-1c-a). Semua pendaftaran siswa tampil, termasuk di lembaga lain;
- * data pribadi & orang tua/wali hanya untuk pemilik izin lihat data pribadi. Aksi menyusul (AC-1c-b).
+ * data pribadi & orang tua/wali hanya untuk pemilik izin lihat data pribadi.
+ * Aksi (AC-1c-b1) hanya tampil bagi yang berhak; server tetap memeriksa ulang setiap aksi.
  */
-export default function StudentDetail({ student, canCreate }: Props) {
+export default function StudentDetail({ student, canCreate, manage }: Props) {
+    const [action, setAction] = useState<OpenAction | null>(null);
+    const close = () => setAction(null);
+    const toggle = (next: OpenAction) =>
+        setAction((current) =>
+            current &&
+            current.kind === next.kind &&
+            ('id' in current ? current.id : '') ===
+                ('id' in next ? next.id : '')
+                ? null
+                : next,
+        );
+    const canEnroll = manage !== null && manage.enrollTargets.length > 0;
+
     const lockedNote = (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Lock className="size-4 shrink-0" />
@@ -113,6 +154,46 @@ export default function StudentDetail({ student, canCreate }: Props) {
                     </div>
                 </div>
 
+                {manage && (manage.profile || canEnroll) && (
+                    <section aria-label="Kelola siswa" className="space-y-3">
+                        {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2">
+                            {manage.profile && (
+                                <ActionButton
+                                    active={action?.kind === 'profile'}
+                                    onClick={() => toggle({ kind: 'profile' })}
+                                    icon={<UserPen />}
+                                    label="Ubah data diri"
+                                />
+                            )}
+                            {canEnroll && (
+                                <ActionButton
+                                    active={action?.kind === 'enroll'}
+                                    onClick={() => toggle({ kind: 'enroll' })}
+                                    icon={<Building2 />}
+                                    label="Daftarkan ke lembaga lain"
+                                />
+                            )}
+                        </div>
+
+                        {action?.kind === 'profile' && manage.profile && (
+                            <ProfileForm
+                                studentId={student.id}
+                                manage={manage}
+                                values={manage.profile}
+                                onDone={close}
+                            />
+                        )}
+                        {action?.kind === 'enroll' && (
+                            <EnrollForm
+                                studentId={student.id}
+                                manage={manage}
+                                onDone={close}
+                            />
+                        )}
+                    </section>
+                )}
+
                 <Section title="Data pribadi">
                     {student.personal ? (
                         <dl className="grid gap-3 sm:grid-cols-2">
@@ -151,7 +232,14 @@ export default function StudentDetail({ student, canCreate }: Props) {
                             Tidak ada pendaftaran yang masih berjalan.
                         </p>
                     ) : (
-                        <EnrollmentList items={student.enrollments.current} />
+                        <EnrollmentList
+                            items={student.enrollments.current}
+                            studentId={student.id}
+                            manage={manage}
+                            action={action}
+                            onToggle={toggle}
+                            onDone={close}
+                        />
                     )}
                 </Section>
 
@@ -200,7 +288,14 @@ export default function StudentDetail({ student, canCreate }: Props) {
 
                 {student.enrollments.history.length > 0 && (
                     <Section title="Riwayat pendaftaran">
-                        <EnrollmentList items={student.enrollments.history} />
+                        <EnrollmentList
+                            items={student.enrollments.history}
+                            studentId={student.id}
+                            manage={manage}
+                            action={action}
+                            onToggle={toggle}
+                            onDone={close}
+                        />
                     </Section>
                 )}
             </div>
@@ -208,39 +303,150 @@ export default function StudentDetail({ student, canCreate }: Props) {
     );
 }
 
-function EnrollmentList({ items }: { items: Enrollment[] }) {
+function EnrollmentList({
+    items,
+    studentId,
+    manage,
+    action,
+    onToggle,
+    onDone,
+}: {
+    items: Enrollment[];
+    studentId: string;
+    manage: StudentManageData | null;
+    action: OpenAction | null;
+    onToggle: (next: OpenAction) => void;
+    onDone: () => void;
+}) {
+    const isOpen = (kind: OpenAction['kind'], id: string) =>
+        action !== null &&
+        action.kind === kind &&
+        'id' in action &&
+        action.id === id;
+
     return (
         <ul className="divide-y">
             {items.map((enrollment) => (
-                <li key={enrollment.id} className="space-y-1 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium">
-                            {enrollment.organization}
-                        </span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                            {enrollment.organization_code}
-                        </span>
-                        {enrollment.open && <Badge>Berjalan</Badge>}
+                <li key={enrollment.id} className="space-y-2 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-medium">
+                                    {enrollment.organization}
+                                </span>
+                                <span className="font-mono text-xs text-muted-foreground">
+                                    {enrollment.organization_code}
+                                </span>
+                                {enrollment.open && <Badge>Berjalan</Badge>}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {enrollment.student_number
+                                    ? `Nomor induk ${enrollment.student_number} · `
+                                    : ''}
+                                {enrollment.entry_type} ·{' '}
+                                {formatDate(enrollment.start_date)} –{' '}
+                                {enrollment.end_date
+                                    ? formatDate(enrollment.end_date)
+                                    : 'sekarang'}
+                            </p>
+                            {enrollment.end_reason && (
+                                <p className="text-sm">
+                                    Ditutup: {enrollment.end_reason}
+                                    {enrollment.end_note &&
+                                        ` — ${enrollment.end_note}`}
+                                </p>
+                            )}
+                        </div>
+                        {manage && enrollment.can_manage && (
+                            <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:w-auto sm:grid-flow-col sm:grid-cols-none">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        isOpen('editEnrollment', enrollment.id)
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        onToggle({
+                                            kind: 'editEnrollment',
+                                            id: enrollment.id,
+                                        })
+                                    }
+                                >
+                                    <Pencil />
+                                    Ubah
+                                </Button>
+                                {enrollment.open && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={
+                                            isOpen(
+                                                'closeEnrollment',
+                                                enrollment.id,
+                                            )
+                                                ? 'destructive'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            onToggle({
+                                                kind: 'closeEnrollment',
+                                                id: enrollment.id,
+                                            })
+                                        }
+                                    >
+                                        <DoorClosed />
+                                        Tutup
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        {enrollment.student_number
-                            ? `Nomor induk ${enrollment.student_number} · `
-                            : ''}
-                        {enrollment.entry_type} ·{' '}
-                        {formatDate(enrollment.start_date)} –{' '}
-                        {enrollment.end_date
-                            ? formatDate(enrollment.end_date)
-                            : 'sekarang'}
-                    </p>
-                    {enrollment.end_reason && (
-                        <p className="text-sm">
-                            Ditutup: {enrollment.end_reason}
-                            {enrollment.end_note && ` — ${enrollment.end_note}`}
-                        </p>
+
+                    {manage && isOpen('editEnrollment', enrollment.id) && (
+                        <EditEnrollmentForm
+                            studentId={studentId}
+                            enrollment={enrollment}
+                            manage={manage}
+                            onDone={onDone}
+                        />
+                    )}
+                    {manage && isOpen('closeEnrollment', enrollment.id) && (
+                        <CloseEnrollmentForm
+                            studentId={studentId}
+                            enrollment={enrollment}
+                            manage={manage}
+                            onDone={onDone}
+                        />
                     )}
                 </li>
             ))}
         </ul>
+    );
+}
+
+function ActionButton({
+    active,
+    onClick,
+    icon,
+    label,
+}: {
+    active: boolean;
+    onClick: () => void;
+    icon: React.ReactNode;
+    label: string;
+}) {
+    return (
+        <Button
+            type="button"
+            variant={active ? 'default' : 'outline'}
+            onClick={onClick}
+            aria-expanded={active}
+        >
+            {icon}
+            {label}
+        </Button>
     );
 }
 

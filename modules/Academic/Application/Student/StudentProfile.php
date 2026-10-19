@@ -16,7 +16,7 @@ use Modules\Core\Domain\Person\Gender;
  *   melihat bahwa siswanya juga santri MDA.
  * - Data pribadi siswa dan seluruh data orang tua/wali hanya diisi bila $withPersonal (§4.5).
  *
- * @phpstan-type EnrollmentRow array{id: string, organization: string, organization_code: string, student_number: string|null, entry_type: string, start_date: string, end_date: string|null, end_reason: string|null, end_note: string|null, open: bool}
+ * @phpstan-type EnrollmentRow array{id: string, organization_id: string, organization: string, organization_code: string, student_number: string|null, entry_type: string, entry_type_code: string, start_date: string, end_date: string|null, end_reason: string|null, end_note: string|null, open: bool}
  * @phpstan-type GuardianRow array{name: string, relation: string, gender: string|null, phone: string|null, is_primary: bool}
  */
 final class StudentProfile
@@ -68,6 +68,36 @@ final class StudentProfile
     }
 
     /**
+     * Isi awal form "Ubah data diri" (nilai mentah, bukan label). Pemanggil WAJIB sudah memastikan
+     * pengguna boleh mengubah data diri siswa ini (StudentManageAccess::canEditProfile).
+     *
+     * @return array{name: string, gender: string|null, birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null, nisn: string|null}|null
+     */
+    public function editValues(string $tenantId, string $studentId): ?array
+    {
+        $row = DB::table('ac_students as s')
+            ->join('memberships as m', 'm.id', '=', 's.membership_id')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->where('s.tenant_id', $tenantId)
+            ->where('s.id', $studentId)
+            ->first(['s.nisn', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'name' => (string) $row->name,
+            'gender' => $row->gender === null ? null : (string) $row->gender,
+            'birth_place' => $row->birth_place === null ? null : (string) $row->birth_place,
+            'birth_date' => $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10),
+            'phone' => $row->phone === null ? null : (string) $row->phone,
+            'address' => $row->address === null ? null : (string) $row->address,
+            'nisn' => $row->nisn === null ? null : (string) $row->nisn,
+        ];
+    }
+
+    /**
      * Pendaftaran berjalan (urut nama lembaga) dan riwayat (terbaru dulu).
      *
      * @return array{current: list<EnrollmentRow>, history: list<EnrollmentRow>}
@@ -80,7 +110,7 @@ final class StudentProfile
             ->orderBy('o.name')
             ->orderByDesc('e.start_date')
             ->get([
-                'e.id', 'e.student_number', 'e.entry_type', 'e.start_date', 'e.end_date', 'e.end_reason', 'e.end_note',
+                'e.id', 'e.organization_id', 'e.student_number', 'e.entry_type', 'e.start_date', 'e.end_date', 'e.end_reason', 'e.end_note',
                 'o.name as organization', 'o.code as organization_code',
             ]);
 
@@ -94,10 +124,12 @@ final class StudentProfile
 
             $item = [
                 'id' => (string) $row->id,
+                'organization_id' => (string) $row->organization_id,
                 'organization' => (string) $row->organization,
                 'organization_code' => (string) $row->organization_code,
                 'student_number' => $row->student_number === null ? null : (string) $row->student_number,
                 'entry_type' => $entryType === null ? (string) $row->entry_type : $entryType->label(),
+                'entry_type_code' => (string) $row->entry_type,
                 'start_date' => substr((string) $row->start_date, 0, 10),
                 'end_date' => $endDate,
                 'end_reason' => $reason?->label(),

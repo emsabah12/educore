@@ -26,6 +26,12 @@ final class AcademicAuditAction
 
     public const GUARDIAN_LINKED = 'academic.guardian_linked';
 
+    public const STUDENT_UPDATED = 'academic.student_updated';
+
+    public const ENROLLMENT_UPDATED = 'academic.enrollment_updated';
+
+    public const ENROLLMENT_CLOSED = 'academic.enrollment_closed';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -48,6 +54,9 @@ final class AcademicAuditAction
             self::STUDENT_CREATED => 'Siswa ditambahkan',
             self::ENROLLMENT_CREATED => 'Siswa didaftarkan ke lembaga',
             self::GUARDIAN_LINKED => 'Orang tua/wali ditautkan',
+            self::STUDENT_UPDATED => 'Data diri siswa diubah',
+            self::ENROLLMENT_UPDATED => 'Pendaftaran siswa diubah',
+            self::ENROLLMENT_CLOSED => 'Pendaftaran siswa ditutup',
         ];
     }
 }
