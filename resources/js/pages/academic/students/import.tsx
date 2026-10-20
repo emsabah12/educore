@@ -302,12 +302,12 @@ function PreviewSection({
                 </Notice>
             ) : preview.warning > 0 ? (
                 <Notice tone="warning">
-                    Tidak ada baris yang salah. Periksa {preview.warning} baris
+                    Semua baris bisa disimpan. Periksa {preview.warning} baris
                     bertanda peringatan: mungkin orangnya sudah terdaftar (isi
                     NISN-nya bila orangnya sama).
                 </Notice>
             ) : (
-                <Notice tone="ok">Semua baris benar.</Notice>
+                <Notice tone="ok">Semua baris siap disimpan.</Notice>
             )}
 
             {/* Grid otomatis: tab saringan turun ke baris berikutnya di layar sempit. */}
@@ -354,12 +354,9 @@ function PreviewSection({
             )}
 
             <div className="space-y-3 border-t pt-4">
-                <p className="text-sm text-muted-foreground">
-                    Tombol <strong>Simpan</strong> menyusul di tahap berikutnya
-                    (AC-1e-b). Sementara ini pratinjau dipakai untuk memeriksa
-                    file; belum ada data siswa yang disimpan.
-                </p>
+                <SaveForm preview={preview} pending={pending} />
 
+                {/* Form terpisah (bukan di dalam form simpan): form HTML tidak boleh bersarang. */}
                 <Form
                     action="/siswa/impor/batal"
                     method="post"
@@ -378,6 +375,73 @@ function PreviewSection({
                 </Form>
             </div>
         </Step>
+    );
+}
+
+/**
+ * Simpan semua baris sekaligus (pola OD-HR-05): hanya bila tidak ada baris Salah, dan peringatan
+ * orang ganda harus dikonfirmasi. Server membaca dan memeriksa ulang file sebelum menyimpan.
+ */
+function SaveForm({
+    preview,
+    pending,
+}: {
+    preview: Preview;
+    pending: Pending;
+}) {
+    const [confirmed, setConfirmed] = useState(false);
+    const needsConfirmation = preview.warning > 0;
+    const blocked = !preview.canSave || (needsConfirmation && !confirmed);
+
+    return (
+        <Form
+            action="/siswa/impor/simpan"
+            method="post"
+            options={{ preserveScroll: true }}
+            className="space-y-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    {needsConfirmation && preview.canSave && (
+                        <label className="flex items-start gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="confirm_warnings"
+                                value="1"
+                                checked={confirmed}
+                                onChange={(event) =>
+                                    setConfirmed(event.target.checked)
+                                }
+                                className="mt-0.5 size-4 shrink-0"
+                            />
+                            <span>
+                                Saya sudah memeriksa {preview.warning} baris
+                                bertanda peringatan; semua orang ini berbeda dan
+                                boleh ditambahkan sebagai siswa baru.
+                            </span>
+                        </label>
+                    )}
+
+                    <InputError
+                        message={errors.save ?? errors.organization_id}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
+                        <Button type="submit" disabled={blocked || processing}>
+                            {processing
+                                ? 'Menyimpan…'
+                                : `Simpan ${preview.total} siswa ke ${pending.organization.label}`}
+                        </Button>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                        {preview.canSave
+                            ? 'Semua baris disimpan sekaligus. Bila satu baris gagal, tidak ada yang disimpan. Siswa dan orang tua/wali tidak mendapat akun login.'
+                            : 'Simpan tersedia setelah semua baris benar.'}
+                    </p>
+                </>
+            )}
+        </Form>
     );
 }
 

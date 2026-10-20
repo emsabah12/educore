@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Import\ImportSaveException;
+use Modules\Academic\Application\Import\ImportStudents;
 use Modules\Academic\Application\Import\PendingStudentImport;
 use Modules\Academic\Application\Import\StudentImportColumns;
 use Modules\Academic\Application\Import\StudentImportReader;
@@ -25,17 +27,20 @@ use Modules\Core\Support\Import\ImportFileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Impor siswa dari Excel/CSV (PRD-002 AC-1e): template, unggah, pratinjau, batal. Simpan menyusul
- * di AC-1e-b. Pola sama dengan impor pegawai (PRD-001 §6.2).
+ * Impor siswa dari Excel/CSV (PRD-002 AC-1e): template, unggah, pratinjau, simpan (AC-1e-b), batal.
+ * Pola sama dengan impor pegawai (PRD-001 §6.2).
  *
  * Siapa: pemegang `academic.students.manage` (Operator Akademik di lembaganya, Admin Yayasan).
  * Satu file = satu lembaga, dipilih saat unggah [OWNER, 2026-10-20]: di luar cakupan → 404,
- * tanpa izin → 403. Pratinjau tidak menyimpan data siswa apa pun.
+ * tanpa izin → 403. Pratinjau tidak menyimpan data siswa apa pun; Simpan menyimpan semua baris
+ * sekaligus atau tidak sama sekali.
  */
 final class StudentImportController
 {
     /** Batas ukuran file dalam kilobyte (pola PRD-001 §6.2). */
     public const MAX_KILOBYTES = 2048;
+
+    private const SAVE_TIME_LIMIT_SECONDS = 300;
 
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -142,6 +147,48 @@ final class StudentImportController
         $this->store->put($request->session(), $file, $this->tenantId(), $organization->id);
 
         return redirect()->route('academic.students.import');
+    }
+
+    public function save(Request $request, ImportStudents $importStudents): RedirectResponse
+    {
+        $this->authorizeAnywhere();
+
+        $pending = $this->store->current($request->session(), $this->tenantId());
+
+        if ($pending === null) {
+            throw ValidationException::withMessages(['save' => 'Belum ada file impor. Unggah file terlebih dahulu.']);
+        }
+
+        // Lembaga tujuan diperiksa ulang: izin bisa dicabut sejak diunggah.
+        $organization = $this->targetOrganization($pending['organization_id']);
+
+        // Impor ratusan siswa butuh waktu lebih lama dari batas bawaan PHP (30 detik).
+        set_time_limit(self::SAVE_TIME_LIMIT_SECONDS);
+
+        try {
+            $result = $importStudents->handle(
+                $this->tenantId(),
+                $organization,
+                $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $organization->id),
+                $pending['path'],
+                $pending['extension'],
+                $request->boolean('confirm_warnings'),
+            );
+        } catch (ImportFileException|ImportSaveException $exception) {
+            throw ValidationException::withMessages(['save' => $exception->getMessage()]);
+        }
+
+        $this->store->forget($request->session());
+
+        $message = "{$result['saved']} siswa berhasil diimpor ke {$organization->name}.";
+
+        if ($result['existing'] > 0) {
+            $message .= " {$result['existing']} di antaranya siswa yang sudah tercatat (hanya didaftarkan).";
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+        return redirect()->route('academic.students.index', ['lembaga' => $organization->id]);
     }
 
     public function cancel(Request $request): RedirectResponse

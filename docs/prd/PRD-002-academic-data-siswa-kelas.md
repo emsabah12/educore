@@ -2,7 +2,7 @@
 
 - **Versi:** 1.0 (2026-10-20: rincian AC-1e impor siswa)
 - **Versi sebelumnya:** 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a SELESAI (commit `0fb2643`); AC-1d-b SELESAI (commit `c7f7dd8`); AC-1e-a dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a SELESAI (commit `0fb2643`); AC-1d-b SELESAI (commit `c7f7dd8`); AC-1e-a lancar diuji owner (2026-10-20); AC-1e-b dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -351,6 +351,7 @@ Pola sama dengan impor pegawai (PRD-001 §6.2): template `.xlsx` → unggah `.xl
 - **Siswa yang sudah tercatat**: NISN sama dengan siswa yang **namanya juga sama** → hanya didaftarkan ke lembaga ini (bukan orang baru); NISN milik nama lain → Salah (nama pemiliknya tidak disebut); sudah aktif di lembaga ini → Salah. Tanpa kecocokan NISN, nama sama dengan anggota yayasan atau baris lain → Peringatan; setelah dikonfirmasi menjadi orang baru.
 - **Salah** juga untuk: NISN/nomor induk dobel di dalam file, nomor induk milik siswa lain di lembaga ini, NISN/HP yang tersimpan sebagai angka di Excel (0 di depan hilang), HP orang tua tanpa nama.
 - File sementara di penyimpanan privat (`storage/app/private/academic-imports`), dihapus saat batal/simpan dan disapu `academic:prune-imports` bila tertinggal lebih dari 24 jam. Pratinjau tidak mengirim data pribadi selain tanggal lahir; orang tua/wali hanya jumlahnya.
+- **Simpan (AC-1e-b)**: file dibaca & diperiksa ulang; semua baris lewat CreateStudent (aturan & audit sama dengan form, termasuk orang tua/wali dan kelas) dalam satu transaksi. Gagal → pesan "Baris N: alasan", tidak ada yang tersimpan, file tetap ada. Berhasil → file dihapus, diarahkan ke daftar siswa lembaga itu dengan jumlah siswa (dan berapa siswa lama). Audit `academic.students_imported` (lembaga, jumlah, siswa lama; tanpa nama file & data pribadi). Batas waktu proses 5 menit.
 - **Teknis**: cara membaca file (openspout) dipindah ke Core (`Modules\Core\Support\Import`) dan dipakai bersama impor pegawai; perilaku impor pegawai tidak berubah.
 
 ## 12. Di luar AC-1

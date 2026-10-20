@@ -1,7 +1,7 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-20
-- **Tahap aktif:** AC-1e-a — impor siswa: template, unggah, pratinjau (kode siap, menunggu verifikasi owner)
+- **Tahap aktif:** AC-1e-b — simpan impor siswa (kode siap, menunggu verifikasi owner)
 - **Commit terakhir:** `c7f7dd8` — feat(academic): AC-1d-b anggota kelas
 
 ## Keputusan penting
@@ -250,12 +250,18 @@
 - Detail siswa: bagian **Kelas** dengan Pindah/Keluarkan; form Tambah siswa: pilihan **Kelas**.
 - Bukti: 10 test baru (target 439 test); uji manual owner 10 langkah lancar.
 
-**AC-1e-a — Impor siswa (template, unggah, pratinjau): KODE SIAP (2026-10-20, menunggu verifikasi)**
+**AC-1e-a — Impor siswa (template, unggah, pratinjau): LANCAR DIUJI OWNER (2026-10-20, belum terlihat di GitHub)**
 
 - Core `Support/Import`: `SpreadsheetReader` (dipindah dari HR, dipakai HR & Academic), `ImportFileException`, `ImportCell`, `PendingImportFiles`. `EmployeeImportReader` HR kini memakai reader Core (perilaku sama).
 - Academic `Application/Import`: `StudentImportColumns`, `StudentImportReader`, `StudentImportValidator` (+ `StudentImportDraft`), `StudentImportRow`, `StudentImportPreview`, `StudentImportTemplate`, `PendingStudentImport`; perintah `academic:prune-imports` (tiap jam).
 - `StudentImportController` + route `GET/POST siswa/impor`, `GET siswa/impor/template?lembaga=`, `POST siswa/impor/batal`; halaman `/siswa/impor`, tombol **Impor** di daftar siswa.
-- Target bukti: 464 test (25 test baru, termasuk 15 dataset kolom).
+- Bukti: 464 test lulus (25 test baru, termasuk 15 dataset kolom) setelah perbaikan Larastan `identical.alwaysFalse` (pemeriksaan ulang variabel yang sudah pasti terisi); uji manual owner lancar.
+
+**AC-1e-b — Simpan impor siswa: KODE SIAP (2026-10-20, menunggu verifikasi)**
+
+- `ImportStudents` (baca & periksa ulang, konfirmasi peringatan, semua baris lewat `CreateStudent` dalam satu transaksi), `ImportSaveException`; audit `academic.students_imported`.
+- Route `POST siswa/impor/simpan`; tombol **Simpan N siswa ke {lembaga}** + centang konfirmasi peringatan di halaman impor.
+- Target bukti: 470 test (6 test baru).
 
 ## Struktur file utama
 
@@ -288,5 +294,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1e-a (PANDUAN-AC-1E-A.md).
-2. AC-1e-b simpan impor siswa → AC-1 selesai.
+1. Verifikasi AC-1e-b (PANDUAN-AC-1E-B.md), commit & push AC-1e-a + AC-1e-b → AC-1 selesai.
+2. Rencana tahap berikutnya (AC-2 dst. atau HR-2) bersama owner.
