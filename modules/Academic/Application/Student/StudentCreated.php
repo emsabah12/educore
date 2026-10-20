@@ -18,5 +18,6 @@ final readonly class StudentCreated
         public bool $newPerson,
         public int $guardiansLinked,
         public int $guardiansReused,
+        public ?string $className = null,
     ) {}
 }

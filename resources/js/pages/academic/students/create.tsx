@@ -26,6 +26,8 @@ type Props = {
         genders: Option[];
         entryTypes: Option[];
         relations: Option[];
+        /** Kelas aktif tahun ajaran berjalan per lembaga (hanya lembaga yang kelasnya boleh dikelola). */
+        classes: Record<string, Option[]>;
     };
     maxGuardians: number;
 };
@@ -45,6 +47,7 @@ const FIELD_LABELS: Record<string, string> = {
     entry_type: 'Jenis masuk',
     guardians: 'Orang tua/wali',
     primary_guardian: 'Kontak utama',
+    class_id: 'Kelas',
     existing_membership_id: 'Pilihan orang dengan nama sama',
     form: 'Formulir',
 };
@@ -116,6 +119,9 @@ export default function CreateStudent({
         options.organizations.length === 1
             ? options.organizations[0].value
             : '';
+    // Lembaga terpilih menentukan pilihan kelas (AC-1d-b).
+    const [organizationId, setOrganizationId] = useState(singleOrganization);
+    const classOptions = options.classes[organizationId] ?? [];
 
     return (
         <>
@@ -257,14 +263,30 @@ export default function CreateStudent({
                                     required
                                     error={errors.organization_id}
                                 >
-                                    <SelectOptions
+                                    <select
                                         id="organization_id"
                                         name="organization_id"
-                                        options={options.organizations}
-                                        placeholder="Pilih lembaga"
-                                        defaultValue={singleOrganization}
+                                        className={selectClass}
+                                        value={organizationId}
+                                        onChange={(event) =>
+                                            setOrganizationId(
+                                                event.target.value,
+                                            )
+                                        }
                                         required
-                                    />
+                                    >
+                                        <option value="" disabled>
+                                            Pilih lembaga
+                                        </option>
+                                        {options.organizations.map((option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </Field>
                                 <Field
                                     id="student_number"
@@ -309,6 +331,26 @@ export default function CreateStudent({
                                             options.entryTypes[0]?.value ?? ''
                                         }
                                         required
+                                    />
+                                </Field>
+                                <Field
+                                    id="class_id"
+                                    label="Kelas (tahun ajaran berjalan)"
+                                    error={errors.class_id}
+                                >
+                                    {/* key: pilihan kelas dikosongkan saat lembaga diganti. */}
+                                    <SelectOptions
+                                        key={organizationId}
+                                        id="class_id"
+                                        name="class_id"
+                                        options={classOptions}
+                                        placeholder={
+                                            organizationId === ''
+                                                ? 'Pilih lembaga dulu'
+                                                : classOptions.length === 0
+                                                  ? 'Belum ada kelas aktif'
+                                                  : 'Tanpa kelas dulu'
+                                        }
                                     />
                                 </Field>
                             </Section>

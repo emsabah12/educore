@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 0.8 (2026-10-20: AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas)
-- **Versi sebelumnya:** 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Versi:** 0.9 (2026-10-20: rincian AC-1d-b anggota kelas)
+- **Versi sebelumnya:** 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a SELESAI (commit `0fb2643`); AC-1d-b dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -301,7 +301,7 @@ Dicatat: kalender/tahun ajaran/semester dibuat/diubah/dijadikan berjalan; siswa 
 | AC-1c-b1  | Aksi di detail: ubah data diri (OD-AC-09), daftarkan ke lembaga lain, **ubah pendaftaran** (nomor induk, tanggal masuk, jenis masuk), tutup pendaftaran [OWNER, 2026-10-18]             |
 | AC-1c-b2  | Orang tua/wali di detail: tambah (baru atau cari lewat nomor HP), ubah, lepas, ganti kontak utama                                                                                       |
 | AC-1d-a   | Kontrak HR `ActiveEmployees`, menu **Kelas** (`/kelas`): daftar per lembaga & tahun ajaran, tambah/ubah kelas, wali kelas, nonaktifkan/aktifkan, hapus kelas kosong [OWNER, 2026-10-20] |
-| AC-1d-b   | Detail kelas, masukkan siswa massal, pindah/keluarkan, kelas di detail siswa, pilihan kelas di form tambah siswa                                                                        |
+| AC-1d-b   | Detail kelas, masukkan siswa massal, pindah/keluarkan, kelas di detail siswa, pilihan kelas di form tambah siswa [OWNER, 2026-10-20]                                                    |
 
 Rincian AC-1c-b1 [OWNER, 2026-10-18 — usulan disetujui]:
 
@@ -329,6 +329,17 @@ Rincian AC-1d-a [OWNER, 2026-10-20 — usulan disetujui]:
 - **Hapus** hanya untuk kelas yang belum pernah punya anggota; selain itu nonaktifkan.
 - Daftar kelas: saringan lembaga (yang terlihat) & tahun ajaran (bawaan: tahun berjalan); nama, tingkat, wali kelas, jumlah siswa L/P yang masih di kelas.
 - Audit baru: `academic.class_created`, `class_updated` (termasuk tanda wali kelas diganti), `class_deactivated`, `class_reactivated`, `class_deleted`.
+
+Rincian AC-1d-b [OWNER, 2026-10-20 — usulan disetujui]:
+
+- **Detail kelas** (`/kelas/{id}`): anggota yang masih di kelas, yang pernah di kelas ini, wali kelas, jumlah L/P. Dibuka pemilik izin lihat siswa di lembaga kelas.
+- **Masukkan siswa**: pilih (centang, cari, pilih semua) dari siswa dengan pendaftaran terbuka di lembaga kelas yang belum punya kelas terbuka di tahun ajaran itu; maks. 100 per simpan; **semua atau tidak sama sekali**, masalah tiap siswa disebut sekaligus. Kelas nonaktif tidak bisa diisi.
+- **Tanggal masuk kelas**: tahun berjalan → dipilih (bawaan hari ini), tidak sebelum awal tahun ajaran maupun tanggal masuk siswa ke lembaga, tidak di masa depan. Tahun ajaran yang belum mulai → otomatis tanggal mulai tahun ajaran itu (menyiapkan rombel tahun depan).
+- **Pindah kelas**: hanya ke kelas aktif di lembaga & tahun ajaran yang sama; keanggotaan lama ditutup dan yang baru dibuka pada tanggal yang sama, satu transaksi.
+- **Keluarkan dari kelas**: hanya menutup keanggotaan kelas; pendaftaran di lembaga tetap aktif (untuk keluar sekolah pakai Tutup pendaftaran).
+- **Detail siswa**: bagian Kelas per tahun ajaran; Pindah/Keluarkan bagi pengelola kelas di lembaga itu (tahun belum lewat).
+- **Tambah siswa**: pilihan kelas opsional (kelas aktif tahun berjalan di lembaga terpilih, bila boleh mengelola kelas di sana); tanggal masuk kelas = tanggal masuk lembaga, atau awal tahun ajaran bila lebih awal [ASUMSI disetujui]. Gagal masuk kelas → tidak ada yang tersimpan.
+- Audit baru: `academic.class_members_added` (jumlah per simpan), `class_member_moved`, `class_member_removed`.
 
 ## 12. Di luar AC-1
 

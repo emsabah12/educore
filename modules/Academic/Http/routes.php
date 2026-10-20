@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
 use Modules\Academic\Http\Controllers\ClassController;
+use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
@@ -55,4 +56,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('kelas/{class}', [ClassController::class, 'update'])->whereUuid('class')->name('academic.classes.update');
     Route::post('kelas/{class}/status', [ClassController::class, 'status'])->whereUuid('class')->name('academic.classes.status');
     Route::delete('kelas/{class}', [ClassController::class, 'destroy'])->whereUuid('class')->name('academic.classes.destroy');
+
+    // Anggota kelas (AC-1d-b). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga kelas.
+    Route::get('kelas/{class}', [ClassMemberController::class, 'show'])->whereUuid('class')->name('academic.classes.show');
+    Route::post('kelas/{class}/anggota', [ClassMemberController::class, 'add'])->whereUuid('class')->name('academic.class-members.store');
+    Route::post('kelas/anggota/{member}/pindah', [ClassMemberController::class, 'move'])->whereUuid('member')->name('academic.class-members.move');
+    Route::post('kelas/anggota/{member}/keluar', [ClassMemberController::class, 'remove'])->whereUuid('member')->name('academic.class-members.remove');
 });

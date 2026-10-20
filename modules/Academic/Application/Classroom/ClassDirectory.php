@@ -5,6 +5,7 @@ namespace Modules\Academic\Application\Classroom;
 use Illuminate\Support\Facades\DB;
 use Modules\Academic\Application\Calendar\AcademicCalendarResolver;
 use Modules\Academic\Domain\Calendar\AcademicYear;
+use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\HR\Contracts\ActiveEmployees;
 
 /**
@@ -12,6 +13,7 @@ use Modules\HR\Contracts\ActiveEmployees;
  * jumlah siswa (L/P). Pemanggil WAJIB sudah memastikan lembaganya terlihat oleh pengguna.
  *
  * @phpstan-type YearOption array{value: string, label: string, current: bool, past: bool}
+ * @phpstan-type MemberRow array{id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, start_date: string, end_date: string|null}
  * @phpstan-type ClassRow array{id: string, name: string, grade: int, is_active: bool, homeroom: array{id: string, name: string, active: bool}|null, members: array{total: int, male: int, female: int}, has_history: bool}
  */
 final class ClassDirectory
@@ -113,5 +115,117 @@ final class ClassDirectory
         }
 
         return $classes;
+    }
+
+    /**
+     * Isi halaman detail kelas (AC-1d-b): data kelas, anggota yang masih di kelas, yang pernah di
+     * kelas ini, dan kelas tujuan pindah (kelas aktif lain di lembaga & tahun ajaran yang sama).
+     *
+     * @return array{
+     *     class: array{id: string, name: string, grade: int, is_active: bool, organization: string, homeroom: array{id: string, name: string, active: bool}|null},
+     *     year: array{id: string, name: string, current: bool, past: bool, starts_in_future: bool, start_date: string, end_date: string},
+     *     members: list<MemberRow>,
+     *     former: list<MemberRow>,
+     *     moveTargets: list<array{value: string, label: string}>,
+     * }
+     */
+    public function detail(SchoolClass $class): array
+    {
+        $year = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
+        $organization = (string) DB::table('organizations')->where('id', $class->organization_id)->value('name');
+        $homeroom = null;
+
+        if ($class->homeroom_employee_id !== null) {
+            $described = $this->employees->describe($class->tenant_id, [$class->homeroom_employee_id])[$class->homeroom_employee_id] ?? null;
+
+            if ($described !== null) {
+                $homeroom = [
+                    'id' => $class->homeroom_employee_id,
+                    'name' => $described['name'],
+                    'active' => in_array($class->organization_id, $described['active_organization_ids'], true),
+                ];
+            }
+        }
+
+        $rows = DB::table('ac_class_members as cm')
+            ->join('ac_enrollments as e', 'e.id', '=', 'cm.enrollment_id')
+            ->join('ac_students as s', 's.id', '=', 'e.student_id')
+            ->join('memberships as m', 'm.id', '=', 's.membership_id')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->where('cm.class_id', $class->id)
+            ->orderBy('p.name')
+            ->orderBy('cm.start_date')
+            ->get(['cm.id', 'cm.start_date', 'cm.end_date', 'e.student_id', 'e.student_number', 's.nisn', 'p.name', 'p.gender']);
+
+        $members = [];
+        $former = [];
+
+        foreach ($rows as $row) {
+            $item = [
+                'id' => (string) $row->id,
+                'student_id' => (string) $row->student_id,
+                'name' => (string) $row->name,
+                'gender' => $row->gender === null ? null : (string) $row->gender,
+                'nisn' => $row->nisn === null ? null : (string) $row->nisn,
+                'student_number' => $row->student_number === null ? null : (string) $row->student_number,
+                'start_date' => substr((string) $row->start_date, 0, 10),
+                'end_date' => $row->end_date === null ? null : substr((string) $row->end_date, 0, 10),
+            ];
+
+            if ($item['end_date'] === null) {
+                $members[] = $item;
+            } else {
+                $former[] = $item;
+            }
+        }
+
+        return [
+            'class' => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'grade' => $class->grade,
+                'is_active' => $class->is_active,
+                'organization' => $organization,
+                'homeroom' => $homeroom,
+            ],
+            'year' => [
+                'id' => $year->id,
+                'name' => $year->name,
+                'current' => $year->is_current,
+                'past' => ManageClasses::isPastYear($year),
+                'starts_in_future' => ManageClassMembers::startsInFuture($year),
+                'start_date' => $year->start_date->toDateString(),
+                'end_date' => $year->end_date->toDateString(),
+            ],
+            'members' => $members,
+            'former' => $former,
+            'moveTargets' => $this->moveTargets($class->organization_id, $class->academic_year_id, $class->id),
+        ];
+    }
+
+    /**
+     * Kelas tujuan pindah: kelas aktif lain di lembaga & tahun ajaran yang sama.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public function moveTargets(string $organizationId, string $academicYearId, string $exceptClassId): array
+    {
+        $targets = [];
+
+        $classes = SchoolClass::query()
+            ->withoutGlobalScope('tenant')
+            ->where('organization_id', $organizationId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_active', true)
+            ->whereKeyNot($exceptClassId)
+            ->orderBy('grade')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($classes as $target) {
+            $targets[] = ['value' => $target->id, 'label' => $target->name];
+        }
+
+        return $targets;
     }
 }

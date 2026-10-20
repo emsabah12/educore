@@ -48,6 +48,12 @@ final class AcademicAuditAction
 
     public const CLASS_DELETED = 'academic.class_deleted';
 
+    public const CLASS_MEMBERS_ADDED = 'academic.class_members_added';
+
+    public const CLASS_MEMBER_MOVED = 'academic.class_member_moved';
+
+    public const CLASS_MEMBER_REMOVED = 'academic.class_member_removed';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -83,6 +89,9 @@ final class AcademicAuditAction
             self::CLASS_DEACTIVATED => 'Kelas dinonaktifkan',
             self::CLASS_REACTIVATED => 'Kelas diaktifkan kembali',
             self::CLASS_DELETED => 'Kelas dihapus',
+            self::CLASS_MEMBERS_ADDED => 'Siswa dimasukkan ke kelas',
+            self::CLASS_MEMBER_MOVED => 'Siswa dipindah kelas',
+            self::CLASS_MEMBER_REMOVED => 'Siswa dikeluarkan dari kelas',
         ];
     }
 }

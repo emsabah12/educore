@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Calendar\AcademicCalendarResolver;
+use Modules\Academic\Application\Classroom\ClassDirectory;
 use Modules\Academic\Application\Student\CreateStudent;
 use Modules\Academic\Application\Student\DuplicateCandidates;
 use Modules\Academic\Application\Student\GuardianData;
@@ -21,6 +23,7 @@ use Modules\Academic\Application\Student\StudentInput;
 use Modules\Academic\Application\Student\StudentManageAccess;
 use Modules\Academic\Application\Student\StudentProfile;
 use Modules\Academic\Application\Student\StudentVisibility;
+use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\Exceptions\StudentCheckFailed;
@@ -85,7 +88,7 @@ final class StudentController
         ]);
     }
 
-    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile, StudentManageAccess $access): Response
+    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile, StudentManageAccess $access, ClassDirectory $classDirectory): Response
     {
         Gate::authorize(AcademicAccess::STUDENTS_VIEW);
 
@@ -119,6 +122,18 @@ final class StudentController
 
         $data['enrollments'] = $enrollments;
 
+        // Kelas (AC-1d-b): pindah/keluarkan hanya bagi pengelola kelas di lembaga itu, tahun belum lewat.
+        $classes = [];
+
+        foreach ($data['classes'] as $row) {
+            $canManageClass = $row['open'] && ! $row['past'] && $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $row['organization_id']);
+            $row['can_manage'] = $canManageClass;
+            $row['move_targets'] = $canManageClass ? $classDirectory->moveTargets($row['organization_id'], $row['academic_year_id'], $row['class_id']) : [];
+            $classes[] = $row;
+        }
+
+        $data['classes'] = $classes;
+
         $manage = null;
 
         if ($managesAnywhere) {
@@ -144,21 +159,24 @@ final class StudentController
             'student' => $data,
             'canCreate' => $managesAnywhere,
             'manage' => $manage,
+            'today' => BusinessClock::todayString(),
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request, AcademicCalendarResolver $calendars): Response
     {
         $this->authorizeAnywhere();
+        $organizations = $this->organizationOptions();
 
         return Inertia::render('academic/students/create', [
             'today' => BusinessClock::todayString(),
             'candidates' => $this->flashedCandidates($request),
             'options' => [
-                'organizations' => $this->organizationOptions(),
+                'organizations' => $organizations,
                 'genders' => $this->enumOptions(Gender::cases()),
                 'entryTypes' => $this->enumOptions(EntryType::cases()),
                 'relations' => $this->enumOptions(GuardianRelation::cases()),
+                'classes' => $this->classOptions($calendars, $organizations),
             ],
             'maxGuardians' => StudentInput::MAX_GUARDIANS,
         ]);
@@ -217,6 +235,7 @@ final class StudentController
             'primary_guardian' => ['nullable', 'integer', 'min:0'],
             'existing_membership_id' => ['nullable', 'uuid'],
             'confirm_new' => ['nullable', 'boolean'],
+            'class_id' => ['nullable', 'uuid'],
         ], [
             'name.required' => 'Nama lengkap wajib diisi.',
             'birth_date.before_or_equal' => 'Tanggal lahir tidak boleh di masa depan.',
@@ -239,6 +258,19 @@ final class StudentController
         }
 
         Gate::authorize(AcademicAccess::STUDENTS_MANAGE, $organization);
+
+        // Kelas (opsional, AC-1d-b): wajib di cakupan izin kelola kelas.
+        $classId = StudentInput::text($request->input('class_id'));
+
+        if ($classId !== null) {
+            $class = SchoolClass::query()->find($classId);
+
+            if (! $class instanceof SchoolClass) {
+                throw ValidationException::withMessages(['class_id' => 'Kelas tidak ditemukan.']);
+            }
+
+            Gate::authorize(AcademicAccess::CLASSES_MANAGE, $class);
+        }
 
         $guardians = [];
 
@@ -268,6 +300,7 @@ final class StudentController
             primaryGuardian: $guardians === [] ? null : $request->integer('primary_guardian'),
             existingMembershipId: StudentInput::text($request->input('existing_membership_id')),
             confirmNew: $request->boolean('confirm_new'),
+            classId: $classId,
         );
 
         try {
@@ -290,6 +323,10 @@ final class StudentController
         $message = $created->newPerson
             ? "{$created->name} berhasil didaftarkan di {$created->organizationName}."
             : "{$created->name} (orang yang sudah ada) berhasil didaftarkan di {$created->organizationName}.";
+
+        if ($created->className !== null) {
+            $message .= " Masuk kelas {$created->className}.";
+        }
 
         if ($created->guardiansReused > 0) {
             $message .= " {$created->guardiansReused} orang tua/wali memakai data yang sudah ada (nama & HP sama).";
@@ -335,6 +372,45 @@ final class StudentController
         foreach ($query->get() as $organization) {
             $suffix = $organization->isActive() ? '' : ' — nonaktif';
             $options[] = ['value' => $organization->id, 'label' => $organization->name.$suffix];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Pilihan kelas di form Tambah siswa (AC-1d-b): per lembaga, kelas aktif di tahun ajaran berjalan
+     * kalender lembaga itu, hanya bila boleh mengelola kelas di sana.
+     *
+     * @param  list<array{value: string, label: string}>  $organizations
+     * @return array<string, list<array{value: string, label: string}>>
+     */
+    private function classOptions(AcademicCalendarResolver $calendars, array $organizations): array
+    {
+        $tenantId = $this->tenantContext->require()->tenantId;
+        $options = [];
+
+        foreach ($organizations as $organization) {
+            if (! $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $organization['value'])) {
+                continue;
+            }
+
+            $year = $calendars->currentYearFor($tenantId, $organization['value']);
+
+            if ($year === null) {
+                continue;
+            }
+
+            $classes = SchoolClass::query()
+                ->where('organization_id', $organization['value'])
+                ->where('academic_year_id', $year->id)
+                ->where('is_active', true)
+                ->orderBy('grade')
+                ->orderBy('name')
+                ->get();
+
+            foreach ($classes as $class) {
+                $options[$organization['value']][] = ['value' => $class->id, 'label' => "{$class->name} ({$year->name})"];
+            }
         }
 
         return $options;

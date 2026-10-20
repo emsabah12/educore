@@ -7,6 +7,7 @@ use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\GuardianRelation;
 use Modules\Core\Domain\Person\Gender;
+use Modules\Core\Support\BusinessClock;
 
 /**
  * Isi halaman detail siswa (PRD-002 §6, AC-1c-a). Pemanggil WAJIB sudah memastikan siswa ini
@@ -17,6 +18,7 @@ use Modules\Core\Domain\Person\Gender;
  * - Data pribadi siswa dan seluruh data orang tua/wali hanya diisi bila $withPersonal (§4.5).
  *
  * @phpstan-type EnrollmentRow array{id: string, organization_id: string, organization: string, organization_code: string, student_number: string|null, entry_type: string, entry_type_code: string, start_date: string, end_date: string|null, end_reason: string|null, end_note: string|null, open: bool}
+ * @phpstan-type ClassRow array{id: string, class_id: string, class_name: string, organization_id: string, organization: string, academic_year_id: string, year: string, start_date: string, end_date: string|null, open: bool, past: bool, future: bool}
  * @phpstan-type GuardianRow array{id: string, name: string, relation: string, relation_code: string, gender: string|null, gender_code: string|null, phone: string|null, is_primary: bool, locked: bool, other_students: int}
  */
 final class StudentProfile
@@ -35,6 +37,7 @@ final class StudentProfile
      *     personal: array{birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null}|null,
      *     guardians: list<GuardianRow>|null,
      *     enrollments: array{current: list<EnrollmentRow>, history: list<EnrollmentRow>},
+     *     classes: list<ClassRow>,
      * }|null null bila siswa tidak ada di yayasan ini
      */
     public function load(string $tenantId, string $studentId, bool $withPersonal): ?array
@@ -68,6 +71,7 @@ final class StudentProfile
             ] : null,
             'guardians' => $withPersonal ? $this->guardianRows($tenantId, $studentId) : null,
             'enrollments' => $enrollments,
+            'classes' => $this->classes($studentId),
         ];
     }
 
@@ -99,6 +103,55 @@ final class StudentProfile
             'address' => $row->address === null ? null : (string) $row->address,
             'nisn' => $row->nisn === null ? null : (string) $row->nisn,
         ];
+    }
+
+    /**
+     * Kelas per tahun ajaran (AC-1d-b), terbaru dulu. Bukan data pribadi: ikut tampil bagi pemilik
+     * izin lihat siswa.
+     *
+     * @return list<ClassRow>
+     */
+    private function classes(string $studentId): array
+    {
+        $rows = DB::table('ac_class_members as cm')
+            ->join('ac_enrollments as e', 'e.id', '=', 'cm.enrollment_id')
+            ->join('ac_classes as c', 'c.id', '=', 'cm.class_id')
+            ->join('ac_academic_years as y', 'y.id', '=', 'cm.academic_year_id')
+            ->join('organizations as o', 'o.id', '=', 'cm.organization_id')
+            ->where('e.student_id', $studentId)
+            ->orderByDesc('y.start_date')
+            ->orderByRaw('cm.end_date IS NOT NULL')
+            ->orderByDesc('cm.start_date')
+            ->get([
+                'cm.id', 'cm.class_id', 'cm.organization_id', 'cm.academic_year_id', 'cm.start_date', 'cm.end_date',
+                'c.name as class_name', 'o.name as organization', 'y.name as year', 'y.start_date as year_start', 'y.end_date as year_end', 'y.is_current',
+            ]);
+
+        $today = BusinessClock::todayString();
+        $classes = [];
+
+        foreach ($rows as $row) {
+            $endDate = $row->end_date === null ? null : substr((string) $row->end_date, 0, 10);
+
+            $classes[] = [
+                'id' => (string) $row->id,
+                'class_id' => (string) $row->class_id,
+                'class_name' => (string) $row->class_name,
+                'organization_id' => (string) $row->organization_id,
+                'organization' => (string) $row->organization,
+                'academic_year_id' => (string) $row->academic_year_id,
+                'year' => (string) $row->year,
+                'start_date' => substr((string) $row->start_date, 0, 10),
+                'end_date' => $endDate,
+                'open' => $endDate === null,
+                // Sama dengan ManageClasses::isPastYear (tahun lewat hanya dilihat).
+                'past' => ! (bool) $row->is_current && substr((string) $row->year_end, 0, 10) < $today,
+                // Sama dengan ManageClassMembers::startsInFuture (tanggal otomatis).
+                'future' => substr((string) $row->year_start, 0, 10) > $today,
+            ];
+        }
+
+        return $classes;
     }
 
     /**

@@ -5,6 +5,8 @@ namespace Modules\Academic\Application\Student;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
+use Modules\Academic\Application\Classroom\ManageClassMembers;
+use Modules\Academic\Domain\Classroom\Exceptions\ClassException;
 use Modules\Academic\Domain\Student\Enrollment;
 use Modules\Academic\Domain\Student\Exceptions\StudentCheckFailed;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
@@ -22,7 +24,7 @@ use Modules\Core\Support\BusinessClock;
  *
  *   orang baru  → Person + Membership + Siswa
  *   orang sama  → anggota yayasan yang sudah ada (dipilih dari calon orang ganda) → Siswa bila belum ada
- *   lalu        → pendaftaran di lembaga → orang tua/wali (0–4)
+ *   lalu        → pendaftaran di lembaga → orang tua/wali (0–4) → kelas (opsional, AC-1d-b)
  *
  * Semuanya dalam SATU transaksi: bila satu langkah gagal, tidak ada yang tersimpan.
  * Tidak membuat akun login dan tidak memberi hak akses apa pun, termasuk untuk orang tua/wali.
@@ -36,6 +38,7 @@ final class CreateStudent
         private readonly DuplicateCandidates $duplicateCandidates,
         private readonly ManageEnrollments $enrollments,
         private readonly ManageGuardians $guardians,
+        private readonly ManageClassMembers $classMembers,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -70,6 +73,15 @@ final class CreateStudent
         [$student, $newStudent] = $this->studentFor($data, $membership);
         $enrollment = $this->enrollments->openFor($student, $organization, $data->studentNumber, $data->startDate, $data->entryType);
         [$linked, $reused] = $this->linkGuardians($data, $student, $membership);
+        $className = null;
+
+        if ($data->classId !== null) {
+            try {
+                $className = $this->classMembers->placeNewEnrollment($enrollment, $data->classId)->name;
+            } catch (ClassException $exception) {
+                throw StudentException::make('class_id', $exception->getMessage());
+            }
+        }
 
         if ($newStudent) {
             // Data pribadi hanya dicatat NAMA field-nya, bukan nilainya (PRD-002 §4.5, §8).
@@ -114,6 +126,7 @@ final class CreateStudent
             newPerson: $newPerson,
             guardiansLinked: $linked,
             guardiansReused: $reused,
+            className: $className,
         );
     }
 

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-20
-- **Tahap aktif:** AC-1d-a — kelas & wali kelas (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `dd5744d` — feat(academic): AC-1c-b2 orang tua/wali di detail siswa
+- **Tahap aktif:** AC-1d-b — anggota kelas (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `0fb2643` — feat(academic): AC-1d-a kelas dan wali kelas
 
 ## Keputusan penting
 
@@ -189,7 +189,7 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.8 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a.
+**PRD-002 Academic: v0.9 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a, AC-1d-b.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -235,12 +235,19 @@
 - Detail siswa: tombol Tambah orang tua/wali, dan per orang Ubah / Jadikan kontak utama / Lepas.
 - Bukti: 420 test lulus (10 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
 
-**AC-1d-a — Kelas & wali kelas: KODE SIAP (2026-10-20, menunggu verifikasi)**
+**AC-1d-a — Kelas & wali kelas: SELESAI (2026-10-20, commit `0fb2643`)**
 
 - Kontrak HR `ActiveEmployees` (+ `EloquentActiveEmployees`): pegawai aktif dengan penempatan berjalan di lembaga, cek wali kelas, nama + status aktif.
 - `SchoolClass` (model `ac_classes`, OwnedByOrganization), `ManageClasses` (tambah, ubah, nonaktif/aktif, hapus kelas kosong), `ClassDirectory` (pilihan tahun ajaran, daftar dengan jumlah L/P).
 - `ClassController` + route `GET/POST kelas`, `PATCH/DELETE kelas/{id}`, `POST kelas/{id}/status`; halaman `/kelas`, menu **Kelas**.
-- Target bukti: 429 test (9 test baru).
+- Bukti: 429 test lulus (9 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
+
+**AC-1d-b — Anggota kelas: KODE SIAP (2026-10-20, menunggu verifikasi)**
+
+- `ClassMember` (model `ac_class_members`, OwnedByOrganization), `ManageClassMembers` (calon anggota, masukkan banyak sekaligus, pindah, keluarkan, masuk kelas dari form Tambah siswa).
+- `ClassMemberController` + route `GET kelas/{id}`, `POST kelas/{id}/anggota`, `POST kelas/anggota/{id}/pindah|keluar`; halaman `/kelas/{id}`.
+- Detail siswa: bagian **Kelas** dengan Pindah/Keluarkan; form Tambah siswa: pilihan **Kelas**.
+- Target bukti: 439 test (10 test baru).
 
 ## Struktur file utama
 
@@ -273,5 +280,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1d-a (PANDUAN-AC-1D-A.md).
-2. AC-1d-b anggota kelas → AC-1e impor siswa.
+1. Verifikasi AC-1d-b (PANDUAN-AC-1D-B.md).
+2. AC-1e impor siswa.

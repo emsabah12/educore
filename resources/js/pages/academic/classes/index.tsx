@@ -1,4 +1,4 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import {
     CircleAlert,
     Pencil,
@@ -282,7 +282,12 @@ function ClassItem({
         <li className="space-y-3 px-4 py-3">
             <div className="grid gap-1 sm:grid-cols-[2fr_1fr_2fr_1.5fr] sm:items-center sm:gap-3">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium">{item.name}</span>
+                    <Link
+                        href={`${BASE_URL}/${item.id}`}
+                        className="font-medium hover:underline"
+                    >
+                        {item.name}
+                    </Link>
                     {!item.is_active && (
                         <Badge variant="outline">Nonaktif</Badge>
                     )}

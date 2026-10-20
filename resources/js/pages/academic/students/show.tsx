@@ -1,16 +1,22 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft,
+    ArrowRightLeft,
     Building2,
     DoorClosed,
     Link2Off,
     Lock,
+    LogOut,
     Pencil,
     Plus,
     UserPen,
     UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
+import {
+    MoveMemberForm,
+    RemoveMemberForm,
+} from '@/components/academic/class-member-actions';
 import type { GuardianRow } from '@/components/academic/guardian-actions';
 import {
     AddGuardianForm,
@@ -59,12 +65,29 @@ type Student = {
     } | null;
     guardians: GuardianRow[] | null;
     enrollments: { current: Enrollment[]; history: Enrollment[] };
+    classes: ClassRow[];
+};
+
+type ClassRow = {
+    id: string;
+    class_id: string;
+    class_name: string;
+    organization: string;
+    year: string;
+    start_date: string;
+    end_date: string | null;
+    open: boolean;
+    past: boolean;
+    future: boolean;
+    can_manage: boolean;
+    move_targets: { value: string; label: string }[];
 };
 
 type Props = {
     student: Student;
     canCreate: boolean;
     manage: StudentManageData | null;
+    today: string;
 };
 
 /** Aksi yang sedang terbuka: satu form pada satu waktu. */
@@ -75,7 +98,9 @@ type OpenAction =
     | { kind: 'closeEnrollment'; id: string }
     | { kind: 'addGuardian' }
     | { kind: 'editGuardian'; id: string }
-    | { kind: 'unlinkGuardian'; id: string };
+    | { kind: 'unlinkGuardian'; id: string }
+    | { kind: 'moveClass'; id: string }
+    | { kind: 'removeClass'; id: string };
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -95,7 +120,12 @@ function formatDate(value: string | null): string {
  * data pribadi & orang tua/wali hanya untuk pemilik izin lihat data pribadi.
  * Aksi (AC-1c-b1) hanya tampil bagi yang berhak; server tetap memeriksa ulang setiap aksi.
  */
-export default function StudentDetail({ student, canCreate, manage }: Props) {
+export default function StudentDetail({
+    student,
+    canCreate,
+    manage,
+    today,
+}: Props) {
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
     const toggle = (next: OpenAction) =>
@@ -245,6 +275,17 @@ export default function StudentDetail({ student, canCreate, manage }: Props) {
                             onDone={close}
                         />
                     )}
+                </Section>
+
+                <Section title="Kelas">
+                    <ClassList
+                        classes={student.classes}
+                        studentName={student.name}
+                        today={today}
+                        action={action}
+                        onToggle={toggle}
+                        onDone={close}
+                    />
                 </Section>
 
                 <Section title="Orang tua/wali">
@@ -398,6 +439,134 @@ function EnrollmentList({
                     )}
                 </li>
             ))}
+        </ul>
+    );
+}
+
+function ClassList({
+    classes,
+    studentName,
+    today,
+    action,
+    onToggle,
+    onDone,
+}: {
+    classes: ClassRow[];
+    studentName: string;
+    today: string;
+    action: OpenAction | null;
+    onToggle: (next: OpenAction) => void;
+    onDone: () => void;
+}) {
+    const isOpen = (kind: OpenAction['kind'], id: string) =>
+        action !== null &&
+        action.kind === kind &&
+        'id' in action &&
+        action.id === id;
+
+    if (classes.length === 0) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                Belum pernah masuk kelas.
+            </p>
+        );
+    }
+
+    return (
+        <ul className="divide-y">
+            {classes.map((row) => {
+                const member = {
+                    id: row.id,
+                    name: studentName,
+                    className: row.class_name,
+                    startDate: row.start_date,
+                };
+
+                return (
+                    <li key={row.id} className="space-y-2 py-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 space-y-0.5">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <Link
+                                        href={`/kelas/${row.class_id}`}
+                                        className="font-medium hover:underline"
+                                    >
+                                        {row.class_name}
+                                    </Link>
+                                    {row.open && <Badge>Sekarang</Badge>}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    {row.organization} · Tahun ajaran {row.year}
+                                </p>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {formatDate(row.start_date)} –{' '}
+                                {row.end_date
+                                    ? formatDate(row.end_date)
+                                    : 'sekarang'}
+                            </p>
+                        </div>
+
+                        {row.can_manage && (
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:flex-wrap">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        isOpen('moveClass', row.id)
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        onToggle({
+                                            kind: 'moveClass',
+                                            id: row.id,
+                                        })
+                                    }
+                                >
+                                    <ArrowRightLeft />
+                                    Pindah kelas
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        isOpen('removeClass', row.id)
+                                            ? 'destructive'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        onToggle({
+                                            kind: 'removeClass',
+                                            id: row.id,
+                                        })
+                                    }
+                                >
+                                    <LogOut />
+                                    Keluarkan dari kelas
+                                </Button>
+                            </div>
+                        )}
+                        {row.can_manage && isOpen('moveClass', row.id) && (
+                            <MoveMemberForm
+                                member={member}
+                                targets={row.move_targets}
+                                today={today}
+                                futureYear={row.future}
+                                onDone={onDone}
+                            />
+                        )}
+                        {row.can_manage && isOpen('removeClass', row.id) && (
+                            <RemoveMemberForm
+                                member={member}
+                                today={today}
+                                futureYear={row.future}
+                                onDone={onDone}
+                            />
+                        )}
+                    </li>
+                );
+            })}
         </ul>
     );
 }
