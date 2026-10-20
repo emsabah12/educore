@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
+use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
@@ -47,4 +48,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.destroy');
     Route::post('siswa/{student}/orang-tua/{guardian}/kontak-utama', [StudentGuardianController::class, 'makePrimary'])
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.primary');
+
+    // Kelas/rombel (AC-1d-a, PRD-002 §6). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga kelas.
+    Route::get('kelas', [ClassController::class, 'index'])->name('academic.classes.index');
+    Route::post('kelas', [ClassController::class, 'store'])->name('academic.classes.store');
+    Route::patch('kelas/{class}', [ClassController::class, 'update'])->whereUuid('class')->name('academic.classes.update');
+    Route::post('kelas/{class}/status', [ClassController::class, 'status'])->whereUuid('class')->name('academic.classes.status');
+    Route::delete('kelas/{class}', [ClassController::class, 'destroy'])->whereUuid('class')->name('academic.classes.destroy');
 });

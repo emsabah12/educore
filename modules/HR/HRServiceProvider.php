@@ -8,8 +8,10 @@ use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Employee\EloquentActiveEmployees;
 use Modules\HR\Application\Employee\EloquentEmployeeLookup;
 use Modules\HR\Console\PruneImportsCommand;
+use Modules\HR\Contracts\ActiveEmployees;
 use Modules\HR\Contracts\EmployeeLookup;
 
 /**
@@ -29,6 +31,7 @@ class HRServiceProvider extends ModuleServiceProvider
     {
         // Kontrak publik untuk modul lain (Modules\HR\Contracts).
         $this->app->singleton(EmployeeLookup::class, EloquentEmployeeLookup::class);
+        $this->app->singleton(ActiveEmployees::class, EloquentActiveEmployees::class);
     }
 
     public function boot(): void

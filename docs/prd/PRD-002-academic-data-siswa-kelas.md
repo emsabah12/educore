@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 0.7 (2026-10-19: rincian AC-1c-b2 orang tua/wali; kontrak HR `EmployeeLookup`)
-- **Versi sebelumnya:** 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c-b1 SELESAI (commit `1b572e8`); AC-1c-b2 dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Versi:** 0.8 (2026-10-20: AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas)
+- **Versi sebelumnya:** 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -293,14 +293,15 @@ Dicatat: kalender/tahun ajaran/semester dibuat/diubah/dijadikan berjalan; siswa 
 
 ## 11. Rencana pengerjaan AC-1 [OWNER, 2026-10-17]
 
-| Sub-tahap | Isi                                                                                                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC-1a     | Skema semua tabel, permission & role Operator Akademik, kalender akademik + aturan `academic.calendar`, halaman Kalender akademik                                           |
-| AC-1b     | Tambah siswa (orang baru / anggota), pendaftaran pertama, orang tua/wali, peringatan orang ganda                                                                            |
-| AC-1c-a   | Daftar & detail siswa (penyaringan §5.3); menu **Siswa** → `/siswa`; setelah tambah siswa langsung ke detail                                                                |
-| AC-1c-b1  | Aksi di detail: ubah data diri (OD-AC-09), daftarkan ke lembaga lain, **ubah pendaftaran** (nomor induk, tanggal masuk, jenis masuk), tutup pendaftaran [OWNER, 2026-10-18] |
-| AC-1c-b2  | Orang tua/wali di detail: tambah (baru atau cari lewat nomor HP), ubah, lepas, ganti kontak utama                                                                           |
-| AC-1d     | Kontrak HR `ActiveEmployees`, kelas/rombel, wali kelas, masukkan siswa massal, pindah/keluarkan                                                                             |
+| Sub-tahap | Isi                                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-1a     | Skema semua tabel, permission & role Operator Akademik, kalender akademik + aturan `academic.calendar`, halaman Kalender akademik                                                       |
+| AC-1b     | Tambah siswa (orang baru / anggota), pendaftaran pertama, orang tua/wali, peringatan orang ganda                                                                                        |
+| AC-1c-a   | Daftar & detail siswa (penyaringan §5.3); menu **Siswa** → `/siswa`; setelah tambah siswa langsung ke detail                                                                            |
+| AC-1c-b1  | Aksi di detail: ubah data diri (OD-AC-09), daftarkan ke lembaga lain, **ubah pendaftaran** (nomor induk, tanggal masuk, jenis masuk), tutup pendaftaran [OWNER, 2026-10-18]             |
+| AC-1c-b2  | Orang tua/wali di detail: tambah (baru atau cari lewat nomor HP), ubah, lepas, ganti kontak utama                                                                                       |
+| AC-1d-a   | Kontrak HR `ActiveEmployees`, menu **Kelas** (`/kelas`): daftar per lembaga & tahun ajaran, tambah/ubah kelas, wali kelas, nonaktifkan/aktifkan, hapus kelas kosong [OWNER, 2026-10-20] |
+| AC-1d-b   | Detail kelas, masukkan siswa massal, pindah/keluarkan, kelas di detail siswa, pilihan kelas di form tambah siswa                                                                        |
 
 Rincian AC-1c-b1 [OWNER, 2026-10-18 — usulan disetujui]:
 
@@ -319,6 +320,15 @@ Rincian AC-1c-b2 [OWNER, 2026-10-19 — usulan disetujui]:
 - **Lepas**: hanya tautan yang dihapus; orangnya tetap. Kontak utama yang dilepas wajib diganti bila masih ada orang tua/wali lain; bila tidak ada, siswa boleh tanpa kontak utama.
 - **Ganti kontak utama**: dari orang tua/wali yang sudah tertaut.
 - Audit baru: `academic.guardian_updated`, `academic.guardian_unlinked`, `academic.primary_contact_changed` (tanpa nilai data pribadi).
+
+Rincian AC-1d-a [OWNER, 2026-10-20 — usulan disetujui]:
+
+- **Tahun ajaran**: kelas dibuat untuk tahun berjalan atau yang akan datang, dari kalender yang berlaku untuk lembaga itu. Kelas tahun ajaran yang **sudah lewat** (bukan tahun berjalan dan tanggal selesainya lewat) hanya bisa dilihat: tidak bisa diubah, dinonaktifkan, maupun dihapus.
+- **Tingkat** 1–12 untuk semua lembaga; belum dibatasi per jenjang (penomoran MDA/Bahasa/Al-Qur'an bisa berbeda).
+- **Wali kelas**: pegawai aktif dengan penempatan berjalan di lembaga itu sendiri (kontrak HR `ActiveEmployees`); opsional; boleh memegang lebih dari satu kelas [ASUMSI]. Wali kelas yang berhenti/dimutasi tetap tercatat dan ditandai "tidak aktif lagi di lembaga ini" sampai diganti.
+- **Hapus** hanya untuk kelas yang belum pernah punya anggota; selain itu nonaktifkan.
+- Daftar kelas: saringan lembaga (yang terlihat) & tahun ajaran (bawaan: tahun berjalan); nama, tingkat, wali kelas, jumlah siswa L/P yang masih di kelas.
+- Audit baru: `academic.class_created`, `class_updated` (termasuk tanda wali kelas diganti), `class_deactivated`, `class_reactivated`, `class_deleted`.
 
 ## 12. Di luar AC-1
 

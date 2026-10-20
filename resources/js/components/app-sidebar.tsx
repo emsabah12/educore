@@ -4,6 +4,7 @@ import {
     GraduationCap,
     LayoutGrid,
     Network,
+    School,
     ScrollText,
     ShieldCheck,
     Tags,
@@ -64,6 +65,12 @@ const studentsNavItem: NavItem = {
     icon: GraduationCap,
 };
 
+const classesNavItem: NavItem = {
+    title: 'Kelas',
+    href: '/kelas',
+    icon: School,
+};
+
 const academicCalendarNavItem: NavItem = {
     title: 'Kalender akademik',
     href: '/akademik/kalender',
@@ -91,7 +98,7 @@ export function AppSidebar() {
             ? [employeesNavItem]
             : []),
         ...(permissions.includes('academic.students.view')
-            ? [studentsNavItem]
+            ? [studentsNavItem, classesNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]

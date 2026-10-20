@@ -38,6 +38,16 @@ final class AcademicAuditAction
 
     public const PRIMARY_CONTACT_CHANGED = 'academic.primary_contact_changed';
 
+    public const CLASS_CREATED = 'academic.class_created';
+
+    public const CLASS_UPDATED = 'academic.class_updated';
+
+    public const CLASS_DEACTIVATED = 'academic.class_deactivated';
+
+    public const CLASS_REACTIVATED = 'academic.class_reactivated';
+
+    public const CLASS_DELETED = 'academic.class_deleted';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -45,6 +55,8 @@ final class AcademicAuditAction
     public const SUBJECT_STUDENT = 'ac_student';
 
     public const SUBJECT_ENROLLMENT = 'ac_enrollment';
+
+    public const SUBJECT_CLASS = 'ac_class';
 
     /**
      * @return array<string, string> aksi => label
@@ -66,6 +78,11 @@ final class AcademicAuditAction
             self::GUARDIAN_UPDATED => 'Data orang tua/wali diubah',
             self::GUARDIAN_UNLINKED => 'Orang tua/wali dilepas dari siswa',
             self::PRIMARY_CONTACT_CHANGED => 'Kontak utama siswa diganti',
+            self::CLASS_CREATED => 'Kelas ditambahkan',
+            self::CLASS_UPDATED => 'Kelas diubah',
+            self::CLASS_DEACTIVATED => 'Kelas dinonaktifkan',
+            self::CLASS_REACTIVATED => 'Kelas diaktifkan kembali',
+            self::CLASS_DELETED => 'Kelas dihapus',
         ];
     }
 }

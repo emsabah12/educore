@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-19
-- **Tahap aktif:** AC-1c-b2 — orang tua/wali di detail siswa (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `1b572e8` — feat(academic): AC-1c-b1 ubah data diri dan pendaftaran siswa
+- **Diperbarui:** 2026-10-20
+- **Tahap aktif:** AC-1d-a — kelas & wali kelas (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `dd5744d` — feat(academic): AC-1c-b2 orang tua/wali di detail siswa
 
 ## Keputusan penting
 
@@ -27,6 +27,7 @@
 | 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
 | 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
 | 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-20 | AC-1d dipecah d-a (kelas & wali kelas) dan d-b (anggota kelas); kelas tahun ajaran lewat hanya dilihat; tingkat 1–12 tanpa batas per jenjang                                                                                                       | PRD-002 §11 (AC-1d-a)      |
 | 2026-10-19 | Orang tua/wali: cari HP hanya di antara orang tua/wali tercatat; orang tua yang juga pegawai/siswa hanya bisa diubah hubungannya; lepas kontak utama wajib pilih pengganti                                                                         | PRD-002 §11 (AC-1c-b2)     |
 | 2026-10-18 | AC-1c-b dipecah b1 (data diri & pendaftaran, termasuk ubah pendaftaran) dan b2 (orang tua/wali); cari orang tua lewat HP cocok persis tanpa nama anak                                                                                              | PRD-002 §11, §4.5          |
 | 2026-10-18 | Data diri siswa boleh diubah Operator Akademik lembaga mana pun tempat siswa aktif (+ Admin Yayasan); lembaga tetap melihat alumninya                                                                                                              | PRD-002 OD-AC-09, §5.3     |
@@ -188,7 +189,7 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.7 (2026-10-19)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2.
+**PRD-002 Academic: v0.8 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -226,13 +227,20 @@
 - Pelajaran test: untuk menimpa isian di test pakai `array_merge($dasar, $timpa)`, bukan `$dasar + $timpa` (operator `+` mempertahankan nilai kiri, sehingga timpaan diam-diam diabaikan).
 - `composer test` kini memakai `Composer\Config::disableProcessTimeout`: dengan 400+ test, durasinya mendekati batas bawaan Composer 300 detik dan sempat terhenti.
 
-**AC-1c-b2 — Orang tua/wali di detail siswa: KODE SIAP (2026-10-19, menunggu verifikasi)**
+**AC-1c-b2 — Orang tua/wali di detail siswa: SELESAI (2026-10-20, commit `dd5744d`)**
 
 - `ManageGuardians` (cari HP, tambah baru/dari pencarian, ubah, lepas, kontak utama); aturan "nama + HP sama dipakai ulang" kini satu tempat dan dipakai juga `CreateStudent`.
 - Kontrak publik HR pertama: `Modules\HR\Contracts\EmployeeLookup` (+ `EloquentEmployeeLookup`, dipasang di `HRServiceProvider::register`).
 - `StudentGuardianController` + route `GET siswa/{id}/orang-tua/cari` (JSON, throttle 30/menit), `POST/PATCH/DELETE siswa/{id}/orang-tua…`, `POST …/kontak-utama`.
 - Detail siswa: tombol Tambah orang tua/wali, dan per orang Ubah / Jadikan kontak utama / Lepas.
-- Target bukti: 420 test (10 test baru).
+- Bukti: 420 test lulus (10 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
+
+**AC-1d-a — Kelas & wali kelas: KODE SIAP (2026-10-20, menunggu verifikasi)**
+
+- Kontrak HR `ActiveEmployees` (+ `EloquentActiveEmployees`): pegawai aktif dengan penempatan berjalan di lembaga, cek wali kelas, nama + status aktif.
+- `SchoolClass` (model `ac_classes`, OwnedByOrganization), `ManageClasses` (tambah, ubah, nonaktif/aktif, hapus kelas kosong), `ClassDirectory` (pilihan tahun ajaran, daftar dengan jumlah L/P).
+- `ClassController` + route `GET/POST kelas`, `PATCH/DELETE kelas/{id}`, `POST kelas/{id}/status`; halaman `/kelas`, menu **Kelas**.
+- Target bukti: 429 test (9 test baru).
 
 ## Struktur file utama
 
@@ -265,5 +273,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1c-b2 (PANDUAN-AC-1C-B2.md).
-2. AC-1d kelas → AC-1e impor siswa.
+1. Verifikasi AC-1d-a (PANDUAN-AC-1D-A.md).
+2. AC-1d-b anggota kelas → AC-1e impor siswa.
