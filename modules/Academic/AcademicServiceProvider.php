@@ -2,9 +2,11 @@
 
 namespace Modules\Academic;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\CalendarSetting;
+use Modules\Academic\Console\PruneStudentImportsCommand;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Settings\SettingRegistry;
@@ -33,5 +35,14 @@ class AcademicServiceProvider extends ModuleServiceProvider
 
         // Kalender yang dipakai lembaga: aturan berjenjang Core (PRD-002 §4.4).
         $this->app->make(SettingRegistry::class)->define(CalendarSetting::definition());
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([PruneStudentImportsCommand::class]);
+        }
+
+        // File impor siswa sementara tidak boleh tertinggal lebih dari 24 jam (AC-1e).
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('academic:prune-imports')->hourly()->withoutOverlapping();
+        });
     }
 }

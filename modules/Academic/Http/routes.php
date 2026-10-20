@@ -7,6 +7,7 @@ use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
+use Modules\Academic\Http\Controllers\StudentImportController;
 
 /*
  * Route web modul Academic (PRD-002 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -28,6 +29,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // `siswa/tambah` didaftarkan sebelum `siswa/{student}`.
     Route::get('siswa', [StudentController::class, 'index'])->name('academic.students.index');
     Route::get('siswa/tambah', [StudentController::class, 'create'])->name('academic.students.create');
+    // Impor siswa (AC-1e). Satu file = satu lembaga; simpan menyusul (AC-1e-b).
+    Route::get('siswa/impor', [StudentImportController::class, 'index'])->name('academic.students.import');
+    Route::get('siswa/impor/template', [StudentImportController::class, 'template'])->name('academic.students.import.template');
+    Route::post('siswa/impor', [StudentImportController::class, 'upload'])->name('academic.students.import.upload');
+    Route::post('siswa/impor/batal', [StudentImportController::class, 'cancel'])->name('academic.students.import.cancel');
     Route::post('siswa', [StudentController::class, 'store'])->name('academic.students.store');
     Route::get('siswa/{student}', [StudentController::class, 'show'])->whereUuid('student')->name('academic.students.show');
 

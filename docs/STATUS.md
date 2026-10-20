@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-20
-- **Tahap aktif:** AC-1d-b — anggota kelas (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `0fb2643` — feat(academic): AC-1d-a kelas dan wali kelas
+- **Tahap aktif:** AC-1e-a — impor siswa: template, unggah, pratinjau (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `c7f7dd8` — feat(academic): AC-1d-b anggota kelas
 
 ## Keputusan penting
 
@@ -27,6 +27,7 @@
 | 2026-10-17 | Peringatan orang ganda (impor & form) dipicu nama sama, tidak hanya nama + tanggal lahir                                                                                                                                                           | PRD-001 §6, §6.2           |
 | 2026-10-17 | Academic tahap 1 = data siswa + kelas; data siswa minimal + NISN + wali (tanpa NIK); tahun ajaran default yayasan, lembaga boleh beda                                                                                                              | PRD-002 OD-AC-01–03        |
 | 2026-10-17 | Data siswa dikelola Operator Akademik per lembaga; orang tua/wali = Person tanpa akun; wali kelas lihat kelasnya di AC-3; impor siswa AC-1e                                                                                                        | PRD-002 OD-AC-04–08        |
+| 2026-10-20 | Impor siswa: satu file = satu lembaga; NISN + nama cocok = siswa lama (hanya didaftarkan); kolom ayah/ibu/wali + kontak utama + kelas; dipecah AC-1e-a/b                                                                                           | PRD-002 AC-1e              |
 | 2026-10-20 | AC-1d dipecah d-a (kelas & wali kelas) dan d-b (anggota kelas); kelas tahun ajaran lewat hanya dilihat; tingkat 1–12 tanpa batas per jenjang                                                                                                       | PRD-002 §11 (AC-1d-a)      |
 | 2026-10-19 | Orang tua/wali: cari HP hanya di antara orang tua/wali tercatat; orang tua yang juga pegawai/siswa hanya bisa diubah hubungannya; lepas kontak utama wajib pilih pengganti                                                                         | PRD-002 §11 (AC-1c-b2)     |
 | 2026-10-18 | AC-1c-b dipecah b1 (data diri & pendaftaran, termasuk ubah pendaftaran) dan b2 (orang tua/wali); cari orang tua lewat HP cocok persis tanpa nama anak                                                                                              | PRD-002 §11, §4.5          |
@@ -189,7 +190,7 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v0.9 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a, AC-1d-b.
+**PRD-002 Academic: v1.0 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a, AC-1d-b, AC-1e.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -242,12 +243,19 @@
 - `ClassController` + route `GET/POST kelas`, `PATCH/DELETE kelas/{id}`, `POST kelas/{id}/status`; halaman `/kelas`, menu **Kelas**.
 - Bukti: 429 test lulus (9 test baru); Pint PASS; Larastan level 7 tanpa error; `types:check`, `check:fix`, build lulus; uji manual owner lancar.
 
-**AC-1d-b — Anggota kelas: KODE SIAP (2026-10-20, menunggu verifikasi)**
+**AC-1d-b — Anggota kelas: SELESAI (2026-10-20, commit `c7f7dd8`)**
 
 - `ClassMember` (model `ac_class_members`, OwnedByOrganization), `ManageClassMembers` (calon anggota, masukkan banyak sekaligus, pindah, keluarkan, masuk kelas dari form Tambah siswa).
 - `ClassMemberController` + route `GET kelas/{id}`, `POST kelas/{id}/anggota`, `POST kelas/anggota/{id}/pindah|keluar`; halaman `/kelas/{id}`.
 - Detail siswa: bagian **Kelas** dengan Pindah/Keluarkan; form Tambah siswa: pilihan **Kelas**.
-- Target bukti: 439 test (10 test baru).
+- Bukti: 10 test baru (target 439 test); uji manual owner 10 langkah lancar.
+
+**AC-1e-a — Impor siswa (template, unggah, pratinjau): KODE SIAP (2026-10-20, menunggu verifikasi)**
+
+- Core `Support/Import`: `SpreadsheetReader` (dipindah dari HR, dipakai HR & Academic), `ImportFileException`, `ImportCell`, `PendingImportFiles`. `EmployeeImportReader` HR kini memakai reader Core (perilaku sama).
+- Academic `Application/Import`: `StudentImportColumns`, `StudentImportReader`, `StudentImportValidator` (+ `StudentImportDraft`), `StudentImportRow`, `StudentImportPreview`, `StudentImportTemplate`, `PendingStudentImport`; perintah `academic:prune-imports` (tiap jam).
+- `StudentImportController` + route `GET/POST siswa/impor`, `GET siswa/impor/template?lembaga=`, `POST siswa/impor/batal`; halaman `/siswa/impor`, tombol **Impor** di daftar siswa.
+- Target bukti: 464 test (25 test baru, termasuk 15 dataset kolom).
 
 ## Struktur file utama
 
@@ -280,5 +288,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1d-b (PANDUAN-AC-1D-B.md).
-2. AC-1e impor siswa.
+1. Verifikasi AC-1e-a (PANDUAN-AC-1E-A.md).
+2. AC-1e-b simpan impor siswa → AC-1 selesai.
