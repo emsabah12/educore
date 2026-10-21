@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
 use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
+use Modules\Academic\Http\Controllers\ClassSubjectController;
 use Modules\Academic\Http\Controllers\ClassYearEndController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
@@ -78,6 +79,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/{class}/anggota', [ClassMemberController::class, 'add'])->whereUuid('class')->name('academic.class-members.store');
     Route::post('kelas/anggota/{member}/pindah', [ClassMemberController::class, 'move'])->whereUuid('member')->name('academic.class-members.move');
     Route::post('kelas/anggota/{member}/keluar', [ClassMemberController::class, 'remove'])->whereUuid('member')->name('academic.class-members.remove');
+
+    // Mapel kelas & guru pengampu (AC-3b). Kelola: academic.classes.manage di lembaga kelas.
+    Route::post('kelas/{class}/mapel', [ClassSubjectController::class, 'store'])->whereUuid('class')->name('academic.class-subjects.store');
+    Route::patch('kelas/mapel/{classSubject}', [ClassSubjectController::class, 'update'])->whereUuid('classSubject')->name('academic.class-subjects.update');
+    Route::delete('kelas/mapel/{classSubject}', [ClassSubjectController::class, 'destroy'])->whereUuid('classSubject')->name('academic.class-subjects.destroy');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
     // (+ academic.students.manage untuk lulus) di lembaga kelas.

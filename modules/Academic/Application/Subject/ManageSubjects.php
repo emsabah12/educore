@@ -150,8 +150,12 @@ final class ManageSubjects
     public function delete(string $tenantId, string $subjectId): string
     {
         return DB::transaction(function () use ($tenantId, $subjectId): string {
-            // Pemeriksaan "sudah dipakai di kelas" ditambahkan bersama tabel mapel kelas (AC-3b).
             $subject = $this->lock($tenantId, $subjectId);
+
+            if (DB::table('ac_class_subjects')->where('subject_id', $subject->id)->exists()) {
+                throw SubjectException::make('form', 'Mata pelajaran ini sudah dipakai di kelas, jadi tidak bisa dihapus. Nonaktifkan saja.');
+            }
+
             $name = $subject->name;
             $subject->delete();
 

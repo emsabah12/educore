@@ -12,12 +12,14 @@ use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Classroom\ClassDirectory;
 use Modules\Academic\Application\Classroom\ManageClassMembers;
+use Modules\Academic\Application\Classroom\ManageClassSubjects;
 use Modules\Academic\Domain\Classroom\ClassMember;
 use Modules\Academic\Domain\Classroom\Exceptions\ClassException;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Contracts\ActiveEmployees;
 
 /**
  * Detail kelas & anggota kelas (PRD-002 §6, AC-1d-b): lihat anggota, masukkan siswa (banyak
@@ -33,7 +35,7 @@ final class ClassMemberController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function show(string $class, ClassDirectory $directory, ManageClassMembers $members): Response
+    public function show(string $class, ClassDirectory $directory, ManageClassMembers $members, ManageClassSubjects $subjects, ActiveEmployees $employees): Response
     {
         $target = $this->findClass($class);
         Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
@@ -47,6 +49,9 @@ final class ClassMemberController
             'canYearEnd' => $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $target->organization_id),
             // Calon anggota hanya untuk pengelola dan hanya bila kelas aktif.
             'candidates' => $canManage && $target->is_active ? $members->candidates($target) : [],
+            // Mapel yang bisa ditambahkan & pilihan pengampu (AC-3b), hanya untuk pengelola.
+            'subjectOptions' => $canManage ? $subjects->available($target) : [],
+            'teachers' => $canManage ? $employees->inOrganization($target->tenant_id, $target->organization_id) : [],
             'today' => BusinessClock::todayString(),
             'maxPerSave' => ManageClassMembers::MAX_PER_SAVE,
         ]);

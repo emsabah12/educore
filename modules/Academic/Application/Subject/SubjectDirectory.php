@@ -2,6 +2,7 @@
 
 namespace Modules\Academic\Application\Subject;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Academic\Domain\Subject\Subject;
 
 /**
@@ -27,6 +28,14 @@ final class SubjectDirectory
             ->orderBy('id')
             ->get();
 
+        // Mapel yang sudah dipakai di kelas tidak bisa dihapus (hanya dinonaktifkan).
+        $used = DB::table('ac_class_subjects')
+            ->whereIn('subject_id', $subjects->modelKeys())
+            ->distinct()
+            ->pluck('subject_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all();
+
         $rows = [];
 
         foreach ($subjects as $subject) {
@@ -38,8 +47,7 @@ final class SubjectDirectory
                 'grade_max' => $subject->grade_max,
                 'grades' => ManageSubjects::gradeLabel($subject->grade_min, $subject->grade_max),
                 'is_active' => $subject->is_active,
-                // Mapel kelas baru ada di AC-3b; sampai itu semua mapel boleh dihapus.
-                'deletable' => true,
+                'deletable' => ! in_array($subject->id, $used, true),
             ];
         }
 

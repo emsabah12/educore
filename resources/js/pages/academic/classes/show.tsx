@@ -12,6 +12,10 @@ import {
     MoveMemberForm,
     RemoveMemberForm,
 } from '@/components/academic/class-member-actions';
+import {
+    ClassSubjectsSection,
+    type ClassSubjectRow,
+} from '@/components/academic/class-subject-actions';
 import type { Option } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -63,6 +67,9 @@ type Props = {
     moveTargets: Option[];
     canManage: boolean;
     canYearEnd: boolean;
+    subjects: ClassSubjectRow[];
+    subjectOptions: Option[];
+    teachers: { id: string; name: string }[];
     candidates: Candidate[];
     today: string;
     maxPerSave: number;
@@ -197,6 +204,15 @@ export default function ClassDetail(props: Props) {
                         )}
                     </section>
                 )}
+
+                <ClassSubjectsSection
+                    classId={item.id}
+                    className={item.name}
+                    subjects={props.subjects}
+                    subjectOptions={props.subjectOptions}
+                    teachers={props.teachers}
+                    canManage={canManage}
+                />
 
                 <section className="space-y-3 rounded-xl border p-4">
                     <h2 className="text-base font-medium">Anggota kelas</h2>

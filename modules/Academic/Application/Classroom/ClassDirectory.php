@@ -14,6 +14,7 @@ use Modules\HR\Contracts\ActiveEmployees;
  *
  * @phpstan-type YearOption array{value: string, label: string, current: bool, past: bool}
  * @phpstan-type MemberRow array{id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, start_date: string, end_date: string|null}
+ * @phpstan-type SubjectRow array{id: string, subject_id: string, name: string, code: string|null, teacher: array{id: string, name: string, active: bool}|null}
  * @phpstan-type ClassRow array{id: string, name: string, grade: int, is_active: bool, homeroom: array{id: string, name: string, active: bool}|null, members: array{total: int, male: int, female: int}, has_history: bool}
  */
 final class ClassDirectory
@@ -127,6 +128,7 @@ final class ClassDirectory
      *     members: list<MemberRow>,
      *     former: list<MemberRow>,
      *     moveTargets: list<array{value: string, label: string}>,
+     *     subjects: list<SubjectRow>,
      * }
      */
     public function detail(SchoolClass $class): array
@@ -200,7 +202,58 @@ final class ClassDirectory
             'members' => $members,
             'former' => $former,
             'moveTargets' => $this->moveTargets($class->organization_id, $class->academic_year_id, $class->id),
+            'subjects' => $this->subjects($class),
         ];
+    }
+
+    /**
+     * Mata pelajaran kelas & guru pengampunya (AC-3b), urut nama mapel. Pengampu yang sudah tidak
+     * aktif di lembaga kelas tetap tampil, ditandai.
+     *
+     * @return list<SubjectRow>
+     */
+    public function subjects(SchoolClass $class): array
+    {
+        $rows = DB::table('ac_class_subjects as cs')
+            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
+            ->where('cs.class_id', $class->id)
+            ->orderByRaw('lower(s.name)')
+            ->orderBy('cs.id')
+            ->get(['cs.id', 'cs.subject_id', 'cs.teacher_employee_id', 's.name', 's.code']);
+
+        $teacherIds = [];
+
+        foreach ($rows as $row) {
+            if ($row->teacher_employee_id !== null) {
+                $teacherIds[] = (string) $row->teacher_employee_id;
+            }
+        }
+
+        $teachers = $this->employees->describe($class->tenant_id, array_values(array_unique($teacherIds)));
+        $subjects = [];
+
+        foreach ($rows as $row) {
+            $teacherId = $row->teacher_employee_id === null ? null : (string) $row->teacher_employee_id;
+            $teacher = null;
+
+            if ($teacherId !== null && isset($teachers[$teacherId])) {
+                $teacher = [
+                    'id' => $teacherId,
+                    'name' => $teachers[$teacherId]['name'],
+                    'active' => in_array($class->organization_id, $teachers[$teacherId]['active_organization_ids'], true),
+                ];
+            }
+
+            $subjects[] = [
+                'id' => (string) $row->id,
+                'subject_id' => (string) $row->subject_id,
+                'name' => (string) $row->name,
+                'code' => $row->code === null ? null : (string) $row->code,
+                'teacher' => $teacher,
+            ];
+        }
+
+        return $subjects;
     }
 
     /**

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-3a — mata pelajaran (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `ece7aa6` — feat(academic): AC-2 kenaikan kelas & kelulusan
+- **Tahap aktif:** AC-3b — mapel kelas & guru pengampu (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `9a0b128` — feat(academic): AC-3a mata pelajaran
 
 ## Keputusan penting
 
@@ -272,12 +272,20 @@
 - Audit `academic.class_year_end_processed`.
 - Bukti: 477 test lulus (7 test baru, `YearEndTest`); uji manual owner lancar.
 
-**AC-3a — Mata pelajaran: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**AC-3a — Mata pelajaran: SELESAI (2026-10-21, commit `9a0b128`)**
 
 - Tabel `ac_subjects` (migrasi `2026_10_21_200005`); model `Domain/Subject/Subject`; `Application/Subject/ManageSubjects`, `SubjectData`, `SubjectDirectory`; `SubjectException`.
 - `SubjectController` + route `GET/POST akademik/mapel`, `PATCH/DELETE akademik/mapel/{subject}`, `POST akademik/mapel/{subject}/status`; halaman `/akademik/mapel`, menu **Mata pelajaran**.
 - Audit `academic.subject_created|updated|deactivated|reactivated|deleted`.
-- Target bukti: 487 test (10 test baru, `SubjectsTest`).
+- Bukti: 487 test lulus (10 test baru, `SubjectsTest`) setelah perbaikan test akun `guru` (wajib memilih lembaga kerja dulu); uji manual owner lancar.
+
+**AC-3b — Mapel kelas & guru pengampu: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Tabel `ac_class_subjects` (migrasi `2026_10_21_200006`; ikut terhapus bila kelas kosong dihapus); model `Domain/Classroom/ClassSubject`; `Application/Classroom/ManageClassSubjects` (`available`, `add`, `setTeacher`, `remove`); `ClassDirectory::subjects`.
+- `ClassSubjectController` + route `POST kelas/{class}/mapel`, `PATCH/DELETE kelas/mapel/{classSubject}`; bagian **Mata pelajaran** di detail kelas (`components/academic/class-subject-actions.tsx`).
+- Mapel yang sudah dipakai di kelas tidak bisa dihapus (`ManageSubjects::delete`, `deletable` di daftar mapel).
+- Audit `academic.class_subjects_added`, `class_subject_teacher_changed`, `class_subject_removed`.
+- Target bukti: 494 test (7 test baru, `ClassSubjectsTest`).
 
 ## Struktur file utama
 
@@ -310,5 +318,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-3a (PANDUAN-AC-3A.md), commit & push.
-2. AC-3b mapel kelas & guru pengampu, AC-3c jadwal, AC-3d Kelas saya (PRD-002 §16).
+1. Verifikasi AC-3b (PANDUAN-AC-3B.md), commit & push.
+2. AC-3c jadwal pelajaran, lalu AC-3d Kelas saya (PRD-002 §16).

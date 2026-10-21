@@ -70,6 +70,11 @@ const fieldLabels: Record<string, string> = {
     relation: 'Hubungan',
     membership_id: 'Orang yang dipilih',
     new_primary_id: 'Kontak utama pengganti',
+    code: 'Kode',
+    grade_min: 'Tingkat dari',
+    grade_max: 'Tingkat sampai',
+    subject_ids: 'Mata pelajaran',
+    teacher_employee_id: 'Guru pengampu',
     form: 'Formulir',
 };
 

@@ -2,7 +2,7 @@
 
 - **Versi:** 1.2 (2026-10-21: rincian AC-3 mata pelajaran, pengampu, jadwal, Kelas saya — §16; §7 akses wali kelas/guru diperbarui)
 - **Versi sebelumnya:** 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16), AC-3a dikerjakan**; AC-4 dst. hanya digariskan
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b dikerjakan; AC-4 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -408,6 +408,8 @@ Dipecah empat bagian, dikerjakan berurutan. Mapel, pengampu, dan jadwal dikelola
 - Di detail kelas, bagian **Mata pelajaran**: pilih mapel aktif lembaga itu yang rentang tingkatnya memuat tingkat kelas; tiap mapel paling banyak sekali per kelas.
 - **Satu guru pengampu per mapel per kelas** [ASUMSI disetujui; belum ada team teaching]; opsional; pegawai aktif yang ditempatkan di lembaga itu (kontrak HR `ActiveEmployees`, sama dengan wali kelas). Pengampu yang berhenti/dimutasi tetap tercatat dan ditandai sampai diganti.
 - Karena kelas berlaku per tahun ajaran, mapel & pengampu otomatis per tahun ajaran. Kelas tahun yang sudah lewat hanya bisa dilihat.
+- Tambah mapel: centang banyak sekaligus, semua atau tidak sama sekali (masalah tiap mapel disebut). **Lepas** mapel dari kelas hanya menghapus kaitannya; mapelnya tetap. Mapel yang sudah dipakai di kelas tidak bisa dihapus dari menu Mata pelajaran (nonaktifkan saja). Kelas kosong yang dihapus ikut menghapus mapel kelasnya.
+- Audit baru: `academic.class_subjects_added` (jumlah & nama mapel), `class_subject_teacher_changed` (tanda pengampu diisi), `class_subject_removed`.
 
 ### AC-3c Jadwal pelajaran
 
