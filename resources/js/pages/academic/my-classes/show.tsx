@@ -1,5 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ChartColumn, ClipboardCheck, Phone } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChartColumn,
+    ClipboardCheck,
+    Download,
+    Phone,
+} from 'lucide-react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,6 +89,15 @@ export default function MyClassDetail({ class: item, students }: Props) {
                             Rekap presensi
                         </Link>
                     </Button>
+                    {item.homeroom && students.length > 0 && (
+                        <Button variant="outline" asChild>
+                            {/* Unduhan file: tautan biasa, bukan navigasi Inertia. */}
+                            <a href={`/kelas-saya/${item.id}/unduh`}>
+                                <Download />
+                                Unduh daftar (.xlsx)
+                            </a>
+                        </Button>
+                    )}
                 </div>
                 {item.lesson_mode && (
                     <p className="text-sm text-muted-foreground">

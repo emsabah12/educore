@@ -12,6 +12,7 @@ use Inertia\Response;
 use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Classroom\ClassDirectory;
+use Modules\Academic\Application\Classroom\ClassRosterExport;
 use Modules\Academic\Application\Classroom\ManageClassMembers;
 use Modules\Academic\Application\Classroom\ManageClassSubjects;
 use Modules\Academic\Domain\Classroom\ClassMember;
@@ -21,6 +22,7 @@ use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Contracts\ActiveEmployees;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Detail kelas & anggota kelas (PRD-002 §6, AC-1d-b): lihat anggota, masukkan siswa (banyak
@@ -58,6 +60,40 @@ final class ClassMemberController
             'today' => BusinessClock::todayString(),
             'maxPerSave' => ManageClassMembers::MAX_PER_SAVE,
         ]);
+    }
+
+    /**
+     * Unduh daftar siswa kelas (.xlsx, PRD-002 §18 P1). Data pribadi & kontak orang tua hanya bagi
+     * pemilik izin lihat data pribadi di lembaga kelas.
+     */
+    public function export(string $class, ClassRosterExport $export): BinaryFileResponse
+    {
+        $target = $this->findClass($class);
+        Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
+
+        $personal = $this->authorization->allows(AcademicAccess::STUDENTS_VIEW_PERSONAL, $target->organization_id);
+
+        return self::download($target, $export, $personal, $personal);
+    }
+
+    /**
+     * Tulis file sementara lalu kirim; file dihapus sesudah terkirim.
+     */
+    public static function download(SchoolClass $class, ClassRosterExport $export, bool $withPersonal, bool $withContacts): BinaryFileResponse
+    {
+        $path = tempnam(sys_get_temp_dir(), 'educore-daftar-');
+
+        if ($path === false) {
+            abort(500, 'File daftar siswa tidak bisa dibuat.');
+        }
+
+        $export->write($class, $path, $withPersonal, $withContacts);
+
+        return response()
+            ->download($path, ClassRosterExport::fileName($class), [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend();
     }
 
     public function add(Request $request, string $class, ManageClassMembers $members): RedirectResponse

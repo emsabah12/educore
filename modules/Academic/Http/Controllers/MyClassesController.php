@@ -4,8 +4,11 @@ namespace Modules\Academic\Http\Controllers;
 
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Academic\Application\Classroom\ClassRosterExport;
 use Modules\Academic\Application\Classroom\MyClasses;
+use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Menu "Kelas saya" (PRD-002 §16 AC-3d): kelas yang dipegang wali kelas/guru pengampu yang sedang
@@ -31,6 +34,25 @@ final class MyClassesController
             'schedule' => $employeeId === null ? [] : $myClasses->schedule($employeeId, array_column($classes, 'id')),
             'days' => MyClasses::days(),
         ]);
+    }
+
+    /**
+     * Unduh daftar siswa kelas yang ia walikan (.xlsx, PRD-002 §18 P1): dengan kontak utama orang
+     * tua/wali, tanpa tempat & tanggal lahir. Bukan wali kelasnya → 404.
+     */
+    public function export(string $class, MyClasses $myClasses, ClassRosterExport $export): BinaryFileResponse
+    {
+        $context = $this->tenantContext->require();
+        $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
+        $picked = $employeeId === null ? null : MyClasses::pick($myClasses->classes($context->tenantId, $employeeId), $class);
+
+        if ($picked === null || ! $picked['homeroom']) {
+            abort(404);
+        }
+
+        $target = SchoolClass::query()->withoutGlobalScope('tenant')->whereKey($picked['id'])->firstOrFail();
+
+        return ClassMemberController::download($target, $export, false, true);
     }
 
     public function show(string $class, MyClasses $myClasses): Response

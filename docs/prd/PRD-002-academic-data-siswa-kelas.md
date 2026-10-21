@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.3 (2026-10-21: rincian AC-4 presensi siswa — §17)
-- **Versi sebelumnya:** 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 dirinci (§17)**: AC-4a `5fceb18` & AC-4b `887a384` SELESAI, AC-4c dikerjakan; AC-5 dst. hanya digariskan
+- **Versi:** 1.4 (2026-10-21: penyempurnaan P1–P4 — §18)
+- **Versi sebelumnya:** 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 dirinci (§18), P1 dikerjakan**; AC-5 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -375,8 +375,7 @@ Kenaikan kelas massal (kini AC-2, §15), mata pelajaran, jadwal, presensi, nilai
 
 ## 14. Saran tambahan (di luar ruang lingkup)
 
-- **Ekspor daftar siswa per kelas** (CSV/xlsx) untuk absen manual dan keperluan TU, dengan saringan dan izin yang sama seperti halaman daftar.
-- **Batalkan penutupan pendaftaran** (salah tutup): saat ini harus didaftarkan ulang sebagai pendaftaran baru. Bisa ditambahkan aksi "Buka kembali" khusus Admin Yayasan, tercatat di audit.
+- ~~Ekspor daftar siswa per kelas~~ dan ~~Buka kembali pendaftaran~~ — diminta owner, kini dirinci di §18 (P1, P2).
 
 ## 15. AC-2 Kenaikan kelas & kelulusan [OWNER, 2026-10-20 — usulan disetujui]
 
@@ -475,3 +474,35 @@ Dikerjakan bertahap: **AC-4a** presensi harian, **AC-4b** rekap, **AC-4c** prese
 - Sesi pertemuan menyimpan **mapel kelas & jam** saat diisi [ASUMSI disetujui], sehingga riwayat tidak berubah bila jadwal diubah/dihapus. Mapel yang **sudah punya presensi tidak bisa dilepas** dari kelas (hapus jadwalnya saja).
 - **Rekap**: pilihan **Harian / Per pertemuan**; per pertemuan bisa disaring per mapel; % hadir = Hadir ÷ pertemuan tercatat. Bawaan mengikuti mode lembaga. Pengampu (bukan wali kelas) melihat rekap pertemuan mapelnya sendiri dari Kelas saya.
 - Audit: `academic.attendance_recorded` ditambah mapel & jam untuk pertemuan; perubahan mode lewat audit aturan berjenjang Core.
+
+## 18. Penyempurnaan [OWNER, 2026-10-21 — diminta owner, usulan disetujui]
+
+Empat fitur kecil yang sebelumnya saran (§14 dan saran sesudah AC-2/AC-4), dikerjakan berurutan P1 → P4.
+
+### P1 Ekspor daftar siswa per kelas
+
+- Tombol **Unduh daftar (.xlsx)** di detail kelas (pemilik `academic.students.view` di lembaga kelas) dan di Kelas saya (wali kelas).
+- Kolom: No, Nama, L/P, NISN, Nomor induk, Tanggal masuk kelas — siswa yang masih di kelas, urut nama. Tempat & tanggal lahir serta kontak utama orang tua/wali (nama, hubungan, HP) hanya bagi pemilik `academic.students.view_personal`; wali kelas mendapat kontak utama (sama dengan layar Kelas saya, §16 AC-3d) tanpa tempat/tanggal lahir.
+- Nama file `daftar-siswa-{kelas}-{tahun ajaran}.xlsx`; memakai pustaka xlsx yang sudah ada (openspout). Pengunduhan tidak dicatat di audit [ASUMSI].
+
+### P2 Buka kembali pendaftaran
+
+- **Admin Yayasan saja** [OWNER], dari riwayat pendaftaran yang sudah ditutup di detail siswa; **alasan wajib** (maks. 500; audit hanya mencatat ada/tidaknya).
+- Syarat: belum ada pendaftaran terbuka lain milik siswa itu di lembaga yang sama; lembaga masih aktif; nomor induknya tidak sedang dipakai siswa aktif lain di lembaga itu.
+- Tanggal keluar, alasan keluar, dan keterangannya dikosongkan. Keanggotaan kelas yang ditutup **pada tanggal keluar yang sama** dibuka lagi bila kelasnya masih aktif, tahun ajarannya belum lewat, dan siswa belum punya kelas terbuka lain di tahun ajaran itu; selain itu dibiarkan (operator memasukkan ke kelas secara manual).
+- Audit baru: `academic.enrollment_reopened` (lembaga, tanggal keluar lama, alasan keluar lama, jumlah kelas yang dibuka lagi).
+
+### P3 Salin mapel & pengampu dari kelas lain
+
+- Tombol **Salin dari kelas lain** di bagian Mata pelajaran detail kelas (pengelola kelas, tahun belum lewat). Kelas sumber: kelas mana pun di lembaga yang sama (tahun mana pun); saran bawaan = kelas setingkat dari tahun ajaran sebelumnya.
+- Yang disalin: mapel yang **aktif dan cocok dengan tingkat kelas tujuan** dan belum ada di kelas tujuan, beserta pengampunya bila masih pegawai aktif yang ditempatkan di lembaga itu (selain itu pengampu dikosongkan). **Jadwal tidak disalin.** Hasil menyebut jumlah yang disalin dan yang dilewati.
+- Halaman proses akhir tahun (§15) menampilkan tautan ke kelas tujuan untuk menyalin mapel.
+- Audit memakai `academic.class_subjects_added` dengan tanda sumber salinan.
+
+### P4 Kalender hari libur
+
+- Per **kalender akademik** (Admin Yayasan, halaman Kalender akademik): **hari libur mingguan** (pilih hari; bawaan Ahad) dan **daftar hari libur** per tahun ajaran (nama, tanggal mulai–selesai, di dalam tahun ajaran).
+- **Hari efektif** = hari di dalam periode yang bukan libur mingguan dan bukan hari libur.
+- Rekap presensi harian menampilkan jumlah hari efektif dan **hari efektif yang belum diisi** (sampai hari ini).
+- Mengisi presensi di hari libur **boleh, dengan peringatan** "Tanggal ini hari libur: …" [OWNER]; hari itu tetap tidak dihitung hari efektif.
+- Audit baru: perubahan hari libur mingguan dan tambah/ubah/hapus hari libur.

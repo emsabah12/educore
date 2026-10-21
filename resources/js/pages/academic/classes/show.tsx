@@ -6,6 +6,7 @@ import {
     ChartColumn,
     CircleAlert,
     ClipboardCheck,
+    Download,
     LogOut,
     UserPlus,
 } from 'lucide-react';
@@ -209,6 +210,15 @@ export default function ClassDetail(props: Props) {
                             Rekap presensi
                         </Link>
                     </Button>
+                    {members.length > 0 && (
+                        <Button variant="outline" asChild>
+                            {/* Unduhan file: tautan biasa, bukan navigasi Inertia. */}
+                            <a href={`/kelas/${item.id}/unduh`}>
+                                <Download />
+                                Unduh daftar (.xlsx)
+                            </a>
+                        </Button>
+                    )}
                 </div>
 
                 {canManage && item.is_active && (

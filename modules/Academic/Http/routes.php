@@ -80,6 +80,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
 
     // Anggota kelas (AC-1d-b). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga kelas.
     Route::get('kelas/{class}', [ClassMemberController::class, 'show'])->whereUuid('class')->name('academic.classes.show');
+    // Unduh daftar siswa kelas (.xlsx, §18 P1).
+    Route::get('kelas/{class}/unduh', [ClassMemberController::class, 'export'])->whereUuid('class')->name('academic.classes.export');
     Route::post('kelas/{class}/anggota', [ClassMemberController::class, 'add'])->whereUuid('class')->name('academic.class-members.store');
     Route::post('kelas/anggota/{member}/pindah', [ClassMemberController::class, 'move'])->whereUuid('member')->name('academic.class-members.move');
     Route::post('kelas/anggota/{member}/keluar', [ClassMemberController::class, 'remove'])->whereUuid('member')->name('academic.class-members.remove');
@@ -97,6 +99,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Kelas saya (AC-3d): wali kelas & guru pengampu yang sedang login. Akses dari data penugasan mengajar.
     Route::get('kelas-saya', [MyClassesController::class, 'index'])->name('academic.my-classes.index');
     Route::get('kelas-saya/{class}', [MyClassesController::class, 'show'])->whereUuid('class')->name('academic.my-classes.show');
+    Route::get('kelas-saya/{class}/unduh', [MyClassesController::class, 'export'])->whereUuid('class')->name('academic.my-classes.export');
 
     // Presensi harian (AC-4a). Operator: academic.classes.manage; wali kelas: lewat Kelas saya.
     Route::get('kelas/{class}/presensi', [AttendanceController::class, 'show'])->whereUuid('class')->name('academic.attendance.show');
