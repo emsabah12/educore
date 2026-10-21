@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** P1 — ekspor daftar siswa per kelas (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `98a3aac` — feat(academic): AC-4c presensi per pertemuan dan mode presensi
+- **Tahap aktif:** P2 — buka kembali pendaftaran (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `3027bb4` — feat(academic): P1 ekspor daftar siswa per kelas
 
 ## Keputusan penting
 
@@ -330,11 +330,18 @@
 
 **Penyempurnaan (PRD-002 §18)**
 
-**P1 — Ekspor daftar siswa per kelas: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**P1 — Ekspor daftar siswa per kelas: SELESAI (2026-10-22, commit `3027bb4`)**
 
 - `Application/Classroom/ClassRosterExport` (openspout; kolom dasar + tempat/tanggal lahir & kontak utama sesuai hak).
 - Route `GET kelas/{class}/unduh` (izin lihat siswa; data pribadi & kontak bagi izin lihat data pribadi) dan `GET kelas-saya/{class}/unduh` (wali kelas: kontak utama tanpa tempat/tanggal lahir); tombol **Unduh daftar (.xlsx)** di detail kelas & Kelas saya.
-- Target bukti: 524 test (3 test baru, `ClassRosterExportTest`).
+- Bukti: 524 test lulus (3 test baru, `ClassRosterExportTest`); uji manual owner lancar.
+
+**P2 — Buka kembali pendaftaran: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- `ManageEnrollments::reopen` (alasan wajib; tolak bila ada pendaftaran berjalan di lembaga itu / nomor induk dipakai siswa aktif lain; kelas yang tertutup pada tanggal keluar sama dibuka lagi bila kelas aktif, tahun belum lewat, belum ada kelas terbuka lain). `StudentManageAccess::canReopen` (izin kelola siswa tingkat Yayasan = Admin Yayasan).
+- Route `POST siswa/{student}/pendaftaran/{enrollment}/buka-kembali`; tombol **Buka kembali** + form alasan di riwayat pendaftaran detail siswa.
+- Audit `academic.enrollment_reopened` (tanpa isi alasan).
+- Target bukti: 528 test (4 test baru, `ReopenEnrollmentTest`).
 
 ## Struktur file utama
 
@@ -368,6 +375,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi P1 (PANDUAN-P1.md), commit & push.
-2. P2 buka kembali pendaftaran, P3 salin mapel & pengampu, P4 kalender hari libur (PRD-002 §18).
+1. Verifikasi P2 (PANDUAN-P2.md), commit & push.
+2. P3 salin mapel & pengampu, P4 kalender hari libur (PRD-002 §18).
 3. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya.

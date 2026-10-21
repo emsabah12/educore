@@ -109,6 +109,7 @@ final class StudentController
         }
 
         $managesAnywhere = $access->managesAnywhere();
+        $canReopen = $access->canReopen();
 
         // Penanda per pendaftaran: boleh diubah/ditutup oleh pengguna ini (lembaganya di cakupan kelola).
         $enrollments = ['current' => [], 'history' => []];
@@ -116,6 +117,8 @@ final class StudentController
         foreach (['current', 'history'] as $group) {
             foreach ($data['enrollments'][$group] as $enrollment) {
                 $enrollment['can_manage'] = $managesAnywhere && $access->canManageOrganization($enrollment['organization_id']);
+                // Buka kembali (§18 P2): pendaftaran yang sudah ditutup, Admin Yayasan saja.
+                $enrollment['can_reopen'] = $canReopen && ! $enrollment['open'];
                 $enrollments[$group][] = $enrollment;
             }
         }

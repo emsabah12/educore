@@ -27,7 +27,7 @@ use Modules\Core\Support\BusinessClock;
 
 /**
  * Aksi di detail siswa (PRD-002 §6; AC-1c-b1): ubah data diri, daftarkan ke lembaga lain,
- * ubah pendaftaran, tutup pendaftaran.
+ * ubah pendaftaran, tutup pendaftaran, buka kembali pendaftaran (§18 P2).
  *
  * Urutan pemeriksaan: siswa tidak terlihat (yayasan lain, di luar cakupan, ID asal-asalan) → 404;
  * terlihat tetapi tanpa hak aksi → 403. Pendaftaran & lembaga tujuan dicek lewat Gate dengan
@@ -183,6 +183,38 @@ final class StudentActionController
 
         if ($classesClosed > 0) {
             $message .= ' Siswa juga dikeluarkan dari kelasnya di lembaga ini.';
+        }
+
+        return $this->done($message);
+    }
+
+    /**
+     * Buka kembali pendaftaran yang sudah ditutup (PRD-002 §18 P2): Admin Yayasan saja; alasan wajib.
+     */
+    public function reopenEnrollment(Request $request, string $student, string $enrollment, ManageEnrollments $enrollments): RedirectResponse
+    {
+        $target = $this->findEnrollment($student, $enrollment);
+
+        if (! $this->access->canReopen()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'reason' => ['required', 'string', 'max:'.ManageEnrollments::NOTE_MAX_LENGTH],
+        ], [
+            'reason.required' => 'Tulis alasan membuka kembali pendaftaran ini.',
+        ], ['reason' => 'alasan']);
+
+        $classesReopened = $this->attempt(fn (): int => $enrollments->reopen(
+            $this->tenantId(),
+            $target->id,
+            StudentInput::text($request->input('reason')),
+        ));
+
+        $message = 'Pendaftaran dibuka kembali.';
+
+        if ($classesReopened > 0) {
+            $message .= ' Siswa juga dikembalikan ke kelasnya.';
         }
 
         return $this->done($message);

@@ -82,6 +82,8 @@ final class AcademicAuditAction
 
     public const ATTENDANCE_RECORDED = 'academic.attendance_recorded';
 
+    public const ENROLLMENT_REOPENED = 'academic.enrollment_reopened';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -136,6 +138,7 @@ final class AcademicAuditAction
             self::SCHEDULE_ENTRY_UPDATED => 'Jadwal pelajaran diubah',
             self::SCHEDULE_ENTRY_REMOVED => 'Jadwal pelajaran dihapus',
             self::ATTENDANCE_RECORDED => 'Presensi siswa disimpan',
+            self::ENROLLMENT_REOPENED => 'Pendaftaran siswa dibuka kembali',
         ];
     }
 }

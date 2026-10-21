@@ -62,6 +62,15 @@ final class StudentManageAccess
         return $this->canEditProfile($studentId);
     }
 
+    /**
+     * Buka kembali pendaftaran yang sudah ditutup (PRD-002 §18 P2): Admin Yayasan saja, yaitu
+     * pemegang izin kelola siswa tingkat Yayasan [OWNER, 2026-10-21].
+     */
+    public function canReopen(): bool
+    {
+        return $this->managesAnywhere() && $this->visibility->seesWholeTenant(AcademicAccess::STUDENTS_MANAGE);
+    }
+
     public function canManageOrganization(string $organizationId): bool
     {
         return $this->authorization->allows(AcademicAccess::STUDENTS_MANAGE, $organizationId);

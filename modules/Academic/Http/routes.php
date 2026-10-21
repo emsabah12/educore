@@ -52,6 +52,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.update');
     Route::post('siswa/{student}/pendaftaran/{enrollment}/tutup', [StudentActionController::class, 'closeEnrollment'])
         ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.close');
+    // Buka kembali pendaftaran (§18 P2): Admin Yayasan saja.
+    Route::post('siswa/{student}/pendaftaran/{enrollment}/buka-kembali', [StudentActionController::class, 'reopenEnrollment'])
+        ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.reopen');
 
     // Orang tua/wali di detail siswa (AC-1c-b2). Pencarian HP dibatasi 30 kali/menit agar tidak dipakai menebak nomor.
     Route::get('siswa/{student}/orang-tua/cari', [StudentGuardianController::class, 'search'])

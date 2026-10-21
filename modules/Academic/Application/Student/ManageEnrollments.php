@@ -4,6 +4,7 @@ namespace Modules\Academic\Application\Student;
 
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -230,6 +231,134 @@ final class ManageEnrollments
 
             return $classesClosed;
         });
+    }
+
+    // ── Buka kembali (PRD-002 §18 P2) ───────────────────────────────────────
+
+    /**
+     * Membuka lagi pendaftaran yang sudah ditutup (salah tutup). Hanya Admin Yayasan (dicek pemanggil);
+     * alasan wajib, isinya tidak masuk audit. Keanggotaan kelas yang ditutup pada tanggal keluar yang
+     * sama dibuka lagi bila kelasnya masih bisa diisi.
+     *
+     * @return int jumlah keanggotaan kelas yang ikut dibuka lagi
+     *
+     * @throws StudentException
+     */
+    public function reopen(string $tenantId, string $enrollmentId, ?string $reason): int
+    {
+        if ($reason === null) {
+            throw StudentException::make('reason', 'Tulis alasan membuka kembali pendaftaran ini.');
+        }
+
+        if (mb_strlen($reason) > self::NOTE_MAX_LENGTH) {
+            throw StudentException::make('reason', 'Alasan maksimal '.self::NOTE_MAX_LENGTH.' karakter.');
+        }
+
+        return $this->guardUnique(null, function () use ($tenantId, $enrollmentId): int {
+            $enrollment = $this->lockEnrollment($tenantId, $enrollmentId);
+            $oldEnd = $enrollment->end_date?->toDateString();
+            $oldReason = $enrollment->end_reason;
+
+            if ($oldEnd === null) {
+                throw StudentException::make('form', 'Pendaftaran ini masih berjalan.');
+            }
+
+            $organization = Organization::query()->withoutGlobalScope('tenant')->whereKey($enrollment->organization_id)->firstOrFail();
+
+            if (! $organization->isActive()) {
+                throw StudentException::organizationInactive();
+            }
+
+            $openHere = DB::table('ac_enrollments')
+                ->where('student_id', $enrollment->student_id)
+                ->where('organization_id', $enrollment->organization_id)
+                ->whereNull('end_date')
+                ->exists();
+
+            if ($openHere) {
+                throw StudentException::make('form', 'Siswa ini sudah punya pendaftaran berjalan di '.$organization->name.'. Pendaftaran lama tidak bisa dibuka lagi.');
+            }
+
+            if ($enrollment->student_number !== null) {
+                $numberTaken = DB::table('ac_enrollments')
+                    ->where('organization_id', $enrollment->organization_id)
+                    ->whereNull('end_date')
+                    ->whereRaw('upper(student_number) = upper(?)', [$enrollment->student_number])
+                    ->exists();
+
+                if ($numberTaken) {
+                    throw StudentException::make('form', "Nomor induk {$enrollment->student_number} sekarang dipakai siswa aktif lain di lembaga ini. Ubah nomor induk pendaftaran ini dulu.");
+                }
+            }
+
+            $enrollment->end_date = null;
+            $enrollment->end_reason = null;
+            $enrollment->end_note = null;
+            $enrollment->save();
+
+            $classesReopened = $this->reopenClasses($enrollment, $oldEnd);
+
+            // Alasan bisa memuat hal pribadi: audit hanya mencatat ada/tidaknya (pola §4.5).
+            $this->audit->record(
+                AcademicAuditAction::ENROLLMENT_REOPENED,
+                AcademicAuditAction::SUBJECT_ENROLLMENT,
+                $enrollment->id,
+                [
+                    'nama' => $this->studentName($this->lockStudent($tenantId, $enrollment->student_id)),
+                    'lembaga' => $organization->code,
+                    'tanggal_keluar_lama' => $oldEnd,
+                    'alasan_keluar_lama' => $oldReason?->value,
+                    'alasan_diisi' => true,
+                    'kelas_dibuka' => $classesReopened,
+                ],
+                organizationId: $enrollment->organization_id,
+                tenantId: $tenantId,
+            );
+
+            return $classesReopened;
+        });
+    }
+
+    /**
+     * Keanggotaan kelas yang ditutup bersama pendaftaran (tanggal keluar sama) dibuka lagi bila kelas
+     * masih aktif, tahun ajarannya belum lewat, dan belum ada kelas terbuka lain di tahun itu.
+     */
+    private function reopenClasses(Enrollment $enrollment, string $endDate): int
+    {
+        $members = DB::table('ac_class_members as cm')
+            ->join('ac_classes as c', 'c.id', '=', 'cm.class_id')
+            ->join('ac_academic_years as y', 'y.id', '=', 'cm.academic_year_id')
+            ->where('cm.enrollment_id', $enrollment->id)
+            ->whereDate('cm.end_date', $endDate)
+            ->where('c.is_active', true)
+            ->where(function (Builder $query): void {
+                $query->where('y.is_current', true)->orWhere('y.end_date', '>=', BusinessClock::todayString());
+            })
+            ->orderByDesc('cm.start_date')
+            ->get(['cm.id', 'cm.academic_year_id']);
+
+        $reopened = 0;
+        $years = [];
+
+        foreach ($members as $member) {
+            $yearId = (string) $member->academic_year_id;
+
+            $hasOpen = isset($years[$yearId]) || DB::table('ac_class_members')
+                ->where('enrollment_id', $enrollment->id)
+                ->where('academic_year_id', $yearId)
+                ->whereNull('end_date')
+                ->exists();
+
+            if ($hasOpen) {
+                continue;
+            }
+
+            DB::table('ac_class_members')->where('id', $member->id)->update(['end_date' => null, 'updated_at' => now()]);
+            $years[$yearId] = true;
+            $reopened++;
+        }
+
+        return $reopened;
     }
 
     // ── Rujukan & validasi bersama ───────────────────────────────────────────

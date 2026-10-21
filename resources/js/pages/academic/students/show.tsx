@@ -9,6 +9,7 @@ import {
     LogOut,
     Pencil,
     Plus,
+    RotateCcw,
     UserPen,
     UserPlus,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import {
     EditEnrollmentForm,
     EnrollForm,
     ProfileForm,
+    ReopenEnrollmentForm,
 } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +51,7 @@ type Enrollment = {
     end_note: string | null;
     open: boolean;
     can_manage: boolean;
+    can_reopen: boolean;
 };
 
 type Student = {
@@ -96,6 +99,7 @@ type OpenAction =
     | { kind: 'enroll' }
     | { kind: 'editEnrollment'; id: string }
     | { kind: 'closeEnrollment'; id: string }
+    | { kind: 'reopenEnrollment'; id: string }
     | { kind: 'addGuardian' }
     | { kind: 'editGuardian'; id: string }
     | { kind: 'unlinkGuardian'; id: string }
@@ -417,6 +421,29 @@ function EnrollmentList({
                                         Tutup
                                     </Button>
                                 )}
+                                {enrollment.can_reopen && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={
+                                            isOpen(
+                                                'reopenEnrollment',
+                                                enrollment.id,
+                                            )
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            onToggle({
+                                                kind: 'reopenEnrollment',
+                                                id: enrollment.id,
+                                            })
+                                        }
+                                    >
+                                        <RotateCcw />
+                                        Buka kembali
+                                    </Button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -437,6 +464,14 @@ function EnrollmentList({
                             onDone={onDone}
                         />
                     )}
+                    {enrollment.can_reopen &&
+                        isOpen('reopenEnrollment', enrollment.id) && (
+                            <ReopenEnrollmentForm
+                                studentId={studentId}
+                                enrollment={enrollment}
+                                onDone={onDone}
+                            />
+                        )}
                 </li>
             ))}
         </ul>

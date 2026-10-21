@@ -67,6 +67,7 @@ const fieldLabels: Record<string, string> = {
     end_date: 'Tanggal keluar',
     end_reason: 'Alasan',
     end_note: 'Keterangan',
+    reason: 'Alasan',
     relation: 'Hubungan',
     membership_id: 'Orang yang dipilih',
     new_primary_id: 'Kontak utama pengganti',
@@ -592,5 +593,48 @@ export function SelectOptions({
                 </option>
             ))}
         </select>
+    );
+}
+
+// ── Buka kembali pendaftaran (§18 P2) ────────────────────────────────────────
+
+/** Admin Yayasan saja; alasan wajib. Kelas yang tertutup bersamaan dibuka lagi bila masih bisa. */
+export function ReopenEnrollmentForm({
+    studentId,
+    enrollment,
+    onDone,
+}: {
+    studentId: string;
+    enrollment: { id: string; organization: string };
+    onDone: () => void;
+}) {
+    return (
+        <ActionForm
+            title={`Buka kembali pendaftaran di ${enrollment.organization}`}
+            action={`/siswa/${studentId}/pendaftaran/${enrollment.id}/buka-kembali`}
+            errorBag="reopenEnrollment"
+            submitLabel="Buka kembali"
+            onDone={onDone}
+            note="Untuk pendaftaran yang salah ditutup. Tanggal & alasan keluar dihapus; kelas yang ikut tertutup pada tanggal itu dibuka lagi bila kelasnya masih bisa diisi."
+        >
+            {(errors) => (
+                <Field
+                    id={`reopen-${enrollment.id}`}
+                    label="Alasan"
+                    required
+                    error={errors.reason}
+                    className="sm:col-span-2"
+                >
+                    <textarea
+                        id={`reopen-${enrollment.id}`}
+                        name="reason"
+                        maxLength={500}
+                        required
+                        className={textareaClass}
+                        placeholder="Mis. salah memilih siswa saat menutup pendaftaran"
+                    />
+                </Field>
+            )}
+        </ActionForm>
     );
 }
