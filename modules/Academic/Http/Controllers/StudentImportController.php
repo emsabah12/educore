@@ -23,6 +23,7 @@ use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\ExecutionTime;
 use Modules\Core\Support\Import\ImportFileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -163,7 +164,7 @@ final class StudentImportController
         $organization = $this->targetOrganization($pending['organization_id']);
 
         // Impor ratusan siswa butuh waktu lebih lama dari batas bawaan PHP (30 detik).
-        set_time_limit(self::SAVE_TIME_LIMIT_SECONDS);
+        ExecutionTime::atLeast(self::SAVE_TIME_LIMIT_SECONDS);
 
         try {
             $result = $importStudents->handle(

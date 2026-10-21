@@ -80,6 +80,8 @@ final class AcademicAuditAction
 
     public const SCHEDULE_ENTRY_REMOVED = 'academic.schedule_entry_removed';
 
+    public const ATTENDANCE_RECORDED = 'academic.attendance_recorded';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -133,6 +135,7 @@ final class AcademicAuditAction
             self::SCHEDULE_ENTRY_ADDED => 'Jadwal pelajaran ditambahkan',
             self::SCHEDULE_ENTRY_UPDATED => 'Jadwal pelajaran diubah',
             self::SCHEDULE_ENTRY_REMOVED => 'Jadwal pelajaran dihapus',
+            self::ATTENDANCE_RECORDED => 'Presensi siswa disimpan',
         ];
     }
 }

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-3d — Kelas saya (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `2e58909` — feat(academic): AC-3c jadwal pelajaran
+- **Tahap aktif:** AC-4a — presensi harian (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `6878d84` — feat(academic): AC-3d kelas saya untuk wali kelas dan guru
 
 ## Keputusan penting
 
@@ -192,7 +192,7 @@
 
 **AC-1 Data Siswa & Kelas: SELESAI (2026-10-20)** — AC-1a s.d. AC-1e, commit terakhir `1938694`.
 
-**PRD-002 Academic: v1.2 (2026-10-21)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15; rincian AC-3 (a–d) di §16.
+**PRD-002 Academic: v1.3 (2026-10-21)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15; rincian AC-3 (a–d) di §16; rincian AC-4 di §17 (v1.3).
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -272,6 +272,8 @@
 - Audit `academic.class_year_end_processed`.
 - Bukti: 477 test lulus (7 test baru, `YearEndTest`); uji manual owner lancar.
 
+**AC-3 Mata pelajaran & jadwal: SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84`.
+
 **AC-3a — Mata pelajaran: SELESAI (2026-10-21, commit `9a0b128`)**
 
 - Tabel `ac_subjects` (migrasi `2026_10_21_200005`); model `Domain/Subject/Subject`; `Application/Subject/ManageSubjects`, `SubjectData`, `SubjectDirectory`; `SubjectException`.
@@ -295,12 +297,20 @@
 - Audit `academic.schedule_entry_added|updated|removed`.
 - Bukti: 501 test lulus (7 test baru, `ScheduleTest`) setelah perbaikan Larastan `noUnnecessaryCollectionCall` (pakai `->first([...])` pada query, bukan `->get()->first()`); uji manual owner lancar.
 
-**AC-3d — Kelas saya: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**AC-3d — Kelas saya: SELESAI (2026-10-21, commit `6878d84`)**
 
 - Kontrak HR `EmployeeLookup::employeeIdForMembership` (pegawai milik akun yang login).
 - `Application/Classroom/MyClasses` (kelas tahun berjalan sebagai wali kelas/pengampu di lembaga tempat ia aktif; siswa; kontak utama untuk wali kelas; jadwal mengajar). `MyClassesController` + route `GET kelas-saya`, `GET kelas-saya/{class}`; halaman `/kelas-saya`, menu **Kelas saya** (prop bersama `academic.myClasses` dari `AcademicServiceProvider`).
 - Tanpa permission baru: akses dari data penugasan mengajar; kelas yang tidak dipegang → 404. Catatan form kelas & docblock `ManageClasses` disesuaikan dengan §7 baru.
-- Target bukti: 506 test (5 test baru, `MyClassesTest`).
+- Bukti: 506 test lulus (5 test baru, `MyClassesTest`); uji manual owner lancar.
+
+**AC-4a — Presensi harian: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Tabel `ac_attendance_sessions` & `ac_attendance_records` (migrasi `2026_10_21_200008`; satu sesi harian per kelas per tanggal); `Domain/Attendance` (`AttendanceSession`, `AttendanceStatus` H/S/I/A, `AttendanceException`).
+- `Application/Attendance/ManageAttendance` (rentang tanggal wali kelas 7 hari / operator seluruh tahun ajaran, daftar siswa per tanggal, simpan semua sekaligus, koreksi).
+- `AttendanceController` + route `GET/POST kelas/{class}/presensi` (operator) dan `GET/POST kelas-saya/{class}/presensi` (wali kelas); halaman `academic/attendance/sheet`; tombol **Presensi** di detail kelas dan **Isi presensi** di Kelas saya.
+- Audit `academic.attendance_recorded` (jumlah per kode, tanda koreksi; tanpa isi keterangan).
+- Target bukti: 512 test (6 test baru, `AttendanceTest`). Perbaikan fix1: `ExecutionTime::atLeast` di controller impor siswa & pegawai.
 
 ## Struktur file utama
 
@@ -330,8 +340,9 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Setiap ada permission/role baru di kode: jalankan `php artisan educore:sync-access` (juga saat deploy).
 - Untuk permission katalog, `Gate::before` memberi jawaban akhir; policy modul dengan nama ability yang sama tidak dijalankan. Aksi terhadap data tertentu wajib mengirim datanya ke Gate.
 - Pencatatan perubahan aturan ke audit log menunggu F4.
+- Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-3d (PANDUAN-AC-3D.md), commit & push → AC-3 selesai.
-2. Pilih tahap berikutnya bersama owner (AC-4 Presensi siswa, HR-2, atau lainnya).
+1. Verifikasi AC-4a (PANDUAN-AC-4A.md), commit & push.
+2. AC-4b rekap presensi, lalu AC-4c presensi per pertemuan (PRD-002 §17).

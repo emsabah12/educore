@@ -4,6 +4,7 @@ import {
     ArrowRightLeft,
     CalendarCheck,
     CircleAlert,
+    ClipboardCheck,
     LogOut,
     UserPlus,
 } from 'lucide-react';
@@ -186,6 +187,21 @@ export default function ClassDetail(props: Props) {
                             <Link href={`/kelas/${item.id}/akhir-tahun`}>
                                 <CalendarCheck />
                                 Proses akhir tahun
+                            </Link>
+                        </Button>
+                    </div>
+                )}
+
+                {canManage && (
+                    <div>
+                        <Button
+                            variant="outline"
+                            asChild
+                            className="w-full sm:w-auto"
+                        >
+                            <Link href={`/kelas/${item.id}/presensi`}>
+                                <ClipboardCheck />
+                                Presensi
                             </Link>
                         </Button>
                     </div>

@@ -10,6 +10,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\ExecutionTime;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Import\EmployeeImportColumns;
 use Modules\HR\Application\Import\EmployeeImportReader;
@@ -133,7 +134,7 @@ final class EmployeeImportController
         }
 
         // Impor ratusan pegawai butuh waktu lebih lama dari batas bawaan PHP (30 detik).
-        set_time_limit(self::SAVE_TIME_LIMIT_SECONDS);
+        ExecutionTime::atLeast(self::SAVE_TIME_LIMIT_SECONDS);
 
         try {
             $count = $importEmployees->handle(

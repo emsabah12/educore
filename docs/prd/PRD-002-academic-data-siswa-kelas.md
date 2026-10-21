@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.2 (2026-10-21: rincian AC-3 mata pelajaran, pengampu, jadwal, Kelas saya — §16; §7 akses wali kelas/guru diperbarui)
-- **Versi sebelumnya:** 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b SELESAI (`26d3594`), AC-3c SELESAI (`2e58909`), AC-3d dikerjakan; AC-4 dst. hanya digariskan
+- **Versi:** 1.3 (2026-10-21: rincian AC-4 presensi siswa — §17)
+- **Versi sebelumnya:** 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 dirinci (§17), AC-4a dikerjakan**; AC-5 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -41,7 +41,7 @@ Prinsip:
 | AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]           |
 | AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]       |
 | AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16        |
-| AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        |                                          |
+| AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        | Dirinci di §17 [OWNER, 2026-10-21]       |
 | AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]              |
 | AC-6 dst.                       | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                          |
 
@@ -430,3 +430,34 @@ Dipecah empat bagian, dikerjakan berurutan. Mapel, pengampu, dan jadwal dikelola
 - **Mencakup semua kelas yang ia pegang di yayasan ini, tidak dibatasi lembaga kerja aktif** [ASUMSI]: guru SMP pagi & MDA sore melihat satu jadwal gabungan. Kelas di lembaga tempat ia tidak lagi ditempatkan aktif tidak tampil.
 - Tanpa permission baru: akses ditentukan data penugasan (wali kelas/pengampu); kelas yang tidak ia pegang → 404. Menu muncul hanya bila ia memegang kelas. Akun yang tidak tertaut ke pegawai diberi tahu di halaman.
 - Kontrak HR: `EmployeeLookup::employeeIdForMembership` (hanya ID pegawai; status & penempatan lewat `ActiveEmployees::describe`).
+
+## 17. AC-4 Presensi siswa [OWNER, 2026-10-21 — usulan disetujui]
+
+Dikerjakan bertahap: **AC-4a** presensi harian, **AC-4b** rekap, **AC-4c** presensi per pertemuan.
+
+### Keputusan
+
+- **Mode** [OWNER]: harian dan per pertemuan, **dipilih per lembaga** lewat aturan berjenjang (PRD-000 §8). Aturan `academic.attendance_mode` (HARIAN / PER_PERTEMUAN, bawaan HARIAN) dibuat di AC-4c; sampai itu semua lembaga memakai presensi harian.
+- **Kode** [OWNER]: **H** Hadir, **S** Sakit, **I** Izin, **A** Alpa. Keterangan opsional, maks. 200 karakter; isi keterangan tidak dicatat di audit (hanya jumlah per kode).
+- **Siapa mengisi & mengoreksi** [OWNER]: wali kelas (harian) / guru pengampu (per pertemuan) sampai **7 hari ke belakang** (hari ini termasuk); Operator Akademik (`academic.classes.manage`) kapan saja di dalam tahun ajaran yang belum lewat. Semua pengisian & koreksi tercatat di audit.
+- **Siapa melihat rekap** [OWNER]: pemilik `academic.students.view` di lembaga kelas (Kepala Lembaga, Pimpinan, Koordinator, operator); wali kelas untuk kelasnya di Kelas saya; pengampu untuk pertemuan mapelnya. Orang tua belum (AC-6).
+
+### Aturan bersama [ASUMSI disetujui]
+
+- Satu **sesi presensi** = kelas + tanggal (+ baris jadwal untuk per pertemuan) berisi status tiap siswa. Tanggal di dalam tahun ajaran kelas dan tidak di masa depan.
+- **Daftar siswa pada tanggal itu** = yang tercatat di kelas pada tanggal tersebut (masuk kelas ≤ tanggal, dan belum keluar/pindah pada tanggal itu). Siswa yang masuk/keluar di tengah tahun hanya muncul di tanggal ia memang ada di kelas.
+- Form dibuka dengan semua siswa **Hadir** (atau status tersimpan bila sudah pernah diisi); simpan = semua siswa sekaligus.
+- Belum ada kalender libur: hari tanpa sesi = "belum diisi", bukan alpa.
+
+### AC-4a Presensi harian
+
+- Tabel `ac_attendance_sessions` (kelas, tanggal, pengisi terakhir; satu sesi harian per kelas per tanggal) dan `ac_attendance_records` (sesi, pendaftaran, status H/S/I/A, keterangan).
+- **Wali kelas**: dari Kelas saya → kelas yang ia walikan → **Presensi** (`/kelas-saya/{kelas}/presensi?tanggal=`), tanggal hari ini s.d. 7 hari ke belakang.
+- **Operator**: dari detail kelas → **Presensi** (`/kelas/{kelas}/presensi?tanggal=`), tanggal mana pun di tahun ajaran (tidak di masa depan, tahun belum lewat).
+- Halaman: pilih tanggal, daftar siswa dengan pilihan H/S/I/A dan keterangan, jumlah per kode, tanda "sudah diisi oleh … pada …" bila sesi sudah ada.
+- Simpan semua siswa sekaligus; daftar siswa diperiksa ulang saat simpan (siswa yang tidak ada di kelas pada tanggal itu ditolak, yang belum diberi status ditolak).
+- Audit baru: `academic.attendance_recorded` (kelas, tanggal, jumlah H/S/I/A, tanda koreksi).
+
+### AC-4b Rekap & AC-4c Per pertemuan
+
+Dirinci saat dikerjakan, mengikuti keputusan di atas.

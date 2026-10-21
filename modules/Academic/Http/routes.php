@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Academic\Http\Controllers\AttendanceController;
 use Modules\Academic\Http\Controllers\CalendarController;
 use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
@@ -95,6 +96,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Kelas saya (AC-3d): wali kelas & guru pengampu yang sedang login. Akses dari data penugasan mengajar.
     Route::get('kelas-saya', [MyClassesController::class, 'index'])->name('academic.my-classes.index');
     Route::get('kelas-saya/{class}', [MyClassesController::class, 'show'])->whereUuid('class')->name('academic.my-classes.show');
+
+    // Presensi harian (AC-4a). Operator: academic.classes.manage; wali kelas: lewat Kelas saya.
+    Route::get('kelas/{class}/presensi', [AttendanceController::class, 'show'])->whereUuid('class')->name('academic.attendance.show');
+    Route::post('kelas/{class}/presensi', [AttendanceController::class, 'store'])->whereUuid('class')->name('academic.attendance.store');
+    Route::get('kelas-saya/{class}/presensi', [AttendanceController::class, 'showMine'])->whereUuid('class')->name('academic.my-attendance.show');
+    Route::post('kelas-saya/{class}/presensi', [AttendanceController::class, 'storeMine'])->whereUuid('class')->name('academic.my-attendance.store');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
     // (+ academic.students.manage untuk lulus) di lembaga kelas.

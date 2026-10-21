@@ -1,7 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Phone } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Phone } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type Student = {
     id: string;
@@ -65,6 +66,17 @@ export default function MyClassDetail({ class: item, students }: Props) {
                         </Badge>
                     </div>
                 </div>
+
+                {item.homeroom && (
+                    <div>
+                        <Button asChild className="w-full sm:w-auto">
+                            <Link href={`/kelas-saya/${item.id}/presensi`}>
+                                <ClipboardCheck />
+                                Isi presensi
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
                 <section className="rounded-xl border">
                     {students.length === 0 ? (
