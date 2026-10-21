@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.0 (2026-10-20: rincian AC-1e impor siswa)
-- **Versi sebelumnya:** 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** AC-1a SELESAI (commit `ccc183b`); AC-1b & AC-1c-a SELESAI (commit `759ac3d`); AC-1c (a, b1, b2) SELESAI (commit terakhir `dd5744d`); AC-1d-a SELESAI (commit `0fb2643`); AC-1d-b SELESAI (commit `c7f7dd8`); AC-1e-a lancar diuji owner (2026-10-20); AC-1e-b dikerjakan (menunggu verifikasi owner); AC-2 dst. hanya digariskan
+- **Versi:** 1.1 (2026-10-20: rincian AC-2 kenaikan kelas & kelulusan, §15)
+- **Versi sebelumnya:** 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 dirinci (§15), sedang dikerjakan**; AC-3 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -39,7 +39,7 @@ Prinsip:
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | **AC-1 Data Siswa & Kelas**     | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01] |
 | AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]           |
-| AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            |                                          |
+| AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]       |
 | AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]                        |
 | AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        |                                          |
 | AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]              |
@@ -356,7 +356,7 @@ Pola sama dengan impor pegawai (PRD-001 §6.2): template `.xlsx` → unggah `.xl
 
 ## 12. Di luar AC-1
 
-Kenaikan kelas massal, mata pelajaran, jadwal, presensi, nilai, rapor, akun orang tua, PPDB, asrama, ekspor pemerintah, NIK/No. KK, dan data sosial-ekonomi orang tua.
+Kenaikan kelas massal (kini AC-2, §15), mata pelajaran, jadwal, presensi, nilai, rapor, akun orang tua, PPDB, asrama, ekspor pemerintah, NIK/No. KK, dan data sosial-ekonomi orang tua.
 
 ## 13. Open decisions
 
@@ -376,3 +376,17 @@ Kenaikan kelas massal, mata pelajaran, jadwal, presensi, nilai, rapor, akun oran
 
 - **Ekspor daftar siswa per kelas** (CSV/xlsx) untuk absen manual dan keperluan TU, dengan saringan dan izin yang sama seperti halaman daftar.
 - **Batalkan penutupan pendaftaran** (salah tutup): saat ini harus didaftarkan ulang sebagai pendaftaran baru. Bisa ditambahkan aksi "Buka kembali" khusus Admin Yayasan, tercatat di audit.
+
+## 15. AC-2 Kenaikan kelas & kelulusan [OWNER, 2026-10-20 — usulan disetujui]
+
+Proses akhir tahun ajaran **per kelas**, dari detail kelas (`/kelas/{id}` → tombol **Proses akhir tahun** → `/kelas/{id}/akhir-tahun`).
+
+- **Siapa**: `academic.classes.manage` di lembaga kelas (Operator Akademik, Admin Yayasan); di luar cakupan 404, tanpa izin 403. Pilihan **Lulus** juga butuh `academic.students.manage` di lembaga itu (lulus menutup pendaftaran); tanpa izin itu pilihan Lulus tidak muncul dan dikirim paksa → 403.
+- **Tahun ajaran tujuan** = tahun ajaran berikutnya di kalender yang sama dengan tahun ajaran kelas (tanggal mulai paling awal sesudah tahun kelas) [ASUMSI]. Belum ada → halaman memberi tahu agar ditambahkan di Kalender akademik; menyimpan ditolak. Kelas tahun tujuan disiapkan lebih dulu di daftar kelas (AC-1d-a).
+- **Siswa** = yang masih tercatat di kelas ini. Tiap siswa dipilihkan satu: **Naik ke** kelas aktif tahun tujuan bertingkat lebih tinggi, **Tinggal di** kelas aktif tahun tujuan bertingkat sama, **Lulus**, atau **Tidak diproses**.
+- **Pilihan bawaan** (operator boleh mengubah tiap siswa): kelas pertama bertingkat +1 (urut nama); bila tahun tujuan sudah punya kelas aktif tetapi tidak ada yang bertingkat lebih tinggi → Lulus (hanya bagi yang boleh mencatat lulus); selain itu Tidak diproses. Siswa yang **sudah punya kelas di tahun tujuan** ditampilkan dengan nama kelasnya dan tidak diproses.
+- **Naik/tinggal**: masuk kelas tujuan mulai **tanggal mulai tahun tujuan** (sama dengan aturan tahun yang belum mulai di AC-1d-b; bila siswa masuk lembaga sesudahnya, tanggal masuk lembaga). Keanggotaan kelas lama **tidak ditutup**, tetap sebagai riwayat [OWNER].
+- **Lulus**: pendaftaran di lembaga ditutup dengan alasan `LULUS` pada **tanggal lulus** yang sama untuk semua siswa lulus di proses itu (bawaan: akhir tahun ajaran kelas, atau hari ini bila belum lewat; tidak di masa depan). Kelas yang masih terbuka ikut ditutup (aturan §4.2). Tidak ada pembatalan dari aplikasi (lihat saran "Batalkan penutupan pendaftaran" §14).
+- **Semua atau tidak sama sekali**, satu transaksi; masalah tiap siswa disebut sekaligus dengan namanya (bukan siswa aktif, sudah punya kelas di tahun tujuan, kelas tujuan tidak tersedia). Maks. 200 siswa sekali proses.
+- **Tahun ajaran kelas yang sudah lewat** tetap bisa diproses: kelas lama hanya dibaca.
+- **Audit**: `academic.class_year_end_processed` satu catatan per proses (kelas, tahun ajaran, tahun tujuan, jumlah naik/tinggal/lulus, tanggal lulus) + `academic.enrollment_closed` per siswa lulus.

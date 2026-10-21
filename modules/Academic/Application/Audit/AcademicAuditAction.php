@@ -56,6 +56,8 @@ final class AcademicAuditAction
 
     public const STUDENTS_IMPORTED = 'academic.students_imported';
 
+    public const CLASS_YEAR_END_PROCESSED = 'academic.class_year_end_processed';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -95,6 +97,7 @@ final class AcademicAuditAction
             self::CLASS_MEMBER_MOVED => 'Siswa dipindah kelas',
             self::CLASS_MEMBER_REMOVED => 'Siswa dikeluarkan dari kelas',
             self::STUDENTS_IMPORTED => 'Siswa diimpor dari file',
+            self::CLASS_YEAR_END_PROCESSED => 'Proses akhir tahun kelas',
         ];
     }
 }

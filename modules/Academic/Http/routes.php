@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Academic\Http\Controllers\CalendarController;
 use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
+use Modules\Academic\Http\Controllers\ClassYearEndController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
@@ -69,4 +70,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/{class}/anggota', [ClassMemberController::class, 'add'])->whereUuid('class')->name('academic.class-members.store');
     Route::post('kelas/anggota/{member}/pindah', [ClassMemberController::class, 'move'])->whereUuid('member')->name('academic.class-members.move');
     Route::post('kelas/anggota/{member}/keluar', [ClassMemberController::class, 'remove'])->whereUuid('member')->name('academic.class-members.remove');
+
+    // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
+    // (+ academic.students.manage untuk lulus) di lembaga kelas.
+    Route::get('kelas/{class}/akhir-tahun', [ClassYearEndController::class, 'show'])->whereUuid('class')->name('academic.classes.year-end');
+    Route::post('kelas/{class}/akhir-tahun', [ClassYearEndController::class, 'store'])->whereUuid('class')->name('academic.classes.year-end.store');
 });

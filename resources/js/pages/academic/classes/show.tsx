@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRightLeft,
+    CalendarCheck,
     CircleAlert,
     LogOut,
     UserPlus,
@@ -61,6 +62,7 @@ type Props = {
     former: Member[];
     moveTargets: Option[];
     canManage: boolean;
+    canYearEnd: boolean;
     candidates: Candidate[];
     today: string;
     maxPerSave: number;
@@ -156,6 +158,25 @@ export default function ClassDetail(props: Props) {
                     <Notice
                         text={`Tahun ajaran ini belum mulai. Siswa yang dimasukkan tercatat masuk kelas mulai ${formatDate(year.start_date)}.`}
                     />
+                )}
+
+                {props.canYearEnd && members.length > 0 && (
+                    <div className="rounded-xl border p-4 text-sm">
+                        <p className="mb-3 text-muted-foreground">
+                            Akhir tahun ajaran: naikkan, tinggalkan, atau
+                            luluskan siswa kelas ini sekaligus.
+                        </p>
+                        <Button
+                            variant="outline"
+                            asChild
+                            className="w-full sm:w-auto"
+                        >
+                            <Link href={`/kelas/${item.id}/akhir-tahun`}>
+                                <CalendarCheck />
+                                Proses akhir tahun
+                            </Link>
+                        </Button>
+                    </div>
                 )}
 
                 {canManage && item.is_active && (

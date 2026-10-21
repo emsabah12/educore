@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-20
-- **Tahap aktif:** AC-1e-b — simpan impor siswa (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `c7f7dd8` — feat(academic): AC-1d-b anggota kelas
+- **Tahap aktif:** AC-2 — kenaikan kelas & kelulusan (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `1938694` — feat(academic): AC-1e impor siswa dari Excel/CSV
 
 ## Keputusan penting
 
@@ -190,7 +190,9 @@
 
 ## Modul Academic
 
-**PRD-002 Academic: v1.0 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a, AC-1b, AC-1c-a, AC-1c-b1, AC-1c-b2, AC-1d-a, AC-1d-b, AC-1e.
+**AC-1 Data Siswa & Kelas: SELESAI (2026-10-20)** — AC-1a s.d. AC-1e, commit terakhir `1938694`.
+
+**PRD-002 Academic: v1.1 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -250,18 +252,25 @@
 - Detail siswa: bagian **Kelas** dengan Pindah/Keluarkan; form Tambah siswa: pilihan **Kelas**.
 - Bukti: 10 test baru (target 439 test); uji manual owner 10 langkah lancar.
 
-**AC-1e-a — Impor siswa (template, unggah, pratinjau): LANCAR DIUJI OWNER (2026-10-20, belum terlihat di GitHub)**
+**AC-1e-a — Impor siswa (template, unggah, pratinjau): SELESAI (2026-10-20, commit `e09a3f3`)**
 
 - Core `Support/Import`: `SpreadsheetReader` (dipindah dari HR, dipakai HR & Academic), `ImportFileException`, `ImportCell`, `PendingImportFiles`. `EmployeeImportReader` HR kini memakai reader Core (perilaku sama).
 - Academic `Application/Import`: `StudentImportColumns`, `StudentImportReader`, `StudentImportValidator` (+ `StudentImportDraft`), `StudentImportRow`, `StudentImportPreview`, `StudentImportTemplate`, `PendingStudentImport`; perintah `academic:prune-imports` (tiap jam).
 - `StudentImportController` + route `GET/POST siswa/impor`, `GET siswa/impor/template?lembaga=`, `POST siswa/impor/batal`; halaman `/siswa/impor`, tombol **Impor** di daftar siswa.
 - Bukti: 464 test lulus (25 test baru, termasuk 15 dataset kolom) setelah perbaikan Larastan `identical.alwaysFalse` (pemeriksaan ulang variabel yang sudah pasti terisi); uji manual owner lancar.
 
-**AC-1e-b — Simpan impor siswa: KODE SIAP (2026-10-20, menunggu verifikasi)**
+**AC-1e-b — Simpan impor siswa: SELESAI (2026-10-20, commit `1938694`)**
 
 - `ImportStudents` (baca & periksa ulang, konfirmasi peringatan, semua baris lewat `CreateStudent` dalam satu transaksi), `ImportSaveException`; audit `academic.students_imported`.
 - Route `POST siswa/impor/simpan`; tombol **Simpan N siswa ke {lembaga}** + centang konfirmasi peringatan di halaman impor.
-- Target bukti: 470 test (6 test baru).
+- Bukti: 6 test baru (target 470 test); uji manual owner lancar (simpan, konfirmasi peringatan, semua-atau-tidak).
+
+**AC-2 — Kenaikan kelas & kelulusan: KODE SIAP (2026-10-20, menunggu verifikasi)**
+
+- `YearEndProcess` (Classroom): tahun tujuan = tahun berikutnya di kalender yang sama; pilihan bawaan per siswa; simpan naik/tinggal (`ManageClassMembers::placeNewEnrollment`) & lulus (`ManageEnrollments::close`, alasan LULUS) dalam satu transaksi, semua-atau-tidak.
+- `ClassYearEndController` + route `GET/POST kelas/{class}/akhir-tahun`; halaman `/kelas/{id}/akhir-tahun`; tombol **Proses akhir tahun** di detail kelas (`canYearEnd`, juga untuk tahun yang sudah lewat).
+- Audit `academic.class_year_end_processed`.
+- Target bukti: 477 test (7 test baru, `YearEndTest`).
 
 ## Struktur file utama
 
@@ -294,5 +303,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-1e-b (PANDUAN-AC-1E-B.md), commit & push AC-1e-a + AC-1e-b → AC-1 selesai.
-2. Rencana tahap berikutnya (AC-2 dst. atau HR-2) bersama owner.
+1. Verifikasi AC-2 (PANDUAN-AC-2.md), commit & push.
+2. Pilih tahap berikutnya bersama owner (AC-3 Mapel & jadwal, HR-2, atau lainnya).

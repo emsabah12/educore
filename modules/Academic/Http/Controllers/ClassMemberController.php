@@ -43,6 +43,8 @@ final class ClassMemberController
 
         return Inertia::render('academic/classes/show', $detail + [
             'canManage' => $canManage,
+            // Proses akhir tahun (AC-2) tetap bisa untuk tahun yang sudah lewat: kelas ini hanya dibaca.
+            'canYearEnd' => $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $target->organization_id),
             // Calon anggota hanya untuk pengelola dan hanya bila kelas aktif.
             'candidates' => $canManage && $target->is_active ? $members->candidates($target) : [],
             'today' => BusinessClock::todayString(),
