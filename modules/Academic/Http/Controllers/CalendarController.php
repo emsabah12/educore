@@ -9,6 +9,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Academic\Application\Attendance\AttendanceModeOverview;
+use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\AcademicYearData;
 use Modules\Academic\Application\Calendar\AssignCalendar;
@@ -40,7 +42,7 @@ final class CalendarController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, CalendarOverview $overview): Response
+    public function index(Request $request, CalendarOverview $overview, AttendanceModeOverview $attendanceModes): Response
     {
         $this->authorize();
 
@@ -48,6 +50,8 @@ final class CalendarController
 
         return Inertia::render('academic/calendar', [
             ...$overview->build($this->tenantId(), Str::isUuid($selected) ? $selected : null),
+            // Mode presensi per lembaga (AC-4c).
+            'attendanceModes' => $attendanceModes->build($this->tenantId()),
             'today' => BusinessClock::todayString(),
             'limits' => [
                 'maxTerms' => SaveAcademicYear::MAX_TERMS,
@@ -153,6 +157,45 @@ final class CalendarController
         }
 
         return $this->done('Pemakaian kalender disimpan.');
+    }
+
+    /**
+     * Mode presensi (PRD-002 §17 AC-4c) untuk satu jenjang atau lembaga/unit; hanya Admin Yayasan.
+     */
+    public function assignAttendanceMode(Request $request, AttendanceModeOverview $attendanceModes): RedirectResponse
+    {
+        $this->authorize();
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'mode' => ['required', Rule::in([AttendanceModeSetting::DAILY, AttendanceModeSetting::LESSON])],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'mode.required' => 'Pilih mode presensi.',
+        ], [
+            'jenjang' => 'jenjang',
+            'organization_id' => 'lembaga',
+            'mode' => 'mode presensi',
+        ]);
+
+        $byJenjang = $validated['target'] === 'jenjang';
+
+        try {
+            $attendanceModes->assign(
+                $byJenjang ? null : (string) $validated['organization_id'],
+                $byJenjang ? Jenjang::from((string) $validated['jenjang']) : null,
+                (string) $validated['mode'],
+                $request->boolean('enforced'),
+            );
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['mode' => $exception->getMessage()]);
+        }
+
+        return $this->done('Mode presensi disimpan.');
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Domain\Classroom\ScheduleEntry;
 use Modules\Academic\Domain\Student\GuardianRelation;
 use Modules\HR\Contracts\ActiveEmployees;
@@ -22,15 +23,16 @@ use Modules\HR\Contracts\EmployeeLookup;
  * - Mencakup semua kelas yang ia pegang di yayasan ini, tidak dibatasi lembaga kerja aktif [ASUMSI]:
  *   guru SMP pagi & MDA sore melihat satu jadwal gabungan.
  *
- * @phpstan-type MyClass array{id: string, name: string, grade: int, organization: string, year: string, homeroom: bool, subjects: list<string>}
+ * @phpstan-type MyClass array{id: string, name: string, grade: int, organization: string, year: string, homeroom: bool, subjects: list<string>, lesson_mode: bool}
  * @phpstan-type MyStudent array{id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, contact: array{name: string, relation: string, phone: string|null}|null}
- * @phpstan-type MyLesson array{day: int, start: string, end: string, subject: string, class_id: string, class_name: string, organization: string}
+ * @phpstan-type MyLesson array{entry_id: string, day: int, start: string, end: string, subject: string, class_id: string, class_name: string, organization: string}
  */
 final class MyClasses
 {
     public function __construct(
         private readonly EmployeeLookup $lookup,
         private readonly ActiveEmployees $employees,
+        private readonly AttendanceModeSetting $attendanceMode,
     ) {}
 
     public function employeeId(string $tenantId, string $membershipId): ?string
@@ -70,7 +72,7 @@ final class MyClasses
             ->orderBy('o.name')
             ->orderBy('c.grade')
             ->orderByRaw('lower(c.name)')
-            ->get(['c.id', 'c.name', 'c.grade', 'c.homeroom_employee_id', 'o.name as organization', 'y.name as year']);
+            ->get(['c.id', 'c.name', 'c.grade', 'c.homeroom_employee_id', 'c.organization_id', 'o.name as organization', 'y.name as year']);
 
         $classIds = [];
 
@@ -90,6 +92,8 @@ final class MyClasses
                 'year' => (string) $row->year,
                 'homeroom' => $row->homeroom_employee_id === $employeeId,
                 'subjects' => $subjects[(string) $row->id] ?? [],
+                // Mode presensi lembaga kelas (AC-4c): harian oleh wali kelas, per pertemuan oleh pengampu.
+                'lesson_mode' => $this->attendanceMode->isLesson($tenantId, (string) $row->organization_id),
             ];
         }
 
@@ -192,12 +196,13 @@ final class MyClasses
             ->orderBy('e.day_of_week')
             ->orderBy('e.start_time')
             ->orderBy('e.id')
-            ->get(['e.day_of_week', 'e.start_time', 'e.end_time', 's.name', 'c.id as class_id', 'c.name as class_name', 'o.name as organization']);
+            ->get(['e.id', 'e.day_of_week', 'e.start_time', 'e.end_time', 's.name', 'c.id as class_id', 'c.name as class_name', 'o.name as organization']);
 
         $lessons = [];
 
         foreach ($rows as $row) {
             $lessons[] = [
+                'entry_id' => (string) $row->id,
                 'day' => (int) $row->day_of_week,
                 'start' => substr((string) $row->start_time, 0, 5),
                 'end' => substr((string) $row->end_time, 0, 5),

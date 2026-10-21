@@ -10,8 +10,8 @@ use Modules\Core\Contracts\OwnedByOrganization;
 use Modules\Core\Domain\Tenancy\BelongsToTenant;
 
 /**
- * Satu sesi presensi sebuah kelas pada satu tanggal (PRD-002 §17). schedule_entry_id kosong =
- * presensi harian; terisi = per pertemuan (AC-4c).
+ * Satu sesi presensi sebuah kelas pada satu tanggal (PRD-002 §17). class_subject_id kosong =
+ * presensi harian; terisi = per pertemuan (AC-4c), dengan mapel & jam disimpan saat diisi.
  *
  * Jangan membuat/mengubah langsung lewat model; pakai Modules\Academic\Application\Attendance\ManageAttendance.
  *
@@ -22,6 +22,9 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property string $class_id
  * @property CarbonImmutable $date
  * @property string|null $schedule_entry_id
+ * @property string|null $class_subject_id
+ * @property string|null $start_time
+ * @property string|null $end_time
  * @property string|null $recorded_by_membership_id
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -40,6 +43,9 @@ class AttendanceSession extends Model implements OwnedByOrganization
         'class_id',
         'date',
         'schedule_entry_id',
+        'class_subject_id',
+        'start_time',
+        'end_time',
         'recorded_by_membership_id',
     ];
 

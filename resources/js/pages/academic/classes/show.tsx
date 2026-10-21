@@ -73,6 +73,7 @@ type Props = {
     moveTargets: Option[];
     canManage: boolean;
     canYearEnd: boolean;
+    lessonAttendance: boolean;
     subjects: ClassSubjectRow[];
     schedule: ScheduleRow[];
     subjectOptions: Option[];
@@ -194,7 +195,7 @@ export default function ClassDetail(props: Props) {
                 )}
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
-                    {canManage && (
+                    {canManage && !props.lessonAttendance && (
                         <Button variant="outline" asChild>
                             <Link href={`/kelas/${item.id}/presensi`}>
                                 <ClipboardCheck />
@@ -243,6 +244,7 @@ export default function ClassDetail(props: Props) {
                     schedule={props.schedule}
                     subjects={props.subjects}
                     canManage={canManage}
+                    lessonAttendance={canManage && props.lessonAttendance}
                 />
 
                 <section className="space-y-3 rounded-xl border p-4">

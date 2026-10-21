@@ -14,18 +14,22 @@ use Modules\Academic\Domain\Attendance\AttendanceSession;
 use Modules\Academic\Domain\Attendance\AttendanceStatus;
 use Modules\Academic\Domain\Attendance\Exceptions\AttendanceException;
 use Modules\Academic\Domain\Calendar\AcademicYear;
+use Modules\Academic\Domain\Classroom\ScheduleEntry;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 
 /**
- * Presensi harian per kelas (PRD-002 §17 AC-4a): lembar presensi satu tanggal dan penyimpanannya.
+ * Presensi per kelas (PRD-002 §17): harian (AC-4a) atau per pertemuan/baris jadwal (AC-4c, $lesson
+ * terisi) — lembar presensi satu tanggal dan penyimpanannya.
  *
  * Aturan [OWNER, 2026-10-21]:
  * - Kode H/S/I/A; keterangan opsional maks. 200 karakter (isinya tidak masuk audit).
  * - Wali kelas: hari ini s.d. 6 hari sebelumnya (7 hari, hari ini termasuk). Operator: tanggal mana
  *   pun di tahun ajaran kelas. Keduanya tidak di masa depan dan hanya untuk tahun ajaran yang belum lewat.
  * - Daftar siswa = yang tercatat di kelas pada tanggal itu; simpan semua siswa sekaligus.
+ * - Mode lembaga (academic.attendance_mode): HARIAN hanya menerima presensi harian, PER_PERTEMUAN
+ *   hanya per pertemuan. Tanggal pertemuan wajib jatuh pada hari jadwalnya.
  *
  * Hak akses (wali kelas lewat Kelas saya, atau academic.classes.manage) dicek pemanggil.
  *
@@ -41,14 +45,34 @@ final class ManageAttendance
 
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly AttendanceModeSetting $mode,
     ) {}
 
     /**
+     * Pesan bila jenis presensi ini tidak dipakai lembaga kelas (mode berbeda), atau null.
+     */
+    public function modeProblem(SchoolClass $class, bool $lesson): ?string
+    {
+        $isLesson = $this->mode->isLesson($class->tenant_id, $class->organization_id);
+
+        if ($isLesson && ! $lesson) {
+            return 'Lembaga ini memakai presensi per pertemuan: presensi diisi guru pengampu dari jadwal pelajaran.';
+        }
+
+        if (! $isLesson && $lesson) {
+            return 'Lembaga ini memakai presensi harian: presensi diisi wali kelas sekali sehari.';
+        }
+
+        return null;
+    }
+
+    /**
      * Rentang tanggal yang boleh diisi, atau null bila tidak ada (tahun lewat / belum mulai).
+     * Untuk pertemuan ($day terisi): ujung rentang digeser ke hari jadwal terdekat di dalamnya.
      *
      * @return Window
      */
-    public function window(SchoolClass $class, bool $asHomeroom): ?array
+    public function window(SchoolClass $class, bool $asHomeroom, ?int $day = null): ?array
     {
         $year = $this->yearOf($class);
 
@@ -57,28 +81,40 @@ final class ManageAttendance
         }
 
         $today = BusinessClock::today();
-        $max = min($today->toDateString(), $year->end_date->toDateString());
-        $min = $year->start_date->toDateString();
+        $max = CarbonImmutable::parse(min($today->toDateString(), $year->end_date->toDateString()));
+        $min = CarbonImmutable::parse($year->start_date->toDateString());
 
         if ($asHomeroom) {
-            $min = max($min, $today->subDays(self::HOMEROOM_DAYS - 1)->toDateString());
+            $min = CarbonImmutable::parse(max($min->toDateString(), $today->subDays(self::HOMEROOM_DAYS - 1)->toDateString()));
         }
 
-        return $min <= $max ? ['min' => $min, 'max' => $max] : null;
+        if ($day !== null) {
+            while ($max->dayOfWeekIso !== $day && $max >= $min) {
+                $max = $max->subDay();
+            }
+
+            while ($min->dayOfWeekIso !== $day && $min <= $max) {
+                $min = $min->addDay();
+            }
+        }
+
+        return $min <= $max ? ['min' => $min->toDateString(), 'max' => $max->toDateString()] : null;
     }
 
     /**
-     * Tanggal dari URL bila sah dan di dalam rentang; selain itu tanggal terakhir yang boleh diisi.
+     * Tanggal dari URL bila sah, di dalam rentang, dan (untuk pertemuan) jatuh pada hari jadwalnya;
+     * selain itu tanggal terakhir yang boleh diisi.
      *
      * @param  Window  $window
      */
-    public static function pickDate(mixed $requested, ?array $window): ?string
+    public static function pickDate(mixed $requested, ?array $window, ?int $day = null): ?string
     {
         if ($window === null) {
             return null;
         }
 
-        if (is_string($requested) && StudentInput::isDate($requested) && $requested >= $window['min'] && $requested <= $window['max']) {
+        if (is_string($requested) && StudentInput::isDate($requested) && $requested >= $window['min'] && $requested <= $window['max']
+            && ($day === null || CarbonImmutable::parse($requested)->dayOfWeekIso === $day)) {
             return $requested;
         }
 
@@ -90,9 +126,9 @@ final class ManageAttendance
      *
      * @return array{students: list<SheetRow>, session: array{recorded_by: string|null, updated_at: string|null}|null}
      */
-    public function sheet(SchoolClass $class, string $date): array
+    public function sheet(SchoolClass $class, string $date, ?ScheduleEntry $lesson = null): array
     {
-        $session = $this->dailySession($class->id, $date);
+        $session = $this->session($class->id, $date, $lesson);
         $saved = [];
 
         if ($session !== null) {
@@ -124,14 +160,15 @@ final class ManageAttendance
 
     /**
      * @param  array<string, array{status: mixed, note: mixed}>  $entries  id pendaftaran => isian
+     * @param  string|null  $lessonId  baris jadwal (presensi per pertemuan), null = harian
      * @return array{H: int, S: int, I: int, A: int}
      *
      * @throws AttendanceException
      */
-    public function save(string $tenantId, string $classId, string $date, bool $asHomeroom, string $membershipId, array $entries): array
+    public function save(string $tenantId, string $classId, string $date, bool $asHomeroom, string $membershipId, array $entries, ?string $lessonId = null): array
     {
         try {
-            return DB::transaction(function () use ($tenantId, $classId, $date, $asHomeroom, $membershipId, $entries): array {
+            return DB::transaction(function () use ($tenantId, $classId, $date, $asHomeroom, $membershipId, $entries, $lessonId): array {
                 $class = Str::isUuid($classId)
                     ? SchoolClass::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($classId)->lockForUpdate()->first()
                     : null;
@@ -140,10 +177,17 @@ final class ManageAttendance
                     throw AttendanceException::make('form', 'Kelas tidak ditemukan di yayasan ini.');
                 }
 
-                $this->assertDate($class, $date, $asHomeroom);
+                $lesson = $lessonId === null ? null : $this->lockLesson($class, $lessonId);
+                $modeProblem = $this->modeProblem($class, $lesson !== null);
+
+                if ($modeProblem !== null) {
+                    throw AttendanceException::make('form', $modeProblem);
+                }
+
+                $this->assertDate($class, $date, $asHomeroom, $lesson);
                 $rows = $this->validatedRows($this->roster($class->id, $date), $entries);
 
-                $session = $this->dailySession($class->id, $date, lock: true);
+                $session = $this->session($class->id, $date, $lesson, lock: true);
                 $correction = $session !== null;
 
                 if ($session === null) {
@@ -155,6 +199,16 @@ final class ManageAttendance
                         'class_id' => $class->id,
                         'date' => $date,
                     ]);
+
+                    // Pertemuan menyimpan mapel & jam saat diisi agar riwayat tidak berubah bila jadwal diubah.
+                    if ($lesson !== null) {
+                        $session->fill([
+                            'schedule_entry_id' => $lesson->id,
+                            'class_subject_id' => $lesson->class_subject_id,
+                            'start_time' => $lesson->start_time,
+                            'end_time' => $lesson->end_time,
+                        ]);
+                    }
                 }
 
                 $session->recorded_by_membership_id = $membershipId;
@@ -195,7 +249,7 @@ final class ManageAttendance
                     AcademicAuditAction::ATTENDANCE_RECORDED,
                     AcademicAuditAction::SUBJECT_CLASS,
                     $class->id,
-                    [
+                    array_merge([
                         'kelas' => $class->name,
                         'tanggal' => $date,
                         'hadir' => $counts['H'],
@@ -203,7 +257,10 @@ final class ManageAttendance
                         'izin' => $counts['I'],
                         'alpa' => $counts['A'],
                         'koreksi' => $correction,
-                    ],
+                    ], $lesson === null ? [] : [
+                        'mapel' => $this->subjectName($lesson->class_subject_id),
+                        'jam' => substr((string) $session->start_time, 0, 5).'–'.substr((string) $session->end_time, 0, 5),
+                    ]),
                     organizationId: $class->organization_id,
                     tenantId: $tenantId,
                 );
@@ -211,17 +268,21 @@ final class ManageAttendance
                 return $counts;
             });
         } catch (UniqueConstraintViolationException) {
-            // Dua orang menyimpan presensi pertama kelas & tanggal yang sama bersamaan.
+            // Dua orang menyimpan presensi pertama sesi yang sama bersamaan.
             throw AttendanceException::make('form', 'Presensi tanggal ini baru saja disimpan orang lain. Muat ulang halaman lalu periksa lagi.');
         }
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
-    private function assertDate(SchoolClass $class, string $date, bool $asHomeroom): void
+    private function assertDate(SchoolClass $class, string $date, bool $asHomeroom, ?ScheduleEntry $lesson): void
     {
         if (! StudentInput::isDate($date)) {
             throw AttendanceException::make('date', 'Tanggal presensi tidak valid.');
+        }
+
+        if ($lesson !== null && CarbonImmutable::parse($date)->dayOfWeekIso !== $lesson->day_of_week) {
+            throw AttendanceException::make('date', 'Tanggal harus hari '.ScheduleEntry::dayName($lesson->day_of_week).', sesuai jadwal pelajaran ini.');
         }
 
         $window = $this->window($class, $asHomeroom);
@@ -236,7 +297,7 @@ final class ManageAttendance
 
         if ($date < $window['min']) {
             throw AttendanceException::make('date', $asHomeroom
-                ? 'Wali kelas hanya bisa mengisi atau mengoreksi presensi '.self::HOMEROOM_DAYS.' hari terakhir. Minta Operator Akademik untuk tanggal yang lebih lama.'
+                ? ($lesson === null ? 'Wali kelas' : 'Guru pengampu').' hanya bisa mengisi atau mengoreksi presensi '.self::HOMEROOM_DAYS.' hari terakhir. Minta Operator Akademik untuk tanggal yang lebih lama.'
                 : 'Tanggal presensi harus di dalam tahun ajaran kelas ini.');
         }
     }
@@ -338,19 +399,48 @@ final class ManageAttendance
         return $students;
     }
 
-    private function dailySession(string $classId, string $date, bool $lock = false): ?AttendanceSession
+    /**
+     * Sesi harian (kelas + tanggal) atau sesi pertemuan (baris jadwal + tanggal).
+     */
+    private function session(string $classId, string $date, ?ScheduleEntry $lesson, bool $lock = false): ?AttendanceSession
     {
         $query = AttendanceSession::query()
             ->withoutGlobalScope('tenant')
             ->where('class_id', $classId)
-            ->whereDate('date', $date)
-            ->whereNull('schedule_entry_id');
+            ->whereDate('date', $date);
+
+        if ($lesson === null) {
+            $query->whereNull('class_subject_id');
+        } else {
+            $query->where('schedule_entry_id', $lesson->id);
+        }
 
         if ($lock) {
             $query->lockForUpdate();
         }
 
         return $query->first();
+    }
+
+    private function lockLesson(SchoolClass $class, string $lessonId): ScheduleEntry
+    {
+        $lesson = Str::isUuid($lessonId)
+            ? ScheduleEntry::query()->withoutGlobalScope('tenant')->where('class_id', $class->id)->whereKey($lessonId)->lockForUpdate()->first()
+            : null;
+
+        if (! $lesson instanceof ScheduleEntry) {
+            throw AttendanceException::make('form', 'Jadwal pelajaran ini sudah tidak ada. Muat ulang halaman.');
+        }
+
+        return $lesson;
+    }
+
+    private function subjectName(string $classSubjectId): string
+    {
+        return (string) DB::table('ac_class_subjects as cs')
+            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
+            ->where('cs.id', $classSubjectId)
+            ->value('s.name');
     }
 
     private function yearOf(SchoolClass $class): AcademicYear

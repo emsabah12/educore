@@ -24,6 +24,10 @@ type Props = {
     class: { id: string; name: string; organization: string; year: string };
     periods: Option[];
     period: { value: string; label: string; start: string; end: string };
+    kind: 'harian' | 'pertemuan';
+    kinds: Option[];
+    subjects: Option[];
+    subject: string | null;
     recap: {
         days: number;
         students: Row[];
@@ -56,11 +60,30 @@ export default function AttendanceRecap({
     class: item,
     periods,
     period,
+    kind,
+    kinds,
+    subjects,
+    subject,
     recap,
     baseUrl,
     backUrl,
     backLabel,
 }: Props) {
+    // Pilihan saringan disimpan di alamat halaman agar bisa dibagikan/dimuat ulang.
+    const go = (change: Record<string, string>) =>
+        router.get(
+            baseUrl,
+            Object.fromEntries(
+                Object.entries({
+                    periode: period.value,
+                    jenis: kind,
+                    mapel: subject ?? '',
+                    ...change,
+                }).filter(([, value]) => value !== ''),
+            ),
+            { preserveScroll: true, replace: true },
+        );
+
     const totalDays =
         recap.totals.H + recap.totals.S + recap.totals.I + recap.totals.A;
     const overall =
@@ -96,11 +119,7 @@ export default function AttendanceRecap({
                             className={selectClass}
                             value={period.value}
                             onChange={(event) =>
-                                router.get(
-                                    baseUrl,
-                                    { periode: event.target.value },
-                                    { preserveScroll: true, replace: true },
-                                )
+                                go({ periode: event.target.value })
                             }
                         >
                             {periods.map((option) => (
@@ -110,10 +129,60 @@ export default function AttendanceRecap({
                             ))}
                         </select>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    {kinds.length > 1 && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="rk-kind">Jenis</Label>
+                            <select
+                                id="rk-kind"
+                                className={selectClass}
+                                value={kind}
+                                onChange={(event) =>
+                                    go({ jenis: event.target.value, mapel: '' })
+                                }
+                            >
+                                {kinds.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {kind === 'pertemuan' && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="rk-subject">Mata pelajaran</Label>
+                            <select
+                                id="rk-subject"
+                                className={selectClass}
+                                value={subject ?? ''}
+                                onChange={(event) =>
+                                    go({ mapel: event.target.value })
+                                }
+                            >
+                                <option value="">
+                                    {kinds.length > 1
+                                        ? 'Semua mata pelajaran'
+                                        : 'Semua mapel yang saya ampu'}
+                                </option>
+                                {subjects.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground sm:col-span-full">
                         {formatDate(period.start)} – {formatDate(period.end)} ·{' '}
-                        {recap.days} hari sudah diisi. Hari yang belum diisi
-                        tidak dihitung alpa.
+                        {recap.days}{' '}
+                        {kind === 'pertemuan' ? 'pertemuan' : 'hari'} sudah
+                        diisi. Yang belum diisi tidak dihitung alpa.
                     </p>
                 </div>
 

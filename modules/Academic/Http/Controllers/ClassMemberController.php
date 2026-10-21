@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Classroom\ClassDirectory;
 use Modules\Academic\Application\Classroom\ManageClassMembers;
@@ -35,7 +36,7 @@ final class ClassMemberController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function show(string $class, ClassDirectory $directory, ManageClassMembers $members, ManageClassSubjects $subjects, ActiveEmployees $employees): Response
+    public function show(string $class, ClassDirectory $directory, ManageClassMembers $members, ManageClassSubjects $subjects, ActiveEmployees $employees, AttendanceModeSetting $attendanceMode): Response
     {
         $target = $this->findClass($class);
         Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
@@ -52,6 +53,8 @@ final class ClassMemberController
             // Mapel yang bisa ditambahkan & pilihan pengampu (AC-3b), hanya untuk pengelola.
             'subjectOptions' => $canManage ? $subjects->available($target) : [],
             'teachers' => $canManage ? $employees->inOrganization($target->tenant_id, $target->organization_id) : [],
+            // Mode presensi lembaga (AC-4c): menentukan tombol presensi harian atau per baris jadwal.
+            'lessonAttendance' => $attendanceMode->isLesson($target->tenant_id, $target->organization_id),
             'today' => BusinessClock::todayString(),
             'maxPerSave' => ManageClassMembers::MAX_PER_SAVE,
         ]);

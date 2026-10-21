@@ -22,6 +22,7 @@ type Props = {
         year: string;
         homeroom: boolean;
         subjects: string[];
+        lesson_mode: boolean;
     };
     students: Student[];
 };
@@ -67,23 +68,27 @@ export default function MyClassDetail({ class: item, students }: Props) {
                     </div>
                 </div>
 
-                {item.homeroom && (
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                    {item.homeroom && !item.lesson_mode && (
                         <Button asChild>
                             <Link href={`/kelas-saya/${item.id}/presensi`}>
                                 <ClipboardCheck />
                                 Isi presensi
                             </Link>
                         </Button>
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={`/kelas-saya/${item.id}/rekap-presensi`}
-                            >
-                                <ChartColumn />
-                                Rekap presensi
-                            </Link>
-                        </Button>
-                    </div>
+                    )}
+                    <Button variant="outline" asChild>
+                        <Link href={`/kelas-saya/${item.id}/rekap-presensi`}>
+                            <ChartColumn />
+                            Rekap presensi
+                        </Link>
+                    </Button>
+                </div>
+                {item.lesson_mode && (
+                    <p className="text-sm text-muted-foreground">
+                        Lembaga ini memakai presensi per pertemuan: isi presensi
+                        dari Jadwal mengajar di halaman Kelas saya.
+                    </p>
                 )}
 
                 <section className="rounded-xl border">

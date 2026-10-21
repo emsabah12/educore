@@ -8,6 +8,10 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import {
+    AttendanceModeSection,
+    type AttendanceModes,
+} from '@/components/academic/attendance-mode-section';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +71,7 @@ type Props = {
     rules: RuleRow[];
     usage: UsageRow[];
     options: { jenjang: Option[]; organizations: Option[] };
+    attendanceModes: AttendanceModes;
     today: string;
     limits: { maxTerms: number; maxMonths: number };
 };
@@ -174,6 +179,7 @@ export default function AcademicCalendar({
     rules,
     usage,
     options,
+    attendanceModes,
     today,
     limits,
 }: Props) {
@@ -348,6 +354,11 @@ export default function AcademicCalendar({
                     />
                     <UsageTable rows={usage} />
                 </section>
+
+                <AttendanceModeSection
+                    data={attendanceModes}
+                    options={options}
+                />
             </div>
         </>
     );

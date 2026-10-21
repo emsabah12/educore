@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-4b — rekap presensi (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `6878d84` — feat(academic): AC-3d kelas saya untuk wali kelas dan guru
+- **Tahap aktif:** AC-4c — presensi per pertemuan & mode presensi (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `887a384` — feat(academic): AC-4a presensi harian dan AC-4b rekap presensi
 
 ## Keputusan penting
 
@@ -304,7 +304,7 @@
 - Tanpa permission baru: akses dari data penugasan mengajar; kelas yang tidak dipegang → 404. Catatan form kelas & docblock `ManageClasses` disesuaikan dengan §7 baru.
 - Bukti: 506 test lulus (5 test baru, `MyClassesTest`); uji manual owner lancar.
 
-**AC-4a — Presensi harian: LANCAR DIUJI OWNER (2026-10-21; belum terlihat di GitHub saat AC-4b disiapkan)**
+**AC-4a — Presensi harian: SELESAI (2026-10-21, commit `5fceb18`)**
 
 - Tabel `ac_attendance_sessions` & `ac_attendance_records` (migrasi `2026_10_21_200008`; satu sesi harian per kelas per tanggal); `Domain/Attendance` (`AttendanceSession`, `AttendanceStatus` H/S/I/A, `AttendanceException`).
 - `Application/Attendance/ManageAttendance` (rentang tanggal wali kelas 7 hari / operator seluruh tahun ajaran, daftar siswa per tanggal, simpan semua sekaligus, koreksi).
@@ -312,11 +312,19 @@
 - Audit `academic.attendance_recorded` (jumlah per kode, tanda koreksi; tanpa isi keterangan).
 - Bukti: 512 test lulus (6 test baru, `AttendanceTest`); uji manual owner lancar. Perbaikan fix1: `ExecutionTime::atLeast` di controller impor siswa & pegawai.
 
-**AC-4b — Rekap presensi: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**AC-4b — Rekap presensi: SELESAI (2026-10-21, commit `887a384`)**
 
 - `Application/Attendance/AttendanceRecap` (periode tahun ajaran / semester / bulan yang sudah mulai; bawaan bulan berjalan; jumlah H/S/I/A & % hadir per siswa; siswa yang pindah tetap tampil dengan presensi selama di kelas).
 - Route `GET kelas/{class}/rekap-presensi` (izin lihat siswa) dan `GET kelas-saya/{class}/rekap-presensi` (wali kelas); halaman `academic/attendance/recap`; tombol **Rekap presensi** di detail kelas & Kelas saya.
-- Target bukti: 515 test (3 test baru, `AttendanceRecapTest`).
+- Bukti: 515 test lulus (3 test baru, `AttendanceRecapTest`) setelah perbaikan test (persen bulat terbaca sebagai bilangan bulat di props); uji manual owner lancar.
+
+**AC-4c — Presensi per pertemuan & mode presensi: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Aturan berjenjang `academic.attendance_mode` (`AttendanceModeSetting`, HARIAN/PER_PERTEMUAN, bawaan HARIAN); bagian **Mode presensi** di Kalender akademik (`AttendanceModeOverview`, route `POST akademik/kalender/mode-presensi`, hanya Admin Yayasan).
+- Migrasi `2026_10_21_200009`: sesi menyimpan `class_subject_id`, `start_time`, `end_time`; unik harian (kelas+tanggal, tanpa mapel) & per pertemuan (baris jadwal+tanggal). Mapel kelas yang sudah punya presensi tidak bisa dilepas.
+- `ManageAttendance` melayani harian & pertemuan (tanggal wajib hari jadwal; mode lembaga menentukan jenis yang dibuka). `AttendanceController`: route `GET/POST kelas/jadwal/{entry}/presensi` (operator) dan `kelas-saya/jadwal/{entry}/presensi` (pengampu).
+- Rekap: pilihan Harian/Per pertemuan + saringan mapel; pengampu (bukan wali kelas) hanya pertemuan mapelnya. Tautan presensi di Jadwal mengajar (Kelas saya) & baris jadwal detail kelas.
+- Target bukti: 521 test (6 test baru, `LessonAttendanceTest`).
 
 ## Struktur file utama
 
@@ -350,5 +358,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-4b (PANDUAN-AC-4B.md), commit & push (bersama AC-4a bila belum).
-2. AC-4c presensi per pertemuan (PRD-002 §17).
+1. Verifikasi AC-4c (PANDUAN-AC-4C.md), commit & push → AC-4 selesai.
+2. Pilih tahap berikutnya bersama owner (AC-5 Penilaian & rapor, HR-2, atau lainnya).

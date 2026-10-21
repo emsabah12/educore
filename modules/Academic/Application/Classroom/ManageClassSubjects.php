@@ -186,6 +186,12 @@ final class ManageClassSubjects
     {
         return DB::transaction(function () use ($tenantId, $classSubjectId): string {
             [$row, $class, $subject] = $this->lockRow($tenantId, $classSubjectId);
+
+            // Riwayat presensi per pertemuan tidak boleh hilang (AC-4c).
+            if (DB::table('ac_attendance_sessions')->where('class_subject_id', $row->id)->exists()) {
+                throw ClassException::make('form', "Mata pelajaran {$subject->name} sudah punya presensi, jadi tidak bisa dilepas dari kelas. Hapus jadwalnya saja bila tidak dipakai lagi.");
+            }
+
             // Jadwal mapel ini ikut terhapus (FK cascade, AC-3c).
             $scheduleRows = DB::table('ac_schedule_entries')->where('class_subject_id', $row->id)->count();
 

@@ -25,6 +25,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('akademik/kalender', [CalendarController::class, 'storeCalendar'])->name('academic.calendar.store');
     // `pemakaian` didaftarkan sebelum `{calendar}`.
     Route::post('akademik/kalender/pemakaian', [CalendarController::class, 'assign'])->name('academic.calendar.assign');
+    Route::post('akademik/kalender/mode-presensi', [CalendarController::class, 'assignAttendanceMode'])->name('academic.attendance-mode.assign');
     Route::patch('akademik/kalender/{calendar}', [CalendarController::class, 'renameCalendar'])->whereUuid('calendar')->name('academic.calendar.update');
     Route::post('akademik/kalender/{calendar}/tahun-ajaran', [CalendarController::class, 'storeYear'])->whereUuid('calendar')->name('academic.years.store');
     Route::patch('akademik/tahun-ajaran/{year}', [CalendarController::class, 'updateYear'])->whereUuid('year')->name('academic.years.update');
@@ -102,6 +103,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/{class}/presensi', [AttendanceController::class, 'store'])->whereUuid('class')->name('academic.attendance.store');
     Route::get('kelas-saya/{class}/presensi', [AttendanceController::class, 'showMine'])->whereUuid('class')->name('academic.my-attendance.show');
     Route::post('kelas-saya/{class}/presensi', [AttendanceController::class, 'storeMine'])->whereUuid('class')->name('academic.my-attendance.store');
+    // Presensi per pertemuan (AC-4c). Operator: academic.classes.manage; guru pengampu: lewat Kelas saya.
+    Route::get('kelas/jadwal/{entry}/presensi', [AttendanceController::class, 'showLesson'])->whereUuid('entry')->name('academic.lesson-attendance.show');
+    Route::post('kelas/jadwal/{entry}/presensi', [AttendanceController::class, 'storeLesson'])->whereUuid('entry')->name('academic.lesson-attendance.store');
+    Route::get('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'showMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.show');
+    Route::post('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'storeMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.store');
     // Rekap presensi (AC-4b). Lihat: izin lihat siswa; wali kelas: lewat Kelas saya.
     Route::get('kelas/{class}/rekap-presensi', [AttendanceController::class, 'recap'])->whereUuid('class')->name('academic.attendance.recap');
     Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');

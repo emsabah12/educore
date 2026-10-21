@@ -23,6 +23,18 @@ type Student = {
 
 type Props = {
     class: { id: string; name: string; organization: string; year: string };
+    /** Terisi = presensi per pertemuan (AC-4c). */
+    lesson: {
+        id: string;
+        subject: string;
+        day: number;
+        day_label: string;
+        start: string;
+        end: string;
+        teacher: string | null;
+    } | null;
+    /** Pesan bila jenis presensi ini tidak dipakai lembaga (mode berbeda). */
+    blocked: string | null;
     window: { min: string; max: string } | null;
     date: string | null;
     sheet: {
@@ -54,6 +66,11 @@ const stampFormat = new Intl.DateTimeFormat('id-ID', {
     timeStyle: 'short',
 });
 
+/** "07:00" → "07.00" (penulisan jam di Indonesia). */
+function displayTime(value: string): string {
+    return value.replace(':', '.');
+}
+
 function formatDate(value: string): string {
     const [year, month, day] = value.split('-').map(Number);
 
@@ -73,11 +90,21 @@ const activeClass: Record<string, string> = {
  * Sakit/Izin/Alpa lalu simpan semua sekaligus. Aturan tanggal & daftar siswa dicek server.
  */
 export default function AttendanceSheet(props: Props) {
-    const { class: item, window, date, asHomeroom, homeroomDays } = props;
+    const {
+        class: item,
+        lesson,
+        window,
+        date,
+        asHomeroom,
+        homeroomDays,
+    } = props;
+    const title = lesson
+        ? `Presensi ${item.name} · ${lesson.subject}`
+        : `Presensi ${item.name}`;
 
     return (
         <>
-            <Head title={`Presensi ${item.name}`} />
+            <Head title={title} />
 
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4">
                 <div>
@@ -91,14 +118,21 @@ export default function AttendanceSheet(props: Props) {
                 </div>
 
                 <Heading
-                    title={`Presensi ${item.name}`}
-                    description={`${item.organization} · Tahun ajaran ${item.year}`}
+                    title={title}
+                    description={
+                        lesson
+                            ? `${item.organization} · ${lesson.day_label} ${displayTime(lesson.start)}–${displayTime(lesson.end)}${lesson.teacher ? ` · ${lesson.teacher}` : ''}`
+                            : `${item.organization} · Tahun ajaran ${item.year}`
+                    }
                 />
 
-                {window === null || date === null || props.sheet === null ? (
+                {props.blocked ? (
+                    <Notice>{props.blocked}</Notice>
+                ) : window === null || date === null || props.sheet === null ? (
                     <Notice>
-                        Presensi kelas ini tidak bisa diisi: tahun ajarannya
-                        sudah lewat atau belum mulai.
+                        {lesson
+                            ? `Tidak ada tanggal hari ${lesson.day_label} yang bisa diisi untuk jadwal ini (tahun ajaran sudah lewat, belum mulai, atau di luar batas hari).`
+                            : 'Presensi kelas ini tidak bisa diisi: tahun ajarannya sudah lewat atau belum mulai.'}
                     </Notice>
                 ) : (
                     <>
@@ -123,8 +157,11 @@ export default function AttendanceSheet(props: Props) {
                                 />
                             </div>
                             <p className="text-sm text-muted-foreground">
+                                {lesson
+                                    ? `Hanya tanggal hari ${lesson.day_label}. `
+                                    : ''}
                                 {asHomeroom
-                                    ? `Wali kelas bisa mengisi atau mengoreksi ${homeroomDays} hari terakhir.`
+                                    ? `${lesson ? 'Guru pengampu' : 'Wali kelas'} bisa mengisi atau mengoreksi ${homeroomDays} hari terakhir.`
                                     : 'Operator bisa mengisi tanggal mana pun di tahun ajaran ini.'}
                             </p>
                         </div>

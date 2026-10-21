@@ -13,10 +13,10 @@ use Modules\Core\Support\BusinessClock;
  * Rekap presensi harian per kelas (PRD-002 §17 AC-4b): jumlah H/S/I/A dan persentase hadir per
  * siswa untuk satu periode (tahun ajaran, semester, atau bulan).
  *
- * - Hanya sesi presensi harian (per pertemuan direkap terpisah di AC-4c).
+ * - Harian dan per pertemuan (AC-4c) direkap terpisah; per pertemuan bisa disaring per mapel.
  * - Siswa = yang pernah tercatat di kelas dalam periode itu; siswa yang pindah tetap tampil dengan
  *   presensi selama ia di kelas.
- * - Persentase hadir = Hadir ÷ hari yang tercatat untuk siswa itu. Hari tanpa sesi = belum diisi
+ * - Persentase hadir = Hadir ÷ hari/pertemuan yang tercatat untuk siswa itu. Hari tanpa sesi = belum diisi
  *   (tidak dihitung alpa), karena belum ada kalender libur [ASUMSI disetujui].
  *
  * Hak akses dicek pemanggil.
@@ -92,22 +92,59 @@ final class AttendanceRecap
     }
 
     /**
+     * Mapel kelas untuk saringan rekap per pertemuan (AC-4c), urut nama; bisa dibatasi ke daftar id.
+     *
+     * @param  list<string>|null  $onlyIds
+     * @return list<array{value: string, label: string}>
+     */
+    public function subjectOptions(SchoolClass $class, ?array $onlyIds = null): array
+    {
+        $query = DB::table('ac_class_subjects as cs')
+            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
+            ->where('cs.class_id', $class->id)
+            ->orderByRaw('lower(s.name)');
+
+        if ($onlyIds !== null) {
+            $query->whereIn('cs.id', $onlyIds);
+        }
+
+        $options = [];
+
+        foreach ($query->get(['cs.id', 's.name']) as $row) {
+            $options[] = ['value' => (string) $row->id, 'label' => (string) $row->name];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @param  bool  $lesson  true = sesi per pertemuan (AC-4c), false = sesi harian
+     * @param  list<string>|null  $classSubjectIds  saringan mapel kelas (hanya per pertemuan)
      * @return array{days: int, students: list<RecapRow>, totals: array{H: int, S: int, I: int, A: int}}
      */
-    public function recap(SchoolClass $class, string $start, string $end): array
+    public function recap(SchoolClass $class, string $start, string $end, bool $lesson = false, ?array $classSubjectIds = null): array
     {
-        $days = DB::table('ac_attendance_sessions')
-            ->where('class_id', $class->id)
-            ->whereNull('schedule_entry_id')
-            ->whereBetween('date', [$start, $end])
-            ->count();
+        $sessions = function (Builder $query, string $alias) use ($class, $start, $end, $lesson, $classSubjectIds): void {
+            $query->where("{$alias}.class_id", $class->id)->whereBetween("{$alias}.date", [$start, $end]);
+
+            if (! $lesson) {
+                $query->whereNull("{$alias}.class_subject_id");
+            } elseif ($classSubjectIds !== null) {
+                $query->whereIn("{$alias}.class_subject_id", $classSubjectIds);
+            } else {
+                $query->whereNotNull("{$alias}.class_subject_id");
+            }
+        };
+
+        $daysQuery = DB::table('ac_attendance_sessions as s');
+        $sessions($daysQuery, 's');
+        $days = $daysQuery->count();
 
         $counts = [];
-        $rows = DB::table('ac_attendance_records as r')
-            ->join('ac_attendance_sessions as s', 's.id', '=', 'r.session_id')
-            ->where('s.class_id', $class->id)
-            ->whereNull('s.schedule_entry_id')
-            ->whereBetween('s.date', [$start, $end])
+        $recordsQuery = DB::table('ac_attendance_records as r')
+            ->join('ac_attendance_sessions as s', 's.id', '=', 'r.session_id');
+        $sessions($recordsQuery, 's');
+        $rows = $recordsQuery
             ->groupBy('r.enrollment_id', 'r.status')
             ->selectRaw('r.enrollment_id, r.status, count(*) AS total')
             ->get();

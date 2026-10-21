@@ -1,4 +1,11 @@
-import { CalendarClock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import {
+    CalendarClock,
+    ClipboardCheck,
+    Pencil,
+    Plus,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { ClassSubjectRow } from '@/components/academic/class-subject-actions';
 import type { Option } from '@/components/academic/student-actions';
@@ -50,11 +57,14 @@ export function ScheduleSection({
     schedule,
     subjects,
     canManage,
+    lessonAttendance = false,
 }: {
     classId: string;
     schedule: ScheduleRow[];
     subjects: ClassSubjectRow[];
     canManage: boolean;
+    /** Tampilkan tautan presensi per baris jadwal (lembaga per pertemuan, AC-4c). */
+    lessonAttendance?: boolean;
 }) {
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
@@ -160,6 +170,15 @@ export function ScheduleSection({
                                                         {entry.teacher ??
                                                             'Pengampu belum ada'}
                                                     </p>
+                                                    {lessonAttendance && (
+                                                        <Link
+                                                            href={`/kelas/jadwal/${entry.id}/presensi`}
+                                                            className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                                        >
+                                                            <ClipboardCheck className="size-3.5" />
+                                                            Presensi
+                                                        </Link>
+                                                    )}
                                                 </div>
                                                 {canManage && (
                                                     <div className="flex gap-1">

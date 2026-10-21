@@ -4,6 +4,7 @@ namespace Modules\Academic;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Inertia\Inertia;
+use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\CalendarSetting;
@@ -37,7 +38,10 @@ class AcademicServiceProvider extends ModuleServiceProvider
         AuditAction::registerLabels(AcademicAuditAction::labels());
 
         // Kalender yang dipakai lembaga: aturan berjenjang Core (PRD-002 §4.4).
-        $this->app->make(SettingRegistry::class)->define(CalendarSetting::definition());
+        $this->app->make(SettingRegistry::class)
+            ->define(CalendarSetting::definition())
+            // Mode presensi per lembaga (AC-4c).
+            ->define(AttendanceModeSetting::definition());
 
         // Petunjuk menu "Kelas saya" (AC-3d): dievaluasi saat halaman dirender, sesudah `work.context`.
         Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses()]);

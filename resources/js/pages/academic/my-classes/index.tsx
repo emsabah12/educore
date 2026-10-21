@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ClipboardCheck } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 
@@ -11,9 +11,11 @@ type MyClass = {
     year: string;
     homeroom: boolean;
     subjects: string[];
+    lesson_mode: boolean;
 };
 
 type Lesson = {
+    entry_id: string;
     day: number;
     start: string;
     end: string;
@@ -40,6 +42,10 @@ function displayTime(value: string): string {
  * dan jadwal mengajarnya. Hanya bisa dilihat.
  */
 export default function MyClasses({ linked, classes, schedule, days }: Props) {
+    // Kelas di lembaga yang memakai presensi per pertemuan (AC-4c).
+    const lessonMode = new Set(
+        classes.filter((item) => item.lesson_mode).map((item) => item.id),
+    );
     const usedDays = days.filter((day) =>
         schedule.some((lesson) => lesson.day === day.value),
     );
@@ -132,7 +138,9 @@ export default function MyClasses({ linked, classes, schedule, days }: Props) {
                                                     )
                                                     .map((lesson) => (
                                                         <li
-                                                            key={`${lesson.class_id}-${lesson.start}-${lesson.subject}`}
+                                                            key={
+                                                                lesson.entry_id
+                                                            }
                                                             className="px-3 py-2 text-sm"
                                                         >
                                                             <p>
@@ -156,6 +164,17 @@ export default function MyClasses({ linked, classes, schedule, days }: Props) {
                                                                     lesson.organization
                                                                 }
                                                             </p>
+                                                            {lessonMode.has(
+                                                                lesson.class_id,
+                                                            ) && (
+                                                                <Link
+                                                                    href={`/kelas-saya/jadwal/${lesson.entry_id}/presensi`}
+                                                                    className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                                                >
+                                                                    <ClipboardCheck className="size-3.5" />
+                                                                    Isi presensi
+                                                                </Link>
+                                                            )}
                                                         </li>
                                                     ))}
                                             </ul>

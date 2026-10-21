@@ -2,7 +2,7 @@
 
 - **Versi:** 1.3 (2026-10-21: rincian AC-4 presensi siswa — §17)
 - **Versi sebelumnya:** 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 dirinci (§17)**: AC-4a lancar diuji owner, AC-4b dikerjakan; AC-5 dst. hanya digariskan
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 dirinci (§17)**: AC-4a `5fceb18` & AC-4b `887a384` SELESAI, AC-4c dikerjakan; AC-5 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -466,6 +466,12 @@ Dikerjakan bertahap: **AC-4a** presensi harian, **AC-4b** rekap, **AC-4c** prese
 - Hanya presensi harian (per pertemuan direkap di AC-4c). Hari tanpa sesi tidak dihitung alpa.
 - **Siapa**: dari detail kelas (`/kelas/{kelas}/rekap-presensi`) bagi pemilik `academic.students.view` di lembaga kelas; dari Kelas saya (`/kelas-saya/{kelas}/rekap-presensi`) bagi wali kelasnya. Tahun ajaran yang sudah lewat tetap bisa direkap.
 
-### AC-4c Per pertemuan
+### AC-4c Per pertemuan [OWNER, 2026-10-21 — usulan disetujui]
 
-Dirinci saat dikerjakan, mengikuti keputusan di atas.
+- **Aturan mode** `academic.attendance_mode` (HARIAN / PER_PERTEMUAN, bawaan HARIAN), diatur **Admin Yayasan saja** di halaman Kalender akademik (bagian **Mode presensi**), pola sama dengan pemakaian kalender: per jenjang (seluruh yayasan) atau per lembaga/unit, bisa dikunci. Ringkasan mode yang berlaku di tiap lembaga aktif ikut tampil.
+- **Lembaga PER_PERTEMUAN**: presensi harian **ditutup** (tombol Isi presensi/Presensi diganti keterangan); data harian lama tetap terlihat di rekap. **Lembaga HARIAN**: presensi per pertemuan tidak dibuka.
+- **Yang mengisi**: guru pengampu mapel itu (7 hari terakhir, hari ini termasuk) dari Kelas saya → Jadwal mengajar; Operator (`academic.classes.manage`) sepanjang tahun ajaran dari baris jadwal di detail kelas. Wali kelas tidak mengisi pertemuan mapel guru lain kecuali ia pengampunya; mapel tanpa pengampu hanya bisa diisi operator.
+- **Tanggal** wajib jatuh pada hari jadwal itu (jadwal Senin → tanggal Senin), di dalam tahun ajaran, tidak di masa depan. Satu sesi per baris jadwal per tanggal; daftar siswa = yang tercatat di kelas pada tanggal itu (sama dengan harian).
+- Sesi pertemuan menyimpan **mapel kelas & jam** saat diisi [ASUMSI disetujui], sehingga riwayat tidak berubah bila jadwal diubah/dihapus. Mapel yang **sudah punya presensi tidak bisa dilepas** dari kelas (hapus jadwalnya saja).
+- **Rekap**: pilihan **Harian / Per pertemuan**; per pertemuan bisa disaring per mapel; % hadir = Hadir ÷ pertemuan tercatat. Bawaan mengikuti mode lembaga. Pengampu (bukan wali kelas) melihat rekap pertemuan mapelnya sendiri dari Kelas saya.
+- Audit: `academic.attendance_recorded` ditambah mapel & jam untuk pertemuan; perubahan mode lewat audit aturan berjenjang Core.
