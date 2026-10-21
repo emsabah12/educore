@@ -9,6 +9,7 @@ use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
 use Modules\Academic\Http\Controllers\StudentImportController;
+use Modules\Academic\Http\Controllers\SubjectController;
 
 /*
  * Route web modul Academic (PRD-002 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -57,6 +58,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.destroy');
     Route::post('siswa/{student}/orang-tua/{guardian}/kontak-utama', [StudentGuardianController::class, 'makePrimary'])
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.primary');
+
+    // Mata pelajaran (AC-3a, PRD-002 §16). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga mapel.
+    Route::get('akademik/mapel', [SubjectController::class, 'index'])->name('academic.subjects.index');
+    Route::post('akademik/mapel', [SubjectController::class, 'store'])->name('academic.subjects.store');
+    Route::patch('akademik/mapel/{subject}', [SubjectController::class, 'update'])->whereUuid('subject')->name('academic.subjects.update');
+    Route::post('akademik/mapel/{subject}/status', [SubjectController::class, 'status'])->whereUuid('subject')->name('academic.subjects.status');
+    Route::delete('akademik/mapel/{subject}', [SubjectController::class, 'destroy'])->whereUuid('subject')->name('academic.subjects.destroy');
 
     // Kelas/rombel (AC-1d-a, PRD-002 §6). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga kelas.
     Route::get('kelas', [ClassController::class, 'index'])->name('academic.classes.index');

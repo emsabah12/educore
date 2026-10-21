@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-20
-- **Tahap aktif:** AC-2 — kenaikan kelas & kelulusan (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `1938694` — feat(academic): AC-1e impor siswa dari Excel/CSV
+- **Diperbarui:** 2026-10-21
+- **Tahap aktif:** AC-3a — mata pelajaran (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `ece7aa6` — feat(academic): AC-2 kenaikan kelas & kelulusan
 
 ## Keputusan penting
 
@@ -192,7 +192,7 @@
 
 **AC-1 Data Siswa & Kelas: SELESAI (2026-10-20)** — AC-1a s.d. AC-1e, commit terakhir `1938694`.
 
-**PRD-002 Academic: v1.1 (2026-10-20)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15.
+**PRD-002 Academic: v1.2 (2026-10-21)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15; rincian AC-3 (a–d) di §16.
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -265,12 +265,19 @@
 - Route `POST siswa/impor/simpan`; tombol **Simpan N siswa ke {lembaga}** + centang konfirmasi peringatan di halaman impor.
 - Bukti: 6 test baru (target 470 test); uji manual owner lancar (simpan, konfirmasi peringatan, semua-atau-tidak).
 
-**AC-2 — Kenaikan kelas & kelulusan: KODE SIAP (2026-10-20, menunggu verifikasi)**
+**AC-2 — Kenaikan kelas & kelulusan: SELESAI (2026-10-21, commit `ece7aa6`)**
 
 - `YearEndProcess` (Classroom): tahun tujuan = tahun berikutnya di kalender yang sama; pilihan bawaan per siswa; simpan naik/tinggal (`ManageClassMembers::placeNewEnrollment`) & lulus (`ManageEnrollments::close`, alasan LULUS) dalam satu transaksi, semua-atau-tidak.
 - `ClassYearEndController` + route `GET/POST kelas/{class}/akhir-tahun`; halaman `/kelas/{id}/akhir-tahun`; tombol **Proses akhir tahun** di detail kelas (`canYearEnd`, juga untuk tahun yang sudah lewat).
 - Audit `academic.class_year_end_processed`.
-- Target bukti: 477 test (7 test baru, `YearEndTest`).
+- Bukti: 477 test lulus (7 test baru, `YearEndTest`); uji manual owner lancar.
+
+**AC-3a — Mata pelajaran: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Tabel `ac_subjects` (migrasi `2026_10_21_200005`); model `Domain/Subject/Subject`; `Application/Subject/ManageSubjects`, `SubjectData`, `SubjectDirectory`; `SubjectException`.
+- `SubjectController` + route `GET/POST akademik/mapel`, `PATCH/DELETE akademik/mapel/{subject}`, `POST akademik/mapel/{subject}/status`; halaman `/akademik/mapel`, menu **Mata pelajaran**.
+- Audit `academic.subject_created|updated|deactivated|reactivated|deleted`.
+- Target bukti: 487 test (10 test baru, `SubjectsTest`).
 
 ## Struktur file utama
 
@@ -303,5 +310,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-2 (PANDUAN-AC-2.md), commit & push.
-2. Pilih tahap berikutnya bersama owner (AC-3 Mapel & jadwal, HR-2, atau lainnya).
+1. Verifikasi AC-3a (PANDUAN-AC-3A.md), commit & push.
+2. AC-3b mapel kelas & guru pengampu, AC-3c jadwal, AC-3d Kelas saya (PRD-002 §16).

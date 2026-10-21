@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    BookOpen,
     CalendarDays,
     GraduationCap,
     LayoutGrid,
@@ -71,6 +72,12 @@ const classesNavItem: NavItem = {
     icon: School,
 };
 
+const subjectsNavItem: NavItem = {
+    title: 'Mata pelajaran',
+    href: '/akademik/mapel',
+    icon: BookOpen,
+};
+
 const academicCalendarNavItem: NavItem = {
     title: 'Kalender akademik',
     href: '/akademik/kalender',
@@ -98,7 +105,7 @@ export function AppSidebar() {
             ? [employeesNavItem]
             : []),
         ...(permissions.includes('academic.students.view')
-            ? [studentsNavItem, classesNavItem]
+            ? [studentsNavItem, classesNavItem, subjectsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]

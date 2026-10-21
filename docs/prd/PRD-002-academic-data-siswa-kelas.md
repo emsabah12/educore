@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.1 (2026-10-20: rincian AC-2 kenaikan kelas & kelulusan, §15)
-- **Versi sebelumnya:** 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 dirinci (§15), sedang dikerjakan**; AC-3 dst. hanya digariskan
+- **Versi:** 1.2 (2026-10-21: rincian AC-3 mata pelajaran, pengampu, jadwal, Kelas saya — §16; §7 akses wali kelas/guru diperbarui)
+- **Versi sebelumnya:** 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16), AC-3a dikerjakan**; AC-4 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -40,7 +40,7 @@ Prinsip:
 | **AC-1 Data Siswa & Kelas**     | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01] |
 | AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]           |
 | AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]       |
-| AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]                        |
+| AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16        |
 | AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        |                                          |
 | AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]              |
 | AC-6 dst.                       | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                          |
@@ -257,7 +257,8 @@ Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa
 - Arah dependency: `Academic → Core, HR` (ADR-001 §2.2). Academic hanya memakai **kontrak publik HR** (arch test sudah ada).
 - Kontrak HR `Modules\HR\Contracts\EmployeeLookup` (AC-1c-b2): membership mana yang punya profil pegawai; dipakai untuk mengunci data diri orang tua/wali yang juga pegawai. Tidak membuka data kepegawaian.
 - Kontrak HR baru [ASUMSI]: `Modules\HR\Contracts\ActiveEmployees` — daftar pegawai aktif yang punya penempatan berjalan di sebuah lembaga (id, nama) dan pemeriksaan "pegawai X aktif di lembaga Y". Dipakai untuk memilih dan memvalidasi wali kelas.
-- **Jabatan "Wali Kelas" di HR tidak otomatis menjadi wali kelas** di Academic, dan menjadi wali kelas **tidak memberi hak akses** apa pun (jabatan bukan hak akses, PRD-001 §4.1). [LAMA]
+- **Jabatan "Wali Kelas" di HR tidak otomatis menjadi wali kelas** di Academic (jabatan bukan hak akses, PRD-001 §4.1). [LAMA]
+- **Wali kelas & guru pengampu** hanya melihat kelas yang ia pegang di menu **Kelas saya** (AC-3d, §16). Hak ini tidak berlaku di menu Siswa/Kelas biasa dan berakhir saat penugasannya selesai atau ia tidak aktif lagi di lembaga itu. [OWNER, 2026-10-21 — memperbarui aturan lama "menjadi wali kelas tidak memberi hak akses apa pun"]
 - Wali kelas yang berhenti/dimutasi tetap tercatat di kelas lama; kelas aktif menampilkan tanda "wali kelas tidak aktif lagi di lembaga ini" agar operator menggantinya. [ASUMSI]
 
 ## 8. Audit
@@ -390,3 +391,33 @@ Proses akhir tahun ajaran **per kelas**, dari detail kelas (`/kelas/{id}` → to
 - **Semua atau tidak sama sekali**, satu transaksi; masalah tiap siswa disebut sekaligus dengan namanya (bukan siswa aktif, sudah punya kelas di tahun tujuan, kelas tujuan tidak tersedia). Maks. 200 siswa sekali proses.
 - **Tahun ajaran kelas yang sudah lewat** tetap bisa diproses: kelas lama hanya dibaca.
 - **Audit**: `academic.class_year_end_processed` satu catatan per proses (kelas, tahun ajaran, tahun tujuan, jumlah naik/tinggal/lulus, tanggal lulus) + `academic.enrollment_closed` per siswa lulus.
+
+## 16. AC-3 Mata pelajaran & jadwal [OWNER, 2026-10-21 — usulan disetujui]
+
+Dipecah empat bagian, dikerjakan berurutan. Mapel, pengampu, dan jadwal dikelola dengan izin yang sudah ada, `academic.classes.manage` (Operator Akademik, Admin Yayasan); melihatnya cukup `academic.students.view` [ASUMSI disetujui]. Di luar cakupan 404, tanpa izin 403.
+
+### AC-3a Mata pelajaran
+
+- **Tabel `ac_subjects`**: lembaga (wajib, lembaga aktif), nama (wajib, maks. 100, unik per lembaga tanpa beda huruf besar/kecil), kode singkat (opsional, maks. 20, huruf besar, unik per lembaga), rentang tingkat `grade_min`–`grade_max` (keduanya kosong = semua tingkat; bila diisi 1–12 dan min ≤ maks), aktif/nonaktif.
+- **Halaman** `/akademik/mapel`, menu **Mata pelajaran** bagi pemilik `academic.students.view`: saringan lembaga (yang terlihat), daftar urut nama berisi kode, tingkat, status. Tambah, ubah, nonaktifkan/aktifkan kembali, hapus.
+- **Nonaktif** = tidak bisa dipilih untuk kelas (AC-3b); yang sudah dipakai tetap tercatat. **Hapus** hanya untuk mapel yang belum pernah dipakai di kelas.
+- Audit baru: `academic.subject_created`, `subject_updated`, `subject_deactivated`, `subject_reactivated`, `subject_deleted`.
+
+### AC-3b Mapel kelas & guru pengampu
+
+- Di detail kelas, bagian **Mata pelajaran**: pilih mapel aktif lembaga itu yang rentang tingkatnya memuat tingkat kelas; tiap mapel paling banyak sekali per kelas.
+- **Satu guru pengampu per mapel per kelas** [ASUMSI disetujui; belum ada team teaching]; opsional; pegawai aktif yang ditempatkan di lembaga itu (kontrak HR `ActiveEmployees`, sama dengan wali kelas). Pengampu yang berhenti/dimutasi tetap tercatat dan ditandai sampai diganti.
+- Karena kelas berlaku per tahun ajaran, mapel & pengampu otomatis per tahun ajaran. Kelas tahun yang sudah lewat hanya bisa dilihat.
+
+### AC-3c Jadwal pelajaran
+
+- **Jadwal mingguan per kelas** dengan **jam bebas per baris** [OWNER, 2026-10-21]: hari (Senin–Ahad), jam mulai–selesai (jam selesai sesudah jam mulai), mapel kelas itu.
+- **Bentrok ditolak**: (1) kelas yang sama punya dua baris yang jamnya beririsan di hari yang sama; (2) guru pengampu yang sama mengajar di dua tempat yang jamnya beririsan di hari yang sama, **di seluruh yayasan** (mis. guru MA pagi dan MDA sore) pada tahun ajaran yang tanggalnya beririsan. Pesan bentrok menyebut kelas & mapel lawannya.
+- Mengganti pengampu di AC-3b juga diperiksa bentroknya terhadap jadwal guru baru.
+
+### AC-3d Kelas saya (OD-AC-06)
+
+- Menu **Kelas saya** untuk pengguna yang akunnya tertaut ke profil pegawai (kontrak HR baru: pegawai milik keanggotaan yang sedang login) dan saat ini menjadi **wali kelas** atau **guru pengampu** di kelas tahun ajaran berjalan, selama ia masih pegawai aktif yang ditempatkan di lembaga kelas itu.
+- Isi: daftar kelas yang ia pegang (sebagai wali kelas dan/atau mapel yang diampu), siswa di kelas itu, dan **jadwal mengajar** mingguan. Hanya bisa dilihat.
+- **Data yang terlihat** [OWNER, 2026-10-21]: semua guru melihat nama, L/P, NISN, nomor induk. **Wali kelas** juga melihat **kontak utama orang tua/wali** (nama + HP) siswa kelasnya. Data pribadi lain (alamat, tanggal lahir, orang tua lain) tidak terlihat.
+- Hak ini tidak membuka menu Siswa/Kelas biasa (tetap mengikuti §5).
