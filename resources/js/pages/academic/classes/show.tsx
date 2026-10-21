@@ -16,6 +16,10 @@ import {
     ClassSubjectsSection,
     type ClassSubjectRow,
 } from '@/components/academic/class-subject-actions';
+import {
+    ScheduleSection,
+    type ScheduleRow,
+} from '@/components/academic/schedule-actions';
 import type { Option } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -68,6 +72,7 @@ type Props = {
     canManage: boolean;
     canYearEnd: boolean;
     subjects: ClassSubjectRow[];
+    schedule: ScheduleRow[];
     subjectOptions: Option[];
     teachers: { id: string; name: string }[];
     candidates: Candidate[];
@@ -211,6 +216,13 @@ export default function ClassDetail(props: Props) {
                     subjects={props.subjects}
                     subjectOptions={props.subjectOptions}
                     teachers={props.teachers}
+                    canManage={canManage}
+                />
+
+                <ScheduleSection
+                    classId={item.id}
+                    schedule={props.schedule}
+                    subjects={props.subjects}
                     canManage={canManage}
                 />
 

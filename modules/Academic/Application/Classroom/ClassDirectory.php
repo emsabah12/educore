@@ -15,6 +15,7 @@ use Modules\HR\Contracts\ActiveEmployees;
  * @phpstan-type YearOption array{value: string, label: string, current: bool, past: bool}
  * @phpstan-type MemberRow array{id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, start_date: string, end_date: string|null}
  * @phpstan-type SubjectRow array{id: string, subject_id: string, name: string, code: string|null, teacher: array{id: string, name: string, active: bool}|null}
+ * @phpstan-type ScheduleRow array{id: string, class_subject_id: string, day: int, start: string, end: string, subject: string, teacher: string|null}
  * @phpstan-type ClassRow array{id: string, name: string, grade: int, is_active: bool, homeroom: array{id: string, name: string, active: bool}|null, members: array{total: int, male: int, female: int}, has_history: bool}
  */
 final class ClassDirectory
@@ -129,6 +130,7 @@ final class ClassDirectory
      *     former: list<MemberRow>,
      *     moveTargets: list<array{value: string, label: string}>,
      *     subjects: list<SubjectRow>,
+     *     schedule: list<ScheduleRow>,
      * }
      */
     public function detail(SchoolClass $class): array
@@ -203,7 +205,52 @@ final class ClassDirectory
             'former' => $former,
             'moveTargets' => $this->moveTargets($class->organization_id, $class->academic_year_id, $class->id),
             'subjects' => $this->subjects($class),
+            'schedule' => $this->schedule($class),
         ];
+    }
+
+    /**
+     * Jadwal mingguan kelas (AC-3c), urut hari lalu jam mulai. Jam "HH:MM".
+     *
+     * @return list<ScheduleRow>
+     */
+    public function schedule(SchoolClass $class): array
+    {
+        $rows = DB::table('ac_schedule_entries as e')
+            ->join('ac_class_subjects as cs', 'cs.id', '=', 'e.class_subject_id')
+            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
+            ->where('e.class_id', $class->id)
+            ->orderBy('e.day_of_week')
+            ->orderBy('e.start_time')
+            ->orderBy('e.id')
+            ->get(['e.id', 'e.class_subject_id', 'e.day_of_week', 'e.start_time', 'e.end_time', 's.name', 'cs.teacher_employee_id']);
+
+        $teacherIds = [];
+
+        foreach ($rows as $row) {
+            if ($row->teacher_employee_id !== null) {
+                $teacherIds[] = (string) $row->teacher_employee_id;
+            }
+        }
+
+        $teachers = $this->employees->describe($class->tenant_id, array_values(array_unique($teacherIds)));
+        $entries = [];
+
+        foreach ($rows as $row) {
+            $teacherId = $row->teacher_employee_id === null ? null : (string) $row->teacher_employee_id;
+
+            $entries[] = [
+                'id' => (string) $row->id,
+                'class_subject_id' => (string) $row->class_subject_id,
+                'day' => (int) $row->day_of_week,
+                'start' => substr((string) $row->start_time, 0, 5),
+                'end' => substr((string) $row->end_time, 0, 5),
+                'subject' => (string) $row->name,
+                'teacher' => $teacherId !== null && isset($teachers[$teacherId]) ? $teachers[$teacherId]['name'] : null,
+            ];
+        }
+
+        return $entries;
     }
 
     /**

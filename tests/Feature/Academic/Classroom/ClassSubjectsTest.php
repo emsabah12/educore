@@ -223,7 +223,7 @@ test('lepas mapel dari kelas; mapel yang dipakai di kelas tidak bisa dihapus; ke
 
     expect(DB::table('ac_class_subjects')->where('subject_id', $math->id)->exists())->toBeFalse()
         ->and(json_decode((string) DB::table('audit_logs')->where('action', AcademicAuditAction::CLASS_SUBJECT_REMOVED)->sole()->changes, true))
-        ->toEqual(['kelas' => 'VII-A', 'mapel' => 'Matematika']);
+        ->toEqual(['kelas' => 'VII-A', 'mapel' => 'Matematika', 'jadwal_dihapus' => 0]);
 
     $this->actingAs($this->operator)->delete(route('academic.subjects.destroy', ['subject' => $math->id]))->assertSessionHasNoErrors();
 

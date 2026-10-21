@@ -24,6 +24,8 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Pengampu: opsional, satu per mapel per kelas; pegawai aktif yang ditempatkan di lembaga kelas
  *   (kontrak HR ActiveEmployees). Pengampu lama yang sudah tidak aktif boleh tetap tercatat sampai diganti.
  * - Kelas tahun ajaran yang sudah lewat hanya bisa dilihat.
+ * - Mengganti pengampu diperiksa bentroknya terhadap jadwal guru baru; melepas mapel ikut menghapus
+ *   jadwalnya (AC-3c).
  *
  * Hak akses (academic.classes.manage di lembaga kelas) dicek pemanggil lewat Gate.
  */
@@ -31,6 +33,7 @@ final class ManageClassSubjects
 {
     public function __construct(
         private readonly ActiveEmployees $employees,
+        private readonly ScheduleConflicts $conflicts,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -154,6 +157,10 @@ final class ManageClassSubjects
                 throw ClassException::make('teacher_employee_id', 'Guru pengampu harus pegawai aktif yang ditempatkan di lembaga ini.');
             }
 
+            if ($employeeId !== null) {
+                $this->assertTeacherFree($tenantId, $row, $class, $employeeId);
+            }
+
             $row->teacher_employee_id = $employeeId;
             $row->save();
 
@@ -179,6 +186,8 @@ final class ManageClassSubjects
     {
         return DB::transaction(function () use ($tenantId, $classSubjectId): string {
             [$row, $class, $subject] = $this->lockRow($tenantId, $classSubjectId);
+            // Jadwal mapel ini ikut terhapus (FK cascade, AC-3c).
+            $scheduleRows = DB::table('ac_schedule_entries')->where('class_subject_id', $row->id)->count();
 
             $row->delete();
 
@@ -186,7 +195,7 @@ final class ManageClassSubjects
                 AcademicAuditAction::CLASS_SUBJECT_REMOVED,
                 AcademicAuditAction::SUBJECT_CLASS,
                 $class->id,
-                ['kelas' => $class->name, 'mapel' => $subject->name],
+                ['kelas' => $class->name, 'mapel' => $subject->name, 'jadwal_dihapus' => $scheduleRows],
                 organizationId: $class->organization_id,
                 tenantId: $tenantId,
             );
@@ -196,6 +205,42 @@ final class ManageClassSubjects
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Pengampu baru tidak boleh bentrok dengan jadwalnya di tempat lain (AC-3c).
+     */
+    private function assertTeacherFree(string $tenantId, ClassSubject $row, SchoolClass $class, string $employeeId): void
+    {
+        $entries = DB::table('ac_schedule_entries')
+            ->where('class_subject_id', $row->id)
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get(['day_of_week', 'start_time', 'end_time']);
+
+        if ($entries->isEmpty()) {
+            return;
+        }
+
+        $this->conflicts->lockTeacher($employeeId);
+        $year = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
+
+        foreach ($entries as $entry) {
+            $clash = $this->conflicts->teacherClash(
+                $tenantId,
+                $employeeId,
+                $year,
+                (int) $entry->day_of_week,
+                substr((string) $entry->start_time, 0, 5),
+                substr((string) $entry->end_time, 0, 5),
+                null,
+                $row->id,
+            );
+
+            if ($clash !== null) {
+                throw ClassException::make('teacher_employee_id', $clash);
+            }
+        }
+    }
 
     private function lockEditableClass(string $tenantId, string $classId): SchoolClass
     {

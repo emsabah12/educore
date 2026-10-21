@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-3b — mapel kelas & guru pengampu (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `9a0b128` — feat(academic): AC-3a mata pelajaran
+- **Tahap aktif:** AC-3c — jadwal pelajaran (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `26d3594` — feat(academic): AC-3b mapel kelas dan guru pengampu
 
 ## Keputusan penting
 
@@ -279,13 +279,21 @@
 - Audit `academic.subject_created|updated|deactivated|reactivated|deleted`.
 - Bukti: 487 test lulus (10 test baru, `SubjectsTest`) setelah perbaikan test akun `guru` (wajib memilih lembaga kerja dulu); uji manual owner lancar.
 
-**AC-3b — Mapel kelas & guru pengampu: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**AC-3b — Mapel kelas & guru pengampu: SELESAI (2026-10-21, commit `26d3594`)**
 
 - Tabel `ac_class_subjects` (migrasi `2026_10_21_200006`; ikut terhapus bila kelas kosong dihapus); model `Domain/Classroom/ClassSubject`; `Application/Classroom/ManageClassSubjects` (`available`, `add`, `setTeacher`, `remove`); `ClassDirectory::subjects`.
 - `ClassSubjectController` + route `POST kelas/{class}/mapel`, `PATCH/DELETE kelas/mapel/{classSubject}`; bagian **Mata pelajaran** di detail kelas (`components/academic/class-subject-actions.tsx`).
 - Mapel yang sudah dipakai di kelas tidak bisa dihapus (`ManageSubjects::delete`, `deletable` di daftar mapel).
 - Audit `academic.class_subjects_added`, `class_subject_teacher_changed`, `class_subject_removed`.
-- Target bukti: 494 test (7 test baru, `ClassSubjectsTest`).
+- Bukti: 494 test lulus (7 test baru, `ClassSubjectsTest`); uji manual owner lancar.
+
+**AC-3c — Jadwal pelajaran: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Tabel `ac_schedule_entries` (migrasi `2026_10_21_200007`; FK gabungan ke kelas & mapel kelas, ikut terhapus bila mapel dilepas atau kelas kosong dihapus); model `Domain/Classroom/ScheduleEntry`.
+- `Application/Classroom/ManageSchedule` (tambah/ubah/hapus), `ScheduleData` (jam "HH:MM"), `ScheduleConflicts` (bentrok kelas; bentrok guru seluruh yayasan pada tahun ajaran yang beririsan; kunci `pg_advisory_xact_lock` per guru). `ManageClassSubjects::setTeacher` memeriksa bentrok guru baru; `remove` mencatat jumlah jadwal yang ikut terhapus.
+- `ScheduleController` + route `POST kelas/{class}/jadwal`, `PATCH/DELETE kelas/jadwal/{entry}`; bagian **Jadwal pelajaran** di detail kelas (`components/academic/schedule-actions.tsx`).
+- Audit `academic.schedule_entry_added|updated|removed`.
+- Target bukti: 501 test (7 test baru, `ScheduleTest`).
 
 ## Struktur file utama
 
@@ -318,5 +326,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-3b (PANDUAN-AC-3B.md), commit & push.
-2. AC-3c jadwal pelajaran, lalu AC-3d Kelas saya (PRD-002 §16).
+1. Verifikasi AC-3c (PANDUAN-AC-3C.md), commit & push.
+2. AC-3d Kelas saya (PRD-002 §16).

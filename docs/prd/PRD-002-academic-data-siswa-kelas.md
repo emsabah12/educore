@@ -2,7 +2,7 @@
 
 - **Versi:** 1.2 (2026-10-21: rincian AC-3 mata pelajaran, pengampu, jadwal, Kelas saya — §16; §7 akses wali kelas/guru diperbarui)
 - **Versi sebelumnya:** 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b dikerjakan; AC-4 dst. hanya digariskan
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b SELESAI (`26d3594`), AC-3c dikerjakan; AC-4 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -416,6 +416,10 @@ Dipecah empat bagian, dikerjakan berurutan. Mapel, pengampu, dan jadwal dikelola
 - **Jadwal mingguan per kelas** dengan **jam bebas per baris** [OWNER, 2026-10-21]: hari (Senin–Ahad), jam mulai–selesai (jam selesai sesudah jam mulai), mapel kelas itu.
 - **Bentrok ditolak**: (1) kelas yang sama punya dua baris yang jamnya beririsan di hari yang sama; (2) guru pengampu yang sama mengajar di dua tempat yang jamnya beririsan di hari yang sama, **di seluruh yayasan** (mis. guru MA pagi dan MDA sore) pada tahun ajaran yang tanggalnya beririsan. Pesan bentrok menyebut kelas & mapel lawannya.
 - Mengganti pengampu di AC-3b juga diperiksa bentroknya terhadap jadwal guru baru.
+- Jam yang hanya bersambung (07.00–08.00 lalu 08.00–09.00) tidak dianggap bentrok. Jam ditulis HH:MM.
+- Di detail kelas: bagian **Jadwal pelajaran**, dikelompokkan per hari, urut jam mulai, menampilkan mapel & pengampu. Tambah/ubah/hapus per baris bagi pengelola kelas; jadwal hanya bisa diisi dari mapel yang sudah ada di kelas.
+- **Lepas mapel** dari kelas ikut menghapus jadwal mapel itu (jumlahnya tercatat di audit). Kelas kosong yang dihapus ikut menghapus jadwalnya.
+- Audit baru: `academic.schedule_entry_added`, `schedule_entry_updated`, `schedule_entry_removed` (kelas, mapel, hari, jam).
 
 ### AC-3d Kelas saya (OD-AC-06)
 

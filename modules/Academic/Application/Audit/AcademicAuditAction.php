@@ -74,6 +74,12 @@ final class AcademicAuditAction
 
     public const CLASS_SUBJECT_REMOVED = 'academic.class_subject_removed';
 
+    public const SCHEDULE_ENTRY_ADDED = 'academic.schedule_entry_added';
+
+    public const SCHEDULE_ENTRY_UPDATED = 'academic.schedule_entry_updated';
+
+    public const SCHEDULE_ENTRY_REMOVED = 'academic.schedule_entry_removed';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -124,6 +130,9 @@ final class AcademicAuditAction
             self::CLASS_SUBJECTS_ADDED => 'Mata pelajaran ditambahkan ke kelas',
             self::CLASS_SUBJECT_TEACHER_CHANGED => 'Guru pengampu diganti',
             self::CLASS_SUBJECT_REMOVED => 'Mata pelajaran dilepas dari kelas',
+            self::SCHEDULE_ENTRY_ADDED => 'Jadwal pelajaran ditambahkan',
+            self::SCHEDULE_ENTRY_UPDATED => 'Jadwal pelajaran diubah',
+            self::SCHEDULE_ENTRY_REMOVED => 'Jadwal pelajaran dihapus',
         ];
     }
 }

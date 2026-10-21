@@ -75,6 +75,10 @@ const fieldLabels: Record<string, string> = {
     grade_max: 'Tingkat sampai',
     subject_ids: 'Mata pelajaran',
     teacher_employee_id: 'Guru pengampu',
+    class_subject_id: 'Mata pelajaran',
+    day_of_week: 'Hari',
+    start_time: 'Jam mulai',
+    end_time: 'Jam selesai',
     form: 'Formulir',
 };
 
