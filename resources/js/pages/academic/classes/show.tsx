@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     ArrowRightLeft,
     CalendarCheck,
+    ChartColumn,
     CircleAlert,
     ClipboardCheck,
     LogOut,
@@ -192,20 +193,22 @@ export default function ClassDetail(props: Props) {
                     </div>
                 )}
 
-                {canManage && (
-                    <div>
-                        <Button
-                            variant="outline"
-                            asChild
-                            className="w-full sm:w-auto"
-                        >
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                    {canManage && (
+                        <Button variant="outline" asChild>
                             <Link href={`/kelas/${item.id}/presensi`}>
                                 <ClipboardCheck />
                                 Presensi
                             </Link>
                         </Button>
-                    </div>
-                )}
+                    )}
+                    <Button variant="outline" asChild>
+                        <Link href={`/kelas/${item.id}/rekap-presensi`}>
+                            <ChartColumn />
+                            Rekap presensi
+                        </Link>
+                    </Button>
+                </div>
 
                 {canManage && item.is_active && (
                     <section className="space-y-3">

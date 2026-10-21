@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Academic\Application\Attendance\AttendanceRecap;
 use Modules\Academic\Application\Attendance\ManageAttendance;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Classroom\MyClasses;
@@ -25,6 +26,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
  *   datanya: di luar cakupan 404, tanpa izin 403); tanggal mana pun di tahun ajaran.
  * - Wali kelas: `/kelas-saya/{class}/presensi` — hanya kelas yang ia walikan (selain itu 404);
  *   7 hari terakhir.
+ *
+ * Rekap (AC-4b): pemilik `academic.students.view` di lembaga kelas, atau wali kelas lewat Kelas saya.
  */
 final class AttendanceController
 {
@@ -60,7 +63,56 @@ final class AttendanceController
         return $this->save($request, $target, true, $attendance, 'academic.my-attendance.show');
     }
 
+    // ── Rekap (AC-4b) ────────────────────────────────────────────────────────
+
+    /**
+     * Rekap kelas untuk pemilik izin lihat siswa di lembaga kelas (Kepala Lembaga, operator, dll.).
+     */
+    public function recap(Request $request, string $class, AttendanceRecap $recap): Response
+    {
+        $target = Str::isUuid($class) ? SchoolClass::query()->find($class) : null;
+
+        if (! $target instanceof SchoolClass) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
+
+        return $this->recapPage($request, $target, $recap, "/kelas/{$target->id}/rekap-presensi", "/kelas/{$target->id}", 'Detail kelas');
+    }
+
+    public function recapMine(Request $request, string $class, MyClasses $myClasses, AttendanceRecap $recap): Response
+    {
+        $target = $this->homeroomClass($class, $myClasses);
+
+        return $this->recapPage($request, $target, $recap, "/kelas-saya/{$target->id}/rekap-presensi", "/kelas-saya/{$target->id}", "Kelas {$target->name}");
+    }
+
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    private function recapPage(Request $request, SchoolClass $class, AttendanceRecap $recap, string $baseUrl, string $backUrl, string $backLabel): Response
+    {
+        $periods = $recap->periods($class);
+        $period = AttendanceRecap::pick($periods, $request->query('periode'));
+        $year = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
+        $organization = (string) DB::table('organizations')->where('id', $class->organization_id)->value('name');
+
+        $options = [];
+
+        foreach ($periods as $option) {
+            $options[] = ['value' => $option['value'], 'label' => $option['label']];
+        }
+
+        return Inertia::render('academic/attendance/recap', [
+            'class' => ['id' => $class->id, 'name' => $class->name, 'organization' => $organization, 'year' => $year->name],
+            'periods' => $options,
+            'period' => $period,
+            'recap' => $recap->recap($class, $period['start'], $period['end']),
+            'baseUrl' => $baseUrl,
+            'backUrl' => $backUrl,
+            'backLabel' => $backLabel,
+        ]);
+    }
 
     private function sheet(Request $request, SchoolClass $class, bool $asHomeroom, ManageAttendance $attendance, string $baseUrl, string $backUrl, string $backLabel): Response
     {

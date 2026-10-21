@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ClipboardCheck, Phone } from 'lucide-react';
+import { ArrowLeft, ChartColumn, ClipboardCheck, Phone } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,11 +68,19 @@ export default function MyClassDetail({ class: item, students }: Props) {
                 </div>
 
                 {item.homeroom && (
-                    <div>
-                        <Button asChild className="w-full sm:w-auto">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                        <Button asChild>
                             <Link href={`/kelas-saya/${item.id}/presensi`}>
                                 <ClipboardCheck />
                                 Isi presensi
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={`/kelas-saya/${item.id}/rekap-presensi`}
+                            >
+                                <ChartColumn />
+                                Rekap presensi
                             </Link>
                         </Button>
                     </div>

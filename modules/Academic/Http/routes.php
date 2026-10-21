@@ -102,6 +102,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/{class}/presensi', [AttendanceController::class, 'store'])->whereUuid('class')->name('academic.attendance.store');
     Route::get('kelas-saya/{class}/presensi', [AttendanceController::class, 'showMine'])->whereUuid('class')->name('academic.my-attendance.show');
     Route::post('kelas-saya/{class}/presensi', [AttendanceController::class, 'storeMine'])->whereUuid('class')->name('academic.my-attendance.store');
+    // Rekap presensi (AC-4b). Lihat: izin lihat siswa; wali kelas: lewat Kelas saya.
+    Route::get('kelas/{class}/rekap-presensi', [AttendanceController::class, 'recap'])->whereUuid('class')->name('academic.attendance.recap');
+    Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
     // (+ academic.students.manage untuk lulus) di lembaga kelas.
