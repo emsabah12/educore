@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-3c — jadwal pelajaran (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `26d3594` — feat(academic): AC-3b mapel kelas dan guru pengampu
+- **Tahap aktif:** AC-3d — Kelas saya (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `2e58909` — feat(academic): AC-3c jadwal pelajaran
 
 ## Keputusan penting
 
@@ -287,13 +287,20 @@
 - Audit `academic.class_subjects_added`, `class_subject_teacher_changed`, `class_subject_removed`.
 - Bukti: 494 test lulus (7 test baru, `ClassSubjectsTest`); uji manual owner lancar.
 
-**AC-3c — Jadwal pelajaran: KODE SIAP (2026-10-21, menunggu verifikasi)**
+**AC-3c — Jadwal pelajaran: SELESAI (2026-10-21, commit `2e58909`)**
 
 - Tabel `ac_schedule_entries` (migrasi `2026_10_21_200007`; FK gabungan ke kelas & mapel kelas, ikut terhapus bila mapel dilepas atau kelas kosong dihapus); model `Domain/Classroom/ScheduleEntry`.
 - `Application/Classroom/ManageSchedule` (tambah/ubah/hapus), `ScheduleData` (jam "HH:MM"), `ScheduleConflicts` (bentrok kelas; bentrok guru seluruh yayasan pada tahun ajaran yang beririsan; kunci `pg_advisory_xact_lock` per guru). `ManageClassSubjects::setTeacher` memeriksa bentrok guru baru; `remove` mencatat jumlah jadwal yang ikut terhapus.
 - `ScheduleController` + route `POST kelas/{class}/jadwal`, `PATCH/DELETE kelas/jadwal/{entry}`; bagian **Jadwal pelajaran** di detail kelas (`components/academic/schedule-actions.tsx`).
 - Audit `academic.schedule_entry_added|updated|removed`.
-- Target bukti: 501 test (7 test baru, `ScheduleTest`).
+- Bukti: 501 test lulus (7 test baru, `ScheduleTest`) setelah perbaikan Larastan `noUnnecessaryCollectionCall` (pakai `->first([...])` pada query, bukan `->get()->first()`); uji manual owner lancar.
+
+**AC-3d — Kelas saya: KODE SIAP (2026-10-21, menunggu verifikasi)**
+
+- Kontrak HR `EmployeeLookup::employeeIdForMembership` (pegawai milik akun yang login).
+- `Application/Classroom/MyClasses` (kelas tahun berjalan sebagai wali kelas/pengampu di lembaga tempat ia aktif; siswa; kontak utama untuk wali kelas; jadwal mengajar). `MyClassesController` + route `GET kelas-saya`, `GET kelas-saya/{class}`; halaman `/kelas-saya`, menu **Kelas saya** (prop bersama `academic.myClasses` dari `AcademicServiceProvider`).
+- Tanpa permission baru: akses dari data penugasan mengajar; kelas yang tidak dipegang → 404. Catatan form kelas & docblock `ManageClasses` disesuaikan dengan §7 baru.
+- Target bukti: 506 test (5 test baru, `MyClassesTest`).
 
 ## Struktur file utama
 
@@ -326,5 +333,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-3c (PANDUAN-AC-3C.md), commit & push.
-2. AC-3d Kelas saya (PRD-002 §16).
+1. Verifikasi AC-3d (PANDUAN-AC-3D.md), commit & push → AC-3 selesai.
+2. Pilih tahap berikutnya bersama owner (AC-4 Presensi siswa, HR-2, atau lainnya).

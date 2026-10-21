@@ -6,6 +6,7 @@ use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\ClassSubjectController;
 use Modules\Academic\Http\Controllers\ClassYearEndController;
+use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ScheduleController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
@@ -90,6 +91,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/{class}/jadwal', [ScheduleController::class, 'store'])->whereUuid('class')->name('academic.schedule.store');
     Route::patch('kelas/jadwal/{entry}', [ScheduleController::class, 'update'])->whereUuid('entry')->name('academic.schedule.update');
     Route::delete('kelas/jadwal/{entry}', [ScheduleController::class, 'destroy'])->whereUuid('entry')->name('academic.schedule.destroy');
+
+    // Kelas saya (AC-3d): wali kelas & guru pengampu yang sedang login. Akses dari data penugasan mengajar.
+    Route::get('kelas-saya', [MyClassesController::class, 'index'])->name('academic.my-classes.index');
+    Route::get('kelas-saya/{class}', [MyClassesController::class, 'show'])->whereUuid('class')->name('academic.my-classes.show');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
     // (+ academic.students.manage untuk lulus) di lembaga kelas.

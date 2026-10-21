@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     CalendarDays,
+    ClipboardList,
     GraduationCap,
     LayoutGrid,
     Network,
@@ -78,6 +79,12 @@ const subjectsNavItem: NavItem = {
     icon: BookOpen,
 };
 
+const myClassesNavItem: NavItem = {
+    title: 'Kelas saya',
+    href: '/kelas-saya',
+    icon: ClipboardList,
+};
+
 const academicCalendarNavItem: NavItem = {
     title: 'Kalender akademik',
     href: '/akademik/kalender',
@@ -91,7 +98,7 @@ const platformNavItem: NavItem = {
 };
 
 export function AppSidebar() {
-    const { auth, permissions, context } = usePage().props;
+    const { auth, permissions, context, academic } = usePage().props;
     // Halaman tingkat Yayasan (Katalog SDM, Kalender akademik, Log audit) hanya bisa dibuka dari lembaga kerja
     // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
     // walaupun role tingkat Yayasan-nya terpasang.
@@ -107,6 +114,7 @@ export function AppSidebar() {
         ...(permissions.includes('academic.students.view')
             ? [studentsNavItem, classesNavItem, subjectsNavItem]
             : []),
+        ...(academic?.myClasses ? [myClassesNavItem] : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
             : []),

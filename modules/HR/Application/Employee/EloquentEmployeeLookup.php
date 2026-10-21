@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Application\Employee;
 
+use Illuminate\Support\Str;
 use Modules\HR\Contracts\EmployeeLookup;
 use Modules\HR\Domain\Employee\Employee;
 
@@ -29,5 +30,20 @@ final class EloquentEmployeeLookup implements EmployeeLookup
         }
 
         return $ids;
+    }
+
+    public function employeeIdForMembership(string $tenantId, string $membershipId): ?string
+    {
+        if (! Str::isUuid($membershipId)) {
+            return null;
+        }
+
+        $id = Employee::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('membership_id', $membershipId)
+            ->value('id');
+
+        return $id === null ? null : (string) $id;
     }
 }

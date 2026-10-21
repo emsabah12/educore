@@ -2,7 +2,7 @@
 
 - **Versi:** 1.2 (2026-10-21: rincian AC-3 mata pelajaran, pengampu, jadwal, Kelas saya — §16; §7 akses wali kelas/guru diperbarui)
 - **Versi sebelumnya:** 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b SELESAI (`26d3594`), AC-3c dikerjakan; AC-4 dst. hanya digariskan
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 dirinci (§16)**: AC-3a SELESAI (`9a0b128`), AC-3b SELESAI (`26d3594`), AC-3c SELESAI (`2e58909`), AC-3d dikerjakan; AC-4 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -255,7 +255,7 @@ Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa
 ## 7. Batas modul
 
 - Arah dependency: `Academic → Core, HR` (ADR-001 §2.2). Academic hanya memakai **kontrak publik HR** (arch test sudah ada).
-- Kontrak HR `Modules\HR\Contracts\EmployeeLookup` (AC-1c-b2): membership mana yang punya profil pegawai; dipakai untuk mengunci data diri orang tua/wali yang juga pegawai. Tidak membuka data kepegawaian.
+- Kontrak HR `Modules\HR\Contracts\EmployeeLookup` (AC-1c-b2): membership mana yang punya profil pegawai; dipakai untuk mengunci data diri orang tua/wali yang juga pegawai. Tidak membuka data kepegawaian; AC-3d menambah `employeeIdForMembership` untuk menu Kelas saya.
 - Kontrak HR baru [ASUMSI]: `Modules\HR\Contracts\ActiveEmployees` — daftar pegawai aktif yang punya penempatan berjalan di sebuah lembaga (id, nama) dan pemeriksaan "pegawai X aktif di lembaga Y". Dipakai untuk memilih dan memvalidasi wali kelas.
 - **Jabatan "Wali Kelas" di HR tidak otomatis menjadi wali kelas** di Academic (jabatan bukan hak akses, PRD-001 §4.1). [LAMA]
 - **Wali kelas & guru pengampu** hanya melihat kelas yang ia pegang di menu **Kelas saya** (AC-3d, §16). Hak ini tidak berlaku di menu Siswa/Kelas biasa dan berakhir saat penugasannya selesai atau ia tidak aktif lagi di lembaga itu. [OWNER, 2026-10-21 — memperbarui aturan lama "menjadi wali kelas tidak memberi hak akses apa pun"]
@@ -427,3 +427,6 @@ Dipecah empat bagian, dikerjakan berurutan. Mapel, pengampu, dan jadwal dikelola
 - Isi: daftar kelas yang ia pegang (sebagai wali kelas dan/atau mapel yang diampu), siswa di kelas itu, dan **jadwal mengajar** mingguan. Hanya bisa dilihat.
 - **Data yang terlihat** [OWNER, 2026-10-21]: semua guru melihat nama, L/P, NISN, nomor induk. **Wali kelas** juga melihat **kontak utama orang tua/wali** (nama + HP) siswa kelasnya. Data pribadi lain (alamat, tanggal lahir, orang tua lain) tidak terlihat.
 - Hak ini tidak membuka menu Siswa/Kelas biasa (tetap mengikuti §5).
+- **Mencakup semua kelas yang ia pegang di yayasan ini, tidak dibatasi lembaga kerja aktif** [ASUMSI]: guru SMP pagi & MDA sore melihat satu jadwal gabungan. Kelas di lembaga tempat ia tidak lagi ditempatkan aktif tidak tampil.
+- Tanpa permission baru: akses ditentukan data penugasan (wali kelas/pengampu); kelas yang tidak ia pegang → 404. Menu muncul hanya bila ia memegang kelas. Akun yang tidak tertaut ke pegawai diberi tahu di halaman.
+- Kontrak HR: `EmployeeLookup::employeeIdForMembership` (hanya ID pegawai; status & penempatan lewat `ActiveEmployees::describe`).

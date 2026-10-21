@@ -259,6 +259,11 @@ test('orang tua/wali yang juga pegawai atau siswa: hanya hubungannya yang bisa d
         {
             return in_array($this->employeeMembershipId, $membershipIds, true) ? [$this->employeeMembershipId] : [];
         }
+
+        public function employeeIdForMembership(string $tenantId, string $membershipId): ?string
+        {
+            return null;
+        }
     });
 
     $link = walLink($this->tenant, $this->ahmad, 'Siti Aminah');

@@ -26,7 +26,7 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Kelas tahun ajaran yang sudah lewat hanya bisa dilihat (tidak bisa diubah).
  * - Tingkat 1–12 untuk semua lembaga (belum dibatasi per jenjang).
  * - Wali kelas: pegawai aktif dengan penempatan berjalan di lembaga itu (kontrak HR ActiveEmployees);
- *   boleh memegang lebih dari satu kelas [ASUMSI]. Menjadi wali kelas tidak memberi hak akses (§7).
+ *   boleh memegang lebih dari satu kelas [ASUMSI]. Wali kelas hanya melihat kelasnya di menu Kelas saya (§7, AC-3d).
  *
  * Hak akses (academic.classes.manage di lembaga kelas) dicek pemanggil lewat Gate.
  */

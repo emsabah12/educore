@@ -418,7 +418,7 @@ function ClassForm({
             errorBag={item ? 'editClass' : 'createClass'}
             submitLabel={item ? 'Simpan kelas' : 'Tambah kelas'}
             onDone={onDone}
-            note="Wali kelas dipilih dari pegawai aktif yang ditempatkan di lembaga ini. Menjadi wali kelas tidak memberi hak akses apa pun."
+            note="Wali kelas dipilih dari pegawai aktif yang ditempatkan di lembaga ini. Wali kelas melihat siswa kelasnya di menu Kelas saya."
         >
             {(errors) => (
                 <>
