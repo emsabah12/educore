@@ -2,7 +2,7 @@
 
 - **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
 - **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a dikerjakan; HR-2, HR-4 dst. belum dirinci
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b dikerjakan; HR-2, HR-4 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -365,6 +365,7 @@ Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001)
 - Ajukan: jenis (aktif), tanggal mulai–selesai (boleh di masa depan; boleh mundur maks. 30 hari untuk sakit/izin mendadak [ASUMSI]), alasan (wajib, maks. 500). Jumlah hari tampil otomatis sebelum dikirim.
 - Ditolak bila: melebihi batas hari per pengajuan; saldo tidak cukup (dihitung dari saldo dikurangi pengajuan lain yang masih menunggu [ASUMSI]); bertumpang tanggal dengan pengajuan lain yang masih menunggu atau sudah disetujui.
 - Status: **Menunggu** (tahap 1 / tahap 2) → **Disetujui** / **Ditolak**; pengaju bisa **Batalkan** selama masih menunggu.
+- Rincian teknis HR-3b [ASUMSI]: halaman `/cuti-saya` (menu **Cuti saya** muncul bila akun tertaut ke data pegawai); jumlah hari kerja tampil sebelum dikirim (dihitung server); status disimpan `MENUNGGU`, `DISETUJUI`, `DITOLAK`, `DITARIK` (ditarik pengaju), `DIBATALKAN` (oleh Admin SDM, HR-3d); jumlah tahap diambil dari aturan `hr.leave_approval` (bawaan 2) saat diajukan; rentang paling lama 366 hari; riwayat menampilkan 100 pengajuan terbaru. Audit `hr.leave_requested` (jenis, tanggal, hari, lembaga, jumlah tahap; tanpa alasan) dan `hr.leave_withdrawn`.
 
 ### 13.4 HR-3c Persetujuan berjenjang
 

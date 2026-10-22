@@ -7,6 +7,7 @@ import {
     GraduationCap,
     LayoutGrid,
     Network,
+    Plane,
     School,
     ScrollText,
     ShieldCheck,
@@ -68,6 +69,12 @@ const leaveSettingsNavItem: NavItem = {
     icon: CalendarCog,
 };
 
+const myLeaveNavItem: NavItem = {
+    title: 'Cuti saya',
+    href: '/cuti-saya',
+    icon: Plane,
+};
+
 const studentsNavItem: NavItem = {
     title: 'Siswa',
     href: '/siswa',
@@ -105,7 +112,7 @@ const platformNavItem: NavItem = {
 };
 
 export function AppSidebar() {
-    const { auth, permissions, context, academic } = usePage().props;
+    const { auth, permissions, context, academic, hr } = usePage().props;
     // Halaman tingkat Yayasan (Katalog SDM, Kalender akademik, Log audit) hanya bisa dibuka dari lembaga kerja
     // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
     // walaupun role tingkat Yayasan-nya terpasang.
@@ -122,6 +129,7 @@ export function AppSidebar() {
             ? [studentsNavItem, classesNavItem, subjectsNavItem]
             : []),
         ...(academic?.myClasses ? [myClassesNavItem] : []),
+        ...(hr?.isEmployee ? [myLeaveNavItem] : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
             : []),

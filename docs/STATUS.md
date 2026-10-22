@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** HR-3a — jenis cuti & kalender kerja (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `d233839` — feat(academic): AC-5d rapor
+- **Tahap aktif:** HR-3b — Cuti saya (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `4cf3e44` — feat(hr): HR-3a jenis cuti dan kalender kerja
 
 ## Keputusan penting
 
@@ -403,14 +403,21 @@
 
 **HR-3 Cuti & Izin (PRD-001 §13, rincian disetujui 2026-10-22)**
 
-**HR-3a — Jenis cuti & kalender kerja: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**HR-3a — Jenis cuti & kalender kerja: SELESAI (2026-10-22, commit `4cf3e44`)**
 
 - Permission baru `hr.leave.approve` (Kepala Lembaga, Pimpinan, Admin SDM, Admin Yayasan) dan `hr.leave.manage` (Admin SDM, Admin Yayasan) → jalankan `educore:sync-access`.
 - Migrasi `2026_10_22_100005`: `hr_leave_types` (kode tetap, berjatah + jatah per tahun, batas hari per pengajuan, aktif) dan `hr_holidays` (tanggal merah yayasan).
 - `Domain/Leave/{LeaveType, Holiday, Exceptions/LeaveException}`; `Application/Leave/{DefaultLeaveTypes, ManageLeaveTypes, ManageWorkHolidays, WeeklyOffSetting (aturan berjenjang hr.weekly_off_days, bawaan Ahad), WorkCalendar (hari kerja), LeaveSettingsOverview}`; seeder `HrLeaveTypeSeeder` (dipanggil DatabaseSeeder).
 - `LeaveSettingsController` + halaman `hr/leave-settings` (`/pegawai/cuti/pengaturan`, menu **Pengaturan cuti** di tingkat Yayasan).
 - Audit `hr.leave_type_created|updated|deactivated|reactivated`, `hr.holiday_added|updated|removed`.
-- Target bukti: 553 test (3 test baru, `LeaveSettingsTest`; `AccessCatalogTest` disesuaikan: 17 permission).
+- Bukti: 553 test lulus (3 test baru, `LeaveSettingsTest`; `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan untuk permission baru); uji manual owner lancar.
+
+**HR-3b — Cuti saya: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_100006`: `hr_leave_requests` (pegawai, jenis, lembaga penempatan utama, tanggal, hari kerja + rincian per tahun, alasan, status, jumlah/tahap persetujuan, dicatat oleh).
+- `Domain/Leave/{LeaveRequest, LeaveStatus}`; `Application/Leave/{LeaveApprovalSetting (aturan berjenjang hr.leave_approval, bawaan 2), LeaveBalances (saldo per tahun), ManageLeaveRequests (plan, submit, withdraw)}`.
+- `MyLeaveController`: `/cuti-saya` (+ `/hitung` JSON pratinjau hari, `POST`, `/{leave}/tarik`); halaman `hr/my-leave`; menu **Cuti saya** lewat prop bersama `hr.isEmployee` (HRServiceProvider).
+- Target bukti: 556 test (3 test baru, `MyLeaveTest`).
 
 ## Struktur file utama
 
@@ -444,9 +451,10 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Test yang bergantung pada tanggal: kunci "hari ini" dengan `$this->travelTo(...)` di awal `beforeEach`, sebelum seeder (P4b).
 - Sebelum mulai tahap baru di salinan kerja: `git fetch` lalu pastikan berbasis commit terakhir di origin (AC-5b sempat dimulai di atas commit lama; diselamatkan dengan stash → reset → pop).
 - Pegawai yang ditautkan ke akun yang sudah ada memakai nama orang akun itu (bukan nama di `NewEmployeeData`); ekspektasi test harus memakai nama tersebut (AC-5d-fix1).
+- Permission baru untuk role yang sudah ada: perbarui juga test yang mencocokkan daftar permission role (mis. `TreeAuthorizationTest`, `AccessCatalogTest`). Seeder yang mencatat audit: saring audit di test per subjek (HR-3a-fix1).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-3a (PANDUAN-HR3A.md), migrate, sync-access, seeder jenis cuti, commit & push.
-2. HR-3b pengajuan (Cuti saya) → HR-3c persetujuan berjenjang → HR-3d kelola cuti SDM (PRD-001 §13).
+1. Verifikasi HR-3b (PANDUAN-HR3B.md), migrate, commit & push.
+2. HR-3c persetujuan berjenjang → HR-3d kelola cuti SDM (PRD-001 §13).

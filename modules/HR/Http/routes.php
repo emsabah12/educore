@@ -7,6 +7,7 @@ use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
+use Modules\HR\Http\Controllers\MyLeaveController;
 
 /*
  * Route web modul HR (PRD-001 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -32,6 +33,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/cuti/hari-libur', [LeaveSettingsController::class, 'storeHoliday'])->name('hr.holidays.store');
     Route::patch('pegawai/cuti/hari-libur/{holiday}', [LeaveSettingsController::class, 'updateHoliday'])->whereUuid('holiday')->name('hr.holidays.update');
     Route::delete('pegawai/cuti/hari-libur/{holiday}', [LeaveSettingsController::class, 'destroyHoliday'])->whereUuid('holiday')->name('hr.holidays.destroy');
+
+    // Cuti saya — layanan mandiri pegawai (PRD-001 §13.3, HR-3b). Tanpa permission: akun tertaut ke data pegawai.
+    Route::get('cuti-saya', [MyLeaveController::class, 'index'])->name('hr.my-leave.index');
+    Route::get('cuti-saya/hitung', [MyLeaveController::class, 'preview'])->name('hr.my-leave.preview');
+    Route::post('cuti-saya', [MyLeaveController::class, 'store'])->name('hr.my-leave.store');
+    Route::post('cuti-saya/{leave}/tarik', [MyLeaveController::class, 'withdraw'])->whereUuid('leave')->name('hr.my-leave.withdraw');
 
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');

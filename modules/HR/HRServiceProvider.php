@@ -3,14 +3,17 @@
 namespace Modules\HR;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Inertia\Inertia;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Settings\SettingRegistry;
+use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\EloquentActiveEmployees;
 use Modules\HR\Application\Employee\EloquentEmployeeLookup;
+use Modules\HR\Application\Leave\LeaveApprovalSetting;
 use Modules\HR\Application\Leave\WeeklyOffSetting;
 use Modules\HR\Console\PruneImportsCommand;
 use Modules\HR\Contracts\ActiveEmployees;
@@ -44,7 +47,13 @@ class HRServiceProvider extends ModuleServiceProvider
         AuditAction::registerLabels(HrAuditAction::labels());
 
         // Libur mingguan kalender kerja HR per jenjang/lembaga (PRD-001 §13.2).
-        $this->app->make(SettingRegistry::class)->define(WeeklyOffSetting::definition());
+        $this->app->make(SettingRegistry::class)
+            ->define(WeeklyOffSetting::definition())
+            // Alur persetujuan cuti per jenjang/lembaga (PRD-001 §13.4).
+            ->define(LeaveApprovalSetting::definition());
+
+        // Petunjuk menu "Cuti saya" (HR-3b): akun tertaut ke data pegawai di yayasan aktif.
+        Inertia::share('hr', fn (): array => ['isEmployee' => $this->isEmployee()]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([PruneImportsCommand::class]);
@@ -54,5 +63,15 @@ class HRServiceProvider extends ModuleServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('hr:prune-imports')->hourly()->withoutOverlapping();
         });
+    }
+
+    /**
+     * Pengguna yang sedang login punya data pegawai di yayasan kerja aktif.
+     */
+    private function isEmployee(): bool
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        return $context !== null && $this->app->make(EmployeeLookup::class)->employeeIdForMembership($context->tenantId, $context->membershipId) !== null;
     }
 }
