@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
+import PrintLayout from '@/layouts/print-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
 const appName = import.meta.env.VITE_APP_NAME || 'EduCore';
@@ -18,6 +19,9 @@ void createInertiaApp({
                 return AuthLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
+            // Halaman cetak (mis. rapor): tanpa menu & kepala aplikasi.
+            case name.startsWith('print/'):
+                return PrintLayout;
             default:
                 return AppLayout;
         }

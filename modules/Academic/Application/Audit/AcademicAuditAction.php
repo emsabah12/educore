@@ -100,6 +100,8 @@ final class AcademicAuditAction
 
     public const GRADE_SHEET_RULES_APPLIED = 'academic.grade_sheet_rules_applied';
 
+    public const REPORT_NOTES_SAVED = 'academic.report_notes_saved';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -163,6 +165,7 @@ final class AcademicAuditAction
             self::GRADE_SHEET_FINALIZED => 'Nilai mapel difinalkan',
             self::GRADE_SHEET_REOPENED => 'Nilai mapel dibuka kembali',
             self::GRADE_SHEET_RULES_APPLIED => 'Aturan nilai mapel diperbarui',
+            self::REPORT_NOTES_SAVED => 'Catatan wali kelas di rapor disimpan',
         ];
     }
 }

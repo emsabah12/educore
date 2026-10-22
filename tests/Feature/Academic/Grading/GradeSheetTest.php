@@ -256,7 +256,7 @@ test('salinan aturan: aturan baru tidak mengubah lembar sampai operator menerapk
     $this->actingAs($this->admin)->patch(route('academic.years.update', ['year' => $this->year->id]), [
         'name' => $this->year->name, 'start_date' => $this->year->start_date->toDateString(), 'end_date' => $this->year->end_date->toDateString(),
         'terms' => [['name' => 'Semester Ganjil', 'start_date' => $this->term->start_date->toDateString(), 'end_date' => $this->term->end_date->toDateString()]],
-    ])->assertSessionHasErrors(['terms' => 'Semester Genap sudah punya nilai siswa, jadi tidak bisa dihapus. Jumlah semester tidak bisa dikurangi.']);
+    ])->assertSessionHasErrors(['terms' => 'Semester Genap sudah punya nilai atau catatan rapor, jadi tidak bisa dihapus. Jumlah semester tidak bisa dikurangi.']);
 
     expect(Term::query()->withoutGlobalScope('tenant')->where('academic_year_id', $this->year->id)->count())->toBe(2);
 });

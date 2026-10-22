@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-5c — leger nilai kelas (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `1842b9a` — feat(academic): AC-5b lembar nilai
+- **Tahap aktif:** AC-5d — rapor (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `8f7c63e` — feat(academic): AC-5c leger nilai kelas
 
 ## Keputusan penting
 
@@ -385,11 +385,19 @@
 - Audit `academic.grades_saved`, `grade_sheet_finalized`, `grade_sheet_reopened`, `grade_sheet_rules_applied`.
 - Bukti: 544 test lulus (4 test baru, `GradeSheetTest`); uji manual owner lancar.
 
-**AC-5c — Leger nilai kelas: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**AC-5c — Leger nilai kelas: SELESAI (2026-10-22, commit `8f7c63e`)**
 
 - `Application/Grading/GradeLedger` (`build`: mapel + status lembar + KKM, siswa × nilai akhir, rata-rata siswa/mapel/kelas, jumlah di bawah KKM; `write`: .xlsx openspout; `fileName`).
 - `GradeLedgerController`: `kelas/{class}/leger` (+ `/unduh`, izin lihat siswa) dan `kelas-saya/{class}/leger` (+ `/unduh`, wali kelas); halaman `academic/grades/ledger` (tabel di layar besar, kartu di HP). Tombol **Leger nilai** di detail kelas & Kelas saya (wali kelas).
-- Target bukti: 547 test (3 test baru, `GradeLedgerTest`).
+- Bukti: 547 test lulus (3 test baru, `GradeLedgerTest`); uji manual owner lancar.
+
+**AC-5d — Rapor: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_200012`: `ac_report_notes` (kelas × semester × pendaftaran, catatan wali kelas).
+- `Application/Grading/TermRoster` (daftar siswa kelas per semester; dipakai leger & rapor), `ReportCards` (`build`: mapel final, nilai/predikat/deskripsi, jumlah & rata-rata, presensi S/I/A semester, catatan, nama wali kelas; `saveNotes`).
+- `ReportCardController`: `kelas/{class}/rapor` (+ `/catatan`, `/cetak`) dan `kelas-saya/{class}/rapor` (wali kelas). Halaman `academic/grades/report-index` dan halaman cetak `print/report-cards` dengan `layouts/print-layout.tsx` (awalan halaman `print/` di `app.tsx`). Tombol **Rapor** di detail kelas & Kelas saya.
+- Audit `academic.report_notes_saved`. Semester bercatatan rapor tidak bisa dihapus.
+- Target bukti: 550 test (3 test baru, `ReportCardTest`).
 
 ## Struktur file utama
 
@@ -426,5 +434,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-5c (PANDUAN-AC5C.md), commit & push.
-2. AC-5d rapor (PRD-002 §19).
+1. Verifikasi AC-5d (PANDUAN-AC5D.md), migrate, commit & push → AC-5 selesai.
+2. Sesudahnya: pilihan owner (HR-2, AC-6, atau penyempurnaan).

@@ -4,6 +4,7 @@ import {
     ChartColumn,
     ClipboardCheck,
     Download,
+    FileText,
     NotebookPen,
     Phone,
     Sheet,
@@ -97,6 +98,14 @@ export default function MyClassDetail({ class: item, students }: Props) {
                             <Link href={`/kelas-saya/${item.id}/leger`}>
                                 <Sheet />
                                 Leger nilai
+                            </Link>
+                        </Button>
+                    )}
+                    {item.homeroom && (
+                        <Button variant="outline" asChild>
+                            <Link href={`/kelas-saya/${item.id}/rapor`}>
+                                <FileText />
+                                Rapor
                             </Link>
                         </Button>
                     )}

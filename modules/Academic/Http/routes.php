@@ -10,6 +10,7 @@ use Modules\Academic\Http\Controllers\ClassYearEndController;
 use Modules\Academic\Http\Controllers\GradeController;
 use Modules\Academic\Http\Controllers\GradeLedgerController;
 use Modules\Academic\Http\Controllers\MyClassesController;
+use Modules\Academic\Http\Controllers\ReportCardController;
 use Modules\Academic\Http\Controllers\ScheduleController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
@@ -141,6 +142,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('kelas/{class}/leger/unduh', [GradeLedgerController::class, 'export'])->whereUuid('class')->name('academic.ledger.export');
     Route::get('kelas-saya/{class}/leger', [GradeLedgerController::class, 'showMine'])->whereUuid('class')->name('academic.my-ledger.show');
     Route::get('kelas-saya/{class}/leger/unduh', [GradeLedgerController::class, 'exportMine'])->whereUuid('class')->name('academic.my-ledger.export');
+
+    // Rapor (PRD-002 §19 AC-5d): daftar + catatan wali kelas, dan halaman cetak.
+    Route::get('kelas/{class}/rapor', [ReportCardController::class, 'index'])->whereUuid('class')->name('academic.reports.index');
+    Route::post('kelas/{class}/rapor/catatan', [ReportCardController::class, 'saveNotes'])->whereUuid('class')->name('academic.reports.notes');
+    Route::get('kelas/{class}/rapor/cetak', [ReportCardController::class, 'print'])->whereUuid('class')->name('academic.reports.print');
+    Route::get('kelas-saya/{class}/rapor', [ReportCardController::class, 'indexMine'])->whereUuid('class')->name('academic.my-reports.index');
+    Route::post('kelas-saya/{class}/rapor/catatan', [ReportCardController::class, 'saveNotesMine'])->whereUuid('class')->name('academic.my-reports.notes');
+    Route::get('kelas-saya/{class}/rapor/cetak', [ReportCardController::class, 'printMine'])->whereUuid('class')->name('academic.my-reports.print');
     Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage

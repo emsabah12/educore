@@ -7,6 +7,7 @@ import {
     CircleAlert,
     ClipboardCheck,
     Download,
+    FileText,
     LogOut,
     Sheet,
     UserPlus,
@@ -219,6 +220,14 @@ export default function ClassDetail(props: Props) {
                             <Link href={`/kelas/${item.id}/leger`}>
                                 <Sheet />
                                 Leger nilai
+                            </Link>
+                        </Button>
+                    )}
+                    {props.subjects.length > 0 && members.length > 0 && (
+                        <Button variant="outline" asChild>
+                            <Link href={`/kelas/${item.id}/rapor`}>
+                                <FileText />
+                                Rapor
                             </Link>
                         </Button>
                     )}
