@@ -2,7 +2,7 @@
 
 - **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
 - **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a dikerjakan; HR-2, HR-4 dst. belum dirinci
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b dikerjakan; HR-2, HR-4 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -396,6 +396,10 @@ Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001)
     - Batalkan: hanya cuti berstatus Disetujui (termasuk yang sudah lewat); alasan wajib maks. 300, terbaca pegawai di Cuti saya; keputusan `BATAL`. Cuti yang masih menunggu diputuskan lewat Persetujuan cuti.
     - Admin SDM tidak bisa mencatat atau membatalkan cutinya sendiri (BR-017).
     - Detail menampilkan riwayat keputusan lengkap (siapa, kapan, catatan).
+    - **3d-b — Penyesuaian jatah** (`hr_leave_adjustments`): +/− hari per pegawai × jenis berjatah × tahun, alasan wajib (maks. 300); hanya tahun berjalan atau tahun sebelumnya, pegawai aktif, tidak boleh membuat sisa negatif, tidak untuk diri sendiri. Tidak bisa diubah/dihapus; koreksi dengan penyesuaian baru. Pegawai melihat angka penyesuaian di Cuti saya (alasannya tidak).
+    - **3d-b — Saldo cuti** (`/pegawai/cuti/saldo`): pegawai aktif, 50 per halaman, saringan tahun (5 tahun ke belakang s.d. tahun depan), lembaga (penempatan utama, termasuk bawahannya), jenis, cari nama/nomor induk; riwayat penyesuaian per pegawai.
+    - **3d-b — Rekap .xlsx** [OWNER, 2026-10-22: dua lembar]: "Daftar cuti" = cuti **Disetujui** yang jatuh di periode (setahun atau satu bulan), tanpa alasan; "Saldo {tahun}" = pegawai aktif × jenis berjatah. Saringan lembaga & jenis ikut dipakai.
+    - **3d-b — Detail pegawai**: bagian "Cuti {tahun}" (saldo + 5 cuti terbaru) bagi pemilik `hr.employees.view_personal` atas pegawai itu; Admin SDM mendapat tombol Catat cuti dan Saldo.
 
 ### 13.6 Audit [ASUMSI]
 

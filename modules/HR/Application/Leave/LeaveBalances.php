@@ -9,7 +9,8 @@ use Modules\HR\Domain\Leave\LeaveType;
 /**
  * Saldo jatah cuti (PRD-001 §13.2, OD-HR-08): per pegawai × jenis berjatah × tahun kalender.
  *
- * saldo = jatah per tahun + penyesuaian (HR-3d) − hari cuti DISETUJUI yang jatuh di tahun itu.
+ * saldo = jatah per tahun + penyesuaian (`hr_leave_adjustments`, HR-3d-b) − hari cuti DISETUJUI yang
+ * jatuh di tahun itu.
  * "Menunggu" ditampilkan terpisah dan ikut dikurangkan saat mengajukan pengajuan baru [ASUMSI].
  * Sisa tidak dibawa ke tahun berikutnya.
  *
@@ -47,7 +48,7 @@ final class LeaveBalances
     public function of(LeaveType $type, string $employeeId, int $year, ?string $exceptRequestId = null): array
     {
         $quota = (int) $type->annual_quota;
-        $adjustment = 0;
+        $adjustment = $this->adjustment($employeeId, $type->id, $year);
         $used = $this->days($employeeId, $type->id, $year, LeaveStatus::Approved, $exceptRequestId);
         $pending = $this->days($employeeId, $type->id, $year, LeaveStatus::Pending, $exceptRequestId);
 
@@ -60,6 +61,79 @@ final class LeaveBalances
             'pending' => $pending,
             'remaining' => $quota + $adjustment - $used,
         ];
+    }
+
+    /**
+     * Saldo banyak pegawai sekaligus (halaman Saldo cuti & rekap): 3 query untuk semua pegawai.
+     *
+     * @param  list<string>  $employeeIds
+     * @param  iterable<LeaveType>  $types  jenis berjatah
+     * @return array<string, array<string, Balance>> pegawai → jenis → saldo
+     */
+    public function table(array $employeeIds, iterable $types, int $year): array
+    {
+        if ($employeeIds === []) {
+            return [];
+        }
+
+        $sums = [];
+
+        $requests = DB::table('hr_leave_requests')
+            ->whereIn('employee_id', $employeeIds)
+            ->whereIn('status', [LeaveStatus::Approved->value, LeaveStatus::Pending->value])
+            ->groupBy('employee_id', 'leave_type_id', 'status')
+            ->selectRaw('employee_id, leave_type_id, status, coalesce(sum((days_by_year->>?)::int), 0) AS total', [(string) $year])
+            ->get();
+
+        foreach ($requests as $row) {
+            $sums[(string) $row->employee_id][(string) $row->leave_type_id][(string) $row->status] = (int) $row->total;
+        }
+
+        $adjustments = DB::table('hr_leave_adjustments')
+            ->whereIn('employee_id', $employeeIds)
+            ->where('year', $year)
+            ->groupBy('employee_id', 'leave_type_id')
+            ->selectRaw('employee_id, leave_type_id, sum(days) AS total')
+            ->get();
+
+        foreach ($adjustments as $row) {
+            $sums[(string) $row->employee_id][(string) $row->leave_type_id]['ADJ'] = (int) $row->total;
+        }
+
+        $table = [];
+
+        foreach ($employeeIds as $employeeId) {
+            foreach ($types as $type) {
+                $quota = (int) $type->annual_quota;
+                $values = $sums[$employeeId][$type->id] ?? [];
+                $adjustment = $values['ADJ'] ?? 0;
+                $used = $values[LeaveStatus::Approved->value] ?? 0;
+
+                $table[$employeeId][$type->id] = [
+                    'type_id' => $type->id,
+                    'name' => $type->name,
+                    'quota' => $quota,
+                    'adjustment' => $adjustment,
+                    'used' => $used,
+                    'pending' => $values[LeaveStatus::Pending->value] ?? 0,
+                    'remaining' => $quota + $adjustment - $used,
+                ];
+            }
+        }
+
+        return $table;
+    }
+
+    private function adjustment(string $employeeId, string $typeId, int $year): int
+    {
+        $row = DB::table('hr_leave_adjustments')
+            ->where('employee_id', $employeeId)
+            ->where('leave_type_id', $typeId)
+            ->where('year', $year)
+            ->selectRaw('coalesce(sum(days), 0) AS total')
+            ->first();
+
+        return $row === null ? 0 : (int) $row->total;
     }
 
     /**

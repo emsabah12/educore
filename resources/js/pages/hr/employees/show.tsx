@@ -24,6 +24,11 @@ import {
     TransferForm,
 } from '@/components/hr/employee-actions';
 import Heading from '@/components/heading';
+import {
+    formatLeaveRange,
+    LEAVE_STATUS_CLASS,
+} from '@/components/hr/leave-format';
+import type { LeaveStatus } from '@/components/hr/leave-format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -75,6 +80,31 @@ type Props = {
     manage: ManageData | null;
     /** Hanya untuk Admin Yayasan (PRD-000 §4.7). */
     access: LoginAccess | null;
+    /** Ringkasan cuti (HR-3d-b), hanya bagi yang boleh melihat data pribadi. */
+    leave: LeaveSummary | null;
+    canManageLeave: boolean;
+};
+
+type LeaveSummary = {
+    year: number;
+    balances: {
+        type_id: string;
+        name: string;
+        quota: number;
+        adjustment: number;
+        used: number;
+        pending: number;
+        remaining: number;
+    }[];
+    recent: {
+        id: string;
+        type: string;
+        start_date: string;
+        end_date: string;
+        days: number;
+        status: LeaveStatus;
+        status_label: string;
+    }[];
 };
 
 type EmployeeAction = 'profile' | 'status' | 'addPlacement' | 'end' | 'rehire';
@@ -98,7 +128,13 @@ function formatDate(value: string | null): string {
  * Detail pegawai (PRD-001 §6). Aksi (HR-1d) hanya tampil untuk Admin SDM / Admin Yayasan;
  * server tetap memeriksa ulang setiap aksi.
  */
-export default function EmployeeDetail({ employee, manage, access }: Props) {
+export default function EmployeeDetail({
+    employee,
+    manage,
+    access,
+    leave,
+    canManageLeave,
+}: Props) {
     const lastPeriod = employee.periods[0];
     const isActive = employee.status === 'AKTIF';
     const [action, setAction] = useState<EmployeeAction | null>(null);
@@ -387,6 +423,15 @@ export default function EmployeeDetail({ employee, manage, access }: Props) {
                     )}
                 </Section>
 
+                {leave && (
+                    <LeaveSection
+                        leave={leave}
+                        employeeId={employee.id}
+                        canManage={canManageLeave}
+                        canRecord={canManageLeave && isActive}
+                    />
+                )}
+
                 {access && <LoginAccessSection access={access} />}
 
                 {employee.placements.history.length > 0 && (
@@ -437,6 +482,108 @@ export default function EmployeeDetail({ employee, manage, access }: Props) {
                 </Section>
             </div>
         </>
+    );
+}
+
+/**
+ * Ringkasan cuti tahun berjalan (PRD-001 §13.5, HR-3d-b).
+ */
+function LeaveSection({
+    leave,
+    employeeId,
+    canManage,
+    canRecord,
+}: {
+    leave: LeaveSummary;
+    employeeId: string;
+    canManage: boolean;
+    canRecord: boolean;
+}) {
+    return (
+        <Section title={`Cuti ${leave.year}`}>
+            {leave.balances.length > 0 && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2">
+                    {leave.balances.map((balance) => (
+                        <div
+                            key={balance.type_id}
+                            className="rounded-md border p-3 text-sm"
+                        >
+                            <p className="text-muted-foreground">
+                                {balance.name}
+                            </p>
+                            <p className="text-lg font-semibold">
+                                Sisa {balance.remaining} dari{' '}
+                                {balance.quota + balance.adjustment}
+                            </p>
+                            {balance.pending > 0 && (
+                                <p className="text-muted-foreground">
+                                    Menunggu persetujuan {balance.pending}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {leave.recent.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada pengajuan cuti.
+                </p>
+            ) : (
+                <ul className="divide-y text-sm">
+                    {leave.recent.map((row) => (
+                        <li
+                            key={row.id}
+                            className="flex flex-wrap items-center justify-between gap-2 py-2"
+                        >
+                            <span className="min-w-0">
+                                {canManage ? (
+                                    <Link
+                                        href={`/pegawai/cuti/${row.id}`}
+                                        className="font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {row.type}
+                                    </Link>
+                                ) : (
+                                    <span className="font-medium">
+                                        {row.type}
+                                    </span>
+                                )}{' '}
+                                · {row.days} hari ·{' '}
+                                {formatLeaveRange(row.start_date, row.end_date)}
+                            </span>
+                            <Badge
+                                variant="outline"
+                                className={LEAVE_STATUS_CLASS[row.status]}
+                            >
+                                {row.status_label}
+                            </Badge>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {canManage && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex">
+                    {canRecord && (
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={`/pegawai/cuti/catat?pegawai=${employeeId}`}
+                            >
+                                Catat cuti
+                            </Link>
+                        </Button>
+                    )}
+                    <Button variant="outline" asChild>
+                        <Link
+                            href={`/pegawai/cuti/saldo?pegawai=${employeeId}`}
+                        >
+                            Saldo & penyesuaian
+                        </Link>
+                    </Button>
+                </div>
+            )}
+        </Section>
     );
 }
 

@@ -8,6 +8,7 @@ use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
+use Modules\HR\Http\Controllers\LeaveBalanceController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyLeaveController;
 
@@ -52,6 +53,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/cuti/catat', [LeaveAdminController::class, 'create'])->name('hr.leaves.create');
     Route::get('pegawai/cuti/hitung', [LeaveAdminController::class, 'preview'])->name('hr.leaves.preview');
     Route::post('pegawai/cuti', [LeaveAdminController::class, 'store'])->name('hr.leaves.store');
+    // Saldo, penyesuaian jatah & rekap .xlsx (HR-3d-b).
+    Route::get('pegawai/cuti/saldo', [LeaveBalanceController::class, 'index'])->name('hr.leave-balances.index');
+    Route::post('pegawai/cuti/saldo/{employee}', [LeaveBalanceController::class, 'adjust'])->whereUuid('employee')->name('hr.leave-balances.adjust');
+    Route::get('pegawai/cuti/rekap', [LeaveBalanceController::class, 'export'])->name('hr.leave-balances.export');
     Route::get('pegawai/cuti/{leave}', [LeaveAdminController::class, 'show'])->whereUuid('leave')->name('hr.leaves.show');
     Route::post('pegawai/cuti/{leave}/batalkan', [LeaveAdminController::class, 'cancel'])->whereUuid('leave')->name('hr.leaves.cancel');
 

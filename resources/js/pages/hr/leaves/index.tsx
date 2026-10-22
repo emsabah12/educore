@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Wallet } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import Heading from '@/components/heading';
 import {
@@ -86,12 +86,21 @@ export default function Leaves({ leaves, filters, options }: Props) {
                         title="Kelola cuti"
                         description="Semua pengajuan cuti di yayasan. Keputusan tahap persetujuan ada di menu Persetujuan cuti."
                     />
-                    <Button asChild className="w-full sm:w-auto">
-                        <Link href={`${BASE_URL}/catat`}>
-                            <Plus />
-                            Catat cuti
-                        </Link>
-                    </Button>
+                    {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                        <Button variant="outline" asChild>
+                            <Link href={`${BASE_URL}/saldo`}>
+                                <Wallet />
+                                Saldo & rekap
+                            </Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href={`${BASE_URL}/catat`}>
+                                <Plus />
+                                Catat cuti
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Grid otomatis: kolom saringan turun ke baris berikutnya di layar sempit. */}

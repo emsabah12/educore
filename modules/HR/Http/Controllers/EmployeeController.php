@@ -30,6 +30,7 @@ use Modules\HR\Application\Employee\EmployeeProfile;
 use Modules\HR\Application\Employee\EmployeeVisibility;
 use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
+use Modules\HR\Application\Leave\EmployeeLeaveSummary;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\Employee;
@@ -95,6 +96,7 @@ final class EmployeeController
         EmployeeProfile $profile,
         LoginAccountSummary $loginAccounts,
         MemberAccessSummary $memberAccess,
+        EmployeeLeaveSummary $leaveSummary,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -103,10 +105,11 @@ final class EmployeeController
             abort(404);
         }
 
+        $withPersonal = $visibility->canSee($employee, HrAccess::EMPLOYEES_VIEW_PERSONAL);
         $data = $profile->load(
             $this->tenantContext->require()->tenantId,
             $employee,
-            withPersonal: $visibility->canSee($employee, HrAccess::EMPLOYEES_VIEW_PERSONAL),
+            withPersonal: $withPersonal,
         );
 
         if ($data === null) {
@@ -119,6 +122,9 @@ final class EmployeeController
         return Inertia::render('hr/employees/show', [
             'employee' => $data,
             'canManage' => $canManage,
+            // Ringkasan cuti (HR-3d-b): hanya bagi yang boleh melihat data pribadi pegawai ini.
+            'leave' => $withPersonal ? $leaveSummary->for($this->tenantContext->require()->tenantId, $employee) : null,
+            'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()
                 ? $this->accessData($employee, $viewer instanceof User ? $viewer : null, $loginAccounts, $memberAccess)

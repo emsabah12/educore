@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-22
-- **Tahap aktif:** HR-3d-a — Kelola cuti Admin SDM (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `7da5e98` — feat(hr): HR-3c persetujuan cuti berjenjang
+- **Tahap aktif:** HR-3d-b — Saldo, penyesuaian jatah & rekap cuti (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `4544d79` — feat(hr): HR-3d-a kelola cuti admin SDM
 
 ## Keputusan penting
 
@@ -427,7 +427,7 @@
 - Audit `hr.leave_approved` / `hr.leave_rejected` (tanggal, hari, tahap, final, catatan diisi ya/tidak; tanpa isi catatan).
 - Bukti: 560 test lulus (4 test baru, `LeaveApprovalTest`); uji manual owner lancar.
 
-**HR-3d-a — Kelola cuti Admin SDM: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**HR-3d-a — Kelola cuti Admin SDM: SELESAI (2026-10-22, commit `4544d79`)**
 
 - HR-3d dipecah: **3d-a** daftar, detail, catat atas nama, batalkan; **3d-b** penyesuaian jatah, tabel saldo, rekap .xlsx, ringkasan di detail pegawai.
 - Migrasi `2026_10_22_100008`: keputusan cuti bertambah `DICATAT` (dicatat atas nama) dan `BATAL` (dibatalkan).
@@ -435,7 +435,18 @@
 - `Application/Leave/{LeaveRegister (daftar + saringan lembaga termasuk bawahannya, jenis, status, bulan; detail + riwayat keputusan), LeaveEmployeePicker (cari pegawai aktif berpenempatan utama)}`.
 - `LeaveAdminController`: `/pegawai/cuti` (menu **Kelola cuti**, tingkat Yayasan), `/pegawai/cuti/catat`, `/pegawai/cuti/hitung` (JSON), `POST /pegawai/cuti`, `/pegawai/cuti/{leave}`, `POST /pegawai/cuti/{leave}/batalkan`. Halaman `hr/leaves/{index,show,record}`; bantuan tampilan `components/hr/leave-format.ts`.
 - Cuti saya menampilkan alasan pembatalan. Audit `hr.leave_recorded`, `hr.leave_cancelled` (tanpa isi alasan).
-- Target bukti: 564 test (4 test baru, `LeaveAdminTest`).
+- Bukti: 564 test lulus (4 test baru, `LeaveAdminTest`); perbaikan lint `no-base-to-string` (fix1); uji manual owner lancar.
+- Pelajaran: nilai `FormData.get()` bisa berupa `File`; cek `typeof value === 'string'` sebelum dipakai sebagai teks.
+
+**HR-3d-b — Saldo, penyesuaian jatah & rekap: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_100009`: `hr_leave_adjustments` (pegawai, jenis berjatah, tahun, ±hari, alasan, oleh, waktu). `LeaveBalances` kini menjumlah penyesuaian + `table()` (saldo banyak pegawai sekaligus).
+- `Application/Leave/{ManageLeaveAdjustments (tahun berjalan/sebelumnya, sisa tidak boleh negatif, bukan diri sendiri), LeaveBalanceSheet (saldo per pegawai aktif + saringan), LeaveRecapExport (xlsx: "Daftar cuti" disetujui per periode + "Saldo {tahun}"), EmployeeLeaveSummary}`.
+- `LeaveBalanceController`: `/pegawai/cuti/saldo` (halaman `hr/leaves/balances`), `POST /pegawai/cuti/saldo/{employee}`, `/pegawai/cuti/rekap?tahun=&bulan=&lembaga=&jenis=`. Kelola cuti mendapat tombol **Saldo & rekap**.
+- Detail pegawai: bagian **Cuti {tahun}** (saldo + 5 cuti terbaru) bagi yang boleh melihat data pribadi; Admin SDM mendapat tombol Catat cuti & Saldo.
+- Audit `hr.leave_adjusted` (jenis, tahun, hari; tanpa alasan).
+- Target bukti: 568 test (4 test baru, `LeaveBalanceTest`).
+- Pelajaran (fix1): kolom `jsonb` PostgreSQL menyusun ulang key (yang pendek dulu); di test bandingkan isi audit dengan `toEqual`, bukan `toBe`.
 
 ## Struktur file utama
 
@@ -474,5 +485,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-3d-a (PANDUAN-HR3D-A.md), migrate, commit & push.
-2. HR-3d-b: penyesuaian jatah (`hr_leave_adjustments`), tabel saldo per pegawai, rekap .xlsx, ringkasan cuti di detail pegawai (PRD-001 §13.5).
+1. Verifikasi HR-3d-b (PANDUAN-HR3D-B.md), migrate, commit & push → HR-3 Cuti & Izin selesai.
+2. Tentukan modul berikutnya bersama owner (mis. HR-2 atau HR-4 presensi pegawai, PRD-001 §3).

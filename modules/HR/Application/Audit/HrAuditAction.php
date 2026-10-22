@@ -65,6 +65,9 @@ final class HrAuditAction
     /** Cuti yang sudah disetujui dibatalkan Admin SDM (HR-3d). */
     public const LEAVE_CANCELLED = 'hr.leave_cancelled';
 
+    /** Jatah cuti disesuaikan Admin SDM (HR-3d-b). */
+    public const LEAVE_ADJUSTED = 'hr.leave_adjusted';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -105,6 +108,7 @@ final class HrAuditAction
             self::LEAVE_REJECTED => 'Cuti ditolak',
             self::LEAVE_RECORDED => 'Cuti dicatat atas nama pegawai',
             self::LEAVE_CANCELLED => 'Cuti dibatalkan',
+            self::LEAVE_ADJUSTED => 'Jatah cuti disesuaikan',
         ];
     }
 }
