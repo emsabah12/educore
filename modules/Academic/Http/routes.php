@@ -8,6 +8,7 @@ use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\ClassSubjectController;
 use Modules\Academic\Http\Controllers\ClassYearEndController;
 use Modules\Academic\Http\Controllers\GradeController;
+use Modules\Academic\Http\Controllers\GradeLedgerController;
 use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ScheduleController;
 use Modules\Academic\Http\Controllers\StudentActionController;
@@ -134,6 +135,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('kelas-saya/mapel/{classSubject}/nilai', [GradeController::class, 'showMine'])->whereUuid('classSubject')->name('academic.my-grades.show');
     Route::post('kelas-saya/mapel/{classSubject}/nilai', [GradeController::class, 'storeMine'])->whereUuid('classSubject')->name('academic.my-grades.store');
     Route::post('kelas-saya/mapel/{classSubject}/nilai/final', [GradeController::class, 'finalizeMine'])->whereUuid('classSubject')->name('academic.my-grades.finalize');
+
+    // Leger nilai kelas (PRD-002 §19 AC-5c): pemantau/pengelola kelas dan wali kelas (Kelas saya).
+    Route::get('kelas/{class}/leger', [GradeLedgerController::class, 'show'])->whereUuid('class')->name('academic.ledger.show');
+    Route::get('kelas/{class}/leger/unduh', [GradeLedgerController::class, 'export'])->whereUuid('class')->name('academic.ledger.export');
+    Route::get('kelas-saya/{class}/leger', [GradeLedgerController::class, 'showMine'])->whereUuid('class')->name('academic.my-ledger.show');
+    Route::get('kelas-saya/{class}/leger/unduh', [GradeLedgerController::class, 'exportMine'])->whereUuid('class')->name('academic.my-ledger.export');
     Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage

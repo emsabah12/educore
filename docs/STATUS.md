@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-5b — lembar nilai (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `eb9a8a8` — feat(academic): AC-5a aturan penilaian
+- **Tahap aktif:** AC-5c — leger nilai kelas (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `1842b9a` — feat(academic): AC-5b lembar nilai
 
 ## Keputusan penting
 
@@ -376,14 +376,20 @@
 - Audit: perubahan aturan berjenjang oleh Core.
 - Bukti: 540 test lulus (3 test baru, `GradingRulesTest`); uji manual owner lancar.
 
-**AC-5b — Lembar nilai: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**AC-5b — Lembar nilai: SELESAI (2026-10-22, commit `1842b9a`)**
 
 - Migrasi `2026_10_22_200011`: `ac_grade_sheets` (mapel kelas × semester, status DRAFT/FINAL, salinan aturan `rules`, finalkan oleh/kapan) dan `ac_grades` (lembar × pendaftaran: `scores` jsonb per kode komponen, `final_score`, `description`).
 - `Domain/Grading/{GradeSheet, Exceptions/GradingException}`; `Application/Grading/ManageGrades` (`terms`, `pickTerm`, `sheet`, `save`, `finalize`, `reopen`, `applyLatestRules`, `finalScore`).
 - `GradeController`: pintu operator/pemantau `kelas/mapel/{id}/nilai` dan pintu pengampu `kelas-saya/mapel/{id}/nilai`; halaman `academic/grades/sheet`. Tombol **Nilai** di baris mapel detail kelas; bagian **Nilai mapel yang saya ampu** di Kelas saya (`MyClasses` menambah `taught`).
 - Pengaman: mapel kelas & semester yang punya lembar nilai tidak bisa dilepas/dihapus.
 - Audit `academic.grades_saved`, `grade_sheet_finalized`, `grade_sheet_reopened`, `grade_sheet_rules_applied`.
-- Target bukti: 544 test (4 test baru, `GradeSheetTest`).
+- Bukti: 544 test lulus (4 test baru, `GradeSheetTest`); uji manual owner lancar.
+
+**AC-5c — Leger nilai kelas: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- `Application/Grading/GradeLedger` (`build`: mapel + status lembar + KKM, siswa × nilai akhir, rata-rata siswa/mapel/kelas, jumlah di bawah KKM; `write`: .xlsx openspout; `fileName`).
+- `GradeLedgerController`: `kelas/{class}/leger` (+ `/unduh`, izin lihat siswa) dan `kelas-saya/{class}/leger` (+ `/unduh`, wali kelas); halaman `academic/grades/ledger` (tabel di layar besar, kartu di HP). Tombol **Leger nilai** di detail kelas & Kelas saya (wali kelas).
+- Target bukti: 547 test (3 test baru, `GradeLedgerTest`).
 
 ## Struktur file utama
 
@@ -420,5 +426,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-5b (PANDUAN-AC5B.md), migrate, commit & push.
-2. AC-5c leger → AC-5d rapor (PRD-002 §19).
+1. Verifikasi AC-5c (PANDUAN-AC5C.md), commit & push.
+2. AC-5d rapor (PRD-002 §19).

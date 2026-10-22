@@ -8,6 +8,7 @@ import {
     ClipboardCheck,
     Download,
     LogOut,
+    Sheet,
     UserPlus,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -213,6 +214,14 @@ export default function ClassDetail(props: Props) {
                             Rekap presensi
                         </Link>
                     </Button>
+                    {props.subjects.length > 0 && (
+                        <Button variant="outline" asChild>
+                            <Link href={`/kelas/${item.id}/leger`}>
+                                <Sheet />
+                                Leger nilai
+                            </Link>
+                        </Button>
+                    )}
                     {members.length > 0 && (
                         <Button variant="outline" asChild>
                             {/* Unduhan file: tautan biasa, bukan navigasi Inertia. */}
