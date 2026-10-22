@@ -21,6 +21,7 @@ use Throwable;
 
 /**
  * Pengajuan cuti (PRD-001 §13.3, HR-3b): hitung hari, ajukan, tarik kembali.
+ * Kelola cuti Admin SDM (§13.5, HR-3d): catat atas nama pegawai (langsung disetujui), batalkan.
  *
  * Aturan [OWNER + ASUMSI disetujui, 2026-10-22]:
  * - Pengaju = pegawai AKTIF dengan penempatan utama terbuka; lembaganya menentukan kalender kerja
@@ -30,6 +31,9 @@ use Throwable;
  *   lain yang menunggu/disetujui, atau (jenis berjatah) melebihi sisa jatah tahun itu dikurangi
  *   pengajuan lain yang masih menunggu.
  * - Penarikan hanya selama masih menunggu.
+ * - Catat atas nama: aturan hari, saldo & tumpang tindih sama; boleh mundur paling lama 90 hari
+ *   [ASUMSI]. Pembatalan hanya untuk cuti yang sudah disetujui, alasan wajib; saldo kembali.
+ * - Admin tidak mencatat atau membatalkan cutinya sendiri (BR-017).
  *
  * Hak akses (pegawai itu sendiri / Admin SDM) dicek pemanggil. Alasan tidak masuk audit.
  *
@@ -42,6 +46,11 @@ final class ManageLeaveRequests
     public const BACKDATE_DAYS = 30;
 
     public const MAX_SPAN_DAYS = 366;
+
+    /** Catat atas nama boleh lebih mundur dari pengajuan sendiri (mis. sakit yang dilaporkan belakangan). */
+    public const RECORD_BACKDATE_DAYS = 90;
+
+    public const CANCEL_REASON_MAX_LENGTH = LeaveApprovals::NOTE_MAX_LENGTH;
 
     public function __construct(
         private readonly WorkCalendar $calendar,
@@ -58,7 +67,7 @@ final class ManageLeaveRequests
      *
      * @throws LeaveException
      */
-    public function plan(string $tenantId, string $employeeId, string $startDate, string $endDate): array
+    public function plan(string $tenantId, string $employeeId, string $startDate, string $endDate, int $backdateDays = self::BACKDATE_DAYS): array
     {
         $employee = Employee::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($employeeId)->first();
 
@@ -88,8 +97,8 @@ final class ManageLeaveRequests
             throw LeaveException::make('end_date', 'Satu pengajuan paling lama '.self::MAX_SPAN_DAYS.' hari.');
         }
 
-        if ($start->lessThan(BusinessClock::today()->subDays(self::BACKDATE_DAYS))) {
-            throw LeaveException::make('start_date', 'Tanggal mulai paling lama '.self::BACKDATE_DAYS.' hari sebelum hari ini.');
+        if ($start->lessThan(BusinessClock::today()->subDays($backdateDays))) {
+            throw LeaveException::make('start_date', "Tanggal mulai paling lama {$backdateDays} hari sebelum hari ini.");
         }
 
         $dates = $this->calendar->workingDays($tenantId, $placement->organization_id, $start->toDateString(), $end->toDateString());
@@ -116,14 +125,83 @@ final class ManageLeaveRequests
     }
 
     /**
-     * @param  string|null  $recordedBy  membership yang mencatat bila bukan pegawai itu sendiri (HR-3d)
+     * Pengajuan oleh pegawai itu sendiri (Cuti saya) atau lewat jalur lain yang menunggu persetujuan.
+     *
      * @param  bool  $selfService  diajukan pegawai itu sendiri (Cuti saya): bila ia sendiri berhak menyetujui
      *                             tahap lembaga (dicek dari lembaga kerja aktifnya), tahap 1 dilewati dan
      *                             pengajuan langsung ke tahap SDM (BR-017, PRD-001 §13.4)
      *
      * @throws LeaveException
      */
-    public function submit(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, ?string $recordedBy = null, bool $selfService = false): LeaveRequest
+    public function submit(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, bool $selfService = false): LeaveRequest
+    {
+        return $this->create($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, $selfService ? 'self' : 'submit', null);
+    }
+
+    /**
+     * Admin SDM mencatat cuti atas nama pegawai: langsung disetujui (PRD-001 §13.5).
+     *
+     * @throws LeaveException
+     */
+    public function record(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, string $recordedBy): LeaveRequest
+    {
+        $this->assertNotOwn($tenantId, $employeeId, $recordedBy, 'mencatat');
+
+        return $this->create($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, 'record', $recordedBy);
+    }
+
+    /**
+     * Admin SDM membatalkan cuti yang sudah disetujui; saldo kembali (PRD-001 §13.5).
+     *
+     * @throws LeaveException
+     */
+    public function cancel(string $tenantId, string $requestId, string $cancelledBy, string $reason): LeaveRequest
+    {
+        $reason = trim($reason);
+
+        if ($reason === '' || mb_strlen($reason) > self::CANCEL_REASON_MAX_LENGTH) {
+            throw LeaveException::make('reason', 'Tulis alasan pembatalan, maksimal '.self::CANCEL_REASON_MAX_LENGTH.' karakter.');
+        }
+
+        return DB::transaction(function () use ($tenantId, $requestId, $cancelledBy, $reason): LeaveRequest {
+            $request = Str::isUuid($requestId)
+                ? LeaveRequest::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($requestId)->lockForUpdate()->first()
+                : null;
+
+            if (! $request instanceof LeaveRequest) {
+                throw LeaveException::make('form', 'Pengajuan ini tidak ditemukan.');
+            }
+
+            if ($request->status !== LeaveStatus::Approved) {
+                throw LeaveException::make('form', 'Hanya cuti yang sudah disetujui yang bisa dibatalkan.');
+            }
+
+            $this->assertNotOwn($tenantId, $request->employee_id, $cancelledBy, 'membatalkan');
+
+            $request->status = LeaveStatus::Cancelled;
+            $request->save();
+
+            $this->decision($tenantId, $request->id, $request->approval_steps, LeaveApprovals::CANCELLED, $cancelledBy, $reason);
+
+            $this->audit->record(
+                HrAuditAction::LEAVE_CANCELLED,
+                HrAuditAction::SUBJECT_EMPLOYEE,
+                $request->employee_id,
+                ['mulai' => $request->start_date->toDateString(), 'selesai' => $request->end_date->toDateString(), 'hari' => $request->days],
+                organizationId: $request->organization_id,
+                tenantId: $tenantId,
+            );
+
+            return $request;
+        });
+    }
+
+    /**
+     * @param  'self'|'submit'|'record'  $mode
+     *
+     * @throws LeaveException
+     */
+    private function create(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, string $mode, ?string $recordedBy): LeaveRequest
     {
         $reason = trim($reason);
 
@@ -131,9 +209,11 @@ final class ManageLeaveRequests
             throw LeaveException::make('reason', 'Tulis alasan cuti, maksimal '.self::REASON_MAX_LENGTH.' karakter.');
         }
 
-        return DB::transaction(function () use ($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, $recordedBy, $selfService): LeaveRequest {
+        return DB::transaction(function () use ($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, $mode, $recordedBy): LeaveRequest {
             // Antrean per pegawai: cek tumpang tindih & saldo tidak balapan dengan pengajuan lain.
             Employee::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($employeeId)->lockForUpdate()->first();
+
+            $recorded = $mode === 'record';
 
             $type = Str::isUuid($typeId)
                 ? LeaveType::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($typeId)->first()
@@ -143,7 +223,7 @@ final class ManageLeaveRequests
                 throw LeaveException::make('leave_type_id', 'Pilih jenis cuti yang masih berlaku.');
             }
 
-            $plan = $this->plan($tenantId, $employeeId, $startDate, $endDate);
+            $plan = $this->plan($tenantId, $employeeId, $startDate, $endDate, $recorded ? self::RECORD_BACKDATE_DAYS : self::BACKDATE_DAYS);
 
             if ($type->max_days !== null && $plan['days'] > $type->max_days) {
                 throw LeaveException::make('end_date', "{$type->name} paling lama {$type->max_days} hari kerja per pengajuan (pengajuan ini {$plan['days']} hari).");
@@ -163,8 +243,8 @@ final class ManageLeaveRequests
             }
 
             // Tidak boleh menyetujui cuti sendiri: pengaju yang juga penyetuju lembaganya langsung ke SDM.
-            $skipLembaga = $selfService && $this->authorization->allows(HrAccess::LEAVE_APPROVE, $plan['organization_id']);
-            $steps = $this->approval->stepsFor($tenantId, $plan['organization_id']);
+            $skipLembaga = $mode === 'self' && $this->authorization->allows(HrAccess::LEAVE_APPROVE, $plan['organization_id']);
+            $steps = $recorded ? 1 : ($skipLembaga ? 2 : $this->approval->stepsFor($tenantId, $plan['organization_id']));
 
             $request = new LeaveRequest;
             $request->fill([
@@ -177,31 +257,29 @@ final class ManageLeaveRequests
                 'days' => $plan['days'],
                 'days_by_year' => $plan['days_by_year'],
                 'reason' => $reason,
-                'status' => LeaveStatus::Pending,
-                'approval_steps' => $skipLembaga ? 2 : $steps,
-                'current_step' => $skipLembaga ? 2 : 1,
+                'status' => $recorded ? LeaveStatus::Approved : LeaveStatus::Pending,
+                'approval_steps' => $steps,
+                'current_step' => $recorded ? null : ($skipLembaga ? 2 : 1),
                 'recorded_by_membership_id' => $recordedBy,
+                'decided_at' => $recorded ? CarbonImmutable::now() : null,
             ]);
             $request->save();
 
             if ($skipLembaga) {
-                DB::table('hr_leave_decisions')->insert([
-                    'id' => (string) Str::uuid7(),
-                    'tenant_id' => $tenantId,
-                    'leave_request_id' => $request->id,
-                    'step' => 1,
-                    'decision' => LeaveApprovals::SKIPPED,
-                    'decided_by_membership_id' => null,
-                    'note' => null,
-                    'decided_at' => CarbonImmutable::now(),
-                ]);
+                $this->decision($tenantId, $request->id, 1, LeaveApprovals::SKIPPED, null, null);
             }
 
+            if ($recorded) {
+                $this->decision($tenantId, $request->id, 1, LeaveApprovals::RECORDED, $recordedBy, null);
+            }
+
+            $details = ['jenis' => $type->name, 'mulai' => $plan['start'], 'selesai' => $plan['end'], 'hari' => $plan['days'], 'lembaga' => $plan['organization']];
+
             $this->audit->record(
-                HrAuditAction::LEAVE_REQUESTED,
+                $recorded ? HrAuditAction::LEAVE_RECORDED : HrAuditAction::LEAVE_REQUESTED,
                 HrAuditAction::SUBJECT_EMPLOYEE,
                 $employeeId,
-                ['jenis' => $type->name, 'mulai' => $plan['start'], 'selesai' => $plan['end'], 'hari' => $plan['days'], 'lembaga' => $plan['organization'], 'tahap' => $request->approval_steps, 'tahap_lembaga_dilewati' => $skipLembaga],
+                $recorded ? $details : $details + ['tahap' => $request->approval_steps, 'tahap_lembaga_dilewati' => $skipLembaga],
                 organizationId: $plan['organization_id'],
                 tenantId: $tenantId,
             );
@@ -249,6 +327,32 @@ final class ManageLeaveRequests
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * @throws LeaveException
+     */
+    private function assertNotOwn(string $tenantId, string $employeeId, string $membershipId, string $verb): void
+    {
+        $owner = DB::table('hr_employees')->where('tenant_id', $tenantId)->where('id', $employeeId)->value('membership_id');
+
+        if ($owner === $membershipId) {
+            throw LeaveException::make('form', "Anda tidak bisa {$verb} cuti Anda sendiri. Ajukan lewat Cuti saya, atau minta Admin SDM lain.");
+        }
+    }
+
+    private function decision(string $tenantId, string $requestId, int $step, string $decision, ?string $membershipId, ?string $note): void
+    {
+        DB::table('hr_leave_decisions')->insert([
+            'id' => (string) Str::uuid7(),
+            'tenant_id' => $tenantId,
+            'leave_request_id' => $requestId,
+            'step' => $step,
+            'decision' => $decision,
+            'decided_by_membership_id' => $membershipId,
+            'note' => $note,
+            'decided_at' => CarbonImmutable::now(),
+        ]);
+    }
 
     /**
      * Tidak boleh bertumpang tanggal dengan pengajuan lain yang menunggu atau sudah disetujui.

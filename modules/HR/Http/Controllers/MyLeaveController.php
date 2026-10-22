@@ -157,10 +157,10 @@ final class MyLeaveController
 
         $requests = LeaveRequest::query()->withoutGlobalScope('tenant')->where('employee_id', $employeeId)->orderByDesc('start_date')->orderByDesc('created_at')->limit(100)->get();
 
-        // Catatan penolakan boleh dibaca pengaju (PRD-001 §13.4).
+        // Alasan penolakan / pembatalan boleh dibaca pengaju (PRD-001 §13.4–§13.5).
         $notes = DB::table('hr_leave_decisions')
             ->whereIn('leave_request_id', $requests->pluck('id')->all())
-            ->where('decision', LeaveApprovals::REJECTED)
+            ->whereIn('decision', [LeaveApprovals::REJECTED, LeaveApprovals::CANCELLED])
             ->pluck('note', 'leave_request_id')
             ->all();
 

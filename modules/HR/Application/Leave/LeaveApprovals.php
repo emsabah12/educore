@@ -35,6 +35,12 @@ final class LeaveApprovals
 
     public const SKIPPED = 'DILEWATI';
 
+    /** Dicatat Admin SDM atas nama pegawai (HR-3d). */
+    public const RECORDED = 'DICATAT';
+
+    /** Cuti yang sudah disetujui dibatalkan Admin SDM (HR-3d). */
+    public const CANCELLED = 'BATAL';
+
     public const NOTE_MAX_LENGTH = 300;
 
     public function __construct(

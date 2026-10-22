@@ -3,6 +3,7 @@ import {
     BookOpen,
     CalendarCog,
     CalendarDays,
+    CalendarRange,
     ClipboardCheck,
     ClipboardList,
     GraduationCap,
@@ -68,6 +69,12 @@ const leaveSettingsNavItem: NavItem = {
     title: 'Pengaturan cuti',
     href: '/pegawai/cuti/pengaturan',
     icon: CalendarCog,
+};
+
+const leavesNavItem: NavItem = {
+    title: 'Kelola cuti',
+    href: '/pegawai/cuti',
+    icon: CalendarRange,
 };
 
 const myLeaveNavItem: NavItem = {
@@ -140,6 +147,9 @@ export function AppSidebar() {
         ...(permissions.includes('hr.leave.approve') ||
         (atTenantLevel && permissions.includes('hr.leave.manage'))
             ? [leaveApprovalsNavItem]
+            : []),
+        ...(atTenantLevel && permissions.includes('hr.leave.manage')
+            ? [leavesNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]

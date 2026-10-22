@@ -455,7 +455,10 @@ function History({ requests }: { requests: LeaveRow[] }) {
                                     </p>
                                     {row.note && (
                                         <p className="break-words whitespace-pre-line text-red-700 dark:text-red-300">
-                                            Alasan ditolak: {row.note}
+                                            {row.status === 'DIBATALKAN'
+                                                ? 'Alasan dibatalkan'
+                                                : 'Alasan ditolak'}
+                                            : {row.note}
                                         </p>
                                     )}
                                 </div>

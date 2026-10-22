@@ -6,6 +6,7 @@ use Modules\HR\Http\Controllers\CatalogController;
 use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
+use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyLeaveController;
@@ -45,6 +46,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('persetujuan-cuti', [LeaveApprovalController::class, 'index'])->name('hr.leave-approvals.index');
     Route::post('persetujuan-cuti/{leave}', [LeaveApprovalController::class, 'decide'])->whereUuid('leave')->name('hr.leave-approvals.decide');
     Route::post('pegawai/cuti/alur-persetujuan', [LeaveSettingsController::class, 'assignApproval'])->name('hr.leave-approval-flow.assign');
+
+    // Kelola cuti — Admin SDM (PRD-001 §13.5, HR-3d): daftar, detail, catat atas nama, batalkan.
+    Route::get('pegawai/cuti', [LeaveAdminController::class, 'index'])->name('hr.leaves.index');
+    Route::get('pegawai/cuti/catat', [LeaveAdminController::class, 'create'])->name('hr.leaves.create');
+    Route::get('pegawai/cuti/hitung', [LeaveAdminController::class, 'preview'])->name('hr.leaves.preview');
+    Route::post('pegawai/cuti', [LeaveAdminController::class, 'store'])->name('hr.leaves.store');
+    Route::get('pegawai/cuti/{leave}', [LeaveAdminController::class, 'show'])->whereUuid('leave')->name('hr.leaves.show');
+    Route::post('pegawai/cuti/{leave}/batalkan', [LeaveAdminController::class, 'cancel'])->whereUuid('leave')->name('hr.leaves.cancel');
 
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');

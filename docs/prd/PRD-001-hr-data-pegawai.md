@@ -2,7 +2,7 @@
 
 - **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
 - **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c dikerjakan; HR-2, HR-4 dst. belum dirinci
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a dikerjakan; HR-2, HR-4 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -389,6 +389,13 @@ Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001)
 - **Batalkan** cuti yang sudah disetujui (alasan wajib): saldo kembali.
 - Saldo per pegawai per tahun (jatah, penyesuaian, terpakai, sisa); **unduh rekap .xlsx** per bulan/tahun.
 - Detail pegawai (HR-1) menampilkan ringkasan cuti tahun berjalan bagi yang boleh melihat data pribadinya [ASUMSI].
+- Rincian teknis HR-3d [ASUMSI]:
+    - Dikerjakan dua bagian: **3d-a** daftar, detail, catat atas nama, batalkan; **3d-b** penyesuaian jatah, tabel saldo, rekap .xlsx, ringkasan di detail pegawai.
+    - Halaman `/pegawai/cuti` (menu **Kelola cuti**) hanya di lembaga kerja **Seluruh Yayasan** bagi pemilik `hr.leave.manage`. Saringan lembaga ikut memuat lembaga di bawahnya; bulan = cuti yang jatuh di bulan itu; 50 baris per halaman, tanggal mulai terbaru di atas.
+    - Catat atas nama: pilih pegawai dengan mencari nama/nomor induk (min. 2 huruf, maks. 10 hasil; hanya pegawai aktif yang punya penempatan utama). Tanggal mulai boleh mundur paling lama **90 hari** (pengajuan sendiri 30 hari). Disimpan sebagai 1 tahap, keputusan `DICATAT` oleh Admin SDM.
+    - Batalkan: hanya cuti berstatus Disetujui (termasuk yang sudah lewat); alasan wajib maks. 300, terbaca pegawai di Cuti saya; keputusan `BATAL`. Cuti yang masih menunggu diputuskan lewat Persetujuan cuti.
+    - Admin SDM tidak bisa mencatat atau membatalkan cutinya sendiri (BR-017).
+    - Detail menampilkan riwayat keputusan lengkap (siapa, kapan, catatan).
 
 ### 13.6 Audit [ASUMSI]
 
