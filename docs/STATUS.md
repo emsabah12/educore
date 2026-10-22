@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-5d — rapor (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `8f7c63e` — feat(academic): AC-5c leger nilai kelas
+- **Tahap aktif:** HR-3a — jenis cuti & kalender kerja (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `d233839` — feat(academic): AC-5d rapor
 
 ## Keputusan penting
 
@@ -391,13 +391,26 @@
 - `GradeLedgerController`: `kelas/{class}/leger` (+ `/unduh`, izin lihat siswa) dan `kelas-saya/{class}/leger` (+ `/unduh`, wali kelas); halaman `academic/grades/ledger` (tabel di layar besar, kartu di HP). Tombol **Leger nilai** di detail kelas & Kelas saya (wali kelas).
 - Bukti: 547 test lulus (3 test baru, `GradeLedgerTest`); uji manual owner lancar.
 
-**AC-5d — Rapor: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**AC-5d — Rapor: SELESAI (2026-10-22, commit `d233839`)**
 
 - Migrasi `2026_10_22_200012`: `ac_report_notes` (kelas × semester × pendaftaran, catatan wali kelas).
 - `Application/Grading/TermRoster` (daftar siswa kelas per semester; dipakai leger & rapor), `ReportCards` (`build`: mapel final, nilai/predikat/deskripsi, jumlah & rata-rata, presensi S/I/A semester, catatan, nama wali kelas; `saveNotes`).
 - `ReportCardController`: `kelas/{class}/rapor` (+ `/catatan`, `/cetak`) dan `kelas-saya/{class}/rapor` (wali kelas). Halaman `academic/grades/report-index` dan halaman cetak `print/report-cards` dengan `layouts/print-layout.tsx` (awalan halaman `print/` di `app.tsx`). Tombol **Rapor** di detail kelas & Kelas saya.
 - Audit `academic.report_notes_saved`. Semester bercatatan rapor tidak bisa dihapus.
-- Target bukti: 550 test (3 test baru, `ReportCardTest`).
+- Bukti: 550 test lulus (3 test baru, `ReportCardTest`; fix1 memperbaiki nama wali kelas yang diharapkan test); uji manual owner lancar.
+
+**AC-5 Penilaian & rapor SELESAI (2026-10-22).**
+
+**HR-3 Cuti & Izin (PRD-001 §13, rincian disetujui 2026-10-22)**
+
+**HR-3a — Jenis cuti & kalender kerja: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Permission baru `hr.leave.approve` (Kepala Lembaga, Pimpinan, Admin SDM, Admin Yayasan) dan `hr.leave.manage` (Admin SDM, Admin Yayasan) → jalankan `educore:sync-access`.
+- Migrasi `2026_10_22_100005`: `hr_leave_types` (kode tetap, berjatah + jatah per tahun, batas hari per pengajuan, aktif) dan `hr_holidays` (tanggal merah yayasan).
+- `Domain/Leave/{LeaveType, Holiday, Exceptions/LeaveException}`; `Application/Leave/{DefaultLeaveTypes, ManageLeaveTypes, ManageWorkHolidays, WeeklyOffSetting (aturan berjenjang hr.weekly_off_days, bawaan Ahad), WorkCalendar (hari kerja), LeaveSettingsOverview}`; seeder `HrLeaveTypeSeeder` (dipanggil DatabaseSeeder).
+- `LeaveSettingsController` + halaman `hr/leave-settings` (`/pegawai/cuti/pengaturan`, menu **Pengaturan cuti** di tingkat Yayasan).
+- Audit `hr.leave_type_created|updated|deactivated|reactivated`, `hr.holiday_added|updated|removed`.
+- Target bukti: 553 test (3 test baru, `LeaveSettingsTest`; `AccessCatalogTest` disesuaikan: 17 permission).
 
 ## Struktur file utama
 
@@ -430,9 +443,10 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Larastan menolak `array_values()` pada data yang sudah list (mis. hasil `array_reverse`/`array_slice` dari list); pakai `array_values()` hanya sesudah `array_filter()`/`array_unique()` (P4b-fix1).
 - Test yang bergantung pada tanggal: kunci "hari ini" dengan `$this->travelTo(...)` di awal `beforeEach`, sebelum seeder (P4b).
 - Sebelum mulai tahap baru di salinan kerja: `git fetch` lalu pastikan berbasis commit terakhir di origin (AC-5b sempat dimulai di atas commit lama; diselamatkan dengan stash → reset → pop).
+- Pegawai yang ditautkan ke akun yang sudah ada memakai nama orang akun itu (bukan nama di `NewEmployeeData`); ekspektasi test harus memakai nama tersebut (AC-5d-fix1).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-5d (PANDUAN-AC5D.md), migrate, commit & push → AC-5 selesai.
-2. Sesudahnya: pilihan owner (HR-2, AC-6, atau penyempurnaan).
+1. Verifikasi HR-3a (PANDUAN-HR3A.md), migrate, sync-access, seeder jenis cuti, commit & push.
+2. HR-3b pengajuan (Cuti saya) → HR-3c persetujuan berjenjang → HR-3d kelola cuti SDM (PRD-001 §13).

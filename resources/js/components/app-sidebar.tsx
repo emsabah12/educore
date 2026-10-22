@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    CalendarCog,
     CalendarDays,
     ClipboardList,
     GraduationCap,
@@ -61,6 +62,12 @@ const hrCatalogNavItem: NavItem = {
     icon: Tags,
 };
 
+const leaveSettingsNavItem: NavItem = {
+    title: 'Pengaturan cuti',
+    href: '/pegawai/cuti/pengaturan',
+    icon: CalendarCog,
+};
+
 const studentsNavItem: NavItem = {
     title: 'Siswa',
     href: '/siswa',
@@ -117,6 +124,9 @@ export function AppSidebar() {
         ...(academic?.myClasses ? [myClassesNavItem] : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
+            : []),
+        ...(atTenantLevel && permissions.includes('hr.leave.manage')
+            ? [leaveSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

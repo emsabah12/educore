@@ -24,13 +24,14 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     $this->artisan('educore:sync-access')->assertSuccessful();
     $this->artisan('educore:sync-access')->assertSuccessful();
 
-    // Core: 6 permission, 5 role. HR (PRD-001 §5): 4 permission, role Admin SDM, dan perluasan role Core.
+    // Core: 6 permission, 5 role. HR (PRD-001 §5, §13): 6 permission, role Admin SDM, dan perluasan role Core.
     // Academic (PRD-002 §5): 5 permission, role Operator Akademik, dan perluasan role Core.
-    // role_permission: Admin Yayasan 6+4+5, Pimpinan 2+2+2, Kepala Lembaga 3+2+2, Koordinator 3+1+1, Staf 1,
-    // Admin SDM 4, Operator Akademik 4.
-    expect(Permission::query()->count())->toBe(15)
+    // HR-3 cuti (PRD-001 §13): +2 permission HR (setujui & kelola cuti).
+    // role_permission: Admin Yayasan 6+6+5, Pimpinan 2+3+2, Kepala Lembaga 3+3+2, Koordinator 3+1+1, Staf 1,
+    // Admin SDM 6, Operator Akademik 4.
+    expect(Permission::query()->count())->toBe(17)
         ->and(Role::query()->count())->toBe(7)
-        ->and(DB::table('role_permission')->count())->toBe(15 + 6 + 7 + 5 + 1 + 4 + 4);
+        ->and(DB::table('role_permission')->count())->toBe(17 + 7 + 8 + 5 + 1 + 6 + 4);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
@@ -43,6 +44,7 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             CoreAccess::SETTINGS_VIEW,
             HrAccess::EMPLOYEES_VIEW,
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
+            HrAccess::LEAVE_APPROVE,
         ]);
 });
 

@@ -37,6 +37,24 @@ final class HrAuditAction
     /** Satu catatan ringkasan per impor; tiap pegawai tetap tercatat EMPLOYEE_CREATED (PRD-001 §6.2). */
     public const EMPLOYEES_IMPORTED = 'hr.employees_imported';
 
+    public const LEAVE_TYPE_CREATED = 'hr.leave_type_created';
+
+    public const LEAVE_TYPE_UPDATED = 'hr.leave_type_updated';
+
+    public const LEAVE_TYPE_DEACTIVATED = 'hr.leave_type_deactivated';
+
+    public const LEAVE_TYPE_REACTIVATED = 'hr.leave_type_reactivated';
+
+    public const HOLIDAY_ADDED = 'hr.holiday_added';
+
+    public const HOLIDAY_UPDATED = 'hr.holiday_updated';
+
+    public const HOLIDAY_REMOVED = 'hr.holiday_removed';
+
+    public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
+
+    public const SUBJECT_HOLIDAY = 'hr_holiday';
+
     /** Jenis subjek audit untuk data pegawai. */
     public const SUBJECT_EMPLOYEE = 'hr_employee';
 
@@ -60,6 +78,13 @@ final class HrAuditAction
             self::EMPLOYMENT_ENDED => 'Pegawai diberhentikan',
             self::EMPLOYEE_REHIRED => 'Pegawai diaktifkan kembali',
             self::EMPLOYEES_IMPORTED => 'Pegawai diimpor dari file',
+            self::LEAVE_TYPE_CREATED => 'Jenis cuti ditambahkan',
+            self::LEAVE_TYPE_UPDATED => 'Jenis cuti diubah',
+            self::LEAVE_TYPE_DEACTIVATED => 'Jenis cuti dinonaktifkan',
+            self::LEAVE_TYPE_REACTIVATED => 'Jenis cuti diaktifkan kembali',
+            self::HOLIDAY_ADDED => 'Hari libur kalender kerja ditambahkan',
+            self::HOLIDAY_UPDATED => 'Hari libur kalender kerja diubah',
+            self::HOLIDAY_REMOVED => 'Hari libur kalender kerja dihapus',
         ];
     }
 }

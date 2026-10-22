@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.10 (2026-10-17: form Tambah pegawai juga memperingatkan nama sama)
-- **Versi sebelumnya:** 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); HR-2 dst. belum dirinci
+- **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
+- **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a dikerjakan; HR-2, HR-4 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -33,16 +33,16 @@ Prinsip:
 
 ## 3. Tahapan modul HR [ASUMSI]
 
-| Tahap                              | Isi                                                                                                                                                                         | Catatan                                                 |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| **HR-1 Data Pegawai**              | Katalog (jenis pegawai, status kepegawaian, jabatan), profil pegawai, periode kepegawaian, penempatan + jabatan, berhenti / aktif kembali, daftar dan detail pegawai, audit | **Dirinci di PRD ini**                                  |
-| **HR-1e Impor pegawai**            | Impor pegawai baru dari Excel/CSV dengan template, pratinjau, dan simpan sekaligus (§6.2)                                                                                   | Dipilih owner sesudah F5 [OWNER, 2026-10-14]            |
-| HR-2 Dokumen & SK                  | Arsip SK/kontrak (file privat), masa berlaku dan pengingat                                                                                                                  | Butuh keputusan penyimpanan file                        |
-| Core: Kelola akses                 | Halaman buat akun login, penugasan, pasang/cabut role                                                                                                                       | **Dibuat sesudah HR-1, sebelum HR-3** [OWNER, OD-HR-03] |
-| HR-3 Cuti & Izin + layanan mandiri | Jenis cuti, jatah, pengajuan, persetujuan berjenjang (memakai aturan berjenjang PRD-000 §8)                                                                                 | Pegawai perlu akun login                                |
-| HR-4 Presensi                      | Input manual/impor + rekap; mesin absen menyusul                                                                                                                            | [LAMA OD-HR-005]                                        |
-| HR-5 Komponen gaji                 | Data tunjangan + rekap input gaji (ekspor); modul Keuangan belum ada                                                                                                        | [LAMA OD-HR-003]                                        |
-| HR-6 dst.                          | Kinerja/PKG & PKB, rekrutmen, disiplin, ekspor Dapodik/EMIS/Simpatika                                                                                                       | [LAMA HR-001 §7]                                        |
+| Tahap                              | Isi                                                                                                                                                                         | Catatan                                                                                   |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **HR-1 Data Pegawai**              | Katalog (jenis pegawai, status kepegawaian, jabatan), profil pegawai, periode kepegawaian, penempatan + jabatan, berhenti / aktif kembali, daftar dan detail pegawai, audit | **Dirinci di PRD ini**                                                                    |
+| **HR-1e Impor pegawai**            | Impor pegawai baru dari Excel/CSV dengan template, pratinjau, dan simpan sekaligus (§6.2)                                                                                   | Dipilih owner sesudah F5 [OWNER, 2026-10-14]                                              |
+| HR-2 Dokumen & SK                  | Arsip SK/kontrak (file privat), masa berlaku dan pengingat                                                                                                                  | Butuh keputusan penyimpanan file                                                          |
+| Core: Kelola akses                 | Halaman buat akun login, penugasan, pasang/cabut role                                                                                                                       | **Dibuat sesudah HR-1, sebelum HR-3** [OWNER, OD-HR-03]                                   |
+| HR-3 Cuti & Izin + layanan mandiri | Jenis cuti, jatah, pengajuan, persetujuan berjenjang (memakai aturan berjenjang PRD-000 §8)                                                                                 | Pegawai perlu akun login; **dirinci di §13** [OWNER, 2026-10-22: dikerjakan sebelum HR-2] |
+| HR-4 Presensi                      | Input manual/impor + rekap; mesin absen menyusul                                                                                                                            | [LAMA OD-HR-005]                                                                          |
+| HR-5 Komponen gaji                 | Data tunjangan + rekap input gaji (ekspor); modul Keuangan belum ada                                                                                                        | [LAMA OD-HR-003]                                                                          |
+| HR-6 dst.                          | Kinerja/PKG & PKB, rekrutmen, disiplin, ekspor Dapodik/EMIS/Simpatika                                                                                                       | [LAMA HR-001 §7]                                                                          |
 
 Urutan HR-2 s.d. HR-6 bisa diubah owner sebelum tiap tahap dimulai.
 
@@ -327,7 +327,66 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 | OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                                                               |
 | OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                                                     |
 | OD-HR-05 | Impor pegawai (HR-1e)                                                                                                   | **DIPUTUSKAN** — file Excel (.xlsx) + CSV dengan template; simpan hanya bila semua baris benar (semua atau tidak); orang ganda = peringatan + konfirmasi; impor hanya membuat pegawai baru [OWNER, 2026-10-14] |
+| OD-HR-06 | Alur persetujuan cuti                                                                                                   | **DIPUTUSKAN** — bisa diatur per jenjang/lembaga lewat aturan berjenjang: 1 tahap (Kepala Lembaga) atau 2 tahap (Kepala Lembaga lalu Admin SDM); bawaan 2 tahap [OWNER, 2026-10-22]                            |
+| OD-HR-07 | Cara menghitung jumlah hari cuti                                                                                        | **DIPUTUSKAN** — hari kerja: rentang tanggal dikurangi libur mingguan dan daftar hari libur (tanggal merah) di kalender kerja HR, terpisah dari kalender akademik [OWNER, 2026-10-22]                          |
+| OD-HR-08 | Sisa jatah cuti tahunan                                                                                                 | **DIPUTUSKAN** — hangus di akhir tahun kalender; Admin SDM bisa menambah lewat penyesuaian [OWNER, 2026-10-22]                                                                                                 |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 
 - **Ekspor daftar pegawai** (CSV) dengan saringan dan izin yang sama seperti halaman daftar [LAMA NFR-009].
+
+## 13. HR-3 Cuti & Izin + layanan mandiri [OWNER, 2026-10-22 — 3 keputusan + usulan rincian disetujui]
+
+Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001): tanpa kebijakan berversi, ledger saldo terpisah, alokasi lintas periode, satuan jam, maupun carry-over. Satuan = **hari penuh**. Lampiran (surat dokter dll.) menunggu keputusan penyimpanan file di HR-2.
+
+### 13.1 Dasar
+
+- Pengaju = pegawai **AKTIF** yang akunnya tertaut ke data pegawai (Kelola akses F5), lewat menu baru **Cuti saya** (layanan mandiri, tanpa permission; dasarnya tautan akun ↔ pegawai). Admin SDM juga bisa mencatat cuti **atas nama** pegawai (mis. belum punya akun).
+- **Penempatan utama** pegawai menentukan lembaga pengajuan: penyetuju tahap 1 dan kalender kerja yang dipakai. Pegawai tanpa penempatan utama terbuka tidak bisa mengajukan [ASUMSI].
+- Permission baru [ASUMSI]: `hr.leave.approve` (menyetujui tahap lembaga; Kepala Lembaga, Pimpinan; di cakupannya) dan `hr.leave.manage` (jenis & jatah, kalender kerja, tahap SDM, catat atas nama, batalkan, rekap; Admin SDM & Admin Yayasan, tingkat Yayasan).
+- Alasan cuti = data pribadi: dilihat pegawai itu, penyetujunya, dan Admin SDM; **isinya tidak masuk audit**.
+
+### 13.2 HR-3a Jenis cuti, jatah, kalender kerja
+
+- **`hr_leave_types`** (katalog per yayasan, Admin SDM): kode (aturan sama dengan katalog HR-1), nama, **berjatah** (ya/tidak), **jatah per tahun** (hari, wajib bila berjatah), **batas hari per pengajuan** (opsional), aktif/nonaktif (tidak dihapus bila sudah dipakai). Isi awal [ASUMSI]: Cuti tahunan (berjatah 12), Sakit, Izin keperluan pribadi, Cuti melahirkan (maks. 90 hari per pengajuan).
+- **Saldo** per pegawai × jenis berjatah × **tahun kalender** = jatah tahun itu + penyesuaian − cuti yang **disetujui** yang jatuh di tahun itu. Sisa **hangus** di akhir tahun [OWNER, OD-HR-08]. Pengajuan yang melewati pergantian tahun dipotong ke saldo masing-masing tahun menurut hari kerjanya [ASUMSI].
+- **`hr_leave_adjustments`**: penyesuaian jatah oleh Admin SDM (pegawai, jenis, tahun, ± hari, alasan wajib). Audit tanpa isi alasan.
+- **Kalender kerja HR** [OWNER, OD-HR-07; rincian ASUMSI]:
+    - **libur mingguan** = aturan berjenjang `hr.weekly_off_days` per jenjang/lembaga (bawaan Ahad), diatur Admin SDM;
+    - **hari libur (tanggal merah)** per yayasan (`hr_holidays`: nama, tanggal mulai–selesai), diatur Admin SDM, berlaku untuk semua lembaga.
+    - **Jumlah hari cuti** = hari dalam rentang yang bukan libur mingguan lembaga penempatan utama dan bukan hari libur. Rentang yang hasilnya 0 hari ditolak.
+- Halaman: **Pengaturan cuti** (`/pegawai/cuti/pengaturan`, menu tingkat Yayasan bagi pemilik `hr.leave.manage`): jenis cuti, libur mingguan, hari libur per tahun.
+- Rincian teknis HR-3a [ASUMSI]: sifat berjatah tidak bisa diubah setelah jenis dibuat (jatah & batas hari bisa); satu hari libur paling lama 366 hari, boleh tumpang tindih; libur mingguan 0–6 hari. **Penyesuaian jatah** (`hr_leave_adjustments`) dikerjakan bersama tampilan saldo di HR-3d, karena saldo baru bermakna setelah ada pengajuan (HR-3b).
+- Deploy: jalankan `php artisan educore:sync-access` (2 permission baru) dan seeder `HrLeaveTypeSeeder` (isi awal jenis cuti, aman diulang).
+
+### 13.3 HR-3b Pengajuan (Cuti saya)
+
+- Pegawai melihat **saldo tahun berjalan** per jenis berjatah dan **riwayat** pengajuannya.
+- Ajukan: jenis (aktif), tanggal mulai–selesai (boleh di masa depan; boleh mundur maks. 30 hari untuk sakit/izin mendadak [ASUMSI]), alasan (wajib, maks. 500). Jumlah hari tampil otomatis sebelum dikirim.
+- Ditolak bila: melebihi batas hari per pengajuan; saldo tidak cukup (dihitung dari saldo dikurangi pengajuan lain yang masih menunggu [ASUMSI]); bertumpang tanggal dengan pengajuan lain yang masih menunggu atau sudah disetujui.
+- Status: **Menunggu** (tahap 1 / tahap 2) → **Disetujui** / **Ditolak**; pengaju bisa **Batalkan** selama masih menunggu.
+
+### 13.4 HR-3c Persetujuan berjenjang
+
+- Aturan berjenjang **`hr.leave_approval`** per jenjang/lembaga [OWNER, OD-HR-06]: `1` = Kepala Lembaga saja, `2` = Kepala Lembaga lalu Admin SDM; bawaan **2**. Jumlah tahap dicatat di pengajuan saat diajukan (perubahan aturan tidak mengubah pengajuan yang sudah ada) [ASUMSI].
+- **Tahap 1 (lembaga)**: pemilik `hr.leave.approve` yang cakupannya memuat lembaga penempatan utama pengaju. **Tahap 2 (SDM)**: pemilik `hr.leave.manage`.
+- Kotak masuk **Persetujuan cuti** menampilkan pengajuan yang menunggu keputusan pengguna itu; Setujui / Tolak (catatan opsional, wajib saat menolak, maks. 300).
+- **Tidak boleh menyetujui cuti sendiri** (BR-017): bila tidak ada penyetuju tahap 1 selain pengaju (mis. pengaju Kepala Lembaga), tahap 1 dilewati dan pengajuan langsung ke tahap SDM; pada alur 1 tahap, ke Admin SDM [ASUMSI].
+- Hak diperiksa saat memutuskan (bukan saat diajukan). Saldo & tumpang tindih **dicek ulang** pada persetujuan terakhir dalam transaksi yang mengunci pegawai.
+- Tabel **`hr_leave_requests`** (pegawai, jenis, tanggal, jumlah hari, alasan, status, jumlah tahap, tahap berjalan, dicatat oleh) dan **`hr_leave_decisions`** (pengajuan, tahap, keputusan, oleh, catatan, waktu).
+
+### 13.5 HR-3d Kelola cuti (Admin SDM)
+
+- Daftar semua pengajuan dengan saringan lembaga, jenis, status, bulan; detail pengajuan beserta riwayat keputusan.
+- **Catat atas nama** pegawai: langsung disetujui (dicatat sebagai keputusan Admin SDM), aturan saldo & tumpang tindih sama.
+- **Batalkan** cuti yang sudah disetujui (alasan wajib): saldo kembali.
+- Saldo per pegawai per tahun (jatah, penyesuaian, terpakai, sisa); **unduh rekap .xlsx** per bulan/tahun.
+- Detail pegawai (HR-1) menampilkan ringkasan cuti tahun berjalan bagi yang boleh melihat data pribadinya [ASUMSI].
+
+### 13.6 Audit [ASUMSI]
+
+`hr.leave_type_created|updated|deactivated|reactivated`, `hr.leave_adjusted`, `hr.holiday_added|updated|removed`, `hr.leave_requested`, `hr.leave_withdrawn`, `hr.leave_approved` (per tahap), `hr.leave_rejected`, `hr.leave_cancelled`, `hr.leave_recorded` (atas nama). Perubahan aturan berjenjang dicatat Core. Tidak ada isi alasan/catatan di audit.
+
+### 13.7 Di luar HR-3
+
+Satuan jam/setengah hari, lampiran, carry-over, delegasi tugas selama cuti, guru pengganti (Academic), sinkron ke presensi pegawai (HR-4), notifikasi email/WA, potongan gaji.

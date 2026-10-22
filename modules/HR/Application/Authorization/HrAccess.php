@@ -25,6 +25,12 @@ final class HrAccess
     /** Kelola katalog SDM, hanya di tingkat Yayasan. */
     public const CATALOG_MANAGE = 'hr.catalog.manage';
 
+    /** Menyetujui cuti tahap lembaga (PRD-001 §13, HR-3c), di cakupan penugasannya. */
+    public const LEAVE_APPROVE = 'hr.leave.approve';
+
+    /** Jenis & jatah cuti, kalender kerja, tahap SDM, catat atas nama, batalkan, rekap (tingkat Yayasan). */
+    public const LEAVE_MANAGE = 'hr.leave.manage';
+
     public const ROLE_ADMIN_SDM = 'admin-sdm';
 
     public static function register(AccessCatalog $catalog): void
@@ -33,21 +39,26 @@ final class HrAccess
             ->permission(self::EMPLOYEES_VIEW, 'Lihat data pegawai')
             ->permission(self::EMPLOYEES_VIEW_PERSONAL, 'Lihat data pribadi pegawai')
             ->permission(self::EMPLOYEES_MANAGE, 'Kelola data pegawai')
-            ->permission(self::CATALOG_MANAGE, 'Kelola katalog SDM');
+            ->permission(self::CATALOG_MANAGE, 'Kelola katalog SDM')
+            ->permission(self::LEAVE_APPROVE, 'Setujui cuti pegawai lembaga')
+            ->permission(self::LEAVE_MANAGE, 'Kelola cuti pegawai');
 
         $all = [
             self::EMPLOYEES_VIEW,
             self::EMPLOYEES_VIEW_PERSONAL,
             self::EMPLOYEES_MANAGE,
             self::CATALOG_MANAGE,
+            self::LEAVE_APPROVE,
+            self::LEAVE_MANAGE,
         ];
 
         $catalog
             ->role(self::ROLE_ADMIN_SDM, 'Admin SDM', $all)
             // [ASUMSI] Admin Yayasan ikut mengelola HR selama halaman kelola akses belum ada (OD-HR-03).
             ->grant(CoreAccess::ROLE_ADMIN_YAYASAN, $all)
-            ->grant(CoreAccess::ROLE_PIMPINAN, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL])
-            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL])
+            ->grant(CoreAccess::ROLE_PIMPINAN, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL, self::LEAVE_APPROVE])
+            // Kepala Lembaga = penyetuju cuti tahap lembaga (PRD-001 §13.4).
+            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL, self::LEAVE_APPROVE])
             ->grant(CoreAccess::ROLE_KOORDINATOR, [self::EMPLOYEES_VIEW])
             // Admin SDM bekerja di tingkat Yayasan (OD-HR-02); dipasang dari halaman kelola akses.
             ->offerAsTenantRole(self::ROLE_ADMIN_SDM);

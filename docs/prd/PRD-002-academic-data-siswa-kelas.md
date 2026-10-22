@@ -2,7 +2,7 @@
 
 - **Versi:** 1.5 (2026-10-22: rincian AC-5 Penilaian & rapor — §19)
 - **Versi sebelumnya:** 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 dirinci & disetujui (§19, 2026-10-22)**: AC-5a SELESAI (`eb9a8a8`), AC-5b SELESAI (`1842b9a`), AC-5c SELESAI (`8f7c63e`), AC-5d dikerjakan; AC-6 dst. hanya digariskan
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; AC-6 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -512,7 +512,7 @@ Empat fitur kecil yang sebelumnya saran (§14 dan saran sesudah AC-2/AC-4), dike
 - Audit: `academic.weekly_off_days_changed` (sebelum/sesudah), `academic.holiday_added|updated|removed` (nama, mulai, selesai; ubah hanya mencatat yang berubah).
 - Rincian P4b [ASUMSI]: hari efektif hanya untuk rekap **harian** (rekap per pertemuan tidak berubah); persentase hadir tetap Hadir ÷ hari yang diisi. Rekap menampilkan hari efektif periode, hari efektif sampai hari ini, jumlah yang belum diisi, dan paling banyak 31 tanggal belum diisi yang terbaru; tanggal itu bisa diklik ke lembar presensi hanya bagi yang boleh mengisinya pada tanggal tersebut (operator: seluruh tahun ajaran; wali kelas: 7 hari terakhir). Peringatan hari libur muncul di lembar presensi harian dan per pertemuan, menyebut nama hari libur atau "Ahad (libur mingguan)".
 
-## 19. AC-5 Penilaian & rapor [OWNER, 2026-10-22 — 3 keputusan + usulan rincian disetujui]
+## 19. AC-5 Penilaian & rapor [OWNER, 2026-10-22 — 3 keputusan + usulan rincian disetujui; SELESAI]
 
 ### Keputusan owner
 
