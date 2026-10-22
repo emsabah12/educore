@@ -17,7 +17,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 
 /**
  * Mata pelajaran kelas & guru pengampu di detail kelas (PRD-002 §16 AC-3b): tambah mapel (banyak
- * sekaligus), ganti pengampu, lepas mapel.
+ * sekaligus), salin dari kelas lain (§18 P3), ganti pengampu, lepas mapel.
  *
  * Mengelola: `academic.classes.manage` di lembaga kelas (Gate dengan datanya: di luar cakupan 404,
  * tanpa izin 403).
@@ -52,6 +52,36 @@ final class ClassSubjectController
         $count = $this->attempt(fn (): int => $subjects->add($this->tenantId(), $target->id, $ids));
 
         return $this->done("{$count} mata pelajaran ditambahkan ke kelas {$target->name}.");
+    }
+
+    /**
+     * Salin mapel & pengampu dari kelas lain di lembaga yang sama (PRD-002 §18 P3).
+     */
+    public function copy(Request $request, string $class, ManageClassSubjects $subjects): RedirectResponse
+    {
+        $target = Str::isUuid($class) ? SchoolClass::query()->find($class) : null;
+
+        if (! $target instanceof SchoolClass) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $target);
+
+        $request->validate(
+            ['source_class_id' => ['required', 'uuid']],
+            ['source_class_id.required' => 'Pilih kelas sumber.', 'source_class_id.uuid' => 'Pilih kelas sumber dari daftar.'],
+        );
+
+        $result = $this->attempt(fn (): array => $subjects->copyFrom($this->tenantId(), $target->id, $request->string('source_class_id')->value()));
+
+        $message = "{$result['copied']} mata pelajaran disalin dari kelas {$result['source']}";
+        $message .= $result['teachers'] > 0 ? ", {$result['teachers']} dengan guru pengampunya." : '.';
+
+        if ($result['skipped'] > 0) {
+            $message .= " {$result['skipped']} dilewati (sudah ada, nonaktif, atau bukan untuk tingkat ini).";
+        }
+
+        return $this->done($message.' Jadwal tidak ikut disalin.');
     }
 
     public function update(Request $request, string $classSubject, ManageClassSubjects $subjects): RedirectResponse

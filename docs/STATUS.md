@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** P2 — buka kembali pendaftaran (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `3027bb4` — feat(academic): P1 ekspor daftar siswa per kelas
+- **Tahap aktif:** P3 — salin mapel & pengampu dari kelas lain (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `1d076ba` — feat(academic): P2 buka kembali pendaftaran
 
 ## Keputusan penting
 
@@ -336,12 +336,20 @@
 - Route `GET kelas/{class}/unduh` (izin lihat siswa; data pribadi & kontak bagi izin lihat data pribadi) dan `GET kelas-saya/{class}/unduh` (wali kelas: kontak utama tanpa tempat/tanggal lahir); tombol **Unduh daftar (.xlsx)** di detail kelas & Kelas saya.
 - Bukti: 524 test lulus (3 test baru, `ClassRosterExportTest`); uji manual owner lancar.
 
-**P2 — Buka kembali pendaftaran: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**P2 — Buka kembali pendaftaran: SELESAI (2026-10-22, commit `1d076ba`)**
 
-- `ManageEnrollments::reopen` (alasan wajib; tolak bila ada pendaftaran berjalan di lembaga itu / nomor induk dipakai siswa aktif lain; kelas yang tertutup pada tanggal keluar sama dibuka lagi bila kelas aktif, tahun belum lewat, belum ada kelas terbuka lain). `StudentManageAccess::canReopen` (izin kelola siswa tingkat Yayasan = Admin Yayasan).
+- `ManageEnrollments::reopen` (alasan wajib; tolak bila ada pendaftaran berjalan di lembaga itu; nomor induk diperiksa ulang sebagai pengaman; kelas yang tertutup pada tanggal keluar sama dibuka lagi bila kelas aktif, tahun belum lewat, belum ada kelas terbuka lain). `StudentManageAccess::canReopen` (izin kelola siswa tingkat Yayasan = Admin Yayasan).
 - Route `POST siswa/{student}/pendaftaran/{enrollment}/buka-kembali`; tombol **Buka kembali** + form alasan di riwayat pendaftaran detail siswa.
 - Audit `academic.enrollment_reopened` (tanpa isi alasan).
-- Target bukti: 528 test (4 test baru, `ReopenEnrollmentTest`).
+- Bukti: 528 test lulus (4 test baru, `ReopenEnrollmentTest`; fix1 memperbaiki skenario tes, bukan fitur); uji manual owner lancar.
+
+**P3 — Salin mapel & pengampu dari kelas lain: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- `ManageClassSubjects::copySources` (kelas lain di lembaga yang sama yang punya mapel, tahun terbaru dulu; saran = kelas setingkat tahun ajaran sebelumnya di kalender yang sama, utamakan nama sama) dan `copyFrom` (mapel aktif, cocok tingkat, belum ada; pengampu ikut bila masih aktif di lembaga itu; jadwal tidak disalin; ditolak bila tidak ada yang bisa disalin).
+- Route `POST kelas/{class}/mapel/salin` (`academic.class-subjects.copy`, `academic.classes.manage`); tombol **Salin dari kelas lain** di bagian Mata pelajaran detail kelas; `?salin=1#mapel` membuka formnya.
+- Halaman proses akhir tahun: bagian **Mata pelajaran kelas tujuan** berisi tautan ke tiap kelas tujuan. Teks peringatan lulus disesuaikan dengan P2 (Admin Yayasan bisa membuka kembali).
+- Audit `academic.class_subjects_added` dengan `disalin_dari`, `dilewati`, `pengampu_ikut`.
+- Target bukti: 531 test (3 test baru, `CopyClassSubjectsTest`).
 
 ## Struktur file utama
 
@@ -375,6 +383,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi P2 (PANDUAN-P2.md), commit & push.
-2. P3 salin mapel & pengampu, P4 kalender hari libur (PRD-002 §18).
+1. Verifikasi P3 (PANDUAN-P3.md), commit & push.
+2. P4 kalender hari libur (PRD-002 §18).
 3. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya.

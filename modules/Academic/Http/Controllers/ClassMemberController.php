@@ -38,7 +38,7 @@ final class ClassMemberController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function show(string $class, ClassDirectory $directory, ManageClassMembers $members, ManageClassSubjects $subjects, ActiveEmployees $employees, AttendanceModeSetting $attendanceMode): Response
+    public function show(Request $request, string $class, ClassDirectory $directory, ManageClassMembers $members, ManageClassSubjects $subjects, ActiveEmployees $employees, AttendanceModeSetting $attendanceMode): Response
     {
         $target = $this->findClass($class);
         Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
@@ -55,6 +55,9 @@ final class ClassMemberController
             // Mapel yang bisa ditambahkan & pilihan pengampu (AC-3b), hanya untuk pengelola.
             'subjectOptions' => $canManage ? $subjects->available($target) : [],
             'teachers' => $canManage ? $employees->inOrganization($target->tenant_id, $target->organization_id) : [],
+            // Salin mapel dari kelas lain (§18 P3); ?salin=1 (dari halaman akhir tahun) membuka formnya.
+            'copySources' => $canManage ? $subjects->copySources($target) : ['options' => [], 'suggested' => null],
+            'openCopy' => $canManage && $request->query('salin') === '1',
             // Mode presensi lembaga (AC-4c): menentukan tombol presensi harian atau per baris jadwal.
             'lessonAttendance' => $attendanceMode->isLesson($target->tenant_id, $target->organization_id),
             'today' => BusinessClock::todayString(),

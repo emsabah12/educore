@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { ArrowLeft, CircleAlert } from 'lucide-react';
+import { ArrowLeft, CircleAlert, Copy } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
@@ -166,9 +166,9 @@ function YearEndForm({
                         </p>
                         <p>
                             Siswa yang lulus: pendaftarannya di lembaga ini
-                            ditutup dengan alasan Lulus. Ini tidak bisa
-                            dibatalkan dari aplikasi, jadi periksa pilihannya
-                            sebelum menyimpan.
+                            ditutup dengan alasan Lulus. Hanya Admin Yayasan
+                            yang bisa membuka kembali pendaftarannya, jadi
+                            periksa pilihannya sebelum menyimpan.
                         </p>
                         {!canGraduate && (
                             <p className="text-muted-foreground">
@@ -190,6 +190,36 @@ function YearEndForm({
                             </Link>{' '}
                             agar siswa bisa naik atau tinggal kelas.
                         </Notice>
+                    )}
+
+                    {targets.length > 0 && (
+                        <section className="space-y-2 rounded-xl border p-4 text-sm">
+                            <h2 className="text-base font-medium">
+                                Mata pelajaran kelas tujuan
+                            </h2>
+                            <p className="text-muted-foreground">
+                                Mata pelajaran dan guru pengampu bisa disalin
+                                dari kelas tahun ini (jadwal tidak ikut). Buka
+                                kelas tujuan:
+                            </p>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
+                                {targets.map((target) => (
+                                    <Button
+                                        key={target.value}
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                    >
+                                        <Link
+                                            href={`/kelas/${target.value}?salin=1#mapel`}
+                                        >
+                                            <Copy />
+                                            {target.label}
+                                        </Link>
+                                    </Button>
+                                ))}
+                            </div>
+                        </section>
                     )}
 
                     <section className="space-y-3 rounded-xl border p-4">

@@ -18,6 +18,7 @@ import {
 import {
     ClassSubjectsSection,
     type ClassSubjectRow,
+    type CopySources,
 } from '@/components/academic/class-subject-actions';
 import {
     ScheduleSection,
@@ -79,6 +80,8 @@ type Props = {
     schedule: ScheduleRow[];
     subjectOptions: Option[];
     teachers: { id: string; name: string }[];
+    copySources: CopySources;
+    openCopy: boolean;
     candidates: Candidate[];
     today: string;
     maxPerSave: number;
@@ -246,6 +249,8 @@ export default function ClassDetail(props: Props) {
                     subjects={props.subjects}
                     subjectOptions={props.subjectOptions}
                     teachers={props.teachers}
+                    copySources={props.copySources}
+                    openCopy={props.openCopy}
                     canManage={canManage}
                 />
 

@@ -3,6 +3,7 @@
 namespace Modules\Academic\Application\Classroom;
 
 use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -26,11 +27,17 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Kelas tahun ajaran yang sudah lewat hanya bisa dilihat.
  * - Mengganti pengampu diperiksa bentroknya terhadap jadwal guru baru; melepas mapel ikut menghapus
  *   jadwalnya (AC-3c).
+ * - Salin dari kelas lain (PRD-002 §18 P3): kelas sumber di lembaga yang sama (tahun mana pun); yang
+ *   disalin hanya mapel aktif yang cocok tingkatnya & belum ada, pengampu ikut bila masih aktif di
+ *   lembaga itu. Jadwal tidak disalin.
  *
  * Hak akses (academic.classes.manage di lembaga kelas) dicek pemanggil lewat Gate.
  */
 final class ManageClassSubjects
 {
+    /** Batas pilihan kelas sumber yang dikirim ke halaman. */
+    public const MAX_COPY_SOURCES = 200;
+
     public function __construct(
         private readonly ActiveEmployees $employees,
         private readonly ScheduleConflicts $conflicts,
@@ -134,6 +141,154 @@ final class ManageClassSubjects
             );
 
             return count($subjectIds);
+        });
+    }
+
+    /**
+     * Pilihan kelas sumber untuk "Salin dari kelas lain" (PRD-002 §18 P3): kelas lain di lembaga yang
+     * sama (tahun mana pun) yang punya mapel, urut tahun terbaru lalu tingkat & nama. Saran bawaan:
+     * kelas setingkat di tahun ajaran sebelumnya (kalender yang sama), utamakan yang namanya sama.
+     *
+     * @return array{options: list<array{value: string, label: string}>, suggested: string|null}
+     */
+    public function copySources(SchoolClass $class): array
+    {
+        $rows = DB::table('ac_classes as c')
+            ->join('ac_academic_years as y', 'y.id', '=', 'c.academic_year_id')
+            ->where('c.organization_id', $class->organization_id)
+            ->where('c.id', '!=', $class->id)
+            ->whereExists(fn (Builder $query) => $query->selectRaw('1')->from('ac_class_subjects as cs')->whereColumn('cs.class_id', 'c.id'))
+            ->orderByDesc('y.start_date')
+            ->orderBy('c.grade')
+            ->orderBy('c.name')
+            ->limit(self::MAX_COPY_SOURCES)
+            ->get(['c.id', 'c.name', 'c.grade', 'c.academic_year_id', 'y.name as year_name', 'y.calendar_id', 'y.start_date']);
+
+        $year = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
+        $previous = AcademicYear::query()
+            ->withoutGlobalScope('tenant')
+            ->where('calendar_id', $year->calendar_id)
+            ->where('start_date', '<', $year->start_date->toDateString())
+            ->orderByDesc('start_date')
+            ->first(['id']);
+
+        $options = [];
+        $suggested = null;
+        $suggestedByName = null;
+
+        foreach ($rows as $row) {
+            $options[] = ['value' => (string) $row->id, 'label' => "{$row->name} — {$row->year_name}"];
+
+            if ($previous !== null && $row->academic_year_id === $previous->id && (int) $row->grade === $class->grade) {
+                $suggested ??= (string) $row->id;
+
+                if ($suggestedByName === null && mb_strtolower((string) $row->name) === mb_strtolower($class->name)) {
+                    $suggestedByName = (string) $row->id;
+                }
+            }
+        }
+
+        return ['options' => $options, 'suggested' => $suggestedByName ?? $suggested];
+    }
+
+    /**
+     * Salin mapel & pengampu dari kelas lain ke kelas ini (PRD-002 §18 P3). Jadwal tidak disalin.
+     *
+     * @return array{copied: int, skipped: int, teachers: int, source: string}
+     *
+     * @throws ClassException
+     */
+    public function copyFrom(string $tenantId, string $classId, string $sourceClassId): array
+    {
+        return $this->guard(function () use ($tenantId, $classId, $sourceClassId): array {
+            $class = $this->lockEditableClass($tenantId, $classId);
+            $source = Str::isUuid($sourceClassId)
+                ? SchoolClass::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($sourceClassId)->first()
+                : null;
+
+            if (! $source instanceof SchoolClass || $source->organization_id !== $class->organization_id) {
+                throw ClassException::make('source_class_id', 'Kelas sumber harus kelas lain di lembaga yang sama.');
+            }
+
+            if ($source->id === $class->id) {
+                throw ClassException::make('source_class_id', 'Pilih kelas lain sebagai sumber.');
+            }
+
+            $sourceYear = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($source->academic_year_id)->value('name');
+            $sourceLabel = $source->name.(is_string($sourceYear) ? " ({$sourceYear})" : '');
+
+            $sourceRows = DB::table('ac_class_subjects as cs')
+                ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
+                ->where('cs.class_id', $source->id)
+                ->orderByRaw('lower(s.name)')
+                ->orderBy('cs.id')
+                ->get(['cs.subject_id', 'cs.teacher_employee_id']);
+
+            if ($sourceRows->isEmpty()) {
+                throw ClassException::make('source_class_id', "Kelas {$sourceLabel} belum punya mata pelajaran.");
+            }
+
+            $subjects = Subject::query()
+                ->withoutGlobalScope('tenant')
+                ->whereIn('id', $sourceRows->pluck('subject_id')->all())
+                ->get()
+                ->keyBy('id');
+            $used = DB::table('ac_class_subjects')->where('class_id', $class->id)->pluck('subject_id')->all();
+            $names = [];
+            $teachers = 0;
+            $skipped = 0;
+
+            foreach ($sourceRows as $sourceRow) {
+                $subject = $subjects->get((string) $sourceRow->subject_id);
+
+                // Dilewati: mapel nonaktif, bukan untuk tingkat kelas ini, atau sudah ada.
+                if (! $subject instanceof Subject || ! $subject->is_active || ! $subject->coversGrade($class->grade) || in_array($subject->id, $used, true)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                // Pengampu ikut hanya bila masih pegawai aktif yang ditempatkan di lembaga ini.
+                $teacher = is_string($sourceRow->teacher_employee_id) && $this->employees->isActiveIn($tenantId, $sourceRow->teacher_employee_id, $class->organization_id)
+                    ? $sourceRow->teacher_employee_id
+                    : null;
+
+                $row = new ClassSubject;
+                $row->fill([
+                    'tenant_id' => $tenantId,
+                    'organization_id' => $class->organization_id,
+                    'academic_year_id' => $class->academic_year_id,
+                    'class_id' => $class->id,
+                    'subject_id' => $subject->id,
+                    'teacher_employee_id' => $teacher,
+                ]);
+                $row->save();
+
+                $names[] = $subject->name;
+                $teachers += $teacher === null ? 0 : 1;
+            }
+
+            if ($names === []) {
+                throw ClassException::make('source_class_id', "Tidak ada mata pelajaran dari kelas {$sourceLabel} yang bisa disalin: semuanya sudah ada di kelas ini, nonaktif, atau bukan untuk tingkat {$class->grade}.");
+            }
+
+            $this->audit->record(
+                AcademicAuditAction::CLASS_SUBJECTS_ADDED,
+                AcademicAuditAction::SUBJECT_CLASS,
+                $class->id,
+                [
+                    'kelas' => $class->name,
+                    'jumlah' => count($names),
+                    'mapel' => $names,
+                    'disalin_dari' => $sourceLabel,
+                    'dilewati' => $skipped,
+                    'pengampu_ikut' => $teachers,
+                ],
+                organizationId: $class->organization_id,
+                tenantId: $tenantId,
+            );
+
+            return ['copied' => count($names), 'skipped' => $skipped, 'teachers' => $teachers, 'source' => $sourceLabel];
         });
     }
 

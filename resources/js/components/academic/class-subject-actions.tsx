@@ -1,5 +1,12 @@
 import { Form } from '@inertiajs/react';
-import { BookOpen, CircleAlert, Plus, Trash2, UserCog } from 'lucide-react';
+import {
+    BookOpen,
+    CircleAlert,
+    Copy,
+    Plus,
+    Trash2,
+    UserCog,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { Option } from '@/components/academic/student-actions';
 import {
@@ -23,8 +30,11 @@ export type ClassSubjectRow = {
     teacher: { id: string; name: string; active: boolean } | null;
 };
 
+export type CopySources = { options: Option[]; suggested: string | null };
+
 type OpenAction =
     | { kind: 'add' }
+    | { kind: 'copy' }
     | { kind: 'teacher'; id: string }
     | { kind: 'remove'; id: string };
 
@@ -34,6 +44,8 @@ export function ClassSubjectsSection({
     subjects,
     subjectOptions,
     teachers,
+    copySources,
+    openCopy,
     canManage,
 }: {
     classId: string;
@@ -41,9 +53,14 @@ export function ClassSubjectsSection({
     subjects: ClassSubjectRow[];
     subjectOptions: Option[];
     teachers: { id: string; name: string }[];
+    copySources: CopySources;
+    openCopy: boolean;
     canManage: boolean;
 }) {
-    const [action, setAction] = useState<OpenAction | null>(null);
+    // Dari halaman akhir tahun (?salin=1) form salin langsung terbuka.
+    const [action, setAction] = useState<OpenAction | null>(
+        canManage && openCopy ? { kind: 'copy' } : null,
+    );
     const close = () => setAction(null);
     const toggle = (next: OpenAction) =>
         setAction((current) =>
@@ -61,25 +78,51 @@ export function ClassSubjectsSection({
         action.id === id;
 
     return (
-        <section className="space-y-3 rounded-xl border p-4">
+        <section
+            id="mapel"
+            className="scroll-mt-4 space-y-3 rounded-xl border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-base font-medium">
                     <BookOpen className="size-4" />
                     Mata pelajaran ({subjects.length})
                 </h2>
                 {canManage && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={action?.kind === 'add' ? 'default' : 'outline'}
-                        onClick={() => toggle({ kind: 'add' })}
-                        className="w-full sm:w-auto"
-                    >
-                        <Plus />
-                        Tambah mata pelajaran
-                    </Button>
+                    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                action?.kind === 'add' ? 'default' : 'outline'
+                            }
+                            onClick={() => toggle({ kind: 'add' })}
+                        >
+                            <Plus />
+                            Tambah mata pelajaran
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                action?.kind === 'copy' ? 'default' : 'outline'
+                            }
+                            onClick={() => toggle({ kind: 'copy' })}
+                        >
+                            <Copy />
+                            Salin dari kelas lain
+                        </Button>
+                    </div>
                 )}
             </div>
+
+            {canManage && action?.kind === 'copy' && (
+                <CopySubjectsForm
+                    classId={classId}
+                    className={className}
+                    sources={copySources}
+                    onDone={close}
+                />
+            )}
 
             {canManage && action?.kind === 'add' && (
                 <AddSubjectsForm
@@ -196,6 +239,73 @@ export function ClassSubjectsSection({
                 </ul>
             )}
         </section>
+    );
+}
+
+/**
+ * Salin mapel & pengampu dari kelas lain di lembaga yang sama (§18 P3). Saran bawaan: kelas
+ * setingkat tahun ajaran sebelumnya. Server yang memilah mana yang disalin dan mana yang dilewati.
+ */
+function CopySubjectsForm({
+    classId,
+    className,
+    sources,
+    onDone,
+}: {
+    classId: string;
+    className: string;
+    sources: CopySources;
+    onDone: () => void;
+}) {
+    if (sources.options.length === 0) {
+        return (
+            <div className="space-y-3 rounded-xl border border-primary/30 bg-muted/20 p-4 text-sm">
+                <p>
+                    Belum ada kelas lain di lembaga ini yang punya mata
+                    pelajaran untuk disalin.
+                </p>
+                <Button type="button" variant="outline" onClick={onDone}>
+                    Tutup
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <ActionForm
+            title={`Salin mata pelajaran ke ${className}`}
+            action={`/kelas/${classId}/mapel/salin`}
+            method="post"
+            errorBag="copyClassSubjects"
+            submitLabel="Salin mata pelajaran"
+            onDone={onDone}
+            note="Yang disalin: mata pelajaran aktif yang cocok dengan tingkat kelas ini dan belum ada di kelas, beserta guru pengampunya bila masih bertugas di lembaga ini. Jadwal tidak ikut disalin."
+        >
+            {(errors) => (
+                <Field
+                    id={`copy-source-${classId}`}
+                    label="Kelas sumber"
+                    required
+                    error={errors.source_class_id}
+                    className="sm:col-span-2"
+                >
+                    <SelectOptions
+                        id={`copy-source-${classId}`}
+                        name="source_class_id"
+                        options={sources.options}
+                        placeholder="Pilih kelas"
+                        defaultValue={sources.suggested ?? ''}
+                        required
+                    />
+                    {sources.suggested && (
+                        <p className="text-xs text-muted-foreground">
+                            Bawaan: kelas setingkat dari tahun ajaran
+                            sebelumnya.
+                        </p>
+                    )}
+                </Field>
+            )}
+        </ActionForm>
     );
 }
 

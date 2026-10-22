@@ -91,6 +91,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
 
     // Mapel kelas & guru pengampu (AC-3b). Kelola: academic.classes.manage di lembaga kelas.
     Route::post('kelas/{class}/mapel', [ClassSubjectController::class, 'store'])->whereUuid('class')->name('academic.class-subjects.store');
+    Route::post('kelas/{class}/mapel/salin', [ClassSubjectController::class, 'copy'])->whereUuid('class')->name('academic.class-subjects.copy');
     Route::patch('kelas/mapel/{classSubject}', [ClassSubjectController::class, 'update'])->whereUuid('classSubject')->name('academic.class-subjects.update');
     Route::delete('kelas/mapel/{classSubject}', [ClassSubjectController::class, 'destroy'])->whereUuid('classSubject')->name('academic.class-subjects.destroy');
 
