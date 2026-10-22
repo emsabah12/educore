@@ -6,8 +6,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Audit\HrAuditAction;
+use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Domain\Employee\Employee;
 use Modules\HR\Domain\Employee\EmployeeStatus;
 use Modules\HR\Domain\Employee\Placement;
@@ -45,6 +47,7 @@ final class ManageLeaveRequests
         private readonly WorkCalendar $calendar,
         private readonly LeaveBalances $balances,
         private readonly LeaveApprovalSetting $approval,
+        private readonly AuthorizationService $authorization,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -114,10 +117,13 @@ final class ManageLeaveRequests
 
     /**
      * @param  string|null  $recordedBy  membership yang mencatat bila bukan pegawai itu sendiri (HR-3d)
+     * @param  bool  $selfService  diajukan pegawai itu sendiri (Cuti saya): bila ia sendiri berhak menyetujui
+     *                             tahap lembaga (dicek dari lembaga kerja aktifnya), tahap 1 dilewati dan
+     *                             pengajuan langsung ke tahap SDM (BR-017, PRD-001 §13.4)
      *
      * @throws LeaveException
      */
-    public function submit(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, ?string $recordedBy = null): LeaveRequest
+    public function submit(string $tenantId, string $employeeId, string $typeId, string $startDate, string $endDate, string $reason, ?string $recordedBy = null, bool $selfService = false): LeaveRequest
     {
         $reason = trim($reason);
 
@@ -125,7 +131,7 @@ final class ManageLeaveRequests
             throw LeaveException::make('reason', 'Tulis alasan cuti, maksimal '.self::REASON_MAX_LENGTH.' karakter.');
         }
 
-        return DB::transaction(function () use ($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, $recordedBy): LeaveRequest {
+        return DB::transaction(function () use ($tenantId, $employeeId, $typeId, $startDate, $endDate, $reason, $recordedBy, $selfService): LeaveRequest {
             // Antrean per pegawai: cek tumpang tindih & saldo tidak balapan dengan pengajuan lain.
             Employee::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($employeeId)->lockForUpdate()->first();
 
@@ -156,6 +162,10 @@ final class ManageLeaveRequests
                 }
             }
 
+            // Tidak boleh menyetujui cuti sendiri: pengaju yang juga penyetuju lembaganya langsung ke SDM.
+            $skipLembaga = $selfService && $this->authorization->allows(HrAccess::LEAVE_APPROVE, $plan['organization_id']);
+            $steps = $this->approval->stepsFor($tenantId, $plan['organization_id']);
+
             $request = new LeaveRequest;
             $request->fill([
                 'tenant_id' => $tenantId,
@@ -168,17 +178,30 @@ final class ManageLeaveRequests
                 'days_by_year' => $plan['days_by_year'],
                 'reason' => $reason,
                 'status' => LeaveStatus::Pending,
-                'approval_steps' => $this->approval->stepsFor($tenantId, $plan['organization_id']),
-                'current_step' => 1,
+                'approval_steps' => $skipLembaga ? 2 : $steps,
+                'current_step' => $skipLembaga ? 2 : 1,
                 'recorded_by_membership_id' => $recordedBy,
             ]);
             $request->save();
+
+            if ($skipLembaga) {
+                DB::table('hr_leave_decisions')->insert([
+                    'id' => (string) Str::uuid7(),
+                    'tenant_id' => $tenantId,
+                    'leave_request_id' => $request->id,
+                    'step' => 1,
+                    'decision' => LeaveApprovals::SKIPPED,
+                    'decided_by_membership_id' => null,
+                    'note' => null,
+                    'decided_at' => CarbonImmutable::now(),
+                ]);
+            }
 
             $this->audit->record(
                 HrAuditAction::LEAVE_REQUESTED,
                 HrAuditAction::SUBJECT_EMPLOYEE,
                 $employeeId,
-                ['jenis' => $type->name, 'mulai' => $plan['start'], 'selesai' => $plan['end'], 'hari' => $plan['days'], 'lembaga' => $plan['organization'], 'tahap' => $request->approval_steps],
+                ['jenis' => $type->name, 'mulai' => $plan['start'], 'selesai' => $plan['end'], 'hari' => $plan['days'], 'lembaga' => $plan['organization'], 'tahap' => $request->approval_steps, 'tahap_lembaga_dilewati' => $skipLembaga],
                 organizationId: $plan['organization_id'],
                 tenantId: $tenantId,
             );

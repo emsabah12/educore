@@ -55,6 +55,10 @@ final class HrAuditAction
 
     public const LEAVE_WITHDRAWN = 'hr.leave_withdrawn';
 
+    public const LEAVE_APPROVED = 'hr.leave_approved';
+
+    public const LEAVE_REJECTED = 'hr.leave_rejected';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -91,6 +95,8 @@ final class HrAuditAction
             self::HOLIDAY_REMOVED => 'Hari libur kalender kerja dihapus',
             self::LEAVE_REQUESTED => 'Cuti diajukan',
             self::LEAVE_WITHDRAWN => 'Pengajuan cuti ditarik',
+            self::LEAVE_APPROVED => 'Cuti disetujui',
+            self::LEAVE_REJECTED => 'Cuti ditolak',
         ];
     }
 }

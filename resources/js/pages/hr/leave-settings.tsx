@@ -39,6 +39,15 @@ type Props = {
         }[];
         usage: { id: string; name: string; days: string; source: string }[];
     };
+    approval: {
+        rules: {
+            id: string;
+            target: string;
+            days: string;
+            enforced: boolean;
+        }[];
+        usage: { id: string; name: string; days: string; source: string }[];
+    };
     holidays: Holiday[];
     dayOptions: Option[];
     options: { jenjang: Option[]; organizations: Option[] };
@@ -74,7 +83,7 @@ export default function LeaveSettings(props: Props) {
             <div className="flex flex-1 flex-col gap-6 p-4">
                 <Heading
                     title="Pengaturan cuti"
-                    description="Jenis cuti & jatahnya, serta kalender kerja yang dipakai menghitung jumlah hari cuti: libur mingguan dan hari libur (tanggal merah). Terpisah dari kalender akademik."
+                    description="Jenis cuti & jatahnya, serta kalender kerja yang dipakai menghitung jumlah hari cuti (libur mingguan dan tanggal merah, terpisah dari kalender akademik), serta alur persetujuan."
                 />
 
                 <TypesSection
@@ -82,6 +91,7 @@ export default function LeaveSettings(props: Props) {
                     maxDays={props.limits.maxDays}
                 />
                 <WeeklyOffSection {...props} />
+                <ApprovalSection {...props} />
                 <HolidaysSection holidays={props.holidays} year={props.year} />
             </div>
         </>
@@ -327,9 +337,190 @@ function TypeForm({
 
 // ── Libur mingguan ───────────────────────────────────────────────────────────
 
-function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
+type RulesProp = Props['weeklyOff'];
+
+/**
+ * Pilihan sasaran aturan berjenjang: satu jenjang, atau satu lembaga/unit.
+ */
+function TargetFields({
+    idPrefix,
+    options,
+    errors,
+}: {
+    idPrefix: string;
+    options: Props['options'];
+    errors: Record<string, string | undefined>;
+}) {
     const [target, setTarget] = useState<'jenjang' | 'lembaga'>('jenjang');
 
+    return (
+        <>
+            <div
+                role="radiogroup"
+                aria-label="Berlaku untuk"
+                className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2"
+            >
+                {(
+                    [
+                        ['jenjang', 'Satu jenjang'],
+                        ['lembaga', 'Lembaga / unit'],
+                    ] as const
+                ).map(([value, label]) => (
+                    <label
+                        key={value}
+                        className={
+                            'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
+                            (target === value
+                                ? 'border-primary bg-primary/5'
+                                : 'hover:bg-muted')
+                        }
+                    >
+                        <input
+                            type="radio"
+                            name="target"
+                            value={value}
+                            checked={target === value}
+                            onChange={() => setTarget(value)}
+                            className="size-4 accent-primary"
+                        />
+                        {label}
+                    </label>
+                ))}
+            </div>
+            {target === 'jenjang' ? (
+                <div className="grid gap-1.5">
+                    <Label htmlFor={`${idPrefix}-jenjang`}>Jenjang</Label>
+                    <select
+                        id={`${idPrefix}-jenjang`}
+                        name="jenjang"
+                        className={selectClass}
+                        defaultValue=""
+                        required
+                    >
+                        <option value="" disabled>
+                            Pilih jenjang
+                        </option>
+                        {options.jenjang.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={errors.jenjang} />
+                </div>
+            ) : (
+                <div className="grid gap-1.5">
+                    <Label htmlFor={`${idPrefix}-organization`}>
+                        Lembaga / unit
+                    </Label>
+                    <select
+                        id={`${idPrefix}-organization`}
+                        name="organization_id"
+                        className={selectClass}
+                        defaultValue=""
+                        required
+                    >
+                        <option value="" disabled>
+                            Pilih lembaga atau unit
+                        </option>
+                        {options.organizations.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={errors.organization_id} />
+                </div>
+            )}
+        </>
+    );
+}
+
+/**
+ * Daftar aturan yang tersimpan + nilai yang berlaku di tiap lembaga.
+ */
+function RulesPanel({
+    data,
+    emptyText,
+    usageTitle,
+}: {
+    data: RulesProp;
+    emptyText: string;
+    usageTitle: string;
+}) {
+    return (
+        <div className="space-y-4">
+            <div className="rounded-xl border">
+                {data.rules.length === 0 ? (
+                    <p className="p-4 text-sm text-muted-foreground">
+                        {emptyText}
+                    </p>
+                ) : (
+                    <ul className="divide-y">
+                        {data.rules.map((rule) => (
+                            <li
+                                key={rule.id}
+                                className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm"
+                            >
+                                <span className="font-medium break-words">
+                                    {rule.target}
+                                </span>
+                                <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                                    {rule.days}
+                                    {rule.enforced && (
+                                        <Badge variant="outline">
+                                            <Lock />
+                                            Dikunci
+                                        </Badge>
+                                    )}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            {data.usage.length > 0 && (
+                <details className="rounded-xl border">
+                    <summary className="cursor-pointer p-4 text-sm font-medium">
+                        {usageTitle} ({data.usage.length})
+                    </summary>
+                    <ul className="divide-y border-t">
+                        {data.usage.map((row) => (
+                            <li
+                                key={row.id}
+                                className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm"
+                            >
+                                <span className="break-words">{row.name}</span>
+                                <span className="flex items-center gap-1.5">
+                                    {row.days}
+                                    <Badge variant="outline">
+                                        {row.source}
+                                    </Badge>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </details>
+            )}
+        </div>
+    );
+}
+
+function EnforcedCheckbox({ text }: { text: string }) {
+    return (
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+                type="checkbox"
+                name="enforced"
+                value="1"
+                className="mt-0.5 size-4 accent-primary"
+            />
+            {text}
+        </label>
+    );
+}
+
+function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
     return (
         <section aria-label="Libur mingguan" className="space-y-3">
             <Heading
@@ -347,91 +538,11 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div
-                                role="radiogroup"
-                                aria-label="Berlaku untuk"
-                                className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2"
-                            >
-                                {(
-                                    [
-                                        ['jenjang', 'Satu jenjang'],
-                                        ['lembaga', 'Lembaga / unit'],
-                                    ] as const
-                                ).map(([value, label]) => (
-                                    <label
-                                        key={value}
-                                        className={
-                                            'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
-                                            (target === value
-                                                ? 'border-primary bg-primary/5'
-                                                : 'hover:bg-muted')
-                                        }
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="target"
-                                            value={value}
-                                            checked={target === value}
-                                            onChange={() => setTarget(value)}
-                                            className="size-4 accent-primary"
-                                        />
-                                        {label}
-                                    </label>
-                                ))}
-                            </div>
-                            {target === 'jenjang' ? (
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="wo-jenjang">Jenjang</Label>
-                                    <select
-                                        id="wo-jenjang"
-                                        name="jenjang"
-                                        className={selectClass}
-                                        defaultValue=""
-                                        required
-                                    >
-                                        <option value="" disabled>
-                                            Pilih jenjang
-                                        </option>
-                                        {options.jenjang.map((option) => (
-                                            <option
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.jenjang} />
-                                </div>
-                            ) : (
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="wo-organization">
-                                        Lembaga / unit
-                                    </Label>
-                                    <select
-                                        id="wo-organization"
-                                        name="organization_id"
-                                        className={selectClass}
-                                        defaultValue=""
-                                        required
-                                    >
-                                        <option value="" disabled>
-                                            Pilih lembaga atau unit
-                                        </option>
-                                        {options.organizations.map((option) => (
-                                            <option
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError
-                                        message={errors.organization_id}
-                                    />
-                                </div>
-                            )}
+                            <TargetFields
+                                idPrefix="wo"
+                                options={options}
+                                errors={errors}
+                            />
                             <fieldset className="space-y-1.5">
                                 <legend className="text-sm font-medium">
                                     Hari libur
@@ -463,16 +574,7 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
                                     }
                                 />
                             </fieldset>
-                            <label className="flex cursor-pointer items-start gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    name="enforced"
-                                    value="1"
-                                    className="mt-0.5 size-4 accent-primary"
-                                />
-                                Kunci: lembaga di bawahnya tidak bisa memakai
-                                libur mingguan lain.
-                            </label>
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai libur mingguan lain." />
                             <Button type="submit" disabled={processing}>
                                 Simpan libur mingguan
                             </Button>
@@ -480,64 +582,74 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
                     )}
                 </Form>
 
-                <div className="space-y-4">
-                    <div className="rounded-xl border">
-                        {weeklyOff.rules.length === 0 ? (
-                            <p className="p-4 text-sm text-muted-foreground">
-                                Belum ada pengaturan. Semua lembaga libur hari
-                                Ahad.
-                            </p>
-                        ) : (
-                            <ul className="divide-y">
-                                {weeklyOff.rules.map((rule) => (
-                                    <li
-                                        key={rule.id}
-                                        className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm"
-                                    >
-                                        <span className="font-medium break-words">
-                                            {rule.target}
-                                        </span>
-                                        <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                                            {rule.days}
-                                            {rule.enforced && (
-                                                <Badge variant="outline">
-                                                    <Lock />
-                                                    Dikunci
-                                                </Badge>
-                                            )}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                    {weeklyOff.usage.length > 0 && (
-                        <details className="rounded-xl border">
-                            <summary className="cursor-pointer p-4 text-sm font-medium">
-                                Libur mingguan yang berlaku di tiap lembaga (
-                                {weeklyOff.usage.length})
-                            </summary>
-                            <ul className="divide-y border-t">
-                                {weeklyOff.usage.map((row) => (
-                                    <li
-                                        key={row.id}
-                                        className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm"
-                                    >
-                                        <span className="break-words">
-                                            {row.name}
-                                        </span>
-                                        <span className="flex items-center gap-1.5">
-                                            {row.days}
-                                            <Badge variant="outline">
-                                                {row.source}
-                                            </Badge>
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </details>
+                <RulesPanel
+                    data={weeklyOff}
+                    emptyText="Belum ada pengaturan. Semua lembaga libur hari Ahad."
+                    usageTitle="Libur mingguan yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
+    );
+}
+
+// ── Alur persetujuan (HR-3c) ─────────────────────────────────────────────────
+
+function ApprovalSection({ approval, options }: Props) {
+    return (
+        <section aria-label="Alur persetujuan" className="space-y-3">
+            <Heading
+                variant="small"
+                title="Alur persetujuan"
+                description="2 tahap: Kepala Lembaga lalu Admin SDM (bawaan). 1 tahap: cukup Kepala Lembaga. Berlaku untuk pengajuan baru; pengajuan yang sudah masuk tetap memakai alur saat diajukan."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action={`${BASE_URL}/alur-persetujuan`}
+                    method="post"
+                    errorBag="approval"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="ap"
+                                options={options}
+                                errors={errors}
+                            />
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="ap-steps">Alur</Label>
+                                <select
+                                    id="ap-steps"
+                                    name="steps"
+                                    className={selectClass}
+                                    defaultValue="2"
+                                    required
+                                >
+                                    <option value="2">
+                                        2 tahap: Kepala Lembaga → Admin SDM
+                                    </option>
+                                    <option value="1">
+                                        1 tahap: Kepala Lembaga saja
+                                    </option>
+                                </select>
+                                <InputError
+                                    message={errors.steps ?? errors.form}
+                                />
+                            </div>
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai alur lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan alur persetujuan
+                            </Button>
+                        </>
                     )}
-                </div>
+                </Form>
+
+                <RulesPanel
+                    data={approval}
+                    emptyText="Belum ada pengaturan. Semua lembaga memakai alur 2 tahap."
+                    usageTitle="Alur yang berlaku di tiap lembaga"
+                />
             </div>
         </section>
     );

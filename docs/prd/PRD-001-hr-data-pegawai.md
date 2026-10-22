@@ -2,7 +2,7 @@
 
 - **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
 - **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b dikerjakan; HR-2, HR-4 dst. belum dirinci
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c dikerjakan; HR-2, HR-4 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -375,6 +375,12 @@ Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001)
 - **Tidak boleh menyetujui cuti sendiri** (BR-017): bila tidak ada penyetuju tahap 1 selain pengaju (mis. pengaju Kepala Lembaga), tahap 1 dilewati dan pengajuan langsung ke tahap SDM; pada alur 1 tahap, ke Admin SDM [ASUMSI].
 - Hak diperiksa saat memutuskan (bukan saat diajukan). Saldo & tumpang tindih **dicek ulang** pada persetujuan terakhir dalam transaksi yang mengunci pegawai.
 - Tabel **`hr_leave_requests`** (pegawai, jenis, tanggal, jumlah hari, alasan, status, jumlah tahap, tahap berjalan, dicatat oleh) dan **`hr_leave_decisions`** (pengajuan, tahap, keputusan, oleh, catatan, waktu).
+- Rincian teknis HR-3c [ASUMSI]:
+    - Halaman `/persetujuan-cuti` (menu **Persetujuan cuti** bagi pemilik `hr.leave.approve`, atau `hr.leave.manage` di tingkat Yayasan); terlama di atas, maks. 200 pengajuan; cuti milik sendiri tidak tampil. Tiap baris menampilkan sisa jatah tahun itu dan pengajuan lain yang masih menunggu.
+    - Pengajuan di luar cakupan → 404; tanpa izin → 403. Admin SDM/Admin Yayasan juga boleh memutuskan tahap lembaga karena `hr.leave.approve` mereka berlaku di semua lembaga.
+    - Tahap lembaga dilewati bila pengaju sendiri berhak `hr.leave.approve` di lembaga pengajuan (dicek dari lembaga kerja aktif saat mengajukan); dicatat sebagai keputusan `DILEWATI` tanpa pemutus, dan pengajuan menjadi 2 tahap meski aturannya 1 tahap.
+    - Keputusan disimpan `SETUJU`, `TOLAK`, `DILEWATI`. Alasan penolakan tampil di Cuti saya. Audit menyimpan tanggal, hari, tahap (lembaga/SDM), final atau tidak, dan apakah catatan diisi; isi catatan tidak disimpan di audit.
+    - Pengaturan cuti mendapat bagian **Alur persetujuan** (per jenjang atau lembaga/unit, bisa dikunci), sama seperti libur mingguan.
 
 ### 13.5 HR-3d Kelola cuti (Admin SDM)
 

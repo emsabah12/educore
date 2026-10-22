@@ -157,6 +157,40 @@ final class LeaveSettingsController
         return $this->done('Libur mingguan disimpan.');
     }
 
+    // ── Alur persetujuan (HR-3c) ─────────────────────────────────────────────
+
+    public function assignApproval(Request $request, LeaveSettingsOverview $overview): RedirectResponse
+    {
+        $this->authorize();
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'steps' => ['required', 'integer', Rule::in([1, 2])],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'steps.required' => 'Pilih alur persetujuan.',
+        ], ['jenjang' => 'jenjang', 'organization_id' => 'lembaga', 'steps' => 'alur persetujuan']);
+
+        $byJenjang = $validated['target'] === 'jenjang';
+
+        try {
+            $overview->assignApproval(
+                $byJenjang ? null : (string) $validated['organization_id'],
+                $byJenjang ? Jenjang::from((string) $validated['jenjang']) : null,
+                (int) $validated['steps'],
+                $request->boolean('enforced'),
+            );
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['steps' => $exception->getMessage()]);
+        }
+
+        return $this->done('Alur persetujuan cuti disimpan. Pengajuan yang sudah ada tetap memakai alur saat diajukan.');
+    }
+
     // ── Hari libur ───────────────────────────────────────────────────────────
 
     public function storeHoliday(Request $request, ManageWorkHolidays $holidays): RedirectResponse

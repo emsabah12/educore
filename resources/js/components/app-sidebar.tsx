@@ -3,6 +3,7 @@ import {
     BookOpen,
     CalendarCog,
     CalendarDays,
+    ClipboardCheck,
     ClipboardList,
     GraduationCap,
     LayoutGrid,
@@ -75,6 +76,12 @@ const myLeaveNavItem: NavItem = {
     icon: Plane,
 };
 
+const leaveApprovalsNavItem: NavItem = {
+    title: 'Persetujuan cuti',
+    href: '/persetujuan-cuti',
+    icon: ClipboardCheck,
+};
+
 const studentsNavItem: NavItem = {
     title: 'Siswa',
     href: '/siswa',
@@ -130,6 +137,10 @@ export function AppSidebar() {
             : []),
         ...(academic?.myClasses ? [myClassesNavItem] : []),
         ...(hr?.isEmployee ? [myLeaveNavItem] : []),
+        ...(permissions.includes('hr.leave.approve') ||
+        (atTenantLevel && permissions.includes('hr.leave.manage'))
+            ? [leaveApprovalsNavItem]
+            : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
             : []),

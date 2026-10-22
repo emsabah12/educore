@@ -37,6 +37,7 @@ type LeaveRow = {
     steps: number;
     steps_label: string;
     reason: string;
+    note: string | null;
     created_at: string | null;
 };
 
@@ -452,6 +453,11 @@ function History({ requests }: { requests: LeaveRow[] }) {
                                     <p className="break-words whitespace-pre-line text-muted-foreground">
                                         {row.reason}
                                     </p>
+                                    {row.note && (
+                                        <p className="break-words whitespace-pre-line text-red-700 dark:text-red-300">
+                                            Alasan ditolak: {row.note}
+                                        </p>
+                                    )}
                                 </div>
                                 <Badge
                                     variant="outline"

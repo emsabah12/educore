@@ -11,6 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Leave\LeaveApprovals;
 use Modules\HR\Application\Leave\LeaveApprovalSetting;
 use Modules\HR\Application\Leave\LeaveBalances;
 use Modules\HR\Application\Leave\ManageLeaveRequests;
@@ -101,6 +102,7 @@ final class MyLeaveController
                 $request->string('start_date')->value(),
                 $request->string('end_date')->value(),
                 $request->string('reason')->value(),
+                selfService: true,
             );
         } catch (LeaveException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
@@ -146,7 +148,7 @@ final class MyLeaveController
     /**
      * Riwayat pengajuan pegawai ini, terbaru dulu (maks. 100).
      *
-     * @return list<array{id: string, type: string, start_date: string, end_date: string, days: int, status: string, status_label: string, step: int|null, steps: int, steps_label: string, reason: string, created_at: string|null}>
+     * @return list<array{id: string, type: string, start_date: string, end_date: string, days: int, status: string, status_label: string, step: int|null, steps: int, steps_label: string, reason: string, note: string|null, created_at: string|null}>
      */
     private function history(string $tenantId, string $employeeId): array
     {
@@ -154,6 +156,13 @@ final class MyLeaveController
         $rows = [];
 
         $requests = LeaveRequest::query()->withoutGlobalScope('tenant')->where('employee_id', $employeeId)->orderByDesc('start_date')->orderByDesc('created_at')->limit(100)->get();
+
+        // Catatan penolakan boleh dibaca pengaju (PRD-001 §13.4).
+        $notes = DB::table('hr_leave_decisions')
+            ->whereIn('leave_request_id', $requests->pluck('id')->all())
+            ->where('decision', LeaveApprovals::REJECTED)
+            ->pluck('note', 'leave_request_id')
+            ->all();
 
         foreach ($requests as $request) {
             $rows[] = [
@@ -170,6 +179,7 @@ final class MyLeaveController
                 'steps' => $request->approval_steps,
                 'steps_label' => LeaveApprovalSetting::label($request->approval_steps),
                 'reason' => $request->reason,
+                'note' => isset($notes[$request->id]) ? (string) $notes[$request->id] : null,
                 'created_at' => $request->created_at?->toIso8601String(),
             ];
         }

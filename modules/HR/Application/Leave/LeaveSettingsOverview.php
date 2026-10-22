@@ -16,8 +16,8 @@ use Modules\HR\Domain\Leave\Holiday;
 use Modules\HR\Domain\Leave\LeaveType;
 
 /**
- * Data halaman Pengaturan cuti (PRD-001 §13.2, HR-3a): jenis cuti, libur mingguan per jenjang/lembaga
- * (aturan berjenjang), dan hari libur yayasan per tahun. Hak akses dicek pemanggil.
+ * Data halaman Pengaturan cuti (PRD-001 §13.2–§13.4): jenis cuti, libur mingguan & alur persetujuan per
+ * jenjang/lembaga (aturan berjenjang), dan hari libur yayasan per tahun. Hak akses dicek pemanggil.
  *
  * @phpstan-type TypeRow array{id: string, code: string, name: string, has_quota: bool, annual_quota: int|null, max_days: int|null, is_active: bool}
  * @phpstan-type RuleRow array{id: string, target: string, days: string, enforced: bool}
@@ -36,6 +36,7 @@ final class LeaveSettingsOverview
      * @return array{
      *     types: list<TypeRow>,
      *     weeklyOff: array{rules: list<RuleRow>, usage: list<UsageRow>},
+     *     approval: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     holidays: list<HolidayRow>,
      *     dayOptions: list<OptionRow>,
      *     options: array{jenjang: list<OptionRow>, organizations: list<OptionRow>},
@@ -94,7 +95,15 @@ final class LeaveSettingsOverview
 
         return [
             'types' => $types,
-            'weeklyOff' => ['rules' => $this->rules($tenantId), 'usage' => $this->usage($tenantId)],
+            'weeklyOff' => [
+                'rules' => $this->rules($tenantId, WeeklyOffSetting::KEY, fn (mixed $value): string => WeeklyOffSetting::label(WeeklyOffSetting::normalize($value))),
+                'usage' => $this->usage($tenantId, WeeklyOffSetting::KEY, fn (mixed $value): string => WeeklyOffSetting::label(WeeklyOffSetting::normalize($value))),
+            ],
+            // Alur persetujuan cuti per jenjang/lembaga (HR-3c).
+            'approval' => [
+                'rules' => $this->rules($tenantId, LeaveApprovalSetting::KEY, fn (mixed $value): string => LeaveApprovalSetting::label($value === 1 ? 1 : 2)),
+                'usage' => $this->usage($tenantId, LeaveApprovalSetting::KEY, fn (mixed $value): string => LeaveApprovalSetting::label($value === 1 ? 1 : 2)),
+            ],
             'holidays' => $holidays,
             'dayOptions' => $dayOptions,
             'options' => ['jenjang' => $jenjang, 'organizations' => $this->organizationOptions($tenantId)],
@@ -117,11 +126,23 @@ final class LeaveSettingsOverview
     }
 
     /**
+     * Alur persetujuan cuti: 1 tahap atau 2 tahap.
+     *
+     * @throws AuthorizationException
+     * @throws SettingException
+     */
+    public function assignApproval(?string $organizationId, ?Jenjang $jenjang, int $steps, bool $enforced): ScopedSetting
+    {
+        return $this->setScopedSetting->handle(LeaveApprovalSetting::KEY, $organizationId, $jenjang, $steps, $enforced);
+    }
+
+    /**
+     * @param  callable(mixed): string  $label
      * @return list<RuleRow>
      */
-    private function rules(string $tenantId): array
+    private function rules(string $tenantId, string $key, callable $label): array
     {
-        $settings = ScopedSetting::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->where('key', WeeklyOffSetting::KEY)->get();
+        $settings = ScopedSetting::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->where('key', $key)->get();
 
         if ($settings->isEmpty()) {
             return [];
@@ -148,7 +169,7 @@ final class LeaveSettingsOverview
             $rows[] = [
                 'id' => $setting->id,
                 'target' => $target,
-                'days' => WeeklyOffSetting::label(WeeklyOffSetting::normalize($setting->value)),
+                'days' => $label($setting->value),
                 'enforced' => $setting->is_enforced,
             ];
         }
@@ -159,9 +180,10 @@ final class LeaveSettingsOverview
     }
 
     /**
+     * @param  callable(mixed): string  $label
      * @return list<UsageRow>
      */
-    private function usage(string $tenantId): array
+    private function usage(string $tenantId, string $key, callable $label): array
     {
         $lembaga = Organization::query()
             ->withoutGlobalScope('tenant')
@@ -174,12 +196,12 @@ final class LeaveSettingsOverview
         $rows = [];
 
         foreach ($lembaga as $organization) {
-            $resolved = $this->settings->resolve($tenantId, WeeklyOffSetting::KEY, $organization->id);
+            $resolved = $this->settings->resolve($tenantId, $key, $organization->id);
 
             $rows[] = [
                 'id' => $organization->id,
                 'name' => $organization->name,
-                'days' => WeeklyOffSetting::label(WeeklyOffSetting::normalize($resolved->value)),
+                'days' => $label($resolved->value),
                 'source' => match ($resolved->source) {
                     SettingPrecedence::SOURCE_ENFORCED => 'Dikunci',
                     SettingPrecedence::SOURCE_NEAREST => 'Diatur',

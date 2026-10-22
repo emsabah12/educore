@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-21
-- **Tahap aktif:** HR-3b — Cuti saya (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `4cf3e44` — feat(hr): HR-3a jenis cuti dan kalender kerja
+- **Diperbarui:** 2026-10-22
+- **Tahap aktif:** HR-3c — Persetujuan cuti berjenjang (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `8de802d` — feat(hr): HR-3b cuti saya
 
 ## Keputusan penting
 
@@ -412,12 +412,20 @@
 - Audit `hr.leave_type_created|updated|deactivated|reactivated`, `hr.holiday_added|updated|removed`.
 - Bukti: 553 test lulus (3 test baru, `LeaveSettingsTest`; `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan untuk permission baru); uji manual owner lancar.
 
-**HR-3b — Cuti saya: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**HR-3b — Cuti saya: SELESAI (2026-10-22, commit `8de802d`)**
 
 - Migrasi `2026_10_22_100006`: `hr_leave_requests` (pegawai, jenis, lembaga penempatan utama, tanggal, hari kerja + rincian per tahun, alasan, status, jumlah/tahap persetujuan, dicatat oleh).
 - `Domain/Leave/{LeaveRequest, LeaveStatus}`; `Application/Leave/{LeaveApprovalSetting (aturan berjenjang hr.leave_approval, bawaan 2), LeaveBalances (saldo per tahun), ManageLeaveRequests (plan, submit, withdraw)}`.
 - `MyLeaveController`: `/cuti-saya` (+ `/hitung` JSON pratinjau hari, `POST`, `/{leave}/tarik`); halaman `hr/my-leave`; menu **Cuti saya** lewat prop bersama `hr.isEmployee` (HRServiceProvider).
-- Target bukti: 556 test (3 test baru, `MyLeaveTest`).
+- Bukti: 556 test lulus (3 test baru, `MyLeaveTest`); uji manual owner lancar.
+
+**HR-3c — Persetujuan berjenjang: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_100007`: `hr_leave_decisions` (pengajuan, tahap, `SETUJU`/`TOLAK`/`DILEWATI`, oleh, catatan maks. 300, waktu).
+- `Application/Leave/LeaveApprovals` (kotak masuk, `canDecide`, `decide` + cek ulang tumpang tindih & jatah pada persetujuan terakhir). `ManageLeaveRequests::submit(selfService)`: bila pengaju sendiri berhak `hr.leave.approve` di lembaga pengajuan, tahap lembaga dilewati (baris `DILEWATI`) dan pengajuan langsung ke tahap SDM.
+- `LeaveApprovalController`: `/persetujuan-cuti` (menu **Persetujuan cuti**) + `POST /persetujuan-cuti/{leave}`; halaman `hr/leave-approvals`. Pengaturan cuti mendapat bagian **Alur persetujuan** (`POST /pegawai/cuti/alur-persetujuan`). Cuti saya menampilkan alasan penolakan.
+- Audit `hr.leave_approved` / `hr.leave_rejected` (tanggal, hari, tahap, final, catatan diisi ya/tidak; tanpa isi catatan).
+- Target bukti: 560 test (4 test baru, `LeaveApprovalTest`).
 
 ## Struktur file utama
 
@@ -456,5 +464,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-3b (PANDUAN-HR3B.md), migrate, commit & push.
-2. HR-3c persetujuan berjenjang → HR-3d kelola cuti SDM (PRD-001 §13).
+1. Verifikasi HR-3c (PANDUAN-HR3C.md), migrate, commit & push.
+2. HR-3d kelola cuti SDM: daftar & saringan, catat atas nama, batalkan, penyesuaian jatah, rekap .xlsx (PRD-001 §13.5).

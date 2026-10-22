@@ -6,6 +6,7 @@ use Modules\HR\Http\Controllers\CatalogController;
 use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
+use Modules\HR\Http\Controllers\LeaveApprovalController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyLeaveController;
 
@@ -39,6 +40,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('cuti-saya/hitung', [MyLeaveController::class, 'preview'])->name('hr.my-leave.preview');
     Route::post('cuti-saya', [MyLeaveController::class, 'store'])->name('hr.my-leave.store');
     Route::post('cuti-saya/{leave}/tarik', [MyLeaveController::class, 'withdraw'])->whereUuid('leave')->name('hr.my-leave.withdraw');
+
+    // Persetujuan cuti (PRD-001 §13.4, HR-3c): tahap lembaga (hr.leave.approve) & tahap SDM (hr.leave.manage).
+    Route::get('persetujuan-cuti', [LeaveApprovalController::class, 'index'])->name('hr.leave-approvals.index');
+    Route::post('persetujuan-cuti/{leave}', [LeaveApprovalController::class, 'decide'])->whereUuid('leave')->name('hr.leave-approvals.decide');
+    Route::post('pegawai/cuti/alur-persetujuan', [LeaveSettingsController::class, 'assignApproval'])->name('hr.leave-approval-flow.assign');
 
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');
