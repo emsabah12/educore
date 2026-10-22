@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** P4a — data & pengelolaan hari libur (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `84a5053` — feat(academic): P3 salin mapel dan pengampu dari kelas lain
+- **Tahap aktif:** P4b — hari efektif di presensi (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `b7683df` — feat(academic): P4a hari libur mingguan dan daftar hari libur
 
 ## Keputusan penting
 
@@ -351,14 +351,21 @@
 - Audit `academic.class_subjects_added` dengan `disalin_dari`, `dilewati`, `pengampu_ikut`.
 - Bukti: 531 test lulus (3 test baru, `CopyClassSubjectsTest`); uji manual owner lancar.
 
-**P4a — Hari libur: data & pengelolaan: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**P4a — Hari libur: data & pengelolaan: SELESAI (2026-10-22, commit `b7683df`)**
 
 - Migrasi `2026_10_22_200010`: kolom `ac_academic_calendars.weekly_off_days` (jsonb, bawaan `[7]` = Ahad, maks. 6 hari) dan tabel `ac_holidays` (tahun ajaran, nama, tanggal mulai–selesai).
 - `Domain/Calendar/Holiday`; `Application/Calendar/ManageHolidays` (`setWeeklyOffDays`, `add`, `update`, `remove`, `weeklyOffDaysOf`); `SaveAcademicYear::update` menolak tanggal baru yang membuat hari libur tertinggal di luar.
 - Route (Admin Yayasan): `POST akademik/kalender/{calendar}/libur-mingguan`, `POST akademik/tahun-ajaran/{year}/hari-libur`, `PATCH|DELETE akademik/hari-libur/{holiday}`.
 - Halaman Kalender akademik: baris **Libur mingguan** di bawah nama kalender dan daftar **Hari libur** di tiap kartu tahun ajaran (`components/academic/holiday-actions.tsx`).
 - Audit `academic.weekly_off_days_changed`, `academic.holiday_added|updated|removed`.
-- Target bukti: 534 test (3 test baru, `HolidaysTest`).
+- Bukti: 534 test lulus (3 test baru, `HolidaysTest`); uji manual owner lancar.
+
+**P4b — Hari efektif di presensi: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- `Application/Calendar/SchoolDays` (`holidayOn`, `effectiveDates`): hari efektif = di dalam tahun ajaran, bukan libur mingguan kalender, bukan hari libur.
+- `AttendanceRecap::effective` (hari efektif periode, s.d. hari ini, belum diisi + 31 tanggal terbaru); rekap harian menampilkannya, tanggal belum diisi bisa diklik ke lembar presensi bila pengguna boleh mengisinya (prop `fill`).
+- Lembar presensi (harian & per pertemuan): prop `holiday` → peringatan "Tanggal ini hari libur: …"; tetap bisa disimpan.
+- Target bukti: 537 test (3 test baru, `EffectiveDaysTest`, memakai `travelTo` ke 22 Okt 2026).
 
 ## Struktur file utama
 
@@ -392,6 +399,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi P4a (PANDUAN-P4A.md), migrate, commit & push.
-2. P4b: hari efektif di rekap presensi harian + peringatan mengisi presensi di hari libur (PRD-002 §18 P4).
-3. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya.
+1. Verifikasi P4b (PANDUAN-P4B.md), commit & push → penyempurnaan P1–P4 selesai.
+2. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya (pilihan owner).

@@ -44,6 +44,8 @@ type Props = {
             updated_at: string | null;
         } | null;
     } | null;
+    /** Alasan libur bila tanggal ini hari libur (PRD-002 §18 P4); tetap boleh diisi. */
+    holiday: string | null;
     statuses: Option[];
     asHomeroom: boolean;
     homeroomDays: number;
@@ -165,6 +167,14 @@ export default function AttendanceSheet(props: Props) {
                                     : 'Operator bisa mengisi tanggal mana pun di tahun ajaran ini.'}
                             </p>
                         </div>
+
+                        {props.holiday && (
+                            <Notice>
+                                Tanggal ini hari libur: {props.holiday}.
+                                Presensi tetap bisa disimpan, tetapi hari ini
+                                tidak dihitung sebagai hari efektif.
+                            </Notice>
+                        )}
 
                         <SheetForm key={date} {...props} date={date} />
                     </>

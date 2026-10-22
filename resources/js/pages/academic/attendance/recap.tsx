@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarX } from 'lucide-react';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,16 @@ type Props = {
         students: Row[];
         totals: { H: number; S: number; I: number; A: number };
     };
+    /** Hari efektif (PRD-002 §18 P4); hanya rekap harian. */
+    effective: {
+        days: number;
+        due: number;
+        unfilled: number;
+        unfilled_dates: string[];
+    } | null;
+    maxUnfilledListed: number;
+    /** Lembar presensi harian & tanggal yang boleh diisi pengguna ini (null = tidak bisa mengisi). */
+    fill: { url: string; min: string; max: string } | null;
     baseUrl: string;
     backUrl: string;
     backLabel: string;
@@ -65,6 +75,9 @@ export default function AttendanceRecap({
     subjects,
     subject,
     recap,
+    effective,
+    maxUnfilledListed,
+    fill,
     baseUrl,
     backUrl,
     backLabel,
@@ -186,6 +199,14 @@ export default function AttendanceRecap({
                     </p>
                 </div>
 
+                {effective && (
+                    <EffectiveDays
+                        effective={effective}
+                        maxListed={maxUnfilledListed}
+                        fill={fill}
+                    />
+                )}
+
                 {recap.students.length === 0 ? (
                     <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
                         Tidak ada siswa di kelas ini pada periode tersebut.
@@ -279,5 +300,123 @@ export default function AttendanceRecap({
                 </p>
             </div>
         </>
+    );
+}
+
+/**
+ * Hari efektif periode ini dan hari efektif yang belum diisi sampai hari ini (§18 P4). Tanggal
+ * yang belum diisi bisa diklik ke lembar presensinya bila pengguna ini masih boleh mengisinya.
+ */
+function EffectiveDays({
+    effective,
+    maxListed,
+    fill,
+}: {
+    effective: NonNullable<Props['effective']>;
+    maxListed: number;
+    fill: Props['fill'];
+}) {
+    const short = new Intl.DateTimeFormat('id-ID', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+    });
+    const label = (value: string) => {
+        const [year, month, day] = value.split('-').map(Number);
+
+        return short.format(new Date(year, month - 1, day));
+    };
+
+    return (
+        <section className="space-y-3 rounded-xl border p-4 text-sm">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
+                <Stat label="Hari efektif periode ini" value={effective.days} />
+                <Stat
+                    label="Hari efektif s.d. hari ini"
+                    value={effective.due}
+                />
+                <Stat
+                    label="Belum diisi"
+                    value={effective.unfilled}
+                    warn={effective.unfilled > 0}
+                />
+            </div>
+
+            {effective.unfilled > 0 ? (
+                <div className="space-y-2">
+                    <p className="flex items-center gap-1.5 font-medium">
+                        <CalendarX className="size-4" />
+                        Hari efektif yang belum diisi
+                        {effective.unfilled > maxListed
+                            ? ` (${maxListed} terbaru dari ${effective.unfilled})`
+                            : ''}
+                    </p>
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-1.5">
+                        {effective.unfilled_dates.map((date) => {
+                            const chip =
+                                'block rounded-md border border-amber-500/50 bg-amber-50 px-2 py-1 text-center text-amber-900 dark:bg-amber-950/40 dark:text-amber-100';
+                            const fillable =
+                                fill !== null &&
+                                date >= fill.min &&
+                                date <= fill.max;
+
+                            return (
+                                <li key={date}>
+                                    {fillable ? (
+                                        <Link
+                                            href={`${fill.url}?tanggal=${date}`}
+                                            className={
+                                                chip + ' hover:bg-amber-100'
+                                            }
+                                        >
+                                            {label(date)}
+                                        </Link>
+                                    ) : (
+                                        <span className={chip}>
+                                            {label(date)}
+                                        </span>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            ) : (
+                effective.due > 0 && (
+                    <p className="text-muted-foreground">
+                        Semua hari efektif sampai hari ini sudah diisi.
+                    </p>
+                )
+            )}
+
+            <p className="text-xs text-muted-foreground">
+                Hari efektif = hari di periode ini yang bukan libur mingguan dan
+                bukan hari libur di Kalender akademik.
+            </p>
+        </section>
+    );
+}
+
+function Stat({
+    label,
+    value,
+    warn = false,
+}: {
+    label: string;
+    value: number;
+    warn?: boolean;
+}) {
+    return (
+        <div
+            className={
+                'rounded-md px-3 py-2 ' +
+                (warn
+                    ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
+                    : 'bg-muted/50')
+            }
+        >
+            <p className="text-xs">{label}</p>
+            <p className="text-lg font-semibold tabular-nums">{value}</p>
+        </div>
     );
 }

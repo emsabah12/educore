@@ -14,6 +14,7 @@ use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Attendance\AttendanceRecap;
 use Modules\Academic\Application\Attendance\ManageAttendance;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Calendar\SchoolDays;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Domain\Attendance\AttendanceStatus;
 use Modules\Academic\Domain\Attendance\Exceptions\AttendanceException;
@@ -42,6 +43,7 @@ final class AttendanceController
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
+        private readonly SchoolDays $schoolDays,
     ) {}
 
     // ── Harian ───────────────────────────────────────────────────────────────
@@ -110,7 +112,7 @@ final class AttendanceController
     /**
      * Rekap kelas untuk pemilik izin lihat siswa di lembaga kelas (Kepala Lembaga, operator, dll.).
      */
-    public function recap(Request $request, string $class, AttendanceRecap $recap, AttendanceModeSetting $mode): Response
+    public function recap(Request $request, string $class, AttendanceRecap $recap, AttendanceModeSetting $mode, ManageAttendance $attendance): Response
     {
         $target = Str::isUuid($class) ? SchoolClass::query()->find($class) : null;
 
@@ -120,13 +122,16 @@ final class AttendanceController
 
         Gate::authorize(AcademicAccess::STUDENTS_VIEW, $target);
 
-        return $this->recapPage($request, $target, $recap, $mode, null, "/kelas/{$target->id}/rekap-presensi", "/kelas/{$target->id}", 'Detail kelas');
+        // Tautan ke tanggal yang belum diisi hanya untuk yang boleh mengisi presensi harian.
+        $fill = Gate::allows(AcademicAccess::CLASSES_MANAGE, $target) ? $this->fillLink($target, false, "/kelas/{$target->id}/presensi", $attendance) : null;
+
+        return $this->recapPage($request, $target, $recap, $mode, null, "/kelas/{$target->id}/rekap-presensi", "/kelas/{$target->id}", 'Detail kelas', $fill);
     }
 
     /**
      * Wali kelas: rekap harian & semua pertemuan. Pengampu (bukan wali kelas): pertemuan mapelnya saja.
      */
-    public function recapMine(Request $request, string $class, MyClasses $myClasses, AttendanceRecap $recap, AttendanceModeSetting $mode): Response
+    public function recapMine(Request $request, string $class, MyClasses $myClasses, AttendanceRecap $recap, AttendanceModeSetting $mode, ManageAttendance $attendance): Response
     {
         [$target, $homeroom, $employeeId] = $this->myClassWithRole($class, $myClasses);
 
@@ -140,15 +145,18 @@ final class AttendanceController
             }
         }
 
-        return $this->recapPage($request, $target, $recap, $mode, $onlySubjects, "/kelas-saya/{$target->id}/rekap-presensi", "/kelas-saya/{$target->id}", "Kelas {$target->name}");
+        $fill = $homeroom ? $this->fillLink($target, true, "/kelas-saya/{$target->id}/presensi", $attendance) : null;
+
+        return $this->recapPage($request, $target, $recap, $mode, $onlySubjects, "/kelas-saya/{$target->id}/rekap-presensi", "/kelas-saya/{$target->id}", "Kelas {$target->name}", $fill);
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
     /**
      * @param  list<string>|null  $onlySubjects  null = semua; terisi = hanya pertemuan mapel ini (pengampu)
+     * @param  array{url: string, min: string, max: string}|null  $fill  lembar presensi harian & tanggal yang boleh diisi
      */
-    private function recapPage(Request $request, SchoolClass $class, AttendanceRecap $recap, AttendanceModeSetting $mode, ?array $onlySubjects, string $baseUrl, string $backUrl, string $backLabel): Response
+    private function recapPage(Request $request, SchoolClass $class, AttendanceRecap $recap, AttendanceModeSetting $mode, ?array $onlySubjects, string $baseUrl, string $backUrl, string $backLabel, ?array $fill = null): Response
     {
         $periods = $recap->periods($class);
         $period = AttendanceRecap::pick($periods, $request->query('periode'));
@@ -185,6 +193,10 @@ final class AttendanceController
             'subjects' => $subjects,
             'subject' => $subject,
             'recap' => $recap->recap($class, $period['start'], $period['end'], $lesson, $lesson ? $subjectIds : null),
+            // Hari efektif & yang belum diisi (§18 P4): hanya rekap harian.
+            'effective' => $lesson ? null : $recap->effective($class, $period['start'], $period['end']),
+            'maxUnfilledListed' => AttendanceRecap::MAX_UNFILLED_LISTED,
+            'fill' => $lesson ? null : $fill,
             'baseUrl' => $baseUrl,
             'backUrl' => $backUrl,
             'backLabel' => $backLabel,
@@ -204,6 +216,8 @@ final class AttendanceController
             'window' => $window,
             'date' => $date,
             'sheet' => $date === null ? null : $attendance->sheet($class, $date, $lesson),
+            // Boleh diisi di hari libur, dengan peringatan (§18 P4).
+            'holiday' => $date === null ? null : $this->schoolDays->holidayOn($this->yearOf($class), $date),
             'statuses' => AttendanceStatus::options(),
             'asHomeroom' => $limited,
             'homeroomDays' => ManageAttendance::HOMEROOM_DAYS,
@@ -252,6 +266,28 @@ final class AttendanceController
         ]);
 
         return redirect()->to($redirectTo.'?tanggal='.$date);
+    }
+
+    /**
+     * Lembar presensi harian & rentang tanggal yang boleh diisi pemanggil, atau null bila tidak bisa
+     * (mode lembaga per pertemuan, tahun lewat/belum mulai).
+     *
+     * @return array{url: string, min: string, max: string}|null
+     */
+    private function fillLink(SchoolClass $class, bool $asHomeroom, string $url, ManageAttendance $attendance): ?array
+    {
+        if ($attendance->modeProblem($class, false) !== null) {
+            return null;
+        }
+
+        $window = $attendance->window($class, $asHomeroom);
+
+        return $window === null ? null : ['url' => $url, 'min' => $window['min'], 'max' => $window['max']];
+    }
+
+    private function yearOf(SchoolClass $class): AcademicYear
+    {
+        return AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
     }
 
     /**

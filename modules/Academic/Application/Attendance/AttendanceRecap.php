@@ -4,6 +4,7 @@ namespace Modules\Academic\Application\Attendance;
 
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Modules\Academic\Application\Calendar\SchoolDays;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Calendar\Term;
 use Modules\Academic\Domain\Classroom\SchoolClass;
@@ -17,7 +18,9 @@ use Modules\Core\Support\BusinessClock;
  * - Siswa = yang pernah tercatat di kelas dalam periode itu; siswa yang pindah tetap tampil dengan
  *   presensi selama ia di kelas.
  * - Persentase hadir = Hadir ÷ hari/pertemuan yang tercatat untuk siswa itu. Hari tanpa sesi = belum diisi
- *   (tidak dihitung alpa), karena belum ada kalender libur [ASUMSI disetujui].
+ *   (tidak dihitung alpa) [ASUMSI disetujui].
+ * - Rekap harian juga menyebut hari efektif periode itu dan hari efektif yang belum diisi sampai hari
+ *   ini (PRD-002 §18 P4); hari libur yang tetap diisi tidak dihitung hari efektif.
  *
  * Hak akses dicek pemanggil.
  *
@@ -26,7 +29,50 @@ use Modules\Core\Support\BusinessClock;
  */
 final class AttendanceRecap
 {
+    /** Paling banyak sekian tanggal belum diisi yang disebut satu per satu. */
+    public const MAX_UNFILLED_LISTED = 31;
+
     private const MONTHS = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    public function __construct(
+        private readonly SchoolDays $schoolDays,
+    ) {}
+
+    /**
+     * Hari efektif presensi harian kelas pada periode (PRD-002 §18 P4).
+     *
+     * - days: hari efektif di periode itu (di dalam tahun ajaran);
+     * - due: hari efektif sampai hari ini;
+     * - unfilled: hari efektif sampai hari ini yang belum punya presensi harian;
+     * - unfilled_dates: tanggal-tanggalnya, paling banyak MAX_UNFILLED_LISTED yang terbaru.
+     *
+     * @return array{days: int, due: int, unfilled: int, unfilled_dates: list<string>}
+     */
+    public function effective(SchoolClass $class, string $start, string $end): array
+    {
+        $year = AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->firstOrFail();
+        $dates = $this->schoolDays->effectiveDates($year, $start, $end);
+        $today = BusinessClock::todayString();
+        $due = array_values(array_filter($dates, fn (string $date): bool => $date <= $today));
+
+        $filled = DB::table('ac_attendance_sessions')
+            ->where('class_id', $class->id)
+            ->whereNull('class_subject_id')
+            ->whereBetween('date', [$start, $end])
+            ->pluck('date')
+            ->map(fn (mixed $date): string => substr((string) $date, 0, 10))
+            ->flip()
+            ->all();
+
+        $unfilled = array_values(array_filter($due, fn (string $date): bool => ! isset($filled[$date])));
+
+        return [
+            'days' => count($dates),
+            'due' => count($due),
+            'unfilled' => count($unfilled),
+            'unfilled_dates' => array_slice(array_reverse($unfilled), 0, self::MAX_UNFILLED_LISTED),
+        ];
+    }
 
     /**
      * Pilihan periode: seluruh tahun ajaran, tiap semester, lalu tiap bulan yang sudah mulai.
