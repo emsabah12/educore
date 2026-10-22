@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** P3 — salin mapel & pengampu dari kelas lain (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `1d076ba` — feat(academic): P2 buka kembali pendaftaran
+- **Tahap aktif:** P4a — data & pengelolaan hari libur (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `84a5053` — feat(academic): P3 salin mapel dan pengampu dari kelas lain
 
 ## Keputusan penting
 
@@ -343,13 +343,22 @@
 - Audit `academic.enrollment_reopened` (tanpa isi alasan).
 - Bukti: 528 test lulus (4 test baru, `ReopenEnrollmentTest`; fix1 memperbaiki skenario tes, bukan fitur); uji manual owner lancar.
 
-**P3 — Salin mapel & pengampu dari kelas lain: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**P3 — Salin mapel & pengampu dari kelas lain: SELESAI (2026-10-22, commit `84a5053`)**
 
 - `ManageClassSubjects::copySources` (kelas lain di lembaga yang sama yang punya mapel, tahun terbaru dulu; saran = kelas setingkat tahun ajaran sebelumnya di kalender yang sama, utamakan nama sama) dan `copyFrom` (mapel aktif, cocok tingkat, belum ada; pengampu ikut bila masih aktif di lembaga itu; jadwal tidak disalin; ditolak bila tidak ada yang bisa disalin).
 - Route `POST kelas/{class}/mapel/salin` (`academic.class-subjects.copy`, `academic.classes.manage`); tombol **Salin dari kelas lain** di bagian Mata pelajaran detail kelas; `?salin=1#mapel` membuka formnya.
 - Halaman proses akhir tahun: bagian **Mata pelajaran kelas tujuan** berisi tautan ke tiap kelas tujuan. Teks peringatan lulus disesuaikan dengan P2 (Admin Yayasan bisa membuka kembali).
 - Audit `academic.class_subjects_added` dengan `disalin_dari`, `dilewati`, `pengampu_ikut`.
-- Target bukti: 531 test (3 test baru, `CopyClassSubjectsTest`).
+- Bukti: 531 test lulus (3 test baru, `CopyClassSubjectsTest`); uji manual owner lancar.
+
+**P4a — Hari libur: data & pengelolaan: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_200010`: kolom `ac_academic_calendars.weekly_off_days` (jsonb, bawaan `[7]` = Ahad, maks. 6 hari) dan tabel `ac_holidays` (tahun ajaran, nama, tanggal mulai–selesai).
+- `Domain/Calendar/Holiday`; `Application/Calendar/ManageHolidays` (`setWeeklyOffDays`, `add`, `update`, `remove`, `weeklyOffDaysOf`); `SaveAcademicYear::update` menolak tanggal baru yang membuat hari libur tertinggal di luar.
+- Route (Admin Yayasan): `POST akademik/kalender/{calendar}/libur-mingguan`, `POST akademik/tahun-ajaran/{year}/hari-libur`, `PATCH|DELETE akademik/hari-libur/{holiday}`.
+- Halaman Kalender akademik: baris **Libur mingguan** di bawah nama kalender dan daftar **Hari libur** di tiap kartu tahun ajaran (`components/academic/holiday-actions.tsx`).
+- Audit `academic.weekly_off_days_changed`, `academic.holiday_added|updated|removed`.
+- Target bukti: 534 test (3 test baru, `HolidaysTest`).
 
 ## Struktur file utama
 
@@ -383,6 +392,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi P3 (PANDUAN-P3.md), commit & push.
-2. P4 kalender hari libur (PRD-002 §18).
+1. Verifikasi P4a (PANDUAN-P4A.md), migrate, commit & push.
+2. P4b: hari efektif di rekap presensi harian + peringatan mengisi presensi di hari libur (PRD-002 §18 P4).
 3. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya.

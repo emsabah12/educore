@@ -30,6 +30,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('akademik/kalender/{calendar}/tahun-ajaran', [CalendarController::class, 'storeYear'])->whereUuid('calendar')->name('academic.years.store');
     Route::patch('akademik/tahun-ajaran/{year}', [CalendarController::class, 'updateYear'])->whereUuid('year')->name('academic.years.update');
     Route::post('akademik/tahun-ajaran/{year}/berjalan', [CalendarController::class, 'setCurrent'])->whereUuid('year')->name('academic.years.current');
+    // Hari libur (PRD-002 §18 P4): sama dengan kalender, hanya Admin Yayasan.
+    Route::post('akademik/kalender/{calendar}/libur-mingguan', [CalendarController::class, 'weeklyOffDays'])->whereUuid('calendar')->name('academic.calendar.weekly-off');
+    Route::post('akademik/tahun-ajaran/{year}/hari-libur', [CalendarController::class, 'storeHoliday'])->whereUuid('year')->name('academic.holidays.store');
+    Route::patch('akademik/hari-libur/{holiday}', [CalendarController::class, 'updateHoliday'])->whereUuid('holiday')->name('academic.holidays.update');
+    Route::delete('akademik/hari-libur/{holiday}', [CalendarController::class, 'destroyHoliday'])->whereUuid('holiday')->name('academic.holidays.destroy');
 
     // Siswa (PRD-002 §6). Daftar & detail (AC-1c-a): pemilik izin lihat siswa, disaring per pohon lembaga.
     // Tambah (AC-1b): Operator Akademik di lembaganya, Admin Yayasan di semua lembaga.

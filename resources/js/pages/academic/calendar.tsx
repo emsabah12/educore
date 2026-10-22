@@ -12,6 +12,11 @@ import {
     AttendanceModeSection,
     type AttendanceModes,
 } from '@/components/academic/attendance-mode-section';
+import {
+    HolidayList,
+    WeeklyOffForm,
+    type HolidayRow,
+} from '@/components/academic/holiday-actions';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +48,7 @@ type YearRow = {
     end_date: string;
     is_current: boolean;
     terms: TermRow[];
+    holidays: HolidayRow[];
 };
 
 type RuleRow = {
@@ -66,8 +72,10 @@ type Props = {
         id: string;
         name: string;
         is_default: boolean;
+        weekly_off_days: number[];
         years: YearRow[];
     };
+    dayOptions: Option[];
     rules: RuleRow[];
     usage: UsageRow[];
     options: { jenjang: Option[]; organizations: Option[] };
@@ -176,6 +184,7 @@ function draftOf(year: YearRow): YearDraft {
 export default function AcademicCalendar({
     calendars,
     selected,
+    dayOptions,
     rules,
     usage,
     options,
@@ -243,6 +252,12 @@ export default function AcademicCalendar({
                         className="space-y-4"
                     >
                         <CalendarHeader key={selected.id} calendar={selected} />
+                        <WeeklyOffForm
+                            key={`off-${selected.id}`}
+                            calendarId={selected.id}
+                            days={selected.weekly_off_days}
+                            options={dayOptions}
+                        />
 
                         {creatingYear ? (
                             <div className="rounded-xl border p-4">
@@ -517,6 +532,8 @@ function YearCard({
                             </li>
                         ))}
                     </ol>
+
+                    <HolidayList year={year} />
                 </>
             )}
         </li>

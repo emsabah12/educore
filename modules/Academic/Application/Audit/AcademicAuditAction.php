@@ -84,6 +84,14 @@ final class AcademicAuditAction
 
     public const ENROLLMENT_REOPENED = 'academic.enrollment_reopened';
 
+    public const WEEKLY_OFF_DAYS_CHANGED = 'academic.weekly_off_days_changed';
+
+    public const HOLIDAY_ADDED = 'academic.holiday_added';
+
+    public const HOLIDAY_UPDATED = 'academic.holiday_updated';
+
+    public const HOLIDAY_REMOVED = 'academic.holiday_removed';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -139,6 +147,10 @@ final class AcademicAuditAction
             self::SCHEDULE_ENTRY_REMOVED => 'Jadwal pelajaran dihapus',
             self::ATTENDANCE_RECORDED => 'Presensi siswa disimpan',
             self::ENROLLMENT_REOPENED => 'Pendaftaran siswa dibuka kembali',
+            self::WEEKLY_OFF_DAYS_CHANGED => 'Hari libur mingguan diubah',
+            self::HOLIDAY_ADDED => 'Hari libur ditambahkan',
+            self::HOLIDAY_UPDATED => 'Hari libur diubah',
+            self::HOLIDAY_REMOVED => 'Hari libur dihapus',
         ];
     }
 }

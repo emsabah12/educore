@@ -5,7 +5,9 @@ namespace Modules\Academic\Application\Calendar;
 use Illuminate\Support\Collection;
 use Modules\Academic\Domain\Calendar\AcademicCalendar;
 use Modules\Academic\Domain\Calendar\AcademicYear;
+use Modules\Academic\Domain\Calendar\Holiday;
 use Modules\Academic\Domain\Calendar\Term;
+use Modules\Academic\Domain\Classroom\ScheduleEntry;
 use Modules\Core\Application\Settings\SettingPrecedence;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Organization\Organization;
@@ -18,7 +20,8 @@ use Modules\Core\Domain\Settings\ScopedSetting;
  * aturan pemakaian kalender, dan ringkasan kalender yang berlaku di tiap lembaga aktif.
  *
  * @phpstan-type TermRow array{sequence: int, name: string, start_date: string, end_date: string}
- * @phpstan-type YearRow array{id: string, name: string, start_date: string, end_date: string, is_current: bool, terms: list<TermRow>}
+ * @phpstan-type HolidayRow array{id: string, name: string, start_date: string, end_date: string, days: int}
+ * @phpstan-type YearRow array{id: string, name: string, start_date: string, end_date: string, is_current: bool, terms: list<TermRow>, holidays: list<HolidayRow>}
  * @phpstan-type CalendarRow array{id: string, name: string, is_default: bool, years: int, current_year: string|null}
  * @phpstan-type RuleRow array{id: string, target: string, calendar: string, enforced: bool}
  * @phpstan-type UsageRow array{id: string, name: string, calendar: string|null, current_year: string|null, source: string}
@@ -34,7 +37,8 @@ final class CalendarOverview
     /**
      * @return array{
      *     calendars: list<CalendarRow>,
-     *     selected: array{id: string, name: string, is_default: bool, years: list<YearRow>},
+     *     selected: array{id: string, name: string, is_default: bool, weekly_off_days: list<int>, years: list<YearRow>},
+     *     dayOptions: list<OptionRow>,
      *     rules: list<RuleRow>,
      *     usage: list<UsageRow>,
      *     options: array{jenjang: list<OptionRow>, organizations: list<OptionRow>},
@@ -82,14 +86,22 @@ final class CalendarOverview
             $jenjangOptions[] = ['value' => $jenjang->value, 'label' => $jenjang->label()];
         }
 
+        $dayOptions = [];
+
+        foreach (ScheduleEntry::DAYS as $day => $label) {
+            $dayOptions[] = ['value' => (string) $day, 'label' => $label];
+        }
+
         return [
             'calendars' => $calendarRows,
             'selected' => [
                 'id' => $selected->id,
                 'name' => $selected->name,
                 'is_default' => $selected->is_default,
+                'weekly_off_days' => ManageHolidays::weeklyOffDaysOf($selected),
                 'years' => $this->yearRows($years->where('calendar_id', $selected->id)),
             ],
+            'dayOptions' => $dayOptions,
             'rules' => $this->rules($tenantId, $calendarNames),
             'usage' => $this->usage($tenantId),
             'options' => [
@@ -115,10 +127,28 @@ final class CalendarOverview
             ->orderBy('sequence')
             ->get();
 
+        $holidays = Holiday::query()
+            ->withoutGlobalScope('tenant')
+            ->whereIn('academic_year_id', $years->pluck('id'))
+            ->orderBy('start_date')
+            ->orderBy('name')
+            ->get();
+
         $rows = [];
 
         foreach ($years as $year) {
             $termRows = [];
+            $holidayRows = [];
+
+            foreach ($holidays->where('academic_year_id', $year->id) as $holiday) {
+                $holidayRows[] = [
+                    'id' => $holiday->id,
+                    'name' => $holiday->name,
+                    'start_date' => $holiday->start_date->toDateString(),
+                    'end_date' => $holiday->end_date->toDateString(),
+                    'days' => $holiday->length(),
+                ];
+            }
 
             foreach ($terms->where('academic_year_id', $year->id) as $term) {
                 $termRows[] = [
@@ -136,6 +166,7 @@ final class CalendarOverview
                 'end_date' => $year->end_date->toDateString(),
                 'is_current' => $year->is_current,
                 'terms' => $termRows,
+                'holidays' => $holidayRows,
             ];
         }
 

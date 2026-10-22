@@ -20,6 +20,7 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property string $tenant_id
  * @property string $name
  * @property bool $is_default
+ * @property array<int, mixed> $weekly_off_days nomor hari libur mingguan 1 (Senin) – 7 (Ahad), PRD-002 §18 P4; baca lewat ManageHolidays::weeklyOffDaysOf()
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -27,6 +28,9 @@ class AcademicCalendar extends Model
 {
     use BelongsToTenant;
     use HasUuids;
+
+    /** Hari libur mingguan bawaan: Ahad. */
+    public const DEFAULT_WEEKLY_OFF_DAYS = [7];
 
     protected $table = 'ac_academic_calendars';
 
@@ -41,6 +45,7 @@ class AcademicCalendar extends Model
      */
     protected $attributes = [
         'is_default' => false,
+        'weekly_off_days' => '[7]',
     ];
 
     /**
@@ -50,6 +55,7 @@ class AcademicCalendar extends Model
     {
         return [
             'is_default' => 'boolean',
+            'weekly_off_days' => 'array',
         ];
     }
 

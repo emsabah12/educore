@@ -16,11 +16,13 @@ use Modules\Academic\Application\Calendar\AcademicYearData;
 use Modules\Academic\Application\Calendar\AssignCalendar;
 use Modules\Academic\Application\Calendar\CalendarOverview;
 use Modules\Academic\Application\Calendar\ManageCalendars;
+use Modules\Academic\Application\Calendar\ManageHolidays;
 use Modules\Academic\Application\Calendar\SaveAcademicYear;
 use Modules\Academic\Application\Calendar\SetCurrentYear;
 use Modules\Academic\Domain\Calendar\AcademicCalendar;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Calendar\Exceptions\CalendarException;
+use Modules\Academic\Domain\Calendar\Holiday;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
@@ -28,7 +30,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 
 /**
- * Halaman Kalender akademik (PRD-002 §4.4): kalender, tahun ajaran & semester, pemakaian kalender.
+ * Halaman Kalender akademik (PRD-002 §4.4): kalender, tahun ajaran & semester, hari libur (§18 P4),
+ * pemakaian kalender.
  *
  * Butuh `academic.calendar.manage` di tingkat Yayasan (role tenant-wide, lembaga kerja
  * Seluruh Yayasan), karena kalender berlaku untuk seluruh yayasan (PRD-002 §5.1).
@@ -198,6 +201,58 @@ final class CalendarController
         return $this->done('Mode presensi disimpan.');
     }
 
+    /**
+     * Hari libur mingguan kalender (PRD-002 §18 P4). Tidak ada yang dicentang = tanpa libur mingguan.
+     */
+    public function weeklyOffDays(Request $request, string $calendar, ManageHolidays $holidays): RedirectResponse
+    {
+        $this->authorize();
+        $target = $this->findCalendar($calendar);
+
+        $request->validate([
+            'weekly_off_days' => ['nullable', 'array', 'max:7'],
+            'weekly_off_days.*' => ['integer', 'between:1,7'],
+        ], ['weekly_off_days.*.integer' => 'Pilih hari dari daftar.', 'weekly_off_days.*.between' => 'Pilih hari dari daftar.'], ['weekly_off_days' => 'hari libur mingguan']);
+
+        $days = array_values(array_map('intval', (array) $request->input('weekly_off_days', [])));
+
+        $changed = $this->attempt(fn (): bool => $holidays->setWeeklyOffDays($this->tenantId(), $target->id, $days));
+
+        return $this->done($changed ? "Hari libur mingguan {$target->name} disimpan." : 'Tidak ada data yang berubah.');
+    }
+
+    public function storeHoliday(Request $request, string $year, ManageHolidays $holidays): RedirectResponse
+    {
+        $this->authorize();
+        $target = $this->findYear($year);
+        [$name, $start, $end] = $this->holidayInput($request);
+
+        $holiday = $this->attempt(fn () => $holidays->add($this->tenantId(), $target->id, $name, $start, $end));
+
+        return $this->done("Hari libur {$holiday->name} ditambahkan ke tahun ajaran {$target->name}.");
+    }
+
+    public function updateHoliday(Request $request, string $holiday, ManageHolidays $holidays): RedirectResponse
+    {
+        $this->authorize();
+        $target = $this->findHoliday($holiday);
+        [$name, $start, $end] = $this->holidayInput($request);
+
+        $changed = $this->attempt(fn (): bool => $holidays->update($this->tenantId(), $target->id, $name, $start, $end));
+
+        return $this->done($changed ? 'Hari libur disimpan.' : 'Tidak ada data yang berubah.');
+    }
+
+    public function destroyHoliday(string $holiday, ManageHolidays $holidays): RedirectResponse
+    {
+        $this->authorize();
+        $target = $this->findHoliday($holiday);
+
+        $name = $this->attempt(fn (): string => $holidays->remove($this->tenantId(), $target->id));
+
+        return $this->done("Hari libur {$name} dihapus.");
+    }
+
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
     /**
@@ -231,6 +286,35 @@ final class CalendarController
         }
 
         return $year;
+    }
+
+    private function findHoliday(string $id): Holiday
+    {
+        $holiday = Str::isUuid($id) ? Holiday::query()->find($id) : null;
+
+        if (! $holiday instanceof Holiday) {
+            abort(404);
+        }
+
+        return $holiday;
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string} nama, tanggal mulai, tanggal selesai
+     */
+    private function holidayInput(Request $request): array
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:'.ManageHolidays::NAME_MAX_LENGTH],
+            'start_date' => ['required', self::DATE_RULE],
+            'end_date' => ['required', self::DATE_RULE],
+        ], [], ['name' => 'nama hari libur', 'start_date' => 'tanggal mulai', 'end_date' => 'tanggal selesai']);
+
+        return [
+            $request->string('name')->value(),
+            $request->string('start_date')->value(),
+            $request->string('end_date')->value(),
+        ];
     }
 
     private function tenantId(): string

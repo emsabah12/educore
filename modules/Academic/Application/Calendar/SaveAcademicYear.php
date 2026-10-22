@@ -10,6 +10,7 @@ use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Domain\Calendar\AcademicCalendar;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Calendar\Exceptions\CalendarException;
+use Modules\Academic\Domain\Calendar\Holiday;
 use Modules\Academic\Domain\Calendar\Term;
 use Modules\Core\Application\Audit\AuditLogger;
 use Throwable;
@@ -21,7 +22,8 @@ use Throwable;
  * - nama `TTTT/TTTT`, tahun kedua = tahun pertama + 1 (juga untuk tahun Hijriah, mis. 1447/1448);
  * - tanggal selesai sesudah tanggal mulai, paling lama 18 bulan;
  * - tidak tumpang tindih dengan tahun ajaran lain di kalender yang sama;
- * - 1–4 semester, berurutan, tidak tumpang tindih, dan di dalam rentang tahun ajaran.
+ * - 1–4 semester, berurutan, tidak tumpang tindih, dan di dalam rentang tahun ajaran;
+ * - saat diubah, hari liburnya (§18 P4) tetap di dalam rentang tanggal yang baru.
  *
  * Tahun ajaran pertama di sebuah kalender otomatis menjadi tahun berjalan [ASUMSI].
  * Perubahan di satu kalender diantrekan dengan mengunci baris kalendernya.
@@ -116,6 +118,7 @@ final class SaveAcademicYear
                 }
 
                 $this->assertFitsCalendar($calendar, $checked, $year->id);
+                $this->assertHolidaysInside($year, $checked);
 
                 $before = $this->snapshot($year);
 
@@ -256,6 +259,27 @@ final class SaveAcademicYear
             if ($overlaps) {
                 throw CalendarException::yearOverlaps($other->name);
             }
+        }
+    }
+
+    /**
+     * Hari libur tahun ajaran ini (PRD-002 §18 P4) harus tetap di dalam rentang tanggal yang baru.
+     *
+     * @param  array{start: CarbonImmutable, end: CarbonImmutable}  $checked
+     */
+    private function assertHolidaysInside(AcademicYear $year, array $checked): void
+    {
+        $outside = Holiday::query()
+            ->withoutGlobalScope('tenant')
+            ->where('academic_year_id', $year->id)
+            ->where(fn ($query) => $query
+                ->where('start_date', '<', $checked['start']->toDateString())
+                ->orWhere('end_date', '>', $checked['end']->toDateString()))
+            ->orderBy('start_date')
+            ->first(['name']);
+
+        if ($outside instanceof Holiday) {
+            throw new CalendarException("Hari libur {$outside->name} berada di luar tanggal tahun ajaran yang baru. Ubah atau hapus hari liburnya dulu.", 'start_date');
         }
     }
 
