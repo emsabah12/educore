@@ -19,6 +19,8 @@ use Modules\Academic\Application\Calendar\ManageCalendars;
 use Modules\Academic\Application\Calendar\ManageHolidays;
 use Modules\Academic\Application\Calendar\SaveAcademicYear;
 use Modules\Academic\Application\Calendar\SetCurrentYear;
+use Modules\Academic\Application\Grading\GradingOverview;
+use Modules\Academic\Application\Grading\GradingRules;
 use Modules\Academic\Domain\Calendar\AcademicCalendar;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Calendar\Exceptions\CalendarException;
@@ -31,7 +33,7 @@ use Modules\Core\Support\BusinessClock;
 
 /**
  * Halaman Kalender akademik (PRD-002 §4.4): kalender, tahun ajaran & semester, hari libur (§18 P4),
- * pemakaian kalender.
+ * pemakaian kalender, mode presensi (§17) dan aturan penilaian (§19 AC-5a).
  *
  * Butuh `academic.calendar.manage` di tingkat Yayasan (role tenant-wide, lembaga kerja
  * Seluruh Yayasan), karena kalender berlaku untuk seluruh yayasan (PRD-002 §5.1).
@@ -45,7 +47,7 @@ final class CalendarController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, CalendarOverview $overview, AttendanceModeOverview $attendanceModes): Response
+    public function index(Request $request, CalendarOverview $overview, AttendanceModeOverview $attendanceModes, GradingOverview $grading): Response
     {
         $this->authorize();
 
@@ -55,6 +57,8 @@ final class CalendarController
             ...$overview->build($this->tenantId(), Str::isUuid($selected) ? $selected : null),
             // Mode presensi per lembaga (AC-4c).
             'attendanceModes' => $attendanceModes->build($this->tenantId()),
+            // Aturan penilaian per lembaga (AC-5a).
+            'grading' => $grading->build($this->tenantId()),
             'today' => BusinessClock::todayString(),
             'limits' => [
                 'maxTerms' => SaveAcademicYear::MAX_TERMS,
@@ -199,6 +203,76 @@ final class CalendarController
         }
 
         return $this->done('Mode presensi disimpan.');
+    }
+
+    /**
+     * Aturan penilaian (PRD-002 §19 AC-5a) untuk satu jenjang atau lembaga/unit; hanya Admin Yayasan.
+     */
+    public function assignGrading(Request $request, GradingOverview $grading): RedirectResponse
+    {
+        $this->authorize();
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'kkm' => ['required', 'integer', 'between:0,100'],
+            'grade_a' => ['required', 'integer', 'between:0,100'],
+            'grade_b' => ['required', 'integer', 'between:0,100'],
+            'components' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_COMPONENTS],
+            'components.*' => ['array'],
+            'components.*.code' => ['required', 'string', 'max:10'],
+            'components.*.name' => ['required', 'string', 'max:'.GradingRules::NAME_MAX_LENGTH],
+            'components.*.weight' => ['required', 'integer', 'between:1,100'],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'components.required' => 'Isi minimal satu komponen nilai.',
+            'components.max' => 'Paling banyak '.GradingRules::MAX_COMPONENTS.' komponen nilai.',
+        ], [
+            'jenjang' => 'jenjang',
+            'organization_id' => 'lembaga',
+            'kkm' => 'KKM',
+            'grade_a' => 'batas predikat A',
+            'grade_b' => 'batas predikat B',
+            'components.*.code' => 'kode komponen',
+            'components.*.name' => 'nama komponen',
+            'components.*.weight' => 'bobot',
+        ]);
+
+        $components = [];
+
+        foreach (array_values((array) $validated['components']) as $component) {
+            $component = (array) $component;
+            $components[] = [
+                'code' => mb_strtoupper(trim((string) $component['code'])),
+                'name' => (string) preg_replace('/\s+/u', ' ', trim((string) $component['name'])),
+                'weight' => (int) $component['weight'],
+            ];
+        }
+
+        $value = ['kkm' => (int) $validated['kkm'], 'grade_a' => (int) $validated['grade_a'], 'grade_b' => (int) $validated['grade_b'], 'components' => $components];
+        $problem = GradingRules::problem($value);
+
+        if ($problem !== null) {
+            throw ValidationException::withMessages(['components' => $problem]);
+        }
+
+        $byJenjang = $validated['target'] === 'jenjang';
+
+        try {
+            $grading->assign(
+                $byJenjang ? null : (string) $validated['organization_id'],
+                $byJenjang ? Jenjang::from((string) $validated['jenjang']) : null,
+                GradingRules::fromValue($value),
+                $request->boolean('enforced'),
+            );
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['form' => $exception->getMessage()]);
+        }
+
+        return $this->done('Aturan penilaian disimpan.');
     }
 
     /**

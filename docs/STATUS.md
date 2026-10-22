@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** P4b — hari efektif di presensi (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `b7683df` — feat(academic): P4a hari libur mingguan dan daftar hari libur
+- **Tahap aktif:** AC-5a — aturan penilaian (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `e00cad0` — feat(academic): P4b hari efektif di rekap dan peringatan hari libur di presensi (lalu commit dokumen)
 
 ## Keputusan penting
 
@@ -192,7 +192,7 @@
 
 **AC-1 Data Siswa & Kelas: SELESAI (2026-10-20)** — AC-1a s.d. AC-1e, commit terakhir `1938694`.
 
-**PRD-002 Academic: v1.4 (2026-10-21)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15; rincian AC-3 (a–d) di §16; rincian AC-4 di §17; penyempurnaan P1–P4 di §18 (v1.4).
+**PRD-002 Academic: v1.5 (2026-10-22)** — AC-1 Data Siswa & Kelas disetujui owner (OD-AC-01–09); rincian AC-1a s.d. AC-1e; rincian AC-2 di §15; rincian AC-3 (a–d) di §16; rincian AC-4 di §17; penyempurnaan P1–P4 di §18 (v1.4); rincian AC-5 di §19 (v1.5).
 
 **AC-1a — Skema, Operator Akademik, kalender akademik: SELESAI (2026-10-17, commit `ccc183b`)**
 
@@ -360,12 +360,21 @@
 - Audit `academic.weekly_off_days_changed`, `academic.holiday_added|updated|removed`.
 - Bukti: 534 test lulus (3 test baru, `HolidaysTest`); uji manual owner lancar.
 
-**P4b — Hari efektif di presensi: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**P4b — Hari efektif di presensi: SELESAI (2026-10-22, commit `e00cad0`)**
 
 - `Application/Calendar/SchoolDays` (`holidayOn`, `effectiveDates`): hari efektif = di dalam tahun ajaran, bukan libur mingguan kalender, bukan hari libur.
 - `AttendanceRecap::effective` (hari efektif periode, s.d. hari ini, belum diisi + 31 tanggal terbaru); rekap harian menampilkannya, tanggal belum diisi bisa diklik ke lembar presensi bila pengguna boleh mengisinya (prop `fill`).
 - Lembar presensi (harian & per pertemuan): prop `holiday` → peringatan "Tanggal ini hari libur: …"; tetap bisa disimpan.
-- Target bukti: 537 test (3 test baru, `EffectiveDaysTest`, memakai `travelTo` ke 22 Okt 2026).
+- Bukti: 537 test lulus (3 test baru, `EffectiveDaysTest`, memakai `travelTo` ke 22 Okt 2026); fix1 menghapus `array_values()` yang tidak perlu (Larastan `arrayValues.list`); uji manual owner lancar.
+
+**AC-5 Penilaian & rapor (PRD-002 §19, rincian disetujui 2026-10-22)**
+
+**AC-5a — Aturan penilaian: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- `Application/Grading/GradingRules` (isi aturan: KKM, batas A/B, 1–6 komponen berbobot = 100; `problem`, `fromValue`, `predicate`, `summary`), `GradingSetting` (aturan berjenjang `academic.grading`, bawaan KKM 75 · Harian 40 / PTS 30 / PAS 30 · A ≥ 90, B ≥ 80; `rulesFor`), `GradingOverview` (aturan tersimpan & yang berlaku per lembaga).
+- Route `POST akademik/kalender/aturan-penilaian` (`academic.grading.assign`, Admin Yayasan); bagian **Aturan penilaian** di Kalender akademik (`components/academic/grading-section.tsx`).
+- Audit: perubahan aturan berjenjang oleh Core.
+- Target bukti: 540 test (3 test baru, `GradingRulesTest`).
 
 ## Struktur file utama
 
@@ -395,9 +404,11 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Setiap ada permission/role baru di kode: jalankan `php artisan educore:sync-access` (juga saat deploy).
 - Untuk permission katalog, `Gate::before` memberi jawaban akhir; policy modul dengan nama ability yang sama tidak dijalankan. Aksi terhadap data tertentu wajib mengirim datanya ke Gate.
 - Pencatatan perubahan aturan ke audit log menunggu F4.
+- Larastan menolak `array_values()` pada data yang sudah list (mis. hasil `array_reverse`/`array_slice` dari list); pakai `array_values()` hanya sesudah `array_filter()`/`array_unique()` (P4b-fix1).
+- Test yang bergantung pada tanggal: kunci "hari ini" dengan `$this->travelTo(...)` di awal `beforeEach`, sebelum seeder (P4b).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Verifikasi P4b (PANDUAN-P4B.md), commit & push → penyempurnaan P1–P4 selesai.
-2. Sesudahnya: AC-5 Penilaian & rapor, HR-2, atau lainnya (pilihan owner).
+1. Verifikasi AC-5a (PANDUAN-AC5A.md), commit & push.
+2. AC-5b lembar nilai → AC-5c leger → AC-5d rapor (PRD-002 §19).

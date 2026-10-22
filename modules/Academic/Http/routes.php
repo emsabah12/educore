@@ -26,6 +26,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // `pemakaian` didaftarkan sebelum `{calendar}`.
     Route::post('akademik/kalender/pemakaian', [CalendarController::class, 'assign'])->name('academic.calendar.assign');
     Route::post('akademik/kalender/mode-presensi', [CalendarController::class, 'assignAttendanceMode'])->name('academic.attendance-mode.assign');
+    Route::post('akademik/kalender/aturan-penilaian', [CalendarController::class, 'assignGrading'])->name('academic.grading.assign');
     Route::patch('akademik/kalender/{calendar}', [CalendarController::class, 'renameCalendar'])->whereUuid('calendar')->name('academic.calendar.update');
     Route::post('akademik/kalender/{calendar}/tahun-ajaran', [CalendarController::class, 'storeYear'])->whereUuid('calendar')->name('academic.years.store');
     Route::patch('akademik/tahun-ajaran/{year}', [CalendarController::class, 'updateYear'])->whereUuid('year')->name('academic.years.update');

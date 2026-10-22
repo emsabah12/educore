@@ -13,6 +13,10 @@ import {
     type AttendanceModes,
 } from '@/components/academic/attendance-mode-section';
 import {
+    GradingSection,
+    type Grading,
+} from '@/components/academic/grading-section';
+import {
     HolidayList,
     WeeklyOffForm,
     type HolidayRow,
@@ -80,6 +84,7 @@ type Props = {
     usage: UsageRow[];
     options: { jenjang: Option[]; organizations: Option[] };
     attendanceModes: AttendanceModes;
+    grading: Grading;
     today: string;
     limits: { maxTerms: number; maxMonths: number };
 };
@@ -189,6 +194,7 @@ export default function AcademicCalendar({
     usage,
     options,
     attendanceModes,
+    grading,
     today,
     limits,
 }: Props) {
@@ -374,6 +380,8 @@ export default function AcademicCalendar({
                     data={attendanceModes}
                     options={options}
                 />
+
+                <GradingSection data={grading} options={options} />
             </div>
         </>
     );

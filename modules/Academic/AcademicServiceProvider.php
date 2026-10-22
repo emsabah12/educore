@@ -9,6 +9,7 @@ use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\CalendarSetting;
 use Modules\Academic\Application\Classroom\MyClasses;
+use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Console\PruneStudentImportsCommand;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
@@ -41,7 +42,9 @@ class AcademicServiceProvider extends ModuleServiceProvider
         $this->app->make(SettingRegistry::class)
             ->define(CalendarSetting::definition())
             // Mode presensi per lembaga (AC-4c).
-            ->define(AttendanceModeSetting::definition());
+            ->define(AttendanceModeSetting::definition())
+            // Aturan penilaian per lembaga (AC-5a).
+            ->define(GradingSetting::definition());
 
         // Petunjuk menu "Kelas saya" (AC-3d): dievaluasi saat halaman dirender, sesudah `work.context`.
         Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses()]);

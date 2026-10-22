@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.4 (2026-10-21: penyempurnaan P1–P4 — §18)
-- **Versi sebelumnya:** 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 dirinci (§18)**: P1 SELESAI (`3027bb4`), P2 SELESAI (`1d076ba`), P3 SELESAI (`84a5053`), P4a SELESAI (`b7683df`), P4b dikerjakan; AC-5 dst. hanya digariskan
+- **Versi:** 1.5 (2026-10-22: rincian AC-5 Penilaian & rapor — §19)
+- **Versi sebelumnya:** 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 dirinci & disetujui (§19, 2026-10-22)**: AC-5a dikerjakan; AC-6 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -35,15 +35,15 @@ Prinsip:
 
 ## 3. Tahapan modul Academic [OWNER, 2026-10-17]
 
-| Tahap                           | Isi                                                                                                                                                  | Catatan                                  |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **AC-1 Data Siswa & Kelas**     | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01] |
-| AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]           |
-| AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]       |
-| AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16        |
-| AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        | Dirinci di §17 [OWNER, 2026-10-21]       |
-| AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]              |
-| AC-6 dst.                       | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                          |
+| Tahap                           | Isi                                                                                                                                                  | Catatan                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **AC-1 Data Siswa & Kelas**     | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01]    |
+| AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]              |
+| AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]          |
+| AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16           |
+| AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        | Dirinci di §17 [OWNER, 2026-10-21]          |
+| AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]; dirinci di §19 |
+| AC-6 dst.                       | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                             |
 
 ## 4. Model data AC-1
 
@@ -511,3 +511,57 @@ Empat fitur kecil yang sebelumnya saran (§14 dan saran sesudah AC-2/AC-4), dike
 - Rincian P4a [ASUMSI]: libur mingguan 0–6 hari (minimal satu hari sekolah sepekan; tanpa centang = tanpa libur mingguan) dan berlaku untuk semua tahun ajaran kalender itu; nama hari libur maks. 100 karakter; paling banyak 200 hari libur per tahun ajaran; hari libur boleh tumpang tindih; tanggal tahun ajaran tidak bisa diubah bila ada hari libur yang jadi berada di luarnya.
 - Audit: `academic.weekly_off_days_changed` (sebelum/sesudah), `academic.holiday_added|updated|removed` (nama, mulai, selesai; ubah hanya mencatat yang berubah).
 - Rincian P4b [ASUMSI]: hari efektif hanya untuk rekap **harian** (rekap per pertemuan tidak berubah); persentase hadir tetap Hadir ÷ hari yang diisi. Rekap menampilkan hari efektif periode, hari efektif sampai hari ini, jumlah yang belum diisi, dan paling banyak 31 tanggal belum diisi yang terbaru; tanggal itu bisa diklik ke lembar presensi hanya bagi yang boleh mengisinya pada tanggal tersebut (operator: seluruh tahun ajaran; wali kelas: 7 hari terakhir). Peringatan hari libur muncul di lembar presensi harian dan per pertemuan, menyebut nama hari libur atau "Ahad (libur mingguan)".
+
+## 19. AC-5 Penilaian & rapor [OWNER, 2026-10-22 — 3 keputusan + usulan rincian disetujui]
+
+### Keputusan owner
+
+| ID       | Topik              | Keputusan                                                                                                                                             |
+| -------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-10 | Cara mengisi nilai | **Komponen + bobot** (mis. Harian 40%, PTS 30%, PAS 30%); nilai akhir dihitung otomatis; bobot diatur per jenjang/lembaga [OWNER]                     |
+| OD-AC-11 | Format rapor       | **Format umum** untuk semua jenjang: nilai angka + predikat + deskripsi + KKM [OWNER]                                                                 |
+| OD-AC-12 | Kunci nilai        | Pengampu **Finalkan**; sesudahnya hanya Operator Akademik/Admin Yayasan yang bisa membuka lagi (tercatat di audit). Rapor memakai nilai final [OWNER] |
+
+### Dasar
+
+- Nilai diisi per **mapel kelas** (AC-3b) per **semester** tahun ajaran kelas. Guru = pengampu mapel itu (pegawai HR), lewat **Kelas saya** seperti presensi (§17).
+- Hak akses [ASUMSI]: melihat = `academic.students.view` di lembaga kelas (sama dengan rekap presensi); mengisi = `academic.classes.manage` di lembaga kelas atau pengampu mapel itu; catatan rapor = wali kelas atau `academic.classes.manage`. Belum ada permission baru. Di luar cakupan 404, tanpa izin 403; pintu Kelas saya: bukan kelas/mapel yang ia pegang → 404.
+- Kelas tahun ajaran yang sudah lewat hanya bisa dilihat (aturan sama dengan AC-3/AC-4).
+
+### AC-5a Aturan penilaian
+
+- Aturan berjenjang **`academic.grading`** (PRD-000 §8) per jenjang atau lembaga/unit, opsional dikunci; diatur **Admin Yayasan** di halaman Kalender akademik, bagian **Aturan penilaian** (pola sama dengan Mode presensi, AC-4c) [ASUMSI].
+- Isi aturan [ASUMSI]:
+    - **KKM** 0–100, bawaan **75**;
+    - **Komponen** 1–6, masing-masing kode singkat (huruf besar, maks. 10, unik), nama (maks. 50), bobot bilangan bulat 1–100; **jumlah bobot = 100**. Bawaan: `HARIAN` Nilai harian 40, `PTS` Penilaian tengah semester 30, `PAS` Penilaian akhir semester 30;
+    - **Predikat**: A ≥ batas A (bawaan 90), B ≥ batas B (bawaan 80), C ≥ KKM, D < KKM; syarat batas A > batas B > KKM.
+- Halaman menampilkan aturan yang berlaku di tiap lembaga aktif (seperti Kalender per lembaga).
+- Audit: perubahan aturan berjenjang dicatat Core (nilai lama & baru).
+- Rincian teknis AC-5a [ASUMSI]: kode komponen diubah ke huruf besar dan nama dirapikan spasinya sebelum disimpan; aturan tersimpan yang rusak dibaca sebagai bawaan; form bisa diisi dari aturan yang sudah ada ("Pakai sebagai dasar"). Route `POST akademik/kalender/aturan-penilaian`.
+
+### AC-5b Lembar nilai
+
+- **Tabel `ac_grade_sheets`** [ASUMSI]: mapel kelas × semester (unik), status `DRAFT` | `FINAL`, **salinan aturan** (komponen & bobot, KKM, batas predikat) yang diambil saat lembar pertama kali disimpan, difinalkan oleh/kapan.
+    - Aturan yang berubah sesudah lembar dibuat **tidak** mengubah lembar itu; operator bisa **Terapkan aturan terbaru** selama lembar masih DRAFT (nilai komponen yang kodenya sama dipertahankan) [ASUMSI].
+- **Tabel `ac_grades`**: lembar × pendaftaran siswa (unik): nilai per komponen (0–100, maks. 2 desimal, boleh kosong), **nilai akhir** (otomatis = Σ nilai × bobot ÷ 100, dibulatkan ke bilangan bulat terdekat; kosong bila ada komponen kosong), deskripsi (opsional, maks. 300).
+- **Siswa** = yang tercatat di kelas pada semester itu (pernah aktif di kelas antara tanggal mulai–selesai semester); siswa yang pindah keluar tetap tampil dengan tanda.
+- **Halaman** dari baris mapel di detail kelas (operator) dan dari Kelas saya (pengampu): pilih semester (bawaan semester berjalan), tabel siswa × komponen, nilai akhir & predikat & tanda "di bawah KKM" dihitung langsung saat diketik; **Simpan** (semua siswa sekaligus) dan **Finalkan**.
+- **Finalkan**: semua siswa wajib punya nilai akhir. Lembar FINAL hanya dibaca; **Buka kembali** hanya bagi `academic.classes.manage` (alasan wajib, audit tanpa isi alasan).
+- Semester yang sudah punya lembar nilai tidak bisa dihapus dari Kalender akademik (janji §4.4); mapel kelas yang punya lembar nilai tidak bisa dilepas.
+- Audit [ASUMSI]: `academic.grades_saved` (kelas, mapel, semester, jumlah siswa; tanpa angka nilai), `academic.grade_sheet_finalized`, `academic.grade_sheet_reopened`.
+
+### AC-5c Leger nilai kelas
+
+- Per kelas per semester: siswa × mapel berisi **nilai akhir** (lembar DRAFT ditandai), rata-rata per siswa & per mapel, jumlah nilai di bawah KKM per siswa, dan daftar mapel yang lembarnya belum ada/belum final.
+- Dibuka wali kelas (Kelas saya) dan pemilik `academic.students.view`; unduh **.xlsx** (openspout yang sudah ada).
+
+### AC-5d Rapor
+
+- Per siswa per semester, dibuka wali kelas & operator dari leger: identitas (nama, NISN, nomor induk, kelas, semester, tahun ajaran, lembaga), tabel mapel (KKM, nilai akhir, predikat, deskripsi), **rekap presensi harian semester itu** (S/I/A dari AC-4), **catatan wali kelas** (maks. 1000), tempat untuk tanda tangan wali kelas & kepala lembaga (nama kepala diketik di halaman cetak) [ASUMSI].
+- Hanya mapel dengan lembar **FINAL** yang masuk rapor; yang belum final disebut di atas halaman sebagai peringatan.
+- **Cetak lewat browser** (halaman khusus cetak, A4), satu siswa atau semua siswa kelas sekaligus — **tanpa pustaka PDF baru** [ASUMSI].
+- **Tabel `ac_report_notes`**: kelas × semester × pendaftaran siswa (unik), catatan wali kelas. Audit `academic.report_note_saved` (tanpa isi catatan).
+
+### Di luar AC-5
+
+Nilai sikap/spiritual-sosial, ekstrakurikuler, prestasi, rapor P5 (Kurikulum Merdeka), format resmi K13/Merdeka, impor nilai dari Excel, remedial/nilai perbaikan, nilai per pertemuan, akses orang tua.
