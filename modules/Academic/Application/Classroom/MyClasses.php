@@ -23,7 +23,7 @@ use Modules\HR\Contracts\EmployeeLookup;
  * - Mencakup semua kelas yang ia pegang di yayasan ini, tidak dibatasi lembaga kerja aktif [ASUMSI]:
  *   guru SMP pagi & MDA sore melihat satu jadwal gabungan.
  *
- * @phpstan-type MyClass array{id: string, name: string, grade: int, organization: string, year: string, homeroom: bool, subjects: list<string>, lesson_mode: bool}
+ * @phpstan-type MyClass array{id: string, name: string, grade: int, organization: string, year: string, homeroom: bool, subjects: list<string>, taught: list<array{id: string, name: string}>, lesson_mode: bool}
  * @phpstan-type MyStudent array{id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, contact: array{name: string, relation: string, phone: string|null}|null}
  * @phpstan-type MyLesson array{entry_id: string, day: int, start: string, end: string, subject: string, class_id: string, class_name: string, organization: string}
  */
@@ -91,7 +91,9 @@ final class MyClasses
                 'organization' => (string) $row->organization,
                 'year' => (string) $row->year,
                 'homeroom' => $row->homeroom_employee_id === $employeeId,
-                'subjects' => $subjects[(string) $row->id] ?? [],
+                'subjects' => array_column($subjects[(string) $row->id] ?? [], 'name'),
+                // Mapel kelas yang ia ampu, untuk tautan lembar nilai (AC-5b).
+                'taught' => $subjects[(string) $row->id] ?? [],
                 // Mode presensi lembaga kelas (AC-4c): harian oleh wali kelas, per pertemuan oleh pengampu.
                 'lesson_mode' => $this->attendanceMode->isLesson($tenantId, (string) $row->organization_id),
             ];
@@ -234,7 +236,7 @@ final class MyClasses
 
     /**
      * @param  list<string>  $classIds
-     * @return array<string, list<string>> id kelas => nama mapel yang diampu
+     * @return array<string, list<array{id: string, name: string}>> id kelas => mapel kelas yang diampu
      */
     private function taughtSubjects(string $employeeId, array $classIds): array
     {
@@ -247,12 +249,12 @@ final class MyClasses
             ->whereIn('cs.class_id', $classIds)
             ->where('cs.teacher_employee_id', $employeeId)
             ->orderByRaw('lower(s.name)')
-            ->get(['cs.class_id', 's.name']);
+            ->get(['cs.id', 'cs.class_id', 's.name']);
 
         $subjects = [];
 
         foreach ($rows as $row) {
-            $subjects[(string) $row->class_id][] = (string) $row->name;
+            $subjects[(string) $row->class_id][] = ['id' => (string) $row->id, 'name' => (string) $row->name];
         }
 
         return $subjects;

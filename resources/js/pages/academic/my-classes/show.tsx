@@ -4,6 +4,7 @@ import {
     ChartColumn,
     ClipboardCheck,
     Download,
+    NotebookPen,
     Phone,
 } from 'lucide-react';
 import Heading from '@/components/heading';
@@ -28,6 +29,7 @@ type Props = {
         year: string;
         homeroom: boolean;
         subjects: string[];
+        taught: { id: string; name: string }[];
         lesson_mode: boolean;
     };
     students: Student[];
@@ -99,6 +101,29 @@ export default function MyClassDetail({ class: item, students }: Props) {
                         </Button>
                     )}
                 </div>
+                {item.taught.length > 0 && (
+                    <section className="space-y-2 rounded-xl border p-4">
+                        <h2 className="text-sm font-medium">
+                            Nilai mapel yang saya ampu
+                        </h2>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                            {item.taught.map((subject) => (
+                                <Button
+                                    key={subject.id}
+                                    variant="outline"
+                                    asChild
+                                >
+                                    <Link
+                                        href={`/kelas-saya/mapel/${subject.id}/nilai`}
+                                    >
+                                        <NotebookPen />
+                                        {subject.name}
+                                    </Link>
+                                </Button>
+                            ))}
+                        </div>
+                    </section>
+                )}
                 {item.lesson_mode && (
                     <p className="text-sm text-muted-foreground">
                         Lembaga ini memakai presensi per pertemuan: isi presensi

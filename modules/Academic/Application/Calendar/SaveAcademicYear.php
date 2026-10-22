@@ -311,6 +311,19 @@ final class SaveAcademicYear
             ->get()
             ->keyBy('sequence');
 
+        // Semester yang sudah punya nilai (AC-5b) tidak boleh dihapus.
+        $graded = Term::query()
+            ->withoutGlobalScope('tenant')
+            ->where('academic_year_id', $year->id)
+            ->where('sequence', '>', count($terms))
+            ->whereExists(fn ($query) => $query->selectRaw('1')->from('ac_grade_sheets as gs')->whereColumn('gs.term_id', 'ac_terms.id'))
+            ->orderBy('sequence')
+            ->first(['name']);
+
+        if ($graded instanceof Term) {
+            throw new CalendarException("{$graded->name} sudah punya nilai siswa, jadi tidak bisa dihapus. Jumlah semester tidak bisa dikurangi.", 'terms');
+        }
+
         // Hapus kelebihan dulu, lalu geser tanggal: tidak ada constraint antar-baris semester di database.
         Term::query()
             ->withoutGlobalScope('tenant')

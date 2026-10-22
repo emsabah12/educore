@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-21
-- **Tahap aktif:** AC-5a — aturan penilaian (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `e00cad0` — feat(academic): P4b hari efektif di rekap dan peringatan hari libur di presensi (lalu commit dokumen)
+- **Tahap aktif:** AC-5b — lembar nilai (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `eb9a8a8` — feat(academic): AC-5a aturan penilaian
 
 ## Keputusan penting
 
@@ -369,12 +369,21 @@
 
 **AC-5 Penilaian & rapor (PRD-002 §19, rincian disetujui 2026-10-22)**
 
-**AC-5a — Aturan penilaian: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**AC-5a — Aturan penilaian: SELESAI (2026-10-22, commit `eb9a8a8`)**
 
 - `Application/Grading/GradingRules` (isi aturan: KKM, batas A/B, 1–6 komponen berbobot = 100; `problem`, `fromValue`, `predicate`, `summary`), `GradingSetting` (aturan berjenjang `academic.grading`, bawaan KKM 75 · Harian 40 / PTS 30 / PAS 30 · A ≥ 90, B ≥ 80; `rulesFor`), `GradingOverview` (aturan tersimpan & yang berlaku per lembaga).
 - Route `POST akademik/kalender/aturan-penilaian` (`academic.grading.assign`, Admin Yayasan); bagian **Aturan penilaian** di Kalender akademik (`components/academic/grading-section.tsx`).
 - Audit: perubahan aturan berjenjang oleh Core.
-- Target bukti: 540 test (3 test baru, `GradingRulesTest`).
+- Bukti: 540 test lulus (3 test baru, `GradingRulesTest`); uji manual owner lancar.
+
+**AC-5b — Lembar nilai: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_200011`: `ac_grade_sheets` (mapel kelas × semester, status DRAFT/FINAL, salinan aturan `rules`, finalkan oleh/kapan) dan `ac_grades` (lembar × pendaftaran: `scores` jsonb per kode komponen, `final_score`, `description`).
+- `Domain/Grading/{GradeSheet, Exceptions/GradingException}`; `Application/Grading/ManageGrades` (`terms`, `pickTerm`, `sheet`, `save`, `finalize`, `reopen`, `applyLatestRules`, `finalScore`).
+- `GradeController`: pintu operator/pemantau `kelas/mapel/{id}/nilai` dan pintu pengampu `kelas-saya/mapel/{id}/nilai`; halaman `academic/grades/sheet`. Tombol **Nilai** di baris mapel detail kelas; bagian **Nilai mapel yang saya ampu** di Kelas saya (`MyClasses` menambah `taught`).
+- Pengaman: mapel kelas & semester yang punya lembar nilai tidak bisa dilepas/dihapus.
+- Audit `academic.grades_saved`, `grade_sheet_finalized`, `grade_sheet_reopened`, `grade_sheet_rules_applied`.
+- Target bukti: 544 test (4 test baru, `GradeSheetTest`).
 
 ## Struktur file utama
 
@@ -406,9 +415,10 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Pencatatan perubahan aturan ke audit log menunggu F4.
 - Larastan menolak `array_values()` pada data yang sudah list (mis. hasil `array_reverse`/`array_slice` dari list); pakai `array_values()` hanya sesudah `array_filter()`/`array_unique()` (P4b-fix1).
 - Test yang bergantung pada tanggal: kunci "hari ini" dengan `$this->travelTo(...)` di awal `beforeEach`, sebelum seeder (P4b).
+- Sebelum mulai tahap baru di salinan kerja: `git fetch` lalu pastikan berbasis commit terakhir di origin (AC-5b sempat dimulai di atas commit lama; diselamatkan dengan stash → reset → pop).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-5a (PANDUAN-AC5A.md), commit & push.
-2. AC-5b lembar nilai → AC-5c leger → AC-5d rapor (PRD-002 §19).
+1. Verifikasi AC-5b (PANDUAN-AC5B.md), migrate, commit & push.
+2. AC-5c leger → AC-5d rapor (PRD-002 §19).

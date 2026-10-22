@@ -1,8 +1,9 @@
-import { Form } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import {
     BookOpen,
     CircleAlert,
     Copy,
+    NotebookPen,
     Plus,
     Trash2,
     UserCog,
@@ -171,46 +172,60 @@ export function ClassSubjectsSection({
                                             </p>
                                         )}
                                 </div>
-                                {canManage && (
-                                    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={
-                                                isOpen('teacher', subject.id)
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            onClick={() =>
-                                                toggle({
-                                                    kind: 'teacher',
-                                                    id: subject.id,
-                                                })
-                                            }
+                                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                                    {/* Lembar nilai (AC-5b): dilihat semua yang membuka detail kelas. */}
+                                    <Button size="sm" variant="outline" asChild>
+                                        <Link
+                                            href={`/kelas/mapel/${subject.id}/nilai`}
                                         >
-                                            <UserCog />
-                                            Ganti pengampu
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={
-                                                isOpen('remove', subject.id)
-                                                    ? 'destructive'
-                                                    : 'outline'
-                                            }
-                                            onClick={() =>
-                                                toggle({
-                                                    kind: 'remove',
-                                                    id: subject.id,
-                                                })
-                                            }
-                                        >
-                                            <Trash2 />
-                                            Lepas
-                                        </Button>
-                                    </div>
-                                )}
+                                            <NotebookPen />
+                                            Nilai
+                                        </Link>
+                                    </Button>
+                                    {canManage && (
+                                        <>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={
+                                                    isOpen(
+                                                        'teacher',
+                                                        subject.id,
+                                                    )
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    toggle({
+                                                        kind: 'teacher',
+                                                        id: subject.id,
+                                                    })
+                                                }
+                                            >
+                                                <UserCog />
+                                                Ganti pengampu
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={
+                                                    isOpen('remove', subject.id)
+                                                        ? 'destructive'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    toggle({
+                                                        kind: 'remove',
+                                                        id: subject.id,
+                                                    })
+                                                }
+                                            >
+                                                <Trash2 />
+                                                Lepas
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             {canManage && isOpen('teacher', subject.id) && (

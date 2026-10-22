@@ -92,6 +92,14 @@ final class AcademicAuditAction
 
     public const HOLIDAY_REMOVED = 'academic.holiday_removed';
 
+    public const GRADES_SAVED = 'academic.grades_saved';
+
+    public const GRADE_SHEET_FINALIZED = 'academic.grade_sheet_finalized';
+
+    public const GRADE_SHEET_REOPENED = 'academic.grade_sheet_reopened';
+
+    public const GRADE_SHEET_RULES_APPLIED = 'academic.grade_sheet_rules_applied';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -151,6 +159,10 @@ final class AcademicAuditAction
             self::HOLIDAY_ADDED => 'Hari libur ditambahkan',
             self::HOLIDAY_UPDATED => 'Hari libur diubah',
             self::HOLIDAY_REMOVED => 'Hari libur dihapus',
+            self::GRADES_SAVED => 'Nilai siswa disimpan',
+            self::GRADE_SHEET_FINALIZED => 'Nilai mapel difinalkan',
+            self::GRADE_SHEET_REOPENED => 'Nilai mapel dibuka kembali',
+            self::GRADE_SHEET_RULES_APPLIED => 'Aturan nilai mapel diperbarui',
         ];
     }
 }

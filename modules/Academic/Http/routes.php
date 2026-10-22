@@ -7,6 +7,7 @@ use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\ClassSubjectController;
 use Modules\Academic\Http\Controllers\ClassYearEndController;
+use Modules\Academic\Http\Controllers\GradeController;
 use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ScheduleController;
 use Modules\Academic\Http\Controllers\StudentActionController;
@@ -123,6 +124,16 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'storeMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.store');
     // Rekap presensi (AC-4b). Lihat: izin lihat siswa; wali kelas: lewat Kelas saya.
     Route::get('kelas/{class}/rekap-presensi', [AttendanceController::class, 'recap'])->whereUuid('class')->name('academic.attendance.recap');
+
+    // Lembar nilai (PRD-002 §19 AC-5b): pintu operator/pemantau dan pintu guru pengampu (Kelas saya).
+    Route::get('kelas/mapel/{classSubject}/nilai', [GradeController::class, 'show'])->whereUuid('classSubject')->name('academic.grades.show');
+    Route::post('kelas/mapel/{classSubject}/nilai', [GradeController::class, 'store'])->whereUuid('classSubject')->name('academic.grades.store');
+    Route::post('kelas/mapel/{classSubject}/nilai/final', [GradeController::class, 'finalize'])->whereUuid('classSubject')->name('academic.grades.finalize');
+    Route::post('kelas/mapel/{classSubject}/nilai/buka-kembali', [GradeController::class, 'reopen'])->whereUuid('classSubject')->name('academic.grades.reopen');
+    Route::post('kelas/mapel/{classSubject}/nilai/aturan-terbaru', [GradeController::class, 'applyRules'])->whereUuid('classSubject')->name('academic.grades.apply-rules');
+    Route::get('kelas-saya/mapel/{classSubject}/nilai', [GradeController::class, 'showMine'])->whereUuid('classSubject')->name('academic.my-grades.show');
+    Route::post('kelas-saya/mapel/{classSubject}/nilai', [GradeController::class, 'storeMine'])->whereUuid('classSubject')->name('academic.my-grades.store');
+    Route::post('kelas-saya/mapel/{classSubject}/nilai/final', [GradeController::class, 'finalizeMine'])->whereUuid('classSubject')->name('academic.my-grades.finalize');
     Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage
