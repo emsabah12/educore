@@ -28,6 +28,16 @@ type Holiday = {
     days: number;
 };
 
+type UsageRow = {
+    id: string;
+    name: string;
+    days: string;
+    source: string;
+    /** Hanya libur mingguan: nilai di kalender akademik lembaga itu (pembanding). */
+    academic?: string | null;
+    differs?: boolean;
+};
+
 type Props = {
     types: LeaveType[];
     weeklyOff: {
@@ -37,7 +47,9 @@ type Props = {
             days: string;
             enforced: boolean;
         }[];
-        usage: { id: string; name: string; days: string; source: string }[];
+        usage: (UsageRow & { academic: string | null; differs: boolean })[];
+        /** Jumlah lembaga yang libur mingguannya berbeda dengan kalender akademik (OD-HR-07). */
+        differs: number;
     };
     workHours: {
         rules: {
@@ -347,7 +359,10 @@ function TypeForm({
 
 // ── Libur mingguan ───────────────────────────────────────────────────────────
 
-type RulesProp = Props['weeklyOff'];
+type RulesProp = {
+    rules: Props['weeklyOff']['rules'];
+    usage: UsageRow[];
+};
 
 /**
  * Pilihan sasaran aturan berjenjang: satu jenjang, atau satu lembaga/unit.
@@ -490,7 +505,10 @@ function RulesPanel({
                 )}
             </div>
             {data.usage.length > 0 && (
-                <details className="rounded-xl border">
+                <details
+                    className="rounded-xl border"
+                    open={data.usage.some((row) => row.differs)}
+                >
                     <summary className="cursor-pointer p-4 text-sm font-medium">
                         {usageTitle} ({data.usage.length})
                     </summary>
@@ -507,6 +525,20 @@ function RulesPanel({
                                         {row.source}
                                     </Badge>
                                 </span>
+                                {row.academic !== undefined && (
+                                    <span
+                                        className={
+                                            'w-full text-xs ' +
+                                            (row.differs
+                                                ? 'text-amber-700 dark:text-amber-300'
+                                                : 'text-muted-foreground')
+                                        }
+                                    >
+                                        {row.academic === null
+                                            ? 'Tidak memakai kalender akademik'
+                                            : `${row.differs ? '⚠ Berbeda dengan' : 'Sama dengan'} kalender akademik: ${row.academic}`}
+                                    </span>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -536,7 +568,7 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
             <Heading
                 variant="small"
                 title="Libur mingguan"
-                description="Hari yang tidak dihitung sebagai hari cuti, per jenjang atau lembaga/unit. Bawaan: Ahad. Lembaga pengajuan = penempatan utama pegawai."
+                description="Hari kerja pegawai: dipakai menghitung hari cuti dan jam wajib absen staf, per jenjang atau lembaga/unit. Bawaan: Ahad. Terpisah dari libur mingguan kalender akademik (hari sekolah, presensi siswa & mengajar)."
             />
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <Form
@@ -592,11 +624,26 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
                     )}
                 </Form>
 
-                <RulesPanel
-                    data={weeklyOff}
-                    emptyText="Belum ada pengaturan. Semua lembaga libur hari Ahad."
-                    usageTitle="Libur mingguan yang berlaku di tiap lembaga"
-                />
+                <div className="space-y-3">
+                    {weeklyOff.differs > 0 && (
+                        <p
+                            role="status"
+                            className="rounded-xl border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                        >
+                            ⚠ {weeklyOff.differs} lembaga punya libur mingguan
+                            yang berbeda dengan kalender akademiknya. Tidak
+                            apa-apa bila memang disengaja (mis. staf tetap masuk
+                            saat siswa libur); bila tidak, samakan di sini.
+                            Libur mingguan kalender akademik hanya dipakai untuk
+                            hari sekolah.
+                        </p>
+                    )}
+                    <RulesPanel
+                        data={weeklyOff}
+                        emptyText="Belum ada pengaturan. Semua lembaga libur hari Ahad."
+                        usageTitle="Libur mingguan yang berlaku di tiap lembaga"
+                    />
+                </div>
             </div>
         </section>
     );

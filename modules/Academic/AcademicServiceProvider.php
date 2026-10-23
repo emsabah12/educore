@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Calendar\AcademicSchoolWeeklyOff;
 use Modules\Academic\Application\Calendar\CalendarSetting;
 use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
@@ -19,6 +20,7 @@ use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
+use Modules\HR\Contracts\SchoolWeeklyOff;
 use Modules\HR\Contracts\TeachingSchedule;
 
 /**
@@ -40,6 +42,8 @@ class AcademicServiceProvider extends ModuleServiceProvider
         // Jam mengajar guru untuk presensi pegawai HR (PRD-001 §14.1): HR memakai kontraknya,
         // Academic mengisinya (menggantikan implementasi kosong bawaan HR).
         $this->app->singleton(TeachingSchedule::class, AcademicTeachingSchedule::class);
+        // Libur mingguan kalender akademik untuk perbandingan di Pengaturan cuti & presensi (OD-HR-07).
+        $this->app->singleton(SchoolWeeklyOff::class, AcademicSchoolWeeklyOff::class);
     }
 
     public function boot(): void

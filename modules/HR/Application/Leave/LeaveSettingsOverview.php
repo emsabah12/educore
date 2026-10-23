@@ -13,6 +13,7 @@ use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Settings\ScopedSetting;
 use Modules\HR\Application\Attendance\WorkHoursSetting;
+use Modules\HR\Contracts\SchoolWeeklyOff;
 use Modules\HR\Domain\Leave\Holiday;
 use Modules\HR\Domain\Leave\LeaveType;
 
@@ -23,6 +24,7 @@ use Modules\HR\Domain\Leave\LeaveType;
  * @phpstan-type TypeRow array{id: string, code: string, name: string, has_quota: bool, annual_quota: int|null, max_days: int|null, is_active: bool}
  * @phpstan-type RuleRow array{id: string, target: string, days: string, enforced: bool}
  * @phpstan-type UsageRow array{id: string, name: string, days: string, source: string}
+ * @phpstan-type WeeklyOffUsageRow array{id: string, name: string, days: string, source: string, academic: string|null, differs: bool}
  * @phpstan-type HolidayRow array{id: string, name: string, start_date: string, end_date: string, days: int}
  * @phpstan-type OptionRow array{value: string, label: string}
  */
@@ -31,12 +33,13 @@ final class LeaveSettingsOverview
     public function __construct(
         private readonly ScopedSettingResolver $settings,
         private readonly SetScopedSetting $setScopedSetting,
+        private readonly SchoolWeeklyOff $schoolWeeklyOff,
     ) {}
 
     /**
      * @return array{
      *     types: list<TypeRow>,
-     *     weeklyOff: array{rules: list<RuleRow>, usage: list<UsageRow>},
+     *     weeklyOff: array{rules: list<RuleRow>, usage: list<WeeklyOffUsageRow>, differs: int},
      *     approval: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     workHours: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     holidays: list<HolidayRow>,
@@ -95,11 +98,15 @@ final class LeaveSettingsOverview
             $jenjang[] = ['value' => $case->value, 'label' => $case->label()];
         }
 
+        $weeklyOffUsage = $this->weeklyOffUsage($tenantId);
+
         return [
             'types' => $types,
             'weeklyOff' => [
                 'rules' => $this->rules($tenantId, WeeklyOffSetting::KEY, fn (mixed $value): string => WeeklyOffSetting::label(WeeklyOffSetting::normalize($value))),
-                'usage' => $this->usage($tenantId, WeeklyOffSetting::KEY, fn (mixed $value): string => WeeklyOffSetting::label(WeeklyOffSetting::normalize($value))),
+                'usage' => $weeklyOffUsage,
+                // Jumlah lembaga yang libur mingguan HR-nya berbeda dengan kalender akademiknya (OD-HR-07).
+                'differs' => count(array_filter($weeklyOffUsage, fn (array $row): bool => $row['differs'])),
             ],
             // Alur persetujuan cuti per jenjang/lembaga (HR-3c).
             'approval' => [
@@ -195,6 +202,32 @@ final class LeaveSettingsOverview
         usort($rows, fn (array $a, array $b): int => strcmp($a['target'], $b['target']));
 
         return $rows;
+    }
+
+    /**
+     * Libur mingguan HR yang berlaku di tiap lembaga, dibandingkan dengan libur mingguan kalender
+     * akademik lembaga itu. Keduanya tetap terpisah (OD-HR-07 [OWNER, 2026-10-23]); perbedaannya
+     * hanya ditandai agar Admin SDM sadar.
+     *
+     * @return list<WeeklyOffUsageRow>
+     */
+    private function weeklyOffUsage(string $tenantId): array
+    {
+        $rows = $this->usage($tenantId, WeeklyOffSetting::KEY, fn (mixed $value): string => WeeklyOffSetting::label(WeeklyOffSetting::normalize($value)));
+        $school = $this->schoolWeeklyOff->forOrganizations($tenantId, array_column($rows, 'id'));
+        $result = [];
+
+        foreach ($rows as $row) {
+            $academic = $school[$row['id']] ?? null;
+            $hr = WeeklyOffSetting::normalize($this->settings->resolve($tenantId, WeeklyOffSetting::KEY, $row['id'])->value);
+
+            $result[] = $row + [
+                'academic' => $academic === null ? null : WeeklyOffSetting::label($academic),
+                'differs' => $academic !== null && $academic !== $hr,
+            ];
+        }
+
+        return $result;
     }
 
     /**

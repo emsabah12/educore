@@ -16,10 +16,12 @@ use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\EloquentActiveEmployees;
 use Modules\HR\Application\Employee\EloquentEmployeeLookup;
 use Modules\HR\Application\Leave\LeaveApprovalSetting;
+use Modules\HR\Application\Leave\NoSchoolWeeklyOff;
 use Modules\HR\Application\Leave\WeeklyOffSetting;
 use Modules\HR\Console\PruneImportsCommand;
 use Modules\HR\Contracts\ActiveEmployees;
 use Modules\HR\Contracts\EmployeeLookup;
+use Modules\HR\Contracts\SchoolWeeklyOff;
 use Modules\HR\Contracts\TeachingSchedule;
 
 /**
@@ -43,6 +45,8 @@ class HRServiceProvider extends ModuleServiceProvider
 
         // Jadwal mengajar untuk presensi (PRD-001 §14.1): bawaan kosong; modul Academic menggantinya.
         $this->app->singletonIf(TeachingSchedule::class, NoTeachingSchedule::class);
+        // Libur mingguan kalender akademik, hanya untuk perbandingan (OD-HR-07): bawaan kosong.
+        $this->app->singletonIf(SchoolWeeklyOff::class, NoSchoolWeeklyOff::class);
     }
 
     public function boot(): void

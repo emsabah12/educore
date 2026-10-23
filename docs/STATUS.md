@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** AC-6a — Jadwal piket & presensi mengajar (kode siap, menunggu verifikasi owner); HR-4a + fix1 menunggu push
-- **Commit terakhir:** `451f94d` — feat(hr): HR-3d-b saldo, penyesuaian jatah, rekap cuti
+- **Tahap aktif:** perbaikan kecil (login → 403; pembanding libur mingguan) → berikutnya AC-6b
+- **Commit terakhir:** `a69c50a` — feat(academic): AC-6a jadwal piket dan presensi mengajar (berisi juga HR-4a + fix1)
 
 ## Keputusan penting
 
@@ -36,6 +36,7 @@
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
 | 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
 | 2026-10-23 | Presensi dibagi dua: kehadiran kerja harian di HR-4; presensi mengajar per jadwal di tiap lembaga, jadwal piket, dan guru pengganti di Akademik AC-6 (ADR-001: HR tidak bergantung pada Academic)                                                  | PRD-002 §20, PRD-001 §14.5 |
+| 2026-10-23 | Libur mingguan HR tetap terpisah dari kalender akademik (opsi A); Pengaturan cuti & presensi menampilkan libur kalender akademik sebagai pembanding + tanda ⚠ bila berbeda                                                                         | PRD-001 §13.2, OD-HR-07    |
 
 ## Fitur yang sudah ada
 
@@ -404,7 +405,7 @@
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
-**AC-6a — Jadwal piket & presensi mengajar: KODE SIAP (2026-10-23, menunggu verifikasi)**
+**AC-6a — Jadwal piket & presensi mengajar: SELESAI (2026-10-23, commit `a69c50a`)**
 
 - Dibangun di atas HR-4a + fix1 (belum di origin saat dibuat).
 - Permission baru `academic.teaching.manage` (Operator Akademik, Admin Yayasan, Kepala Lembaga) → jalankan `educore:sync-access`; `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan.
@@ -463,7 +464,7 @@
 
 **HR-4 Presensi pegawai (PRD-001 §14, OD-HR-09, rincian disetujui 2026-10-22)** — absen mandiri + petugas; status + jam masuk/pulang; jam wajib guru dari jadwal mengajar, staf dari jam kerja per jenjang/lembaga; mesin absen menyusul.
 
-**HR-4a — Jam kerja & Presensi saya: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**HR-4a — Jam kerja & Presensi saya: SELESAI (2026-10-23, ikut commit `a69c50a`)**
 
 - Migrasi `2026_10_22_100010`: `hr_attendances` (satu baris per pegawai per tanggal; lembaga, status, jam masuk/pulang + sumber MANDIRI/PETUGAS, jam wajib tersalin, terlambat & pulang cepat dalam menit, keterangan).
 - Kontrak baru `Modules\HR\Contracts\TeachingSchedule` (bawaan `NoTeachingSchedule`); Academic mengisinya lewat `Application/Classroom/AcademicTeachingSchedule` (jadwal kelas aktif + libur kalender akademik), didaftarkan di `AcademicServiceProvider::register()`.
@@ -473,6 +474,19 @@
 - Target bukti: 571 test (3 test baru, `MyAttendanceTest`).
 - Pelajaran (fix1): Larastan `nullsafe.neverNull` — `$x?->prop ?? …` tidak perlu `?->` (operator `??` sudah aman untuk properti); untuk beberapa cabang pakai `match (true)` agar jelas.
 - Pelajaran (fix1): kolom `jsonb` PostgreSQL menyusun ulang key (yang pendek dulu); di test bandingkan isi audit dengan `toEqual`, bukan `toBe`.
+
+**Perbaikan login → 403 (2026-10-23, paket `educore-fix-login-403`)**
+
+- Penyebab: Fortify mengarahkan ke _intended URL_ (halaman terakhir sebelum sesi habis) yang bisa milik akun lain atau butuh lembaga kerja lain.
+- Perbaikan: `app/Http/Responses/LoginResponse.php` (untuk `LoginResponse` & `TwoFactorLoginResponse`) selalu ke Dashboard; +1 test di `AuthenticationTest`.
+- Pelajaran: di aplikasi multi-akun & multi-lembaga kerja, jangan memakai `redirect()->intended()` sesudah login.
+
+**Perbaikan libur mingguan HR vs kalender akademik (2026-10-23, paket `educore-weekly-off-compare`)**
+
+- Keputusan owner: opsi A — tetap terpisah (OD-HR-07), perbedaan ditampilkan.
+- Kontrak HR baru `SchoolWeeklyOff` (bawaan `NoSchoolWeeklyOff`); Academic mengisinya lewat `Application/Calendar/AcademicSchoolWeeklyOff`.
+- `LeaveSettingsOverview`: `weeklyOff.usage` + `academic` & `differs`, `weeklyOff.differs` (jumlah lembaga berbeda). Halaman Pengaturan cuti & presensi menampilkan peringatan ⚠ dan pembanding per lembaga; halaman Kalender akademik memberi keterangan pemakaian libur mingguannya.
+- Target bukti: +1 test (`WeeklyOffComparisonTest`).
 
 ## Struktur file utama
 
@@ -511,6 +525,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Commit & push HR-4a + fix1, lalu verifikasi AC-6a (PANDUAN-AC6A.md), migrate, commit & push.
+1. Pasang & commit paket `educore-fix-login-403` dan `educore-weekly-off-compare`.
 2. AC-6b cuti & guru pengganti → AC-6c rekap presensi mengajar (PRD-002 §20).
 3. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).

@@ -72,6 +72,11 @@ export function WeeklyOffForm({
                     <span className="font-medium">
                         {names.length > 0 ? names.join(', ') : 'Tidak ada'}
                     </span>
+                    <span className="w-full text-xs text-muted-foreground">
+                        Untuk hari sekolah (presensi siswa, jadwal & presensi
+                        mengajar). Hari kerja pegawai untuk cuti & absen staf
+                        diatur terpisah di Pengaturan cuti & presensi.
+                    </span>
                 </p>
                 <Button
                     type="button"
