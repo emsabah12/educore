@@ -29,6 +29,7 @@ use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Tests\Support\CoreFixtures;
 use Tests\Support\DevAccounts;
+use Tests\Support\TestNik;
 
 /*
  * Impor pegawai: template, unggah, dan pratinjau (HR-1e-a, PRD-001 §6.2). Belum ada yang disimpan.
@@ -45,24 +46,38 @@ beforeEach(function () {
     $this->admin = DevAccounts::user('admin.yayasan');
 });
 
-const IMPOR_KOLOM_WAJIB = ['nama', 'jenis_kelamin', 'jenis_pegawai', 'tanggal_mulai', 'kode_lembaga', 'jabatan'];
+const IMPOR_KOLOM_WAJIB = ['nama', 'nik', 'jenis_kelamin', 'jenis_pegawai', 'tanggal_mulai', 'kode_lembaga', 'jabatan'];
 
 /**
- * Isian satu baris yang benar, bisa ditimpa per kolom.
+ * Isian satu baris yang benar, bisa ditimpa per kolom. NIK dibuat unik dan cocok dengan jenis
+ * kelamin & tanggal lahir baris itu, kecuali ditimpa.
  *
  * @param  array<string, mixed>  $override
  * @return array<string, mixed>
  */
 function imporBaris(array $override = []): array
 {
-    return array_merge([
+    $row = array_merge([
         'nama' => 'Ani Rahmawati',
+        'nik' => null,
         'jenis_kelamin' => 'P',
         'jenis_pegawai' => 'TETAP',
         'tanggal_mulai' => '2020-07-01',
         'kode_lembaga' => 'U1-MTS',
         'jabatan' => 'GURU',
     ], $override);
+
+    if ($row['nik'] === null) {
+        $raw = is_string($row['tanggal_lahir'] ?? null) ? $row['tanggal_lahir'] : '';
+        $birthDate = match (true) {
+            preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) === 1 => $raw,
+            preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $raw, $parts) === 1 => sprintf('%04d-%02d-%02d', $parts[3], $parts[2], $parts[1]),
+            default => null,
+        };
+        $row['nik'] = TestNik::for(strtoupper((string) $row['jenis_kelamin']), $birthDate);
+    }
+
+    return $row;
 }
 
 /**
@@ -248,8 +263,8 @@ test('XLSX: sel tanggal, nomor seri tanggal, dan teks tanggal dikenali', functio
     $file = imporXlsx(
         [...IMPOR_KOLOM_WAJIB, 'tanggal_lahir'],
         [
-            ['Ani', 'P', 'TETAP', new DateTimeImmutable('2020-07-01'), 'U1-MTS', 'GURU', 32994],
-            ['Budi', 'L', 'kontrak', '15/07/2021', 'U1-MA', 'GURU', '1985-02-01'],
+            ['Ani', TestNik::for('P', '1990-05-01'), 'P', 'TETAP', new DateTimeImmutable('2020-07-01'), 'U1-MTS', 'GURU', 32994],
+            ['Budi', TestNik::for('L', '1985-02-01'), 'L', 'kontrak', '15/07/2021', 'U1-MA', 'GURU', '1985-02-01'],
         ],
     );
 
@@ -266,7 +281,7 @@ test('XLSX: sel tanggal, nomor seri tanggal, dan teks tanggal dikenali', functio
 test('NUPTK dan nomor HP yang tersimpan sebagai angka di Excel ditolak', function () {
     $file = imporXlsx(
         [...IMPOR_KOLOM_WAJIB, 'nuptk', 'no_hp', 'nomor_induk'],
-        [['Ani', 'P', 'TETAP', '2020-07-01', 'U1-MTS', 'GURU', 3201234567890123, 81234567890, 1024]],
+        [['Ani', TestNik::for('P'), 'P', 'TETAP', '2020-07-01', 'U1-MTS', 'GURU', 3201234567890123, 81234567890, 1024]],
     );
 
     $rows = app(EmployeeImportReader::class)->read($file->getPathname(), 'xlsx');
@@ -370,8 +385,8 @@ test('nama + tanggal lahir yang sama dengan anggota yayasan atau baris lain hany
         ->and($preview->rows[0]->warnings[0])->toBe('Nama dan tanggal lahir sama dengan anggota yayasan: Siti Aminah (pegawai, lahir 1988-04-12).')
         ->and($preview->rows[1]->status())->toBe(EmployeeImportRow::READY)
         ->and($preview->rows[2]->warnings)->toBe(['Nama dan tanggal lahir sama dengan baris 3.'])
-        // Nama sama walau tanggal lahir beda tetap diperingatkan (temuan uji owner 2026-10-17).
-        ->and($preview->rows[3]->warnings)->toBe(['Nama sama dengan baris 3.'])
+        // Keduanya ber-NIK berbeda dan tanggal lahir beda: orang lain, tidak diperingatkan (2026-10-23).
+        ->and($preview->rows[3]->warnings)->toBe([])
         ->and($preview->canSave())->toBeTrue()
         ->and($preview->hasWarnings())->toBeTrue()
         ->and($preview->rows[0]->data?->confirmDuplicate)->toBeTrue();
@@ -413,7 +428,7 @@ function imporFileBuruk(string $case): array
     return match ($case) {
         'bukan xlsx/csv' => [UploadedFile::fake()->createWithContent('pegawai.txt', "nama\nAni\n"), 'File harus berformat .xlsx atau .csv.'],
         'xlsx rusak' => [UploadedFile::fake()->createWithContent('pegawai.xlsx', 'bukan zip'), 'File tidak bisa dibaca. Pastikan file berformat .xlsx atau .csv dan tidak rusak.'],
-        'judul kolom kurang' => [imporCsv(['nama', 'jenis_kelamin'], [['Ani', 'P']]), 'Judul kolom wajib tidak ditemukan: jenis_pegawai, tanggal_mulai, kode_lembaga, jabatan. Pakai template impor.'],
+        'judul kolom kurang' => [imporCsv(['nama', 'jenis_kelamin'], [['Ani', 'P']]), 'Judul kolom wajib tidak ditemukan: nik, jenis_pegawai, tanggal_mulai, kode_lembaga, jabatan. Pakai template impor.'],
         'tanpa baris data' => [imporCsv(IMPOR_KOLOM_WAJIB, []), 'Tidak ada baris data pegawai di bawah judul kolom.'],
         'lebih dari 1000 baris' => [imporCsv(IMPOR_KOLOM_WAJIB, array_fill(0, 1001, array_values(imporBaris()))), 'File berisi lebih dari 1000 baris pegawai. Bagi menjadi beberapa file.'],
         'judul kolom dobel' => [imporCsv([...IMPOR_KOLOM_WAJIB, 'Nama'], [[...array_values(imporBaris()), 'X']]), 'Judul kolom "Nama" muncul lebih dari sekali.'],

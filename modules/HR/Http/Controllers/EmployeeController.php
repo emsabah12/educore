@@ -15,6 +15,7 @@ use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Authorization\MemberAccessSummary;
 use Modules\Core\Application\Identity\LoginAccountSummary;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
@@ -176,6 +177,7 @@ final class EmployeeController
             'phone' => PersonalData::phone($request->input('phone')),
             'employee_number' => PersonalData::employeeNumber($request->input('employee_number')),
             'nuptk' => PersonalData::nuptk($request->input('nuptk')),
+            'nik' => PersonNik::normalize($request->input('nik')),
         ]);
 
         $today = BusinessClock::todayString();
@@ -184,6 +186,8 @@ final class EmployeeController
             'mode' => ['required', Rule::in(['baru', 'anggota'])],
             'membership_id' => ['nullable', 'required_if:mode,anggota', 'uuid'],
             'name' => ['nullable', 'required_if:mode,baru', 'string', 'max:200'],
+            // Wajib untuk orang baru; untuk anggota yang belum punya NIK dicek di CreateEmployee.
+            'nik' => ['nullable', 'required_if:mode,baru', 'string', 'regex:'.PersonNik::PATTERN],
             'gender' => ['nullable', 'required_if:mode,baru', Rule::enum(Gender::class)],
             'birth_place' => ['nullable', 'string', 'max:100'],
             'birth_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.$today],
@@ -202,6 +206,8 @@ final class EmployeeController
         ], [
             'membership_id.required_if' => 'Pilih anggota yayasan.',
             'name.required_if' => 'Nama lengkap wajib diisi.',
+            'nik.required_if' => 'NIK wajib diisi untuk pegawai baru (16 angka sesuai KTP/KK).',
+            'nik.regex' => 'NIK harus 16 angka.',
             'gender.required_if' => 'Jenis kelamin wajib dipilih.',
             'birth_date.before_or_equal' => 'Tanggal lahir tidak boleh di masa depan.',
             'start_date.before_or_equal' => 'Tanggal mulai tidak boleh di masa depan.',
@@ -234,6 +240,8 @@ final class EmployeeController
             organizationId: $request->string('organization_id')->value(),
             positionId: $request->string('position_id')->value(),
             confirmDuplicate: $request->boolean('confirm_duplicate'),
+            nik: PersonalData::text($request->input('nik')),
+            requireNik: true,
         );
 
         try {
@@ -379,7 +387,7 @@ final class EmployeeController
     /**
      * Anggota aktif yayasan ini yang belum punya profil pegawai, untuk mode "Anggota yayasan".
      *
-     * @return list<array{id: string, name: string, email: string|null, gender: string|null}>
+     * @return list<array{id: string, name: string, email: string|null, gender: string|null, has_nik: bool}>
      */
     private function memberOptions(): array
     {
@@ -395,8 +403,9 @@ final class EmployeeController
             })
             ->orderBy('p.name')
             ->limit(self::MEMBER_OPTIONS_LIMIT)
-            ->get(['m.id', 'p.name', 'p.gender', 'u.email']);
+            ->get(['m.id', 'p.id as person_id', 'p.name', 'p.gender', 'u.email']);
 
+        $withNik = app(PersonNik::class)->personsWithNik(array_values(array_map(fn (stdClass $row): string => (string) $row->person_id, $rows->all())));
         $members = [];
 
         foreach ($rows as $row) {
@@ -405,6 +414,8 @@ final class EmployeeController
                 'name' => (string) $row->name,
                 'email' => $row->email === null ? null : (string) $row->email,
                 'gender' => $row->gender === null ? null : (string) $row->gender,
+                // Hanya ada/tidaknya NIK, bukan nilainya: menentukan apakah kolom NIK wajib diisi.
+                'has_nik' => isset($withNik[(string) $row->person_id]),
             ];
         }
 
@@ -434,6 +445,7 @@ final class EmployeeController
             'address' => 'alamat',
             'employee_number' => 'nomor induk',
             'nuptk' => 'NUPTK',
+            'nik' => 'NIK',
             'education_level' => 'pendidikan terakhir',
             'education_major' => 'program studi/jurusan',
             'employment_type_id' => 'jenis pegawai',

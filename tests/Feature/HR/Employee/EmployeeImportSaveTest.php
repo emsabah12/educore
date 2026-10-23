@@ -21,6 +21,7 @@ use Modules\HR\Domain\Employee\EmploymentPeriod;
 use Modules\HR\Domain\Employee\Placement;
 use Tests\Support\CoreFixtures;
 use Tests\Support\DevAccounts;
+use Tests\Support\TestNik;
 
 /*
  * Impor pegawai: simpan semua atau tidak sama sekali (HR-1e-b, PRD-001 §6.2, OD-HR-05).
@@ -43,8 +44,9 @@ beforeEach(function () {
  */
 function simpanImporBaris(string $name, array $override = []): array
 {
-    return array_merge([
+    $row = array_merge([
         'nama' => $name,
+        'nik' => '',
         'jenis_kelamin' => 'L',
         'tanggal_lahir' => '',
         'nuptk' => '',
@@ -54,6 +56,13 @@ function simpanImporBaris(string $name, array $override = []): array
         'kode_lembaga' => 'U1-MTS',
         'jabatan' => 'GURU',
     ], $override);
+
+    // NIK unik yang cocok dengan jenis kelamin & tanggal lahir baris ini, kecuali ditimpa.
+    if ($row['nik'] === '') {
+        $row['nik'] = TestNik::for($row['jenis_kelamin'], $row['tanggal_lahir'] === '' ? null : $row['tanggal_lahir']);
+    }
+
+    return $row;
 }
 
 /**

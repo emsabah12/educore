@@ -11,9 +11,16 @@ use Modules\HR\Domain\Employee\EducationLevel;
  * - $membershipId terisi → anggota yayasan yang sudah ada; $name diabaikan. Data pribadi yang
  *   diisi akan melengkapi/memperbarui Person-nya, yang dikosongkan tidak diubah.
  * - $membershipId kosong → orang baru: Person + Membership dibuat.
+ * - $nik: NIK KTP/KK (sudah dirapikan). Wajib bila $requireNik dan orangnya belum punya NIK
+ *   (form & impor: OD-HR-01 revisi 2026-10-23); data uji/lama boleh tanpa NIK.
+ * - $extraOrganizationIds: lembaga penempatan tambahan (bukan utama), jabatan & tanggal mulai
+ *   sama dengan penempatan utama. Dipakai impor kolom `lembaga_tambahan` (PRD-001 §6.2).
  */
 final readonly class NewEmployeeData
 {
+    /**
+     * @param  list<string>  $extraOrganizationIds
+     */
     public function __construct(
         public string $tenantId,
         public ?string $membershipId,
@@ -33,5 +40,8 @@ final readonly class NewEmployeeData
         public string $organizationId,
         public string $positionId,
         public bool $confirmDuplicate = false,
+        public ?string $nik = null,
+        public array $extraOrganizationIds = [],
+        public bool $requireNik = false,
     ) {}
 }

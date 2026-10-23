@@ -2,12 +2,15 @@
 
 namespace Modules\HR\Application\Employee;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Application\Membership\GrantMembership;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
+use Modules\Core\Domain\Person\Exceptions\NikTakenException;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Support\BusinessClock;
@@ -30,6 +33,9 @@ use Modules\HR\Domain\Employee\Placement;
  * tidak ada yang tersimpan, termasuk Person dan Membership yang baru ([LAMA] HR-017 INV-HR-012).
  *
  * Tidak membuat akun login (User) dan tidak memberi role apa pun (PRD-001 §4.1, OD-HR-03).
+ *
+ * NIK (OD-HR-01 revisi 2026-10-23): disimpan terenkripsi lewat Core PersonNik. NIK yang sudah
+ * milik orang lain ditolak; orang dengan NIK berbeda tidak lagi dianggap "mungkin orang ganda".
  */
 final class CreateEmployee
 {
@@ -38,6 +44,8 @@ final class CreateEmployee
     public function __construct(
         private readonly GrantMembership $grantMembership,
         private readonly AuditLogger $audit,
+        private readonly PersonNik $personNik,
+        private readonly EmployeeNik $employeeNik,
     ) {}
 
     /**
@@ -50,6 +58,8 @@ final class CreateEmployee
 
         try {
             return DB::transaction(fn (): Employee => $this->create($data));
+        } catch (NikTakenException $exception) {
+            throw EmployeeException::nikTaken($this->employeeNik->takenMessage($data->tenantId, $exception->ownerPersonId));
         } catch (UniqueConstraintViolationException $exception) {
             // Jaga-jaga bila dua admin menyimpan data yang sama pada saat bersamaan.
             throw $this->fromUniqueViolation($exception, $data);
@@ -69,6 +79,7 @@ final class CreateEmployee
             : $this->activeCatalogItem(CatalogKind::Classification, $data->tenantId, $data->classificationId, 'classification_id', 'Status kepegawaian');
         $position = $this->activeCatalogItem(CatalogKind::Position, $data->tenantId, $data->positionId, 'position_id', 'Jabatan');
         $organization = $this->activeOrganization($data->tenantId, $data->organizationId);
+        $extraOrganizations = $this->extraOrganizations($data, $organization);
 
         $this->assertNumbersAvailable($data);
 
@@ -100,6 +111,17 @@ final class CreateEmployee
             'start_date' => $data->startDate,
         ]);
 
+        foreach ($extraOrganizations as $extra) {
+            Placement::query()->create([
+                'tenant_id' => $data->tenantId,
+                'employee_id' => $employee->id,
+                'organization_id' => $extra->id,
+                'position_id' => $position->id,
+                'is_primary' => false,
+                'start_date' => $data->startDate,
+            ]);
+        }
+
         // Data pribadi hanya dicatat NAMA field-nya, bukan nilainya (PRD-001 §7, [LAMA] HR-014).
         $this->audit->record(
             HrAuditAction::EMPLOYEE_CREATED,
@@ -113,6 +135,7 @@ final class CreateEmployee
                 'status_kepegawaian' => $classification?->code,
                 'start_date' => $data->startDate,
                 'lembaga' => $organization->code,
+                'lembaga_tambahan' => array_map(fn (Organization $extra): string => $extra->code, $extraOrganizations),
                 'jabatan' => $position->code,
                 'data_pribadi_diisi' => $personalFields,
             ],
@@ -138,8 +161,19 @@ final class CreateEmployee
             throw EmployeeException::genderRequired();
         }
 
+        if ($data->nik === null && $data->requireNik) {
+            throw EmployeeException::nikRequired();
+        }
+
+        // NIK lebih pasti daripada nama: bila sudah milik orang lain, tolak sebelum cek nama.
+        $owner = $data->nik === null ? null : $this->personNik->ownerOf($data->nik);
+
+        if ($owner !== null) {
+            throw new NikTakenException($owner);
+        }
+
         if (! $data->confirmDuplicate) {
-            [$matches, $sameBirthDate] = $this->similarMembers($data->tenantId, $name, $data->birthDate);
+            [$matches, $sameBirthDate] = $this->similarMembers($data->tenantId, $name, $data->birthDate, $data->nik !== null);
 
             if ($matches !== []) {
                 throw new DuplicatePersonException($matches, $sameBirthDate);
@@ -150,8 +184,13 @@ final class CreateEmployee
 
         $person = Person::query()->create(['name' => $name, 'gender' => $data->gender] + $personal);
         $membership = $this->grantMembership->handle($person->id, $data->tenantId);
+        $fields = array_keys($personal);
 
-        return [$membership, $person, array_keys($personal)];
+        if ($data->nik !== null && $this->personNik->assign($person->id, $data->nik)) {
+            $fields[] = 'nik';
+        }
+
+        return [$membership, $person, $fields];
     }
 
     /**
@@ -184,6 +223,10 @@ final class CreateEmployee
             throw EmployeeException::genderRequired();
         }
 
+        if ($data->nik === null && $data->requireNik && $this->personNik->valueOf($person->id) === null) {
+            throw EmployeeException::nikRequired();
+        }
+
         $personal = $this->personalValues($data);
         $updates = $personal + ($data->gender === null ? [] : ['gender' => $data->gender]);
 
@@ -192,7 +235,14 @@ final class CreateEmployee
             $person->save();
         }
 
-        return [$membership, $person, array_keys($personal)];
+        $fields = array_keys($personal);
+
+        // Kosong = NIK lama tetap; diisi = melengkapi/memperbarui (sama dengan data pribadi lain).
+        if ($data->nik !== null && $this->personNik->assign($person->id, $data->nik)) {
+            $fields[] = 'nik';
+        }
+
+        return [$membership, $person, $fields];
     }
 
     /**
@@ -226,9 +276,13 @@ final class CreateEmployee
      * bocor. [ASUMSI, disetujui owner 2026-10-17] Disamakan dengan impor (PRD-001 §6.2): dulu hanya
      * nama + tanggal lahir, sehingga tanggal yang salah ketik/kosong lolos tanpa peringatan.
      *
+     * Bila orang baru ber-NIK, anggota yang sudah punya NIK hanya diperingatkan bila tanggal lahirnya
+     * juga sama (kemungkinan NIK salah ketik); nama saja tidak cukup karena NIK-nya pasti berbeda.
+     * [OWNER, 2026-10-23; rincian ASUMSI]
+     *
      * @return array{0: list<string>, 1: bool} keterangan orang yang mirip, dan apakah ada yang tanggal lahirnya juga sama
      */
-    private function similarMembers(string $tenantId, string $name, ?string $birthDate): array
+    private function similarMembers(string $tenantId, string $name, ?string $birthDate, bool $hasNik): array
     {
         $normalized = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($name)));
 
@@ -237,6 +291,12 @@ final class CreateEmployee
             ->leftJoin('hr_employees as e', 'e.membership_id', '=', 'm.id')
             ->where('m.tenant_id', $tenantId)
             ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [$normalized])
+            ->when($hasNik, fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                ->whereNotExists(fn (Builder $sub) => $sub->select(DB::raw(1))
+                    ->from('person_identifiers as pi')
+                    ->whereColumn('pi.person_id', 'p.id')
+                    ->where('pi.type', PersonNik::TYPE))
+                ->when($birthDate !== null, fn (Builder $either) => $either->orWhere('p.birth_date', $birthDate))))
             ->orderBy('p.name')
             ->limit(5)
             ->get(['p.name', 'p.birth_date', 'e.id as employee_id']);
@@ -291,6 +351,30 @@ final class CreateEmployee
         return $organization;
     }
 
+    /**
+     * Lembaga tambahan: aktif, tidak dobel, dan bukan lembaga utama.
+     *
+     * @return list<Organization>
+     */
+    private function extraOrganizations(NewEmployeeData $data, Organization $primary): array
+    {
+        $extras = [];
+
+        foreach ($data->extraOrganizationIds as $id) {
+            if ($id === $primary->id) {
+                throw EmployeeException::rule('extra_organization_ids', 'Lembaga tambahan tidak boleh sama dengan lembaga utama.');
+            }
+
+            if (isset($extras[$id])) {
+                throw EmployeeException::rule('extra_organization_ids', 'Lembaga tambahan tidak boleh dobel.');
+            }
+
+            $extras[$id] = $this->activeOrganization($data->tenantId, $id);
+        }
+
+        return array_values($extras);
+    }
+
     private function assertNumbersAvailable(NewEmployeeData $data): void
     {
         $employees = Employee::query()->withoutGlobalScope('tenant')->where('tenant_id', $data->tenantId);
@@ -343,6 +427,10 @@ final class CreateEmployee
 
         if ($data->nuptk !== null && preg_match(PersonalData::NUPTK_PATTERN, $data->nuptk) !== 1) {
             throw EmployeeException::invalidFormat('nuptk', 'NUPTK harus 16 angka.');
+        }
+
+        if ($data->nik !== null && ! PersonNik::isValid($data->nik)) {
+            throw EmployeeException::nikInvalid();
         }
     }
 

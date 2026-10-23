@@ -4,10 +4,13 @@ namespace Modules\HR\Application\Import;
 
 use DateInterval;
 use DateTimeImmutable;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Employee\EmployeeNik;
 use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Domain\Catalog\CatalogItem;
@@ -21,6 +24,10 @@ use Modules\HR\Domain\Employee\Employee;
  * Aturan isian sama dengan form Tambah pegawai mode orang baru (§4.3–§4.5). Tambahan khusus impor:
  * kode katalog/lembaga, nomor induk & NUPTK dobel di dalam file, dan NUPTK/HP yang tersimpan
  * sebagai angka (0 di depan bisa hilang) ditolak. Orang ganda hanya menjadi peringatan (OD-HR-05).
+ *
+ * NIK (OD-HR-01 revisi 2026-10-23): wajib; dobel di file atau sudah terdaftar = Salah. NIK yang
+ * tidak cocok dengan tanggal lahir/jenis kelamin = peringatan. Kolom lembaga_tambahan membuat
+ * penempatan tambahan (bukan utama) dengan jabatan & tanggal mulai yang sama.
  */
 final class EmployeeImportValidator
 {
@@ -41,6 +48,11 @@ final class EmployeeImportValidator
     /** @var array<string, Organization> KODE => lembaga */
     private array $organizations = [];
 
+    public function __construct(
+        private readonly PersonNik $personNik,
+        private readonly EmployeeNik $employeeNik,
+    ) {}
+
     /**
      * @param  list<array{line: int, values: array<string, bool|DateTimeImmutable|float|int|string|null>}>  $rows
      */
@@ -56,6 +68,7 @@ final class EmployeeImportValidator
         }
 
         $this->checkNumbers($tenantId, $drafts);
+        $this->checkNiks($tenantId, $drafts);
         $this->checkSimilarPeople($tenantId, $drafts);
 
         return new EmployeeImportPreview(array_map(fn (ImportRowDraft $draft): EmployeeImportRow => $this->toRow($tenantId, $draft), $drafts));
@@ -79,6 +92,8 @@ final class EmployeeImportValidator
         } elseif (mb_strlen($draft->name) > self::NAME_MAX) {
             $draft->error(EmployeeImportColumns::NAME, 'Maksimal 200 karakter.');
         }
+
+        $draft->nik = $this->nik($draft, $value(EmployeeImportColumns::NIK));
 
         $gender = $this->text($value(EmployeeImportColumns::GENDER));
         $draft->gender = $gender === null ? null : Gender::tryFrom(mb_strtoupper($gender));
@@ -106,10 +121,91 @@ final class EmployeeImportValidator
 
         $draft->organizationInput = $this->text($value(EmployeeImportColumns::ORGANIZATION));
         $draft->organization = $this->organization($draft, $draft->organizationInput);
+        $draft->extraOrganizations = $this->extraOrganizations($draft, $this->text($value(EmployeeImportColumns::EXTRA_ORGANIZATIONS)));
         $draft->positionInput = $this->text($value(EmployeeImportColumns::POSITION));
         $draft->position = $this->catalogItem($draft, CatalogKind::Position, EmployeeImportColumns::POSITION, $draft->positionInput, required: true);
 
+        $mismatch = $draft->nik === null ? null : PersonNik::mismatch($draft->nik, $draft->birthDate, $draft->gender);
+
+        if ($mismatch !== null) {
+            $draft->warnings[] = $mismatch;
+        }
+
         return $draft;
+    }
+
+    private function nik(ImportRowDraft $draft, bool|DateTimeImmutable|float|int|string|null $raw): ?string
+    {
+        // Sama dengan NUPTK: angka 16 digit di Excel bisa berubah digit terakhirnya.
+        if (is_int($raw) || is_float($raw)) {
+            $draft->error(EmployeeImportColumns::NIK, 'Tersimpan sebagai angka sehingga digitnya bisa berubah. Ubah format sel menjadi Teks lalu ketik ulang.');
+
+            return null;
+        }
+
+        $nik = PersonNik::normalize($this->text($raw));
+
+        if ($nik === null) {
+            $draft->error(EmployeeImportColumns::NIK, 'Wajib diisi (16 angka sesuai KTP/KK).');
+
+            return null;
+        }
+
+        if (! PersonNik::isValid($nik)) {
+            $draft->error(EmployeeImportColumns::NIK, 'Harus 16 angka.');
+
+            return null;
+        }
+
+        return $nik;
+    }
+
+    /**
+     * "U1-MDA, U1-QURAN" → lembaga aktif, tidak dobel, bukan lembaga utama.
+     *
+     * @return list<Organization>
+     */
+    private function extraOrganizations(ImportRowDraft $draft, ?string $input): array
+    {
+        if ($input === null) {
+            return [];
+        }
+
+        $codes = array_values(array_filter(array_map('trim', preg_split('/[,;]/', $input) ?: []), fn (string $code): bool => $code !== ''));
+        $column = EmployeeImportColumns::EXTRA_ORGANIZATIONS;
+
+        if (count($codes) > EmployeeImportColumns::EXTRA_ORGANIZATIONS_MAX) {
+            $draft->error($column, 'Paling banyak '.EmployeeImportColumns::EXTRA_ORGANIZATIONS_MAX.' lembaga tambahan.');
+
+            return [];
+        }
+
+        $primary = $draft->organizationInput === null ? null : mb_strtoupper($draft->organizationInput);
+        $found = [];
+        $valid = true;
+
+        foreach ($codes as $code) {
+            $key = mb_strtoupper($code);
+            $organization = $this->organizations[$key] ?? null;
+
+            if ($key === $primary) {
+                $draft->error($column, "Lembaga \"{$code}\" sudah menjadi lembaga utama (kode_lembaga).");
+                $valid = false;
+            } elseif (isset($found[$key])) {
+                $draft->error($column, "Lembaga \"{$code}\" ditulis lebih dari sekali.");
+                $valid = false;
+            } elseif ($organization === null) {
+                $draft->error($column, "Kode lembaga \"{$code}\" tidak ada di yayasan ini. Lihat lembar Kode.");
+                $valid = false;
+            } elseif (! $organization->isActive()) {
+                $draft->error($column, "Lembaga \"{$code}\" sudah nonaktif.");
+                $valid = false;
+            } else {
+                $found[$key] = $organization;
+            }
+        }
+
+        return $valid ? array_values($found) : [];
     }
 
     private function limited(ImportRowDraft $draft, string $column, bool|DateTimeImmutable|float|int|string|null $raw, int $max): ?string
@@ -384,6 +480,33 @@ final class EmployeeImportValidator
     }
 
     /**
+     * NIK tidak boleh dobel di dalam file, dan tidak boleh sudah milik orang lain di EduCore.
+     *
+     * @param  list<ImportRowDraft>  $drafts
+     */
+    private function checkNiks(string $tenantId, array $drafts): void
+    {
+        $owners = $this->personNik->ownersOf($this->filled(array_map(fn (ImportRowDraft $draft): ?string => $draft->nik, $drafts)));
+
+        /** @var array<string, int> $seen */
+        $seen = [];
+
+        foreach ($drafts as $draft) {
+            if ($draft->nik === null) {
+                continue;
+            }
+
+            if (isset($owners[$draft->nik])) {
+                $draft->error(EmployeeImportColumns::NIK, $this->employeeNik->takenMessage($tenantId, $owners[$draft->nik]));
+            } elseif (isset($seen[$draft->nik])) {
+                $draft->error(EmployeeImportColumns::NIK, 'Sama dengan baris '.$seen[$draft->nik].'.');
+            } else {
+                $seen[$draft->nik] = $draft->line;
+            }
+        }
+    }
+
+    /**
      * Peringatan orang ganda (PRD-001 §6.2), hanya di yayasan yang sama:
      *
      * - nama + tanggal lahir sama dengan anggota yayasan atau baris lain di file;
@@ -391,7 +514,9 @@ final class EmployeeImportValidator
      *   ditampilkan. Menangkap tanggal yang terbaca beda format di Excel (12/04 ↔ 04/12), data
      *   lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
      *
-     * Nama dibandingkan tanpa beda huruf besar/kecil dan spasi ganda.
+     * Nama dibandingkan tanpa beda huruf besar/kecil dan spasi ganda. Bila keduanya ber-NIK (pasti
+     * berbeda, NIK sama sudah ditolak), hanya diperingatkan bila tanggal lahir juga sama (mungkin NIK
+     * salah ketik). [OWNER, 2026-10-23; rincian ASUMSI]
      *
      * @param  list<ImportRowDraft>  $drafts
      */
@@ -402,7 +527,7 @@ final class EmployeeImportValidator
             $drafts,
         ))));
 
-        /** @var array<string, list<array{label: string, birthDate: string|null}>> $existing nama => anggota */
+        /** @var array<string, list<array{label: string, birthDate: string|null, hasNik: bool}>> $existing nama => anggota */
         $existing = [];
 
         if ($names !== []) {
@@ -412,18 +537,23 @@ final class EmployeeImportValidator
                 ->where('m.tenant_id', $tenantId)
                 ->whereIn(DB::raw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g'))"), $names)
                 ->orderBy('p.name')
-                ->get(['p.name', 'p.birth_date', 'e.id as employee_id']);
+                ->select(['p.name', 'p.birth_date', 'e.id as employee_id'])
+                ->addSelect(['has_nik' => fn (Builder $query) => $query->selectRaw('count(*) > 0')
+                    ->from('person_identifiers as pi')
+                    ->whereColumn('pi.person_id', 'p.id')
+                    ->where('pi.type', PersonNik::TYPE)])
+                ->get();
 
             foreach ($people as $person) {
                 $birthDate = $person->birth_date === null ? null : substr((string) $person->birth_date, 0, 10);
                 $label = (string) $person->name.' ('.($person->employee_id === null ? 'anggota' : 'pegawai')
                     .', '.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate).')';
 
-                $existing[$this->normalizeName((string) $person->name)][] = ['label' => $label, 'birthDate' => $birthDate];
+                $existing[$this->normalizeName((string) $person->name)][] = ['label' => $label, 'birthDate' => $birthDate, 'hasNik' => (bool) $person->has_nik];
             }
         }
 
-        /** @var array<string, list<array{line: int, birthDate: string|null}>> $seen nama => baris sebelumnya */
+        /** @var array<string, list<array{line: int, birthDate: string|null, hasNik: bool}>> $seen nama => baris sebelumnya */
         $seen = [];
 
         foreach ($drafts as $draft) {
@@ -432,24 +562,31 @@ final class EmployeeImportValidator
             }
 
             $name = $this->normalizeName($draft->name);
+            $hasNik = $draft->nik !== null;
 
-            if (isset($existing[$name])) {
-                $sameBirth = array_filter($existing[$name], fn (array $person): bool => $draft->birthDate !== null && $person['birthDate'] === $draft->birthDate);
-                $labels = implode(', ', array_slice(array_map(fn (array $person): string => $person['label'], $existing[$name]), 0, 3));
+            $relevant = fn (array $other): bool => ! ($hasNik && $other['hasNik'])
+                || ($draft->birthDate !== null && $other['birthDate'] === $draft->birthDate);
+            $people = array_values(array_filter($existing[$name] ?? [], $relevant));
+
+            if ($people !== []) {
+                $sameBirth = array_filter($people, fn (array $person): bool => $draft->birthDate !== null && $person['birthDate'] === $draft->birthDate);
+                $labels = implode(', ', array_slice(array_map(fn (array $person): string => $person['label'], $people), 0, 3));
 
                 $draft->warnings[] = $sameBirth !== []
                     ? "Nama dan tanggal lahir sama dengan anggota yayasan: {$labels}."
                     : "Nama sama dengan anggota yayasan: {$labels}. Pastikan bukan orang yang sama.";
             }
 
-            if (isset($seen[$name])) {
-                $first = $seen[$name][0];
+            $earlier = array_values(array_filter($seen[$name] ?? [], $relevant));
+
+            if ($earlier !== []) {
+                $first = $earlier[0];
                 $draft->warnings[] = $draft->birthDate !== null && $first['birthDate'] === $draft->birthDate
                     ? 'Nama dan tanggal lahir sama dengan baris '.$first['line'].'.'
                     : 'Nama sama dengan baris '.$first['line'].'.';
             }
 
-            $seen[$name][] = ['line' => $draft->line, 'birthDate' => $draft->birthDate];
+            $seen[$name][] = ['line' => $draft->line, 'birthDate' => $draft->birthDate, 'hasNik' => $hasNik];
         }
     }
 
@@ -491,6 +628,7 @@ final class EmployeeImportValidator
             position: $draft->position->name ?? $draft->positionInput,
             employmentType: $draft->employmentType->name ?? $draft->employmentTypeInput,
             data: $draft->errors === [] ? $this->toData($tenantId, $draft) : null,
+            extraOrganizations: array_map(fn (Organization $organization): string => "{$organization->name} ({$organization->code})", $draft->extraOrganizations),
         );
     }
 
@@ -499,7 +637,7 @@ final class EmployeeImportValidator
      */
     private function toData(string $tenantId, ImportRowDraft $draft): ?NewEmployeeData
     {
-        if ($draft->name === null || $draft->gender === null || $draft->employmentType === null
+        if ($draft->name === null || $draft->nik === null || $draft->gender === null || $draft->employmentType === null
             || $draft->startDate === null || $draft->organization === null || $draft->position === null) {
             return null;
         }
@@ -524,6 +662,9 @@ final class EmployeeImportValidator
             positionId: $draft->position->id,
             // Peringatan orang ganda sudah dikonfirmasi admin sebelum Simpan (OD-HR-05).
             confirmDuplicate: $draft->warnings !== [],
+            nik: $draft->nik,
+            extraOrganizationIds: array_map(fn (Organization $organization): string => $organization->id, $draft->extraOrganizations),
+            requireNik: true,
         );
     }
 

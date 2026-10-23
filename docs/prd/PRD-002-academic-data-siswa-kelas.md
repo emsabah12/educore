@@ -1,7 +1,7 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.6 (2026-10-23: rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7)
-- **Versi sebelumnya:** 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Versi:** 1.7 (2026-10-23: OD-AC-02 direvisi — NIK siswa & orang tua/wali disimpan, opsional; dibangun di AC-1g)
+- **Versi sebelumnya:** 1.6 (rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7), 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
 - **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a SELESAI (`a69c50a`), AC-6b-1 dikerjakan; AC-7 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
@@ -159,7 +159,7 @@ Keputusan teknis AC-1a [ASUMSI, 2026-10-17]:
 
 ### 4.5 Data pribadi siswa & orang tua/wali [OWNER, OD-AC-02]
 
-Prinsip yang sama dengan pegawai (PRD-001 §4.5): **minimal, tanpa NIK**, dengan tambahan NISN dan kontak orang tua/wali.
+Prinsip yang sama dengan pegawai (PRD-001 §4.5): **minimal**, dengan tambahan NISN dan kontak orang tua/wali. **Revisi 2026-10-23 [OWNER]:** NIK disimpan sebagai penanda unik orang (lihat "NIK" di bawah).
 
 | Data                                    | Tempat                | Aturan                                       |
 | --------------------------------------- | --------------------- | -------------------------------------------- |
@@ -174,7 +174,8 @@ Prinsip yang sama dengan pegawai (PRD-001 §4.5): **minimal, tanpa NIK**, dengan
 - Isian: nama (wajib), jenis kelamin (opsional), nomor HP (opsional), hubungan.
 - **`ac_student_guardians`**: student_id, guardian_membership_id, relation `AYAH` \| `IBU` \| `WALI` \| `LAINNYA`, is_primary_contact. Satu siswa maksimal 4 orang tua/wali; maksimal satu kontak utama; orang yang sama tidak dobel untuk satu siswa.
 - Membuat orang tua/wali **tidak** membuat akun login dan **tidak** memberi akses apa pun.
-- Pekerjaan, penghasilan, pendidikan orang tua, NIK, dan No. KK **tidak** disimpan di AC-1 (dibutuhkan ekspor Dapodik/EMIS kelak, lewat `person_identifiers` terenkripsi PRD-000 §5).
+- Pekerjaan, penghasilan, pendidikan orang tua, dan No. KK **tidak** disimpan di AC-1 (dibutuhkan ekspor Dapodik/EMIS kelak).
+- **NIK (AC-1g, direncanakan) [OWNER, 2026-10-23]:** siswa dan orang tua/wali boleh punya NIK, disimpan lewat Core `person_identifiers` (terenkripsi, unik di seluruh EduCore; aturan sama dengan pegawai, PRD-001 §4.5). **Opsional** untuk siswa & orang tua [ASUMSI, disetujui 2026-10-23] karena data lama belum lengkap. Isian: form tambah/ubah siswa, form orang tua/wali, dan impor siswa. Orang tua dengan NIK yang sudah tercatat = **orang yang sama** (dipakai ulang, mis. kakak-adik), lebih pasti daripada pencocokan HP. NIK anak tampil tersamar dan hanya bagi yang boleh melihat data pribadi siswa; yayasan disarankan mencantumkannya di persetujuan pendaftaran (UU PDP).
 
 Siswa umumnya **anak di bawah umur**, maka:
 
@@ -362,17 +363,17 @@ Kenaikan kelas massal (kini AC-2, §15), mata pelajaran, jadwal, presensi, nilai
 
 ## 13. Open decisions
 
-| ID       | Topik                                                                         | Status                                                                                                                                                       |
-| -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| OD-AC-01 | Cakupan tahap pertama                                                         | **DIPUTUSKAN** — data siswa + pendaftaran + tahun ajaran + kelas/rombel + wali kelas; jadwal, presensi, nilai menyusul [OWNER, 2026-10-17]                   |
-| OD-AC-02 | Data pribadi siswa                                                            | **DIPUTUSKAN** — minimal seperti pegawai (tanpa NIK) + NISN + kontak orang tua/wali [OWNER, 2026-10-17]                                                      |
-| OD-AC-03 | Tahun ajaran & semester                                                       | **DIPUTUSKAN** — default yayasan, lembaga boleh beda [OWNER, 2026-10-17]; mekanismenya kalender + aturan berjenjang (§4.4) **[ASUMSI]**                      |
-| OD-AC-04 | Siapa mengelola data siswa & kelas                                            | **DIPUTUSKAN** — role baru Operator Akademik per lembaga (+ Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-17]                                 |
-| OD-AC-05 | Orang tua/wali sebagai Person                                                 | **DIPUTUSKAN** — Person + Membership tanpa akun; tanpa pekerjaan/penghasilan/NIK [OWNER, 2026-10-17]                                                         |
-| OD-AC-06 | Wali kelas/guru melihat siswa kelasnya sendiri                                | **DIPUTUSKAN** — ditunda ke AC-3 (butuh hak akses berbasis kelas, bukan pohon lembaga) [OWNER, 2026-10-17]                                                   |
-| OD-AC-07 | Impor siswa dari Excel/CSV                                                    | **DIPUTUSKAN** — AC-1e sesudah AC-1, memakai pola HR-1e [OWNER, 2026-10-17]                                                                                  |
-| OD-AC-09 | Siapa boleh mengubah data diri siswa yang terdaftar di beberapa lembaga       | **DIPUTUSKAN** — Operator Akademik dari lembaga mana pun tempat siswa masih aktif, dan Admin Yayasan; setiap perubahan tercatat di audit [OWNER, 2026-10-18] |
-| OD-AC-08 | Model data, permission, penyaringan, kalender lewat aturan berjenjang (§4–§5) | **DISETUJUI** — owner menyetujui semua usulan v0.1 [OWNER, 2026-10-17]                                                                                       |
+| ID       | Topik                                                                         | Status                                                                                                                                                                                        |
+| -------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-01 | Cakupan tahap pertama                                                         | **DIPUTUSKAN** — data siswa + pendaftaran + tahun ajaran + kelas/rombel + wali kelas; jadwal, presensi, nilai menyusul [OWNER, 2026-10-17]                                                    |
+| OD-AC-02 | Data pribadi siswa                                                            | **DIPUTUSKAN** — minimal seperti pegawai + NISN + kontak orang tua/wali [OWNER, 2026-10-17]. **Direvisi 2026-10-23:** NIK siswa & orang tua/wali disimpan terenkripsi, opsional (AC-1g, §4.5) |
+| OD-AC-03 | Tahun ajaran & semester                                                       | **DIPUTUSKAN** — default yayasan, lembaga boleh beda [OWNER, 2026-10-17]; mekanismenya kalender + aturan berjenjang (§4.4) **[ASUMSI]**                                                       |
+| OD-AC-04 | Siapa mengelola data siswa & kelas                                            | **DIPUTUSKAN** — role baru Operator Akademik per lembaga (+ Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-17]                                                                  |
+| OD-AC-05 | Orang tua/wali sebagai Person                                                 | **DIPUTUSKAN** — Person + Membership tanpa akun; tanpa pekerjaan/penghasilan/NIK [OWNER, 2026-10-17]                                                                                          |
+| OD-AC-06 | Wali kelas/guru melihat siswa kelasnya sendiri                                | **DIPUTUSKAN** — ditunda ke AC-3 (butuh hak akses berbasis kelas, bukan pohon lembaga) [OWNER, 2026-10-17]                                                                                    |
+| OD-AC-07 | Impor siswa dari Excel/CSV                                                    | **DIPUTUSKAN** — AC-1e sesudah AC-1, memakai pola HR-1e [OWNER, 2026-10-17]                                                                                                                   |
+| OD-AC-09 | Siapa boleh mengubah data diri siswa yang terdaftar di beberapa lembaga       | **DIPUTUSKAN** — Operator Akademik dari lembaga mana pun tempat siswa masih aktif, dan Admin Yayasan; setiap perubahan tercatat di audit [OWNER, 2026-10-18]                                  |
+| OD-AC-08 | Model data, permission, penyaringan, kalender lewat aturan berjenjang (§4–§5) | **DISETUJUI** — owner menyetujui semua usulan v0.1 [OWNER, 2026-10-17]                                                                                                                        |
 
 ## 14. Saran tambahan (di luar ruang lingkup)
 

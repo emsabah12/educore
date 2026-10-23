@@ -93,6 +93,8 @@ final class EmployeeImportTemplate
         foreach ([
             'Isi data mulai baris ke-2 lembar Pegawai. Jangan ubah judul kolom; kolom bertanda * wajib diisi.',
             'Satu baris = satu pegawai BARU beserta penempatan utamanya. Pegawai yang sudah ada tidak diubah.',
+            'NIK wajib dan menjadi penanda unik orang: NIK yang sudah terdaftar atau dobel di file ditolak.',
+            'Guru yang bertugas di beberapa lembaga: isi lembaga utama di kode_lembaga, sisanya di lembaga_tambahan (dipisah koma).',
             'Maksimal '.EmployeeImportReader::MAX_ROWS.' baris per file. Simpan hanya bisa bila tidak ada baris yang salah.',
             'Kode jenis pegawai, status kepegawaian, jabatan, lembaga, dan pendidikan ada di lembar Kode.',
             'Boleh juga disimpan sebagai CSV (pemisah koma atau titik koma) dengan judul kolom yang sama.',

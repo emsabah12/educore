@@ -75,6 +75,26 @@ final class EmployeeException extends DomainException
         return new self('nuptk', 'NUPTK ini sudah dipakai pegawai lain.');
     }
 
+    public static function nikRequired(): self
+    {
+        return new self('nik', 'NIK wajib diisi untuk pegawai baru (16 angka sesuai KTP/KK).');
+    }
+
+    public static function nikInvalid(): self
+    {
+        return new self('nik', 'NIK harus 16 angka.');
+    }
+
+    public static function nikCannotBeRemoved(): self
+    {
+        return new self('nik', 'NIK yang sudah tercatat tidak bisa dikosongkan. Perbaiki angkanya bila salah.');
+    }
+
+    public static function nikTaken(string $message): self
+    {
+        return new self('nik', $message);
+    }
+
     /**
      * Pelanggaran aturan lain (urutan tanggal, status pegawai, dsb.) dengan pesan khusus.
      */

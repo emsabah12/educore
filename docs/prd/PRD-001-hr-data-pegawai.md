@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.12 (2026-10-22: rincian HR-4 Presensi pegawai — §14)
-- **Versi sebelumnya:** 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b/4c sesudah Akademik AC-6; HR-2, HR-5 dst. belum dirinci
+- **Versi:** 0.13 (2026-10-23: NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor kolom `nik` dan `lembaga_tambahan` — §6.2; HR-1g)
+- **Versi sebelumnya:** 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b/4c sesudah Akademik AC-6; **HR-1g (NIK + lembaga tambahan di impor) dibangun 2026-10-23**; HR-2, HR-5 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -139,20 +139,28 @@ Isi awal (seeder, bisa diubah) [ASUMSI]:
 3. Tidak ada hapus permanen untuk data kepegawaian. Salah input diperbaiki dengan **mengubah** baris yang masih terbuka; perubahannya tercatat di audit log. [LAMA INV-HR-010]
 4. Tambah pegawai baru = Person + Membership + Pegawai + periode pertama + penempatan pertama, **dalam satu transaksi**. Bila satu langkah gagal, semuanya batal. [LAMA HR-017 INV-HR-012]
 
-### 4.5 Data pribadi (OD-HR-01) [OWNER, 2026-10-13]
+### 4.5 Data pribadi (OD-HR-01) [OWNER, 2026-10-13; NIK direvisi 2026-10-23]
 
 Disimpan minimal. Pemiliknya mengikuti PRD-000 §5: data tentang **orang** di Person (dipakai juga oleh Academic kelak), data khusus **pegawai** di `hr_employees`.
 
-| Field                                   | Tabel                 | Aturan                                                                                            |
-| --------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
-| birth_place                             | `persons`             | Opsional, maks. 100 karakter                                                                      |
-| birth_date                              | `persons`             | Opsional; tidak di masa depan                                                                     |
-| phone                                   | `persons`             | Opsional; 8–19 angka, boleh diawali `+`; disimpan tanpa spasi/tanda hubung (form membersihkannya) |
-| address                                 | `persons`             | Opsional, maks. 500 karakter                                                                      |
-| gender                                  | `persons` (sudah ada) | **Wajib** untuk pegawai baru (`L`/`P`) [ASUMSI]                                                   |
-| nuptk, education_level, education_major | `hr_employees`        | Lihat §4.3                                                                                        |
+| Field                                   | Tabel                                    | Aturan                                                                                                                             |
+| --------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| birth_place                             | `persons`                                | Opsional, maks. 100 karakter                                                                                                       |
+| birth_date                              | `persons`                                | Opsional; tidak di masa depan                                                                                                      |
+| phone                                   | `persons`                                | Opsional; 8–19 angka, boleh diawali `+`; disimpan tanpa spasi/tanda hubung (form membersihkannya)                                  |
+| address                                 | `persons`                                | Opsional, maks. 500 karakter                                                                                                       |
+| gender                                  | `persons` (sudah ada)                    | **Wajib** untuk pegawai baru (`L`/`P`) [ASUMSI]                                                                                    |
+| NIK                                     | `person_identifiers` (Core, terenkripsi) | **Wajib untuk pegawai baru** (form & impor), 16 angka; unik di seluruh EduCore. Pegawai lama boleh belum punya [OWNER, 2026-10-23] |
+| nuptk, education_level, education_major | `hr_employees`                           | Lihat §4.3                                                                                                                         |
 
-- **NIK tidak disimpan** di HR-1. `person_identifiers` terenkripsi (PRD-000 §5) dibuat saat ekspor pemerintah dibutuhkan.
+- **NIK** [OWNER, 2026-10-23, mengganti keputusan "tanpa NIK"]: menjadi penanda unik orang agar impor/tambah pegawai tidak membuat orang ganda hanya karena nama sama.
+    - Disimpan di `person_identifiers` (PRD-000 §5): nilai **terenkripsi** + fingerprint HMAC-SHA256 (kunci turunan `APP_KEY`) untuk pencarian & cegah dobel. Satu orang satu NIK; satu NIK satu orang.
+    - Isian dirapikan (spasi, titik, tanda hubung dibuang) lalu wajib 16 angka. Bila digit tanggal lahir di NIK (DDMMYY, tanggal +40 untuk perempuan) tidak cocok dengan tanggal lahir/jenis kelamin: **peringatan**, bukan penolakan [ASUMSI].
+    - NIK sudah dipakai orang lain → ditolak. Pesan menyebut nama pemilik **hanya** bila ia anggota yayasan yang sama (pegawai: "sudah tercatat atas nama X"; anggota non-pegawai: arahkan ke mode Anggota yayasan). Pemilik di yayasan lain → pesan umum tanpa nama [ASUMSI, disetujui 2026-10-23].
+    - Tampilan: di detail pegawai **tersamar** (`3201 •••• •••• 0001`) bagi pemilik `hr.employees.view_personal`; angka lengkap hanya di form **Ubah profil** (pengelola). Tidak pernah masuk audit/log; audit hanya mencatat nama field `nik`.
+    - Ubah profil: pegawai lama boleh dilengkapi NIK; NIK yang sudah tercatat boleh diperbaiki tetapi **tidak bisa dikosongkan** [ASUMSI].
+    - Mode Anggota yayasan: NIK wajib bila orangnya belum punya; bila sudah, kolom boleh kosong (NIK lama tetap).
+    - Mengganti `APP_KEY` membuat fingerprint lama tidak cocok; simpan kunci lama di `APP_PREVIOUS_KEYS` dan hitung ulang fingerprint bila kunci diganti [ASUMSI].
 - Tempat/tanggal lahir, HP, dan alamat hanya tampil bagi pemilik `hr.employees.view_personal`; NUPTK dan pendidikan termasuk data kepegawaian (`hr.employees.view`). [ASUMSI]
 - Audit log hanya mencatat **nama field** yang berubah, bukan nilainya (§7).
 
@@ -216,7 +224,7 @@ Menu **Pegawai** (`/pegawai`) muncul bagi pemilik `hr.employees.view`. Menu **Ka
 
 Semua halaman punya kondisi kosong, loading, dan error. Pesan validasi berbahasa Indonesia.
 
-**Mencegah orang ganda** [LAMA RISK-HR-004]: tanpa NIK, sistem tidak bisa yakin dua nama yang sama adalah satu orang. Form tambah memperingatkan bila sudah ada pegawai/anggota dengan nama + tanggal lahir yang sama, tetapi admin tetap boleh melanjutkan.
+**Mencegah orang ganda** [LAMA RISK-HR-004]: NIK yang sama **ditolak** (pasti orang yang sama). Untuk data lama tanpa NIK, form tambah memperingatkan bila sudah ada pegawai/anggota dengan nama yang sama, tetapi admin tetap boleh melanjutkan. Bila orang baru dan orang lama **sama-sama ber-NIK** (pasti berbeda), peringatan hanya muncul bila tanggal lahirnya juga sama — kemungkinan NIK salah ketik [OWNER 2026-10-23; rincian ASUMSI].
 
 Rincian tambah pegawai (HR-1b) [ASUMSI]:
 
@@ -240,22 +248,24 @@ Untuk memasukkan data pegawai lama sekaligus. **Hanya membuat pegawai baru** (or
 
 **Kolom template** (`*` wajib; aturan isi sama dengan form, §4.3–§4.5):
 
-| Kolom                                      | Isi                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------- |
-| nama*                                      | Maks. 200 karakter                                                     |
-| jenis_kelamin*                             | `L` / `P`                                                              |
-| tempat_lahir, tanggal_lahir, no_hp, alamat | Opsional (data pribadi §4.5)                                           |
-| nomor_induk, nuptk                         | Opsional; unik per yayasan                                             |
-| pendidikan, jurusan                        | Opsional; pendidikan memakai kode §4.3 (`SD` … `S3`, `LAINNYA`)        |
-| jenis_pegawai* , status_kepegawaian        | **Kode** katalog yang aktif (mis. `TETAP`, `GTY`); status boleh kosong |
-| tanggal_mulai*                             | Tidak di masa depan                                                    |
-| kode_lembaga*, jabatan*                    | **Kode** lembaga aktif dan kode jabatan aktif → penempatan utama       |
+| Kolom                                      | Isi                                                                                                                                                                                                        |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nama*                                      | Maks. 200 karakter                                                                                                                                                                                         |
+| nik*                                       | 16 angka sesuai KTP/KK, format sel Teks; unik (§4.5) [OWNER, 2026-10-23]                                                                                                                                   |
+| jenis_kelamin*                             | `L` / `P`                                                                                                                                                                                                  |
+| tempat_lahir, tanggal_lahir, no_hp, alamat | Opsional (data pribadi §4.5)                                                                                                                                                                               |
+| nomor_induk, nuptk                         | Opsional; unik per yayasan                                                                                                                                                                                 |
+| pendidikan, jurusan                        | Opsional; pendidikan memakai kode §4.3 (`SD` … `S3`, `LAINNYA`)                                                                                                                                            |
+| jenis_pegawai* , status_kepegawaian        | **Kode** katalog yang aktif (mis. `TETAP`, `GTY`); status boleh kosong                                                                                                                                     |
+| tanggal_mulai*                             | Tidak di masa depan                                                                                                                                                                                        |
+| kode_lembaga*, jabatan*                    | **Kode** lembaga aktif dan kode jabatan aktif → penempatan utama                                                                                                                                           |
+| lembaga_tambahan                           | Opsional. Kode lembaga lain dipisah koma/titik koma (mis. `U1-MDA, U1-QURAN`) → penempatan **tambahan** (bukan utama) dengan jabatan & tanggal mulai yang sama; maks. 10 [OWNER, 2026-10-23; batas ASUMSI] |
 
 **Aturan pratinjau** [ASUMSI]:
 
 - Tanggal diterima sebagai sel tanggal Excel, `YYYY-MM-DD`, atau `DD/MM/YYYY`. Kode tidak peka huruf besar/kecil. Spasi di tepi dibuang; baris yang seluruhnya kosong dilewati.
-- **Salah**: kolom wajib kosong, format/kode tidak sah, nomor induk/NUPTK sudah dipakai pegawai lain **atau dobel di dalam file**, judul kolom wajib tidak ditemukan.
-- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6). Ditambah [OWNER, 2026-10-17]: **nama saja** sama (tanpa beda huruf besar/kecil & spasi ganda), dengan tanggal lahir orang lama ditampilkan — menangkap tanggal yang terbaca beda format di Excel, data lama tanpa tanggal lahir, dan file yang sama diunggah dua kali.
+- **Salah**: kolom wajib kosong, format/kode tidak sah, nomor induk/NUPTK sudah dipakai pegawai lain **atau dobel di dalam file**, judul kolom wajib tidak ditemukan. Ditambah [2026-10-23]: NIK kosong/bukan 16 angka/tersimpan sebagai angka Excel/dobel di file/sudah terdaftar; `lembaga_tambahan` berisi kode yang tidak ada, nonaktif, ditulis dua kali, atau sama dengan `kode_lembaga`.
+- **Peringatan**: nama + tanggal lahir sama dengan anggota yayasan ini atau dengan baris lain di file (aturan orang ganda §6). Ditambah [OWNER, 2026-10-17]: **nama saja** sama (tanpa beda huruf besar/kecil & spasi ganda), dengan tanggal lahir orang lama ditampilkan — menangkap tanggal yang terbaca beda format di Excel, data lama tanpa tanggal lahir, dan file yang sama diunggah dua kali. Bila kedua orang ber-NIK, hanya diperingatkan bila tanggal lahir juga sama (§6) [2026-10-23]. NIK yang tidak cocok dengan tanggal lahir/jenis kelamin juga menjadi Peringatan.
 - Saat **Simpan**, file dibaca dan diperiksa **ulang** (data bisa berubah sejak pratinjau).
 - File unggahan disimpan sementara di penyimpanan privat server hanya sampai disimpan/dibatalkan, dan dihapus otomatis bila tertinggal lebih dari 24 jam. Isinya tidak masuk log aplikasi maupun audit log.
 
@@ -271,7 +281,7 @@ Hanya Admin SDM / Admin Yayasan di tingkat Yayasan (OD-HR-02). Tanpa izin → 40
 
 | Aksi                     | Aturan                                                                                                                                                                                   |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ubah profil              | Isian lengkap (kolom kosong = data dihapus). Nama boleh diubah dan ikut berubah di akun login [OWNER, 2026-10-13]                                                                        |
+| Ubah profil              | Isian lengkap (kolom kosong = data dihapus), kecuali NIK yang sudah tercatat (tidak bisa dikosongkan, §4.5). Nama boleh diubah dan ikut berubah di akun login [OWNER, 2026-10-13]        |
 | Ganti status kepegawaian | Pegawai aktif; tanggal berlaku sesudah awal periode berjalan; periode lama ditutup sehari sebelumnya dengan alasan `PERUBAHAN_STATUS`; jenis & status sama ditolak                       |
 | Tambah penempatan        | Pegawai aktif; tidak sebelum awal periode berjalan; jabatan sama di lembaga sama tidak dobel; jadi utama bila diminta atau belum ada utama                                               |
 | Akhiri penempatan        | Tidak sebelum awal penempatan; bila penempatan utama dan masih ada penempatan lain, wajib memilih pengganti utama                                                                        |
@@ -322,7 +332,7 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 
 | ID       | Topik                                                                                                                   | Status                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK. **Tanpa NIK**; NIK menyusul saat ekspor Dapodik/EMIS (§4.5) [OWNER, 2026-10-13]                                                                                                                                                                                                                                                                 |
+| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK [OWNER, 2026-10-13]. **Direvisi 2026-10-23:** NIK disimpan terenkripsi sebagai penanda unik orang, wajib untuk pegawai baru (§4.5)                                                                                                                                                                                                               |
 | OD-HR-02 | Hak menambah/mengubah pegawai                                                                                           | **DIPUTUSKAN** — hanya Admin SDM pusat (dan Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-13]                                                                                                                                                                                                                                                                                                                                  |
 | OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                                                                                                                                                                                                                                                                                              |
 | OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                                                                                                                                                                                                                                                                                    |

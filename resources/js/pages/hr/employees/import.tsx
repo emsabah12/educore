@@ -22,6 +22,8 @@ type PreviewRow = {
     name: string | null;
     birthDate: string | null;
     organization: string | null;
+    /** Lembaga tambahan (kolom lembaga_tambahan), nama & kode. */
+    extraOrganizations: string[];
     position: string | null;
     employmentType: string | null;
     errors: { column: string; label: string; message: string }[];
@@ -98,7 +100,12 @@ export default function EmployeeImport({
                         diisi, <strong>Petunjuk</strong>, dan{' '}
                         <strong>Kode</strong> (kode jenis pegawai, status,
                         jabatan, dan lembaga yang sah di yayasan ini). Kolom
-                        NUPTK dan nomor HP sudah berformat teks.
+                        NIK, NUPTK, dan nomor HP sudah berformat teks. NIK wajib
+                        dan menjadi penanda unik orang. Guru yang bertugas di
+                        beberapa lembaga cukup satu baris: lembaga utama di{' '}
+                        <span className="font-mono">kode_lembaga</span>, sisanya
+                        di <span className="font-mono">lembaga_tambahan</span>{' '}
+                        dipisah koma.
                     </p>
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
                         <Button variant="outline" asChild>
@@ -384,6 +391,11 @@ function PreviewItem({ row }: { row: PreviewRow }) {
                             .join(' · ') || '–'}
                         {row.birthDate && ` · lahir ${row.birthDate}`}
                     </p>
+                    {row.extraOrganizations.length > 0 && (
+                        <p className="text-sm break-words text-muted-foreground">
+                            Juga di: {row.extraOrganizations.join(', ')}
+                        </p>
+                    )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">

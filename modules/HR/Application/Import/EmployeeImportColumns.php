@@ -14,6 +14,8 @@ final class EmployeeImportColumns
 {
     public const NAME = 'nama';
 
+    public const NIK = 'nik';
+
     public const GENDER = 'jenis_kelamin';
 
     public const BIRTH_PLACE = 'tempat_lahir';
@@ -40,7 +42,12 @@ final class EmployeeImportColumns
 
     public const ORGANIZATION = 'kode_lembaga';
 
+    public const EXTRA_ORGANIZATIONS = 'lembaga_tambahan';
+
     public const POSITION = 'jabatan';
+
+    /** Batas lembaga tambahan per baris. [ASUMSI] */
+    public const EXTRA_ORGANIZATIONS_MAX = 10;
 
     /**
      * @return list<array{key: string, label: string, required: bool, text: bool, hint: string}>
@@ -49,6 +56,7 @@ final class EmployeeImportColumns
     {
         return [
             self::column(self::NAME, 'Nama lengkap', true, true, 'Maksimal 200 karakter.'),
+            self::column(self::NIK, 'NIK', true, true, '16 angka sesuai KTP/KK, unik. Isi sebagai teks agar digitnya tidak berubah.'),
             self::column(self::GENDER, 'Jenis kelamin', true, true, 'L atau P.'),
             self::column(self::BIRTH_PLACE, 'Tempat lahir', false, true, 'Maksimal 100 karakter.'),
             self::column(self::BIRTH_DATE, 'Tanggal lahir', false, false, 'Tanggal Excel, YYYY-MM-DD, atau DD/MM/YYYY.'),
@@ -62,6 +70,7 @@ final class EmployeeImportColumns
             self::column(self::CLASSIFICATION, 'Status kepegawaian', false, true, 'Kode status kepegawaian yang aktif (lembar Kode); boleh kosong.'),
             self::column(self::START_DATE, 'Tanggal mulai', true, false, 'Tidak boleh di masa depan. Format seperti tanggal lahir.'),
             self::column(self::ORGANIZATION, 'Lembaga penempatan', true, true, 'Kode lembaga yang aktif (lembar Kode). Menjadi penempatan utama.'),
+            self::column(self::EXTRA_ORGANIZATIONS, 'Lembaga tambahan', false, true, 'Boleh kosong. Kode lembaga lain tempat pegawai juga bertugas, dipisah koma (mis. U1-MDA, U1-QURAN). Jabatan dan tanggal mulai sama dengan lembaga utama.'),
             self::column(self::POSITION, 'Jabatan', true, true, 'Kode jabatan yang aktif (lembar Kode).'),
         ];
     }

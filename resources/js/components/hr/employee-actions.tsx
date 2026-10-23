@@ -1,4 +1,6 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
+import { NikField } from '@/components/hr/nik-field';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +53,11 @@ type ActionProps = {
 
 export function ProfileForm({ employeeId, manage, onDone }: ActionProps) {
     const v = manage.values;
+    // Untuk peringatan NIK vs tanggal lahir/jenis kelamin (tidak menghalangi simpan).
+    const [birthDate, setBirthDate] = useState(
+        v.birth_date?.slice(0, 10) ?? '',
+    );
+    const [gender, setGender] = useState(v.gender ?? '');
 
     return (
         <ActionForm
@@ -60,7 +67,7 @@ export function ProfileForm({ employeeId, manage, onDone }: ActionProps) {
             errorBag="profile"
             submitLabel="Simpan profil"
             onDone={onDone}
-            note="Kolom yang dikosongkan berarti datanya dihapus. Nama ikut berubah di akun login bila pegawai punya akun."
+            note="Kolom yang dikosongkan berarti datanya dihapus (kecuali NIK yang sudah tercatat). Nama ikut berubah di akun login bila pegawai punya akun."
         >
             {(errors) => (
                 <>
@@ -90,9 +97,23 @@ export function ProfileForm({ employeeId, manage, onDone }: ActionProps) {
                             options={manage.options.genders}
                             placeholder="Pilih"
                             defaultValue={v.gender ?? ''}
+                            onChange={setGender}
                             required
                         />
                     </Field>
+                    <NikField
+                        id="p-nik"
+                        required={Boolean(v.nik)}
+                        defaultValue={v.nik ?? ''}
+                        birthDate={birthDate}
+                        gender={gender}
+                        error={errors.nik}
+                        hint={
+                            v.nik
+                                ? undefined
+                                : 'Pegawai lama boleh belum punya NIK; lengkapi bila datanya sudah ada.'
+                        }
+                    />
                     <Field
                         id="p-birth-place"
                         label="Tempat lahir"
@@ -116,6 +137,9 @@ export function ProfileForm({ employeeId, manage, onDone }: ActionProps) {
                             type="date"
                             max={manage.today}
                             defaultValue={v.birth_date?.slice(0, 10) ?? ''}
+                            onChange={(event) =>
+                                setBirthDate(event.target.value)
+                            }
                         />
                     </Field>
                     <Field id="p-phone" label="Nomor HP" error={errors.phone}>
@@ -725,6 +749,7 @@ function SelectOptions({
     placeholder,
     defaultValue = '',
     required = false,
+    onChange,
 }: {
     id: string;
     name: string;
@@ -732,6 +757,7 @@ function SelectOptions({
     placeholder: string;
     defaultValue?: string;
     required?: boolean;
+    onChange?: (value: string) => void;
 }) {
     return (
         <select
@@ -740,6 +766,7 @@ function SelectOptions({
             className={selectClass}
             defaultValue={defaultValue}
             required={required}
+            onChange={(event) => onChange?.(event.target.value)}
         >
             <option value="" disabled={required}>
                 {placeholder}

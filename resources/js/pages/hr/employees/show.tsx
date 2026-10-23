@@ -65,6 +65,9 @@ type Employee = {
     education_major: string | null;
     service_length: string;
     personal: {
+        /** NIK tersamar, mis. "3201 •••• •••• 0001". */
+        nik: string | null;
+        nik_warning: string | null;
         birth_place: string | null;
         birth_date: string | null;
         phone: string | null;
@@ -303,8 +306,18 @@ export default function EmployeeDetail({
                 </Section>
 
                 <Section title="Data pribadi">
+                    {employee.personal?.nik_warning && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                            {employee.personal.nik_warning}
+                        </p>
+                    )}
                     {employee.personal ? (
                         <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
+                            <Item
+                                label="NIK"
+                                value={employee.personal.nik}
+                                mono
+                            />
                             <Item
                                 label="Tempat lahir"
                                 value={employee.personal.birth_place}

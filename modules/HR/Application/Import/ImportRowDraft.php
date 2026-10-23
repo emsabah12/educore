@@ -20,6 +20,8 @@ final class ImportRowDraft
 
     public ?string $name = null;
 
+    public ?string $nik = null;
+
     public ?Gender $gender = null;
 
     public ?string $birthPlace = null;
@@ -47,6 +49,9 @@ final class ImportRowDraft
     public ?Organization $organization = null;
 
     public ?CatalogItem $position = null;
+
+    /** @var list<Organization> */
+    public array $extraOrganizations = [];
 
     /** Isian mentah untuk ditampilkan bila kodenya tidak dikenal. */
     public ?string $organizationInput = null;

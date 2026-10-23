@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { ArrowLeft, TriangleAlert, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { NikField } from '@/components/hr/nik-field';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,8 @@ type Member = {
     name: string;
     email: string | null;
     gender: string | null;
+    /** Sudah punya NIK tercatat (nilainya tidak dikirim). */
+    has_nik: boolean;
 };
 
 type Props = {
@@ -44,6 +47,11 @@ const textareaClass =
 export default function CreateEmployee({ today, members, options }: Props) {
     const [mode, setMode] = useState<Mode>('baru');
     const [memberId, setMemberId] = useState('');
+    // Untuk peringatan NIK vs tanggal lahir/jenis kelamin (tidak menghalangi simpan).
+    const [birthDate, setBirthDate] = useState('');
+    const [gender, setGender] = useState('');
+    // Kolom NIK menyimpan isiannya sendiri: ganti key agar ikut kosong sesudah simpan.
+    const [savedCount, setSavedCount] = useState(0);
 
     const selectedMember = members.find((member) => member.id === memberId);
     const missingCatalog = [
@@ -106,6 +114,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                     onSuccess={() => {
                         setMode('baru');
                         setMemberId('');
+                        setBirthDate('');
+                        setGender('');
+                        setSavedCount((count) => count + 1);
                     }}
                     className="space-y-4"
                 >
@@ -143,6 +154,11 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                                 name="gender"
                                                 className={selectClass}
                                                 defaultValue=""
+                                                onChange={(event) =>
+                                                    setGender(
+                                                        event.target.value,
+                                                    )
+                                                }
                                                 required
                                             >
                                                 <option value="" disabled>
@@ -160,6 +176,14 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                                 )}
                                             </select>
                                         </Field>
+                                        <NikField
+                                            key={`nik-baru-${savedCount}`}
+                                            id="nik"
+                                            required
+                                            birthDate={birthDate}
+                                            gender={gender}
+                                            error={errors.nik}
+                                        />
                                     </>
                                 ) : (
                                     <>
@@ -219,6 +243,12 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                                         name="gender"
                                                         className={selectClass}
                                                         defaultValue=""
+                                                        onChange={(event) =>
+                                                            setGender(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
                                                         required
                                                     >
                                                         <option
@@ -246,6 +276,26 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                                     </select>
                                                 </Field>
                                             )}
+                                        {selectedMember && (
+                                            <NikField
+                                                key={`nik-${selectedMember.id}-${savedCount}`}
+                                                id="member-nik"
+                                                required={
+                                                    !selectedMember.has_nik
+                                                }
+                                                birthDate={birthDate}
+                                                gender={
+                                                    selectedMember.gender ??
+                                                    gender
+                                                }
+                                                error={errors.nik}
+                                                hint={
+                                                    selectedMember.has_nik
+                                                        ? 'NIK orang ini sudah tercatat. Isi hanya bila ingin menggantinya.'
+                                                        : 'Orang ini belum punya NIK tercatat; wajib diisi.'
+                                                }
+                                            />
+                                        )}
                                         <p className="text-xs text-muted-foreground sm:col-span-2">
                                             Data pribadi di bawah melengkapi
                                             data orang ini. Kolom yang
@@ -276,6 +326,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                         name="birth_date"
                                         type="date"
                                         max={today}
+                                        onChange={(event) =>
+                                            setBirthDate(event.target.value)
+                                        }
                                     />
                                 </Field>
                                 <Field

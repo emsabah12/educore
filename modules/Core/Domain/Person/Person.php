@@ -15,7 +15,8 @@ use Modules\Core\Domain\Identity\User;
  * Identitas manusia global (PRD-000 §5). Satu-satunya pemilik nama seseorang.
  *
  * Data pribadi minimal (tempat/tanggal lahir, HP, alamat) ditambahkan untuk modul HR
- * (PRD-001 §4.5, OD-HR-01). Semuanya opsional; NIK sengaja tidak disimpan.
+ * (PRD-001 §4.5, OD-HR-01). Semuanya opsional. NIK TIDAK di tabel ini: disimpan terenkripsi di
+ * `person_identifiers` lewat Application\Person\PersonNik (OD-HR-01 revisi 2026-10-23).
  *
  * @property string $id
  * @property string $name

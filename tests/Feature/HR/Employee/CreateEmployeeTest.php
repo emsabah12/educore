@@ -24,6 +24,7 @@ use Modules\HR\Domain\Employee\EmploymentPeriod;
 use Modules\HR\Domain\Employee\Placement;
 use Tests\Support\CoreFixtures;
 use Tests\Support\DevAccounts;
+use Tests\Support\TestNik;
 
 /*
  * Tambah pegawai (PRD-001 §4.4 invarian 4, §4.5, §6, §9).
@@ -54,6 +55,7 @@ function hrFormPegawai(Tenant $tenant, array $overrides = []): array
     return array_merge([
         'mode' => 'baru',
         'name' => 'Siti Aminah',
+        'nik' => TestNik::for('P', '1990-05-17'),
         'gender' => 'P',
         'birth_place' => 'Tasikmalaya',
         'birth_date' => '1990-05-17',
@@ -293,8 +295,10 @@ test('nomor induk dan NUPTK tidak boleh dipakai dua pegawai', function () {
         ->and(Person::query()->where('name', 'Ahmad Fauzi')->exists())->toBeFalse();
 });
 
-test('nama sama walau tanggal lahir beda atau kosong tetap memunculkan peringatan', function () {
+test('nama sama dengan orang lama tanpa NIK tetap memunculkan peringatan walau tanggal lahir beda atau kosong', function () {
     $this->actingAs($this->admin)->post(route('hr.employees.store'), hrFormPegawai($this->tenant))->assertSessionHasNoErrors();
+    // Orang lama (data sebelum NIK diwajibkan) belum punya NIK.
+    DB::table('person_identifiers')->delete();
 
     // Tanggal lahir beda (mis. salah ketik) dan tanggal lahir kosong.
     foreach (['1991-05-17', ''] as $birthDate) {
@@ -311,6 +315,22 @@ test('nama sama walau tanggal lahir beda atau kosong tetap memunculkan peringata
     }
 
     expect(Employee::query()->count())->toBe(1);
+});
+
+test('orang lama ber-NIK dengan nama sama tetapi tanggal lahir beda tidak dianggap orang ganda', function () {
+    $this->actingAs($this->admin)->post(route('hr.employees.store'), hrFormPegawai($this->tenant))->assertSessionHasNoErrors();
+
+    $this->actingAs($this->admin)
+        ->post(route('hr.employees.store'), hrFormPegawai($this->tenant, [
+            'name' => 'Siti Aminah',
+            'birth_date' => '1991-05-17',
+            'nik' => TestNik::for('P', '1991-05-17'),
+            'employee_number' => '',
+            'nuptk' => '',
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(Employee::query()->count())->toBe(2);
 });
 
 test('nama dan tanggal lahir yang sama memunculkan peringatan; setelah dikonfirmasi boleh disimpan', function () {

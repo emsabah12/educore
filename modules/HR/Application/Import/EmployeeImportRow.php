@@ -20,6 +20,7 @@ final readonly class EmployeeImportRow
     /**
      * @param  list<array{column: string, label: string, message: string}>  $errors
      * @param  list<string>  $warnings
+     * @param  list<string>  $extraOrganizations  lembaga tambahan (nama & kode) untuk pratinjau
      */
     public function __construct(
         public int $line,
@@ -31,6 +32,7 @@ final readonly class EmployeeImportRow
         public ?string $position,
         public ?string $employmentType,
         public ?NewEmployeeData $data,
+        public array $extraOrganizations = [],
     ) {}
 
     public function status(): string
@@ -43,10 +45,10 @@ final readonly class EmployeeImportRow
     }
 
     /**
-     * Data untuk halaman pratinjau. Data pribadi selain tanggal lahir tidak dikirim ke browser;
-     * tanggal lahir perlu agar admin bisa menilai peringatan orang ganda.
+     * Data untuk halaman pratinjau. Data pribadi selain tanggal lahir tidak dikirim ke browser
+     * (NIK juga tidak); tanggal lahir perlu agar admin bisa menilai peringatan orang ganda.
      *
-     * @return array{line: int, status: string, name: string|null, birthDate: string|null, organization: string|null, position: string|null, employmentType: string|null, errors: list<array{column: string, label: string, message: string}>, warnings: list<string>}
+     * @return array{line: int, status: string, name: string|null, birthDate: string|null, organization: string|null, extraOrganizations: list<string>, position: string|null, employmentType: string|null, errors: list<array{column: string, label: string, message: string}>, warnings: list<string>}
      */
     public function toArray(): array
     {
@@ -56,6 +58,7 @@ final readonly class EmployeeImportRow
             'name' => $this->name,
             'birthDate' => $this->birthDate,
             'organization' => $this->organization,
+            'extraOrganizations' => $this->extraOrganizations,
             'position' => $this->position,
             'employmentType' => $this->employmentType,
             'errors' => $this->errors,

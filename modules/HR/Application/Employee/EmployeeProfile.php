@@ -5,6 +5,7 @@ namespace Modules\HR\Application\Employee;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Domain\Employee\EducationLevel;
@@ -17,6 +18,10 @@ use Modules\HR\Domain\Employee\EndReason;
  */
 final class EmployeeProfile
 {
+    public function __construct(
+        private readonly PersonNik $personNik,
+    ) {}
+
     /**
      * @return array<string, mixed>|null null bila pegawai tidak ada di yayasan ini
      */
@@ -30,7 +35,7 @@ final class EmployeeProfile
             ->where('e.id', $employeeId)
             ->first([
                 'e.id', 'e.employee_number', 'e.nuptk', 'e.education_level', 'e.education_major', 'e.status',
-                'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address',
+                'p.id as person_id', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address',
                 'u.id as user_id',
             ]);
 
@@ -54,6 +59,8 @@ final class EmployeeProfile
         }
 
         $service = ServiceLength::of($spans, BusinessClock::today());
+        $nik = $withPersonal ? $this->personNik->valueOf((string) $row->person_id) : null;
+        $birthDate = $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10);
 
         return [
             'id' => (string) $row->id,
@@ -69,6 +76,9 @@ final class EmployeeProfile
             'service_length' => $service['label'],
             // Data pribadi (kelas CONFIDENTIAL, PRD-001 §4.5): null bila tidak berhak melihat.
             'personal' => $withPersonal ? [
+                // NIK selalu tersamar di halaman detail; angka lengkap hanya di form Ubah profil (pengelola).
+                'nik' => $nik === null ? null : PersonNik::mask($nik),
+                'nik_warning' => $nik === null ? null : PersonNik::mismatch($nik, $birthDate, $gender),
                 'birth_place' => $row->birth_place === null ? null : (string) $row->birth_place,
                 'birth_date' => $row->birth_date === null ? null : (string) $row->birth_date,
                 'phone' => $row->phone === null ? null : (string) $row->phone,
@@ -96,7 +106,7 @@ final class EmployeeProfile
             ->where('e.tenant_id', $tenantId)
             ->where('e.id', $employeeId)
             ->first([
-                'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address',
+                'p.id as person_id', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address',
                 'e.employee_number', 'e.nuptk', 'e.education_level', 'e.education_major',
                 'ep.employment_type_id', 'ep.classification_id', 'ep.start_date as period_start',
             ]);
@@ -108,8 +118,12 @@ final class EmployeeProfile
         $values = [];
 
         foreach ((array) $row as $key => $value) {
-            $values[(string) $key] = $value === null ? null : (string) $value;
+            if ($key !== 'person_id') {
+                $values[(string) $key] = $value === null ? null : (string) $value;
+            }
         }
+
+        $values['nik'] = $this->personNik->valueOf((string) $row->person_id);
 
         return $values;
     }

@@ -5,6 +5,8 @@ namespace Modules\HR\Application\Employee;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Application\Person\PersonNik;
+use Modules\Core\Domain\Person\Exceptions\NikTakenException;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\HR\Application\Audit\HrAuditAction;
@@ -26,6 +28,8 @@ final class UpdateEmployeeProfile
     public function __construct(
         private readonly EmployeeGuard $guard,
         private readonly AuditLogger $audit,
+        private readonly PersonNik $personNik,
+        private readonly EmployeeNik $employeeNik,
     ) {}
 
     /**
@@ -63,6 +67,15 @@ final class UpdateEmployeeProfile
                     array_keys($employee->getDirty()),
                 )));
 
+                if ($data->nik === null && $data->nikSubmitted && $this->personNik->valueOf($person->id) !== null) {
+                    throw EmployeeException::nikCannotBeRemoved();
+                }
+
+                // Hanya nama field yang dicatat di audit, bukan nilai NIK.
+                if ($data->nik !== null && $this->personNik->assign($person->id, $data->nik)) {
+                    $changed[] = 'nik';
+                }
+
                 if ($changed === []) {
                     return $employee;
                 }
@@ -80,6 +93,8 @@ final class UpdateEmployeeProfile
 
                 return $employee;
             });
+        } catch (NikTakenException $exception) {
+            throw EmployeeException::nikTaken($this->employeeNik->takenMessage($tenantId, $exception->ownerPersonId));
         } catch (UniqueConstraintViolationException $exception) {
             throw str_contains($exception->getMessage(), 'nuptk')
                 ? EmployeeException::duplicateNuptk()
@@ -120,6 +135,10 @@ final class UpdateEmployeeProfile
 
         if ($data->nuptk !== null && preg_match(PersonalData::NUPTK_PATTERN, $data->nuptk) !== 1) {
             throw EmployeeException::invalidFormat('nuptk', 'NUPTK harus 16 angka.');
+        }
+
+        if ($data->nik !== null && ! PersonNik::isValid($data->nik)) {
+            throw EmployeeException::nikInvalid();
         }
     }
 }

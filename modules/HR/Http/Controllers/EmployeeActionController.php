@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
@@ -44,15 +45,19 @@ final class EmployeeActionController
     public function updateProfile(Request $request, string $employee, UpdateEmployeeProfile $updateProfile): RedirectResponse
     {
         $target = $this->authorizeAndFind($employee);
+        // Dicatat sebelum merge (merge selalu membuat kunci "nik").
+        $nikSubmitted = $request->exists('nik');
 
         $request->merge([
             'phone' => PersonalData::phone($request->input('phone')),
             'employee_number' => PersonalData::employeeNumber($request->input('employee_number')),
             'nuptk' => PersonalData::nuptk($request->input('nuptk')),
+            'nik' => PersonNik::normalize($request->input('nik')),
         ]);
 
         $request->validate([
             'name' => ['required', 'string', 'max:200'],
+            'nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
             'gender' => ['required', Rule::enum(Gender::class)],
             'birth_place' => ['nullable', 'string', 'max:100'],
             'birth_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.BusinessClock::todayString()],
@@ -67,6 +72,7 @@ final class EmployeeActionController
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
             'employee_number.regex' => 'Nomor induk hanya huruf, angka, titik, garis miring, dan tanda "-", maksimal 30 karakter.',
             'nuptk.regex' => 'NUPTK harus 16 angka.',
+            'nik.regex' => 'NIK harus 16 angka.',
         ], $this->attributes());
 
         /** @var Gender $gender */
@@ -83,6 +89,8 @@ final class EmployeeActionController
             nuptk: PersonalData::text($request->input('nuptk')),
             educationLevel: $request->enum('education_level', EducationLevel::class),
             educationMajor: PersonalData::text($request->input('education_major')),
+            nik: PersonalData::text($request->input('nik')),
+            nikSubmitted: $nikSubmitted,
         )));
 
         return $this->done('Data pegawai disimpan.');
@@ -327,6 +335,7 @@ final class EmployeeActionController
             'address' => 'alamat',
             'employee_number' => 'nomor induk',
             'nuptk' => 'NUPTK',
+            'nik' => 'NIK',
             'education_level' => 'pendidikan terakhir',
             'education_major' => 'program studi/jurusan',
             'employment_type_id' => 'jenis pegawai',
