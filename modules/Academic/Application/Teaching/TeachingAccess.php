@@ -69,6 +69,23 @@ final class TeachingAccess
     }
 
     /**
+     * Boleh menunjuk guru pengganti pada tanggal itu (AC-6b): seperti canRecord untuk hari ini & yang
+     * lalu; tanggal yang akan datang (maks. 7 hari) hanya pemilik izin.
+     */
+    public function canAssign(string $tenantId, string $organizationId, string $date, ?string $employeeId): bool
+    {
+        if ($date > BusinessClock::today()->addDays(ManageTeachingRecords::ASSIGN_AHEAD_DAYS)->toDateString()) {
+            return false;
+        }
+
+        if ($date <= BusinessClock::todayString()) {
+            return $this->canRecord($tenantId, $organizationId, $date, $employeeId);
+        }
+
+        return $this->manages($organizationId);
+    }
+
+    /**
      * Boleh mencatat presensi mengajar lembaga ini pada tanggal itu.
      */
     public function canRecord(string $tenantId, string $organizationId, string $date, ?string $employeeId): bool

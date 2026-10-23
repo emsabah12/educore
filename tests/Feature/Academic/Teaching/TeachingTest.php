@@ -289,7 +289,7 @@ test('guru piket hari ini membuka Presensi mengajar lembaganya: hanya tanggal ha
             ->where('manages', false)
             ->where('date', '2026-10-22')
             ->where('canRecord', true)
-            ->where('duty.0.label', 'Guru MA & MDA'),
+            ->where('duty', ['Guru MA & MDA']),
         );
 
     pmgRecord($this, $this->guru, pmgEntry('VII-A', 4), ['status' => 'MENGAJAR'])->assertSessionHasNoErrors();

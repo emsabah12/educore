@@ -26,7 +26,18 @@ export type TeachingLesson = {
     organization: string;
     subject: string;
     teacher: TeachingPerson | null;
+    /** Jenis cuti disetujui pengampu pada tanggal itu (AC-6b): perlu guru pengganti. */
+    leave: string | null;
     record: TeachingRecord | null;
+};
+
+/** Calon guru pengganti satu pertemuan (AC-6b). */
+export type SubstituteCandidate = {
+    value: string;
+    label: string;
+    duty: boolean;
+    available: boolean;
+    note: string | null;
 };
 
 export const TEACHING_STATUS_CLASS: Record<TeachingRecord['status'], string> = {

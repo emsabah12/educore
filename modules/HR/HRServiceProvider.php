@@ -15,11 +15,13 @@ use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\EloquentActiveEmployees;
 use Modules\HR\Application\Employee\EloquentEmployeeLookup;
+use Modules\HR\Application\Leave\EloquentApprovedLeaves;
 use Modules\HR\Application\Leave\LeaveApprovalSetting;
 use Modules\HR\Application\Leave\NoSchoolWeeklyOff;
 use Modules\HR\Application\Leave\WeeklyOffSetting;
 use Modules\HR\Console\PruneImportsCommand;
 use Modules\HR\Contracts\ActiveEmployees;
+use Modules\HR\Contracts\ApprovedLeaves;
 use Modules\HR\Contracts\EmployeeLookup;
 use Modules\HR\Contracts\SchoolWeeklyOff;
 use Modules\HR\Contracts\TeachingSchedule;
@@ -42,6 +44,7 @@ class HRServiceProvider extends ModuleServiceProvider
         // Kontrak publik untuk modul lain (Modules\HR\Contracts).
         $this->app->singleton(EmployeeLookup::class, EloquentEmployeeLookup::class);
         $this->app->singleton(ActiveEmployees::class, EloquentActiveEmployees::class);
+        $this->app->singleton(ApprovedLeaves::class, EloquentApprovedLeaves::class);
 
         // Jadwal mengajar untuk presensi (PRD-001 §14.1): bawaan kosong; modul Academic menggantinya.
         $this->app->singletonIf(TeachingSchedule::class, NoTeachingSchedule::class);

@@ -190,6 +190,23 @@ final class DutyRoster
     }
 
     /**
+     * Nama pegawai (kontrak HR), untuk menampilkan guru piket.
+     *
+     * @param  list<string>  $employeeIds
+     * @return array<string, string>
+     */
+    public function namesOf(string $tenantId, array $employeeIds): array
+    {
+        $names = [];
+
+        foreach ($this->employees->describe($tenantId, $employeeIds) as $id => $employee) {
+            $names[(string) $id] = $employee['name'];
+        }
+
+        return $names;
+    }
+
+    /**
      * Guru piket lembaga itu pada tanggal itu (ID pegawai).
      *
      * @return list<string>

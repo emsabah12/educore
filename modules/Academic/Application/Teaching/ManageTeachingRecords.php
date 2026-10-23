@@ -30,9 +30,13 @@ final class ManageTeachingRecords
 
     public const NOTE_MAX_LENGTH = 300;
 
+    /** Guru pengganti boleh ditunjuk sebelum hari-H, paling jauh 7 hari ke depan (AC-6b). */
+    public const ASSIGN_AHEAD_DAYS = 7;
+
     public function __construct(
         private readonly Lessons $lessons,
         private readonly ActiveEmployees $employees,
+        private readonly SubstituteFinder $finder,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -86,8 +90,10 @@ final class ManageTeachingRecords
             throw TeachingException::make('note', 'Keterangan maksimal '.self::NOTE_MAX_LENGTH.' karakter.');
         }
 
-        if ($date > BusinessClock::todayString()) {
-            throw TeachingException::make('date', 'Presensi mengajar tidak bisa dicatat untuk tanggal yang akan datang.');
+        // Tanggal yang akan datang: hanya menunjuk guru pengganti, paling jauh 7 hari (AC-6b).
+        if ($date > BusinessClock::todayString()
+            && ($status !== TeachingStatus::Substituted || $date > BusinessClock::today()->addDays(self::ASSIGN_AHEAD_DAYS)->toDateString())) {
+            throw TeachingException::make('date', 'Untuk tanggal yang akan datang hanya bisa menunjuk guru pengganti, paling jauh '.self::ASSIGN_AHEAD_DAYS.' hari ke depan.');
         }
 
         if ($status === TeachingStatus::Taught) {
@@ -119,9 +125,54 @@ final class ManageTeachingRecords
                 if (! $this->employees->isActiveIn($tenantId, $substituteId, (string) $lesson->organization_id)) {
                     throw TeachingException::make('substitute_employee_id', 'Guru pengganti harus pegawai aktif yang ditempatkan di lembaga ini.');
                 }
+
+                $busy = $this->finder->unavailableReason($tenantId, $substituteId, $date, substr((string) $lesson->start_time, 0, 5), substr((string) $lesson->end_time, 0, 5), (string) $lesson->id);
+
+                if ($busy !== null) {
+                    throw TeachingException::make('substitute_employee_id', 'Guru pengganti ini tidak tersedia pada jam tersebut: '.lcfirst($busy).'.');
+                }
             }
 
             $this->write($tenantId, $lesson, $date, $status, $substituteId, $reason, $note, Lessons::SOURCE_OFFICER, $membershipId, $this->existing((string) $lesson->id, $date));
+        });
+    }
+
+    /**
+     * Batalkan penunjukan pengganti untuk pertemuan hari ini atau yang akan datang.
+     *
+     * @throws TeachingException
+     */
+    public function clearSubstitute(string $tenantId, string $entryId, string $date): void
+    {
+        if ($date < BusinessClock::todayString()) {
+            throw TeachingException::make('form', 'Pertemuan yang sudah lewat tidak bisa dibatalkan penggantinya; ubah statusnya di Presensi mengajar.');
+        }
+
+        DB::transaction(function () use ($tenantId, $entryId, $date): void {
+            $lesson = $this->lesson($tenantId, $entryId, $date);
+            $existing = $this->existing((string) $lesson->id, $date);
+
+            if ($existing === null || $existing->status !== TeachingStatus::Substituted->value) {
+                throw TeachingException::make('form', 'Pertemuan ini belum punya guru pengganti.');
+            }
+
+            DB::table('ac_teaching_records')->where('id', $existing->id)->delete();
+
+            $this->audit->record(
+                AcademicAuditAction::TEACHING_RECORDED,
+                AcademicAuditAction::SUBJECT_CLASS,
+                (string) $lesson->class_id,
+                [
+                    'tanggal' => $date,
+                    'jam' => substr((string) $lesson->start_time, 0, 5).'–'.substr((string) $lesson->end_time, 0, 5),
+                    'mapel' => (string) $lesson->subject,
+                    'status' => 'Penunjukan pengganti dibatalkan',
+                    'pengganti_diisi' => false,
+                    'oleh' => 'petugas',
+                ],
+                organizationId: (string) $lesson->organization_id,
+                tenantId: $tenantId,
+            );
         });
     }
 

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** perbaikan kecil (login → 403; pembanding libur mingguan) → berikutnya AC-6b
-- **Commit terakhir:** `a69c50a` — feat(academic): AC-6a jadwal piket dan presensi mengajar (berisi juga HR-4a + fix1)
+- **Tahap aktif:** AC-6b-1 — Cuti & tunjuk guru pengganti (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `9e0a45f` — feat(hr): tampilkan pembanding libur mingguan kalender akademik
 
 ## Keputusan penting
 
@@ -415,6 +415,13 @@
 - Mapel kelas yang punya presensi mengajar tidak bisa dilepas. Audit `academic.duty_roster_updated`, `academic.teaching_recorded` (tanpa keterangan).
 - Target bukti: 575 test (571 + 4 baru, `TeachingTest`).
 
+**AC-6b-1 — Cuti & tunjuk guru pengganti: KODE SIAP (2026-10-23, menunggu verifikasi)**
+
+- AC-6b dipecah: **6b-1** (paket ini) cuti → Perlu pengganti, tunjuk/batalkan pengganti dengan saran; **6b-2** tugas pengganti di Kelas saya, akses presensi siswa untuk pengganti, catatan otomatis dari presensi per pertemuan.
+- Kontrak HR baru `ApprovedLeaves` (`EloquentApprovedLeaves`). `Lessons` menambah `leave` per pertemuan. `SubstituteFinder` (calon + alasan tidak tersedia: cuti, jadwal sendiri beririsan, sudah menggantikan). `ManageTeachingRecords`: penunjukan sebelum hari-H (maks. 7 hari, hanya Digantikan), cek ketersediaan, `clearSubstitute`. `TeachingAccess::canAssign`.
+- `TeachingController`: `/akademik/perlu-pengganti` (halaman `academic/teaching/substitutes`), `POST /akademik/presensi-mengajar/{entry}/batalkan-pengganti`; Presensi mengajar kini mengirim `candidates` per pertemuan dan `duty` berupa daftar nama. Komponen `components/academic/substitute-fields.tsx`.
+- Target bukti: +3 test (`SubstituteTest`); `TeachingTest` disesuaikan (`duty` = daftar nama).
+
 **HR-3 Cuti & Izin (PRD-001 §13, rincian disetujui 2026-10-22)**
 
 **HR-3a — Jenis cuti & kalender kerja: SELESAI (2026-10-22, commit `4cf3e44`)**
@@ -525,6 +532,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Pasang & commit paket `educore-fix-login-403` dan `educore-weekly-off-compare`.
-2. AC-6b cuti & guru pengganti → AC-6c rekap presensi mengajar (PRD-002 §20).
+1. Verifikasi AC-6b-1 (PANDUAN-AC6B1.md), commit & push.
+2. AC-6b-2 tugas pengganti di Kelas saya + akses presensi siswa + catatan otomatis → AC-6c rekap presensi mengajar (PRD-002 §20).
 3. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).

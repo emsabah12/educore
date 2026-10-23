@@ -10,17 +10,19 @@ use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Teaching\AbsenceReason;
 use Modules\Academic\Domain\Teaching\TeachingStatus;
 use Modules\HR\Contracts\ActiveEmployees;
+use Modules\HR\Contracts\ApprovedLeaves;
 use stdClass;
 
 /**
  * Pertemuan terjadwal & catatan presensi mengajarnya (PRD-002 §20.1). Hanya membaca.
  *
  * Pertemuan = baris jadwal kelas aktif pada tanggal di dalam tahun ajaran kelas, hari jadwal = hari
- * tanggal itu, dan bukan libur kalender akademik.
+ * tanggal itu, dan bukan libur kalender akademik. `leave` = jenis cuti disetujui pengampu pada tanggal
+ * itu (kontrak HR ApprovedLeaves, AC-6b), tanda pertemuan perlu guru pengganti.
  *
  * @phpstan-type Person array{id: string, name: string}
  * @phpstan-type RecordView array{status: string, status_label: string, substitute: Person|null, reason: string|null, reason_label: string|null, note: string|null, source: string, recorded_by: string|null}
- * @phpstan-type Lesson array{key: string, entry_id: string|null, date: string, start: string, end: string, class_id: string, class_name: string, organization_id: string, organization: string, subject: string, teacher: Person|null, record: RecordView|null}
+ * @phpstan-type Lesson array{key: string, entry_id: string|null, date: string, start: string, end: string, class_id: string, class_name: string, organization_id: string, organization: string, subject: string, teacher: Person|null, leave: string|null, record: RecordView|null}
  */
 final class Lessons
 {
@@ -36,6 +38,7 @@ final class Lessons
     public function __construct(
         private readonly SchoolDays $schoolDays,
         private readonly ActiveEmployees $employees,
+        private readonly ApprovedLeaves $leaves,
     ) {}
 
     /**
@@ -187,6 +190,8 @@ final class Lessons
 
         $names = $this->employees->describe($tenantId, array_values(array_unique($employeeIds)));
         $person = fn (?string $id): ?array => $id === null ? null : ['id' => $id, 'name' => $names[$id]['name'] ?? '—'];
+        $leaves = $this->leaves->byDate($tenantId, array_values(array_unique($employeeIds)), $date, $date);
+        $leave = fn (?string $id): ?string => $id === null ? null : ($leaves[$id][$date] ?? null);
         $lessons = [];
 
         foreach ($entries as $entry) {
@@ -206,6 +211,7 @@ final class Lessons
                 'organization' => (string) $entry->organization,
                 'subject' => (string) $entry->subject,
                 'teacher' => $person($teacher === null ? null : (string) $teacher),
+                'leave' => $leave($teacher === null ? null : (string) $teacher),
                 'record' => $record === null ? null : $this->recordView($record, $person),
             ];
         }
@@ -223,6 +229,7 @@ final class Lessons
                 'organization' => (string) $record->organization,
                 'subject' => (string) $record->subject,
                 'teacher' => $person($record->teacher_employee_id === null ? null : (string) $record->teacher_employee_id),
+                'leave' => $leave($record->teacher_employee_id === null ? null : (string) $record->teacher_employee_id),
                 'record' => $this->recordView($record, $person),
             ];
         }

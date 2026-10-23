@@ -307,6 +307,10 @@ function TeachingRow({
                 >
                     {describeRecord(lesson.record)}
                 </Badge>
+            ) : lesson.leave ? (
+                <Badge variant="outline" className="text-muted-foreground">
+                    Cuti ({lesson.leave})
+                </Badge>
             ) : lesson.entry_id && started ? (
                 <Form
                     action={`/kelas-saya/jadwal/${lesson.entry_id}/mengajar`}

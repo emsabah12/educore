@@ -1,7 +1,14 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { CalendarClock, Pencil } from 'lucide-react';
+import { CalendarClock, Pencil, UserRoundSearch } from 'lucide-react';
 import { useState } from 'react';
-import type { TeachingLesson } from '@/components/academic/teaching';
+import {
+    ReasonSelect,
+    SubstituteSelect,
+} from '@/components/academic/substitute-fields';
+import type {
+    SubstituteCandidate,
+    TeachingLesson,
+} from '@/components/academic/teaching';
 import {
     describeRecord,
     displayTime,
@@ -26,8 +33,10 @@ type Props = {
     holiday: string | null;
     lessons: TeachingLesson[];
     canRecord: boolean;
-    duty: (Option & { duty: boolean })[];
-    substitutes: (Option & { duty: boolean })[];
+    /** Nama guru piket tanggal itu. */
+    duty: string[];
+    /** Calon pengganti per pertemuan (kunci = lesson.key). */
+    candidates: Record<string, SubstituteCandidate[]>;
     reasons: Option[];
     noteMax: number;
 };
@@ -64,16 +73,27 @@ export default function TeachingIndex(props: Props) {
                         title="Presensi mengajar"
                         description="Catat setiap pertemuan: guru mengajar, digantikan guru lain, atau kosong. Guru juga bisa menandai sendiri dari Kelas saya."
                     />
-                    {props.manages && (
+                    {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
                         <Button variant="outline" asChild>
                             <Link
-                                href={`/akademik/jadwal-piket?lembaga=${props.organization.value}`}
+                                href={`/akademik/perlu-pengganti?lembaga=${props.organization.value}`}
                             >
-                                <CalendarClock />
-                                Jadwal piket
+                                <UserRoundSearch />
+                                Perlu pengganti
                             </Link>
                         </Button>
-                    )}
+                        {props.manages && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/akademik/jadwal-piket?lembaga=${props.organization.value}`}
+                                >
+                                    <CalendarClock />
+                                    Jadwal piket
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3 rounded-xl border p-4">
@@ -118,7 +138,7 @@ export default function TeachingIndex(props: Props) {
                         Guru piket:{' '}
                         {props.duty.length === 0
                             ? 'belum diatur'
-                            : props.duty.map((item) => item.label).join(', ')}
+                            : props.duty.join(', ')}
                         {props.lessons.length > 0 &&
                             ` · ${recorded} dari ${props.lessons.length} pertemuan sudah dicatat`}
                     </p>
@@ -158,14 +178,14 @@ export default function TeachingIndex(props: Props) {
 function LessonCard({
     lesson,
     canRecord,
-    substitutes,
+    candidates,
     reasons,
     noteMax,
     date,
 }: Props & { lesson: TeachingLesson }) {
     const [editing, setEditing] = useState(false);
     const [status, setStatus] = useState<string>(
-        lesson.record?.status ?? 'MENGAJAR',
+        lesson.record?.status ?? (lesson.leave ? 'DIGANTIKAN' : 'MENGAJAR'),
     );
     const editable = canRecord && lesson.entry_id !== null;
 
@@ -183,6 +203,12 @@ function LessonCard({
                     <p className="text-muted-foreground">
                         Pengampu: {lesson.teacher?.name ?? 'belum ada'}
                     </p>
+                    {lesson.leave && (
+                        <p className="text-amber-700 dark:text-amber-300">
+                            Pengampu cuti ({lesson.leave}) — perlu guru
+                            pengganti
+                        </p>
+                    )}
                     {lesson.record?.note && (
                         <p className="break-words text-muted-foreground">
                             {lesson.record.note}
@@ -279,78 +305,29 @@ function LessonCard({
                             {status !== 'MENGAJAR' && (
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     {status === 'DIGANTIKAN' && (
-                                        <div className="grid content-start gap-1.5">
-                                            <Label
-                                                htmlFor={`sub-${lesson.key}`}
-                                            >
-                                                Guru pengganti
-                                            </Label>
-                                            <select
-                                                id={`sub-${lesson.key}`}
-                                                name="substitute_employee_id"
-                                                className={selectClass}
-                                                defaultValue={
-                                                    lesson.record?.substitute
-                                                        ?.id ?? ''
-                                                }
-                                                required
-                                            >
-                                                <option value="" disabled>
-                                                    Pilih guru pengganti
-                                                </option>
-                                                {substitutes
-                                                    .filter(
-                                                        (option) =>
-                                                            option.value !==
-                                                            lesson.teacher?.id,
-                                                    )
-                                                    .map((option) => (
-                                                        <option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                            {option.duty &&
-                                                                ' (piket)'}
-                                                        </option>
-                                                    ))}
-                                            </select>
-                                            <InputError
-                                                message={
-                                                    errors.substitute_employee_id
-                                                }
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="grid content-start gap-1.5">
-                                        <Label htmlFor={`reason-${lesson.key}`}>
-                                            Alasan guru tidak mengajar
-                                        </Label>
-                                        <select
-                                            id={`reason-${lesson.key}`}
-                                            name="absence_reason"
-                                            className={selectClass}
-                                            defaultValue={
-                                                lesson.record?.reason ?? ''
+                                        <SubstituteSelect
+                                            id={`sub-${lesson.key}`}
+                                            candidates={
+                                                candidates[lesson.key] ?? []
                                             }
-                                            required
-                                        >
-                                            <option value="" disabled>
-                                                Pilih alasan
-                                            </option>
-                                            {reasons.map((option) => (
-                                                <option
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError
-                                            message={errors.absence_reason}
+                                            defaultValue={
+                                                lesson.record?.substitute?.id ??
+                                                ''
+                                            }
+                                            error={
+                                                errors.substitute_employee_id
+                                            }
                                         />
-                                    </div>
+                                    )}
+                                    <ReasonSelect
+                                        id={`reason-${lesson.key}`}
+                                        reasons={reasons}
+                                        defaultValue={
+                                            lesson.record?.reason ??
+                                            (lesson.leave ? 'CUTI' : '')
+                                        }
+                                        error={errors.absence_reason}
+                                    />
                                 </div>
                             )}
 

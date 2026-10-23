@@ -132,6 +132,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Presensi mengajar & jadwal piket (PRD-002 §20, AC-6a). Petugas: academic.teaching.manage atau guru piket hari ini.
     Route::get('akademik/presensi-mengajar', [TeachingController::class, 'index'])->name('academic.teaching.index');
     Route::post('akademik/presensi-mengajar/{entry}', [TeachingController::class, 'store'])->whereUuid('entry')->name('academic.teaching.store');
+    Route::get('akademik/perlu-pengganti', [TeachingController::class, 'substitutes'])->name('academic.substitutes.index');
+    Route::post('akademik/presensi-mengajar/{entry}/batalkan-pengganti', [TeachingController::class, 'clearSubstitute'])->whereUuid('entry')->name('academic.substitutes.clear');
     Route::post('kelas-saya/jadwal/{entry}/mengajar', [TeachingController::class, 'markTaught'])->whereUuid('entry')->name('academic.my-teaching.store');
     Route::get('akademik/jadwal-piket', [DutyRosterController::class, 'index'])->name('academic.duty.index');
     Route::post('akademik/jadwal-piket', [DutyRosterController::class, 'update'])->name('academic.duty.update');
