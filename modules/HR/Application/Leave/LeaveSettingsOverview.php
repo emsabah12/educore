@@ -12,6 +12,7 @@ use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Settings\ScopedSetting;
+use Modules\HR\Application\Attendance\WorkHoursSetting;
 use Modules\HR\Domain\Leave\Holiday;
 use Modules\HR\Domain\Leave\LeaveType;
 
@@ -37,6 +38,7 @@ final class LeaveSettingsOverview
      *     types: list<TypeRow>,
      *     weeklyOff: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     approval: array{rules: list<RuleRow>, usage: list<UsageRow>},
+     *     workHours: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     holidays: list<HolidayRow>,
      *     dayOptions: list<OptionRow>,
      *     options: array{jenjang: list<OptionRow>, organizations: list<OptionRow>},
@@ -104,6 +106,11 @@ final class LeaveSettingsOverview
                 'rules' => $this->rules($tenantId, LeaveApprovalSetting::KEY, fn (mixed $value): string => LeaveApprovalSetting::label($value === 1 ? 1 : 2)),
                 'usage' => $this->usage($tenantId, LeaveApprovalSetting::KEY, fn (mixed $value): string => LeaveApprovalSetting::label($value === 1 ? 1 : 2)),
             ],
+            // Jam kerja staf per jenjang/lembaga (HR-4a).
+            'workHours' => [
+                'rules' => $this->rules($tenantId, WorkHoursSetting::KEY, fn (mixed $value): string => WorkHoursSetting::label(WorkHoursSetting::normalize($value))),
+                'usage' => $this->usage($tenantId, WorkHoursSetting::KEY, fn (mixed $value): string => WorkHoursSetting::label(WorkHoursSetting::normalize($value))),
+            ],
             'holidays' => $holidays,
             'dayOptions' => $dayOptions,
             'options' => ['jenjang' => $jenjang, 'organizations' => $this->organizationOptions($tenantId)],
@@ -134,6 +141,17 @@ final class LeaveSettingsOverview
     public function assignApproval(?string $organizationId, ?Jenjang $jenjang, int $steps, bool $enforced): ScopedSetting
     {
         return $this->setScopedSetting->handle(LeaveApprovalSetting::KEY, $organizationId, $jenjang, $steps, $enforced);
+    }
+
+    /**
+     * Jam kerja staf: masuk, pulang ("HH:MM"), toleransi terlambat (menit).
+     *
+     * @throws AuthorizationException
+     * @throws SettingException
+     */
+    public function assignWorkHours(?string $organizationId, ?Jenjang $jenjang, string $start, string $end, int $tolerance, bool $enforced): ScopedSetting
+    {
+        return $this->setScopedSetting->handle(WorkHoursSetting::KEY, $organizationId, $jenjang, ['start' => $start, 'end' => $end, 'tolerance' => $tolerance], $enforced);
     }
 
     /**

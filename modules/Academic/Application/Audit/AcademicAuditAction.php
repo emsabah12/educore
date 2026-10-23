@@ -102,6 +102,10 @@ final class AcademicAuditAction
 
     public const REPORT_NOTES_SAVED = 'academic.report_notes_saved';
 
+    public const DUTY_ROSTER_UPDATED = 'academic.duty_roster_updated';
+
+    public const TEACHING_RECORDED = 'academic.teaching_recorded';
+
     public const SUBJECT_CALENDAR = 'ac_calendar';
 
     public const SUBJECT_YEAR = 'ac_academic_year';
@@ -166,6 +170,8 @@ final class AcademicAuditAction
             self::GRADE_SHEET_REOPENED => 'Nilai mapel dibuka kembali',
             self::GRADE_SHEET_RULES_APPLIED => 'Aturan nilai mapel diperbarui',
             self::REPORT_NOTES_SAVED => 'Catatan wali kelas di rapor disimpan',
+            self::DUTY_ROSTER_UPDATED => 'Jadwal piket diubah',
+            self::TEACHING_RECORDED => 'Presensi mengajar dicatat',
         ];
     }
 }

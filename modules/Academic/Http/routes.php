@@ -7,6 +7,7 @@ use Modules\Academic\Http\Controllers\ClassController;
 use Modules\Academic\Http\Controllers\ClassMemberController;
 use Modules\Academic\Http\Controllers\ClassSubjectController;
 use Modules\Academic\Http\Controllers\ClassYearEndController;
+use Modules\Academic\Http\Controllers\DutyRosterController;
 use Modules\Academic\Http\Controllers\GradeController;
 use Modules\Academic\Http\Controllers\GradeLedgerController;
 use Modules\Academic\Http\Controllers\MyClassesController;
@@ -17,6 +18,7 @@ use Modules\Academic\Http\Controllers\StudentController;
 use Modules\Academic\Http\Controllers\StudentGuardianController;
 use Modules\Academic\Http\Controllers\StudentImportController;
 use Modules\Academic\Http\Controllers\SubjectController;
+use Modules\Academic\Http\Controllers\TeachingController;
 
 /*
  * Route web modul Academic (PRD-002 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -126,6 +128,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'storeMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.store');
     // Rekap presensi (AC-4b). Lihat: izin lihat siswa; wali kelas: lewat Kelas saya.
     Route::get('kelas/{class}/rekap-presensi', [AttendanceController::class, 'recap'])->whereUuid('class')->name('academic.attendance.recap');
+
+    // Presensi mengajar & jadwal piket (PRD-002 §20, AC-6a). Petugas: academic.teaching.manage atau guru piket hari ini.
+    Route::get('akademik/presensi-mengajar', [TeachingController::class, 'index'])->name('academic.teaching.index');
+    Route::post('akademik/presensi-mengajar/{entry}', [TeachingController::class, 'store'])->whereUuid('entry')->name('academic.teaching.store');
+    Route::post('kelas-saya/jadwal/{entry}/mengajar', [TeachingController::class, 'markTaught'])->whereUuid('entry')->name('academic.my-teaching.store');
+    Route::get('akademik/jadwal-piket', [DutyRosterController::class, 'index'])->name('academic.duty.index');
+    Route::post('akademik/jadwal-piket', [DutyRosterController::class, 'update'])->name('academic.duty.update');
 
     // Lembar nilai (PRD-002 §19 AC-5b): pintu operator/pemantau dan pintu guru pengampu (Kelas saya).
     Route::get('kelas/mapel/{classSubject}/nilai', [GradeController::class, 'show'])->whereUuid('classSubject')->name('academic.grades.show');

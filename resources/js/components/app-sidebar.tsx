@@ -6,6 +6,8 @@ import {
     CalendarRange,
     ClipboardCheck,
     ClipboardList,
+    ClipboardPen,
+    Clock,
     GraduationCap,
     LayoutGrid,
     Network,
@@ -66,7 +68,7 @@ const hrCatalogNavItem: NavItem = {
 };
 
 const leaveSettingsNavItem: NavItem = {
-    title: 'Pengaturan cuti',
+    title: 'Pengaturan cuti & presensi',
     href: '/pegawai/cuti/pengaturan',
     icon: CalendarCog,
 };
@@ -75,6 +77,12 @@ const leavesNavItem: NavItem = {
     title: 'Kelola cuti',
     href: '/pegawai/cuti',
     icon: CalendarRange,
+};
+
+const myAttendanceNavItem: NavItem = {
+    title: 'Presensi saya',
+    href: '/presensi-saya',
+    icon: Clock,
 };
 
 const myLeaveNavItem: NavItem = {
@@ -113,6 +121,12 @@ const myClassesNavItem: NavItem = {
     icon: ClipboardList,
 };
 
+const teachingNavItem: NavItem = {
+    title: 'Presensi mengajar',
+    href: '/akademik/presensi-mengajar',
+    icon: ClipboardPen,
+};
+
 const academicCalendarNavItem: NavItem = {
     title: 'Kalender akademik',
     href: '/akademik/kalender',
@@ -143,7 +157,11 @@ export function AppSidebar() {
             ? [studentsNavItem, classesNavItem, subjectsNavItem]
             : []),
         ...(academic?.myClasses ? [myClassesNavItem] : []),
-        ...(hr?.isEmployee ? [myLeaveNavItem] : []),
+        ...(permissions.includes('academic.teaching.manage') ||
+        academic?.teachingDuty
+            ? [teachingNavItem]
+            : []),
+        ...(hr?.isEmployee ? [myAttendanceNavItem, myLeaveNavItem] : []),
         ...(permissions.includes('hr.leave.approve') ||
         (atTenantLevel && permissions.includes('hr.leave.manage'))
             ? [leaveApprovalsNavItem]

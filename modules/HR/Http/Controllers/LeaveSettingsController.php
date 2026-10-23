@@ -14,6 +14,7 @@ use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Attendance\WorkHoursSetting;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Leave\LeaveSettingsOverview;
 use Modules\HR\Application\Leave\ManageLeaveTypes;
@@ -189,6 +190,45 @@ final class LeaveSettingsController
         }
 
         return $this->done('Alur persetujuan cuti disimpan. Pengajuan yang sudah ada tetap memakai alur saat diajukan.');
+    }
+
+    // ── Jam kerja (HR-4a) ────────────────────────────────────────────────────
+
+    public function assignWorkHours(Request $request, LeaveSettingsOverview $overview): RedirectResponse
+    {
+        $this->authorize();
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'start' => ['required', 'date_format:H:i'],
+            'end' => ['required', 'date_format:H:i'],
+            'tolerance' => ['required', 'integer', 'between:0,'.WorkHoursSetting::MAX_TOLERANCE],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'start.date_format' => 'Jam masuk berformat JJ:MM, mis. 07:00.',
+            'end.date_format' => 'Jam pulang berformat JJ:MM, mis. 14:00.',
+        ], ['jenjang' => 'jenjang', 'organization_id' => 'lembaga', 'start' => 'jam masuk', 'end' => 'jam pulang', 'tolerance' => 'toleransi terlambat']);
+
+        $byJenjang = $validated['target'] === 'jenjang';
+
+        try {
+            $overview->assignWorkHours(
+                $byJenjang ? null : (string) $validated['organization_id'],
+                $byJenjang ? Jenjang::from((string) $validated['jenjang']) : null,
+                (string) $validated['start'],
+                (string) $validated['end'],
+                (int) $validated['tolerance'],
+                $request->boolean('enforced'),
+            );
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['end' => $exception->getMessage()]);
+        }
+
+        return $this->done('Jam kerja disimpan. Presensi yang sudah tercatat tidak berubah.');
     }
 
     // ── Hari libur ───────────────────────────────────────────────────────────

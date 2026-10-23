@@ -10,6 +10,7 @@ use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
 use Modules\HR\Http\Controllers\LeaveBalanceController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
+use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyLeaveController;
 
 /*
@@ -43,9 +44,15 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('cuti-saya', [MyLeaveController::class, 'store'])->name('hr.my-leave.store');
     Route::post('cuti-saya/{leave}/tarik', [MyLeaveController::class, 'withdraw'])->whereUuid('leave')->name('hr.my-leave.withdraw');
 
+    // Presensi saya — absen mandiri (PRD-001 §14.2, HR-4a). Tanpa permission: akun tertaut ke data pegawai.
+    Route::get('presensi-saya', [MyAttendanceController::class, 'index'])->name('hr.my-attendance.index');
+    Route::post('presensi-saya/masuk', [MyAttendanceController::class, 'checkIn'])->name('hr.my-attendance.check-in');
+    Route::post('presensi-saya/pulang', [MyAttendanceController::class, 'checkOut'])->name('hr.my-attendance.check-out');
+
     // Persetujuan cuti (PRD-001 §13.4, HR-3c): tahap lembaga (hr.leave.approve) & tahap SDM (hr.leave.manage).
     Route::get('persetujuan-cuti', [LeaveApprovalController::class, 'index'])->name('hr.leave-approvals.index');
     Route::post('persetujuan-cuti/{leave}', [LeaveApprovalController::class, 'decide'])->whereUuid('leave')->name('hr.leave-approvals.decide');
+    Route::post('pegawai/cuti/jam-kerja', [LeaveSettingsController::class, 'assignWorkHours'])->name('hr.work-hours.assign');
     Route::post('pegawai/cuti/alur-persetujuan', [LeaveSettingsController::class, 'assignApproval'])->name('hr.leave-approval-flow.assign');
 
     // Kelola cuti — Admin SDM (PRD-001 §13.5, HR-3d): daftar, detail, catat atas nama, batalkan.

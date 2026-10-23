@@ -39,6 +39,15 @@ type Props = {
         }[];
         usage: { id: string; name: string; days: string; source: string }[];
     };
+    workHours: {
+        rules: {
+            id: string;
+            target: string;
+            days: string;
+            enforced: boolean;
+        }[];
+        usage: { id: string; name: string; days: string; source: string }[];
+    };
     approval: {
         rules: {
             id: string;
@@ -78,12 +87,12 @@ function formatDate(value: string): string {
 export default function LeaveSettings(props: Props) {
     return (
         <>
-            <Head title="Pengaturan cuti" />
+            <Head title="Pengaturan cuti & presensi" />
 
             <div className="flex flex-1 flex-col gap-6 p-4">
                 <Heading
-                    title="Pengaturan cuti"
-                    description="Jenis cuti & jatahnya, serta kalender kerja yang dipakai menghitung jumlah hari cuti (libur mingguan dan tanggal merah, terpisah dari kalender akademik), serta alur persetujuan."
+                    title="Pengaturan cuti & presensi"
+                    description="Jenis cuti & jatahnya, kalender kerja (libur mingguan dan tanggal merah, terpisah dari kalender akademik), alur persetujuan cuti, dan jam kerja untuk presensi pegawai."
                 />
 
                 <TypesSection
@@ -92,6 +101,7 @@ export default function LeaveSettings(props: Props) {
                 />
                 <WeeklyOffSection {...props} />
                 <ApprovalSection {...props} />
+                <WorkHoursSection {...props} />
                 <HolidaysSection holidays={props.holidays} year={props.year} />
             </div>
         </>
@@ -913,5 +923,88 @@ function HolidayForm({
                 </>
             )}
         </Form>
+    );
+}
+
+// ── Jam kerja (HR-4a) ────────────────────────────────────────────────────────
+
+function WorkHoursSection({ workHours, options }: Props) {
+    return (
+        <section aria-label="Jam kerja" className="space-y-3">
+            <Heading
+                variant="small"
+                title="Jam kerja (presensi)"
+                description="Jam masuk & pulang staf pada hari kerja, dan toleransi terlambat. Guru memakai jam pelajaran pertama–terakhir dari jadwal mengajar, dengan toleransi yang sama. Bawaan 07.00–14.00, toleransi 15 menit."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action={`${BASE_URL}/jam-kerja`}
+                    method="post"
+                    errorBag="workHours"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="wh"
+                                options={options}
+                                errors={errors}
+                            />
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="wh-start">Jam masuk</Label>
+                                    <Input
+                                        id="wh-start"
+                                        type="time"
+                                        name="start"
+                                        defaultValue="07:00"
+                                        required
+                                    />
+                                    <InputError message={errors.start} />
+                                </div>
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="wh-end">Jam pulang</Label>
+                                    <Input
+                                        id="wh-end"
+                                        type="time"
+                                        name="end"
+                                        defaultValue="14:00"
+                                        required
+                                    />
+                                    <InputError message={errors.end} />
+                                </div>
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="wh-tolerance">
+                                        Toleransi (menit)
+                                    </Label>
+                                    <Input
+                                        id="wh-tolerance"
+                                        type="number"
+                                        name="tolerance"
+                                        min={0}
+                                        max={120}
+                                        defaultValue={15}
+                                        required
+                                    />
+                                    <InputError message={errors.tolerance} />
+                                </div>
+                            </div>
+                            <InputError message={errors.form} />
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai jam kerja lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan jam kerja
+                            </Button>
+                        </>
+                    )}
+                </Form>
+
+                <RulesPanel
+                    data={workHours}
+                    emptyText="Belum ada pengaturan. Semua lembaga memakai 07.00–14.00, toleransi 15 menit."
+                    usageTitle="Jam kerja yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
     );
 }

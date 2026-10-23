@@ -1,7 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
-import { ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Check, ChevronRight, ClipboardCheck } from 'lucide-react';
+import type { TeachingLesson } from '@/components/academic/teaching';
+import {
+    describeRecord,
+    formatTeachingDate,
+    TEACHING_STATUS_CLASS,
+} from '@/components/academic/teaching';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type MyClass = {
     id: string;
@@ -30,6 +38,10 @@ type Props = {
     classes: MyClass[];
     schedule: Lesson[];
     days: { value: number; label: string }[];
+    /** Pertemuan 7 hari terakhir beserta presensi mengajarnya (AC-6a). */
+    teaching: TeachingLesson[];
+    today: string;
+    now: string;
 };
 
 /** "07:00" → "07.00" (penulisan jam di Indonesia). */
@@ -41,7 +53,15 @@ function displayTime(value: string): string {
  * Kelas saya (PRD-002 §16 AC-3d): kelas yang dipegang wali kelas/guru pengampu yang sedang login
  * dan jadwal mengajarnya. Hanya bisa dilihat.
  */
-export default function MyClasses({ linked, classes, schedule, days }: Props) {
+export default function MyClasses({
+    linked,
+    classes,
+    schedule,
+    days,
+    teaching,
+    today,
+    now,
+}: Props) {
     // Kelas di lembaga yang memakai presensi per pertemuan (AC-4c).
     const lessonMode = new Set(
         classes.filter((item) => item.lesson_mode).map((item) => item.id),
@@ -183,10 +203,141 @@ export default function MyClasses({ linked, classes, schedule, days }: Props) {
                                 </div>
                             )}
                         </section>
+
+                        <TeachingSection
+                            lessons={teaching}
+                            today={today}
+                            now={now}
+                        />
                     </>
                 )}
             </div>
         </>
+    );
+}
+
+/**
+ * Presensi mengajar 7 hari terakhir (PRD-002 §20.2): tandai "Sudah mengajar"; catatan petugas
+ * hanya ditampilkan.
+ */
+function TeachingSection({
+    lessons,
+    today,
+    now,
+}: {
+    lessons: TeachingLesson[];
+    today: string;
+    now: string;
+}) {
+    const dates = [...new Set(lessons.map((lesson) => lesson.date))];
+
+    return (
+        <section
+            aria-label="Presensi mengajar"
+            className="space-y-3 rounded-xl border p-4"
+        >
+            <div>
+                <h2 className="text-base font-medium">
+                    Presensi mengajar 7 hari terakhir
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                    Tandai setiap pertemuan yang sudah Anda ajar. Bila
+                    berhalangan, guru piket atau operator lembaga yang mencatat
+                    penggantinya.
+                </p>
+            </div>
+            {lessons.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Tidak ada pertemuan terjadwal dalam 7 hari terakhir.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {dates.map((date) => (
+                        <div key={date} className="rounded-lg border">
+                            <h3 className="border-b bg-muted/40 px-3 py-1.5 text-sm font-medium">
+                                {formatTeachingDate(date)}
+                                {date === today && ' (hari ini)'}
+                            </h3>
+                            <ul className="divide-y">
+                                {lessons
+                                    .filter((lesson) => lesson.date === date)
+                                    .map((lesson) => (
+                                        <TeachingRow
+                                            key={lesson.key}
+                                            lesson={lesson}
+                                            started={
+                                                date < today ||
+                                                now >= lesson.start
+                                            }
+                                        />
+                                    ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function TeachingRow({
+    lesson,
+    started,
+}: {
+    lesson: TeachingLesson;
+    started: boolean;
+}) {
+    return (
+        <li className="flex flex-wrap items-start justify-between gap-2 px-3 py-2 text-sm">
+            <div className="min-w-0">
+                <p>
+                    <span className="font-medium tabular-nums">
+                        {displayTime(lesson.start)}–{displayTime(lesson.end)}
+                    </span>{' '}
+                    {lesson.subject}
+                </p>
+                <p className="text-muted-foreground">
+                    {lesson.class_name} · {lesson.organization}
+                </p>
+            </div>
+            {lesson.record ? (
+                <Badge
+                    variant="outline"
+                    className={TEACHING_STATUS_CLASS[lesson.record.status]}
+                >
+                    {describeRecord(lesson.record)}
+                </Badge>
+            ) : lesson.entry_id && started ? (
+                <Form
+                    action={`/kelas-saya/jadwal/${lesson.entry_id}/mengajar`}
+                    method="post"
+                    errorBag={`teach-${lesson.key}`}
+                    options={{ preserveScroll: true }}
+                    className="grid justify-items-end gap-1"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <input
+                                type="hidden"
+                                name="date"
+                                value={lesson.date}
+                            />
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={processing}
+                            >
+                                <Check />
+                                Sudah mengajar
+                            </Button>
+                            <InputError message={errors.form} />
+                        </>
+                    )}
+                </Form>
+            ) : (
+                <span className="text-muted-foreground">Belum dimulai</span>
+            )}
+        </li>
     );
 }
 

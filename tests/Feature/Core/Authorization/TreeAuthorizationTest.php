@@ -215,6 +215,7 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
         ->assertInertia(fn ($page) => $page->where('permissions', [
             AcademicAccess::STUDENTS_VIEW,
             AcademicAccess::STUDENTS_VIEW_PERSONAL,
+            AcademicAccess::TEACHING_MANAGE,
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,

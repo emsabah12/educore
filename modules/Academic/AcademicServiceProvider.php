@@ -8,14 +8,18 @@ use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\CalendarSetting;
+use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\GradingSetting;
+use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Console\PruneStudentImportsCommand;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
+use Modules\HR\Contracts\TeachingSchedule;
 
 /**
  * Modul Academic (siswa/santri, pendaftaran, kalender akademik, kelas), spesifikasi: PRD-002.
@@ -29,6 +33,13 @@ class AcademicServiceProvider extends ModuleServiceProvider
     protected function modulePath(): string
     {
         return __DIR__;
+    }
+
+    public function register(): void
+    {
+        // Jam mengajar guru untuk presensi pegawai HR (PRD-001 §14.1): HR memakai kontraknya,
+        // Academic mengisinya (menggantikan implementasi kosong bawaan HR).
+        $this->app->singleton(TeachingSchedule::class, AcademicTeachingSchedule::class);
     }
 
     public function boot(): void
@@ -47,7 +58,8 @@ class AcademicServiceProvider extends ModuleServiceProvider
             ->define(GradingSetting::definition());
 
         // Petunjuk menu "Kelas saya" (AC-3d): dievaluasi saat halaman dirender, sesudah `work.context`.
-        Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses()]);
+        // Petunjuk menu: Kelas saya (AC-3d) & Presensi mengajar bagi guru piket hari ini (AC-6a).
+        Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses(), 'teachingDuty' => $this->isOnDutyToday()]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([PruneStudentImportsCommand::class]);
@@ -62,6 +74,20 @@ class AcademicServiceProvider extends ModuleServiceProvider
     /**
      * Pengguna yang sedang login memegang kelas tahun berjalan (wali kelas/pengampu).
      */
+    private function isOnDutyToday(): bool
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        if ($context === null) {
+            return false;
+        }
+
+        $employeeId = $this->app->make(MyClasses::class)->employeeId($context->tenantId, $context->membershipId);
+
+        return $employeeId !== null
+            && $this->app->make(DutyRoster::class)->dutyOrganizations($context->tenantId, $employeeId, BusinessClock::todayString()) !== [];
+    }
+
     private function hasMyClasses(): bool
     {
         $context = $this->app->make(TenantContext::class)->get();

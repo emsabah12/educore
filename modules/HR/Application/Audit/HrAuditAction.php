@@ -68,6 +68,12 @@ final class HrAuditAction
     /** Jatah cuti disesuaikan Admin SDM (HR-3d-b). */
     public const LEAVE_ADJUSTED = 'hr.leave_adjusted';
 
+    /** Pegawai absen masuk sendiri (HR-4a). */
+    public const ATTENDANCE_CHECKED_IN = 'hr.attendance_checked_in';
+
+    /** Pegawai absen pulang sendiri (HR-4a). */
+    public const ATTENDANCE_CHECKED_OUT = 'hr.attendance_checked_out';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -109,6 +115,8 @@ final class HrAuditAction
             self::LEAVE_RECORDED => 'Cuti dicatat atas nama pegawai',
             self::LEAVE_CANCELLED => 'Cuti dibatalkan',
             self::LEAVE_ADJUSTED => 'Jatah cuti disesuaikan',
+            self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
+            self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
         ];
     }
 }

@@ -25,6 +25,9 @@ final class AcademicAccess
     /** Kelas/rombel, wali kelas, anggota kelas. */
     public const CLASSES_MANAGE = 'academic.classes.manage';
 
+    /** Presensi mengajar & jadwal piket di lembaga (AC-6, PRD-002 §20). */
+    public const TEACHING_MANAGE = 'academic.teaching.manage';
+
     /** Kalender, tahun ajaran, semester — hanya di tingkat Yayasan. */
     public const CALENDAR_MANAGE = 'academic.calendar.manage';
 
@@ -38,6 +41,7 @@ final class AcademicAccess
             ->permission(self::STUDENTS_VIEW_PERSONAL, 'Lihat data pribadi siswa & orang tua')
             ->permission(self::STUDENTS_MANAGE, 'Kelola data siswa')
             ->permission(self::CLASSES_MANAGE, 'Kelola kelas')
+            ->permission(self::TEACHING_MANAGE, 'Kelola presensi mengajar & jadwal piket')
             ->permission(self::CALENDAR_MANAGE, 'Kelola kalender akademik');
 
         $view = [self::STUDENTS_VIEW, self::STUDENTS_VIEW_PERSONAL];
@@ -47,15 +51,17 @@ final class AcademicAccess
                 ...$view,
                 self::STUDENTS_MANAGE,
                 self::CLASSES_MANAGE,
+                self::TEACHING_MANAGE,
             ])
             ->grant(CoreAccess::ROLE_ADMIN_YAYASAN, [
                 ...$view,
                 self::STUDENTS_MANAGE,
                 self::CLASSES_MANAGE,
+                self::TEACHING_MANAGE,
                 self::CALENDAR_MANAGE,
             ])
             ->grant(CoreAccess::ROLE_PIMPINAN, $view)
-            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, $view)
+            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [...$view, self::TEACHING_MANAGE])
             ->grant(CoreAccess::ROLE_KOORDINATOR, [self::STUDENTS_VIEW])
             // Dipasang pada penugasan di lembaga (atau unit) lewat halaman Kelola akses.
             ->offerAsAssignmentRole(self::ROLE_OPERATOR_AKADEMIK);

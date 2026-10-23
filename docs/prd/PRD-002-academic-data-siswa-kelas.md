@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 1.5 (2026-10-22: rincian AC-5 Penilaian & rapor — §19)
-- **Versi sebelumnya:** 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; AC-6 dst. hanya digariskan
+- **Versi:** 1.6 (2026-10-23: rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7)
+- **Versi sebelumnya:** 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a dikerjakan; AC-7 dst. hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -35,15 +35,16 @@ Prinsip:
 
 ## 3. Tahapan modul Academic [OWNER, 2026-10-17]
 
-| Tahap                           | Isi                                                                                                                                                  | Catatan                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **AC-1 Data Siswa & Kelas**     | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01]    |
-| AC-1e Impor siswa               | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]              |
-| AC-2 Kenaikan kelas & kelulusan | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]          |
-| AC-3 Mata pelajaran & jadwal    | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16           |
-| AC-4 Presensi siswa             | Presensi harian/per pertemuan                                                                                                                        | Dirinci di §17 [OWNER, 2026-10-21]          |
-| AC-5 Penilaian & rapor          | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]; dirinci di §19 |
-| AC-6 dst.                       | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                             |
+| Tahap                                       | Isi                                                                                                                                                  | Catatan                                     |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **AC-1 Data Siswa & Kelas**                 | Kalender akademik (tahun ajaran, semester), siswa, pendaftaran per lembaga, orang tua/wali, kelas/rombel, anggota kelas, wali kelas, daftar & detail | **Dirinci di PRD ini** [OWNER, OD-AC-01]    |
+| AC-1e Impor siswa                           | Impor siswa baru dari Excel/CSV, pola sama dengan HR-1e                                                                                              | Sesudah AC-1 [OWNER, OD-AC-07]              |
+| AC-2 Kenaikan kelas & kelulusan             | Proses akhir tahun ajaran: naik kelas massal, tinggal kelas, lulus massal                                                                            | Dirinci di §15 [OWNER, 2026-10-20]          |
+| AC-3 Mata pelajaran & jadwal                | Mapel per lembaga/tingkat, guru pengampu (pegawai HR), jadwal; wali kelas/guru melihat siswa kelasnya                                                | [OWNER, OD-AC-06]; dirinci di §16           |
+| AC-4 Presensi siswa                         | Presensi harian/per pertemuan                                                                                                                        | Dirinci di §17 [OWNER, 2026-10-21]          |
+| AC-5 Penilaian & rapor                      | Nilai, KKM (aturan berjenjang PRD-000 §8), rapor                                                                                                     | [LAMA §11: guru = Employee]; dirinci di §19 |
+| **AC-6 Presensi mengajar & guru pengganti** | Presensi mengajar per pertemuan di tiap lembaga, jadwal piket, guru pengganti saat guru cuti/tidak hadir, rekap                                      | Dirinci di §20 [OWNER, 2026-10-23]          |
+| AC-7 dst.                                   | Akun orang tua, ekspor Dapodik/EMIS (butuh NIK), PPDB, asrama                                                                                        |                                             |
 
 ## 4. Model data AC-1
 
@@ -169,7 +170,7 @@ Prinsip yang sama dengan pegawai (PRD-001 §4.5): **minimal, tanpa NIK**, dengan
 
 **Orang tua/wali** dicatat sebagai **Person + Membership** (bukan teks bebas di siswa) [OWNER, OD-AC-05]:
 
-- Alasannya: kakak-adik berbagi orang tua yang sama tanpa input ulang, dan akun orang tua (AC-6) kelak tinggal ditambahkan pada Person yang sama. [LAMA §9–§10]
+- Alasannya: kakak-adik berbagi orang tua yang sama tanpa input ulang, dan akun orang tua (AC-7) kelak tinggal ditambahkan pada Person yang sama. [LAMA §9–§10]
 - Isian: nama (wajib), jenis kelamin (opsional), nomor HP (opsional), hubungan.
 - **`ac_student_guardians`**: student_id, guardian_membership_id, relation `AYAH` \| `IBU` \| `WALI` \| `LAINNYA`, is_primary_contact. Satu siswa maksimal 4 orang tua/wali; maksimal satu kontak utama; orang yang sama tidak dobel untuk satu siswa.
 - Membuat orang tua/wali **tidak** membuat akun login dan **tidak** memberi akses apa pun.
@@ -439,7 +440,7 @@ Dikerjakan bertahap: **AC-4a** presensi harian, **AC-4b** rekap, **AC-4c** prese
 - **Mode** [OWNER]: harian dan per pertemuan, **dipilih per lembaga** lewat aturan berjenjang (PRD-000 §8). Aturan `academic.attendance_mode` (HARIAN / PER_PERTEMUAN, bawaan HARIAN) dibuat di AC-4c; sampai itu semua lembaga memakai presensi harian.
 - **Kode** [OWNER]: **H** Hadir, **S** Sakit, **I** Izin, **A** Alpa. Keterangan opsional, maks. 200 karakter; isi keterangan tidak dicatat di audit (hanya jumlah per kode).
 - **Siapa mengisi & mengoreksi** [OWNER]: wali kelas (harian) / guru pengampu (per pertemuan) sampai **7 hari ke belakang** (hari ini termasuk); Operator Akademik (`academic.classes.manage`) kapan saja di dalam tahun ajaran yang belum lewat. Semua pengisian & koreksi tercatat di audit.
-- **Siapa melihat rekap** [OWNER]: pemilik `academic.students.view` di lembaga kelas (Kepala Lembaga, Pimpinan, Koordinator, operator); wali kelas untuk kelasnya di Kelas saya; pengampu untuk pertemuan mapelnya. Orang tua belum (AC-6).
+- **Siapa melihat rekap** [OWNER]: pemilik `academic.students.view` di lembaga kelas (Kepala Lembaga, Pimpinan, Koordinator, operator); wali kelas untuk kelasnya di Kelas saya; pengampu untuk pertemuan mapelnya. Orang tua belum (AC-7).
 
 ### Aturan bersama [ASUMSI disetujui]
 
@@ -568,3 +569,44 @@ Empat fitur kecil yang sebelumnya saran (§14 dan saran sesudah AC-2/AC-4), dike
 ### Di luar AC-5
 
 Nilai sikap/spiritual-sosial, ekstrakurikuler, prestasi, rapor P5 (Kurikulum Merdeka), format resmi K13/Merdeka, impor nilai dari Excel, remedial/nilai perbaikan, nilai per pertemuan, akses orang tua.
+
+## 20. AC-6 Presensi mengajar & guru pengganti [OWNER, 2026-10-23 — usulan disetujui]
+
+Latar: guru bisa mengajar di beberapa lembaga (mis. penempatan utama Al-Qur'an Unit 1, juga mengajar di SMP Unit 3). Kehadiran kerja harian tetap di HR-4 (PRD-001 §14); **presensi mengajar per jadwal** dicatat di Akademik karena jadwal, kelas, dan presensi siswa milik Akademik (ADR-001: HR tidak bergantung pada Academic).
+
+| ID       | Keputusan        | Isi                                                                                                                                                 |
+| -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-13 | Guru piket       | **Jadwal piket per hari** per lembaga & tahun ajaran; guru piket hari itu disarankan pertama sebagai pengganti [OWNER]                              |
+| OD-AC-14 | Pencatat         | **Guru** menandai "Sudah mengajar"; **guru piket / Operator Akademik / Kepala Lembaga** mencatat yang kosong/digantikan & mengoreksi [OWNER]        |
+| OD-AC-15 | Cuti & pengganti | Cuti/izin tetap **per hari** (HR-3); pertemuan terdampak otomatis "Perlu pengganti"; pengganti **ditunjuk** dengan saran yang tidak bentrok [OWNER] |
+
+### 20.1 Aturan dasar
+
+- **Pertemuan** = satu baris jadwal pada satu tanggal: kelas aktif, tanggal di dalam tahun ajaran kelas, hari efektif sekolah (bukan libur kalender akademik), hari jadwal = hari tanggal itu.
+- **Presensi mengajar** = satu catatan per pertemuan, di **lembaga kelasnya** (guru yang mengajar di dua lembaga tercatat di keduanya). Status: **Mengajar**; **Digantikan** (guru pengganti + alasan guru tidak hadir); **Kosong** (alasan). Alasan: Cuti, Sakit, Izin, Dinas luar, Alpa, Lainnya; keterangan opsional maks. 300.
+- Pengampu & jam pertemuan disalin ke catatan agar riwayat tetap bila jadwal diubah/dihapus.
+- Pertemuan yang lewat tanpa catatan = **"Belum dicatat"**, tidak otomatis Alpa [ASUMSI].
+
+### 20.2 AC-6a Jadwal piket, Presensi mengajar, "Sudah mengajar"
+
+- Permission baru **`academic.teaching.manage`** (Kelola presensi mengajar & jadwal piket): Operator Akademik, Admin Yayasan, **Kepala Lembaga** [ASUMSI].
+- **Jadwal piket** (`/akademik/jadwal-piket`): per lembaga × tahun ajaran (berjalan atau yang belum lewat) × hari (Senin–Ahad); guru piket = pegawai aktif lembaga itu (kontrak HR), maks. 20 per hari [ASUMSI]. Pemilik `academic.teaching.manage`.
+- **Presensi mengajar** (`/akademik/presensi-mengajar?lembaga=&tanggal=`, menu bagi pemilik izin dan guru yang piket hari ini): daftar pertemuan lembaga pada tanggal itu, pengampu, status; catat Mengajar/Digantikan/Kosong. Pemilik izin: tanggal mana pun di tahun ajaran yang belum lewat, tidak di masa depan; **guru piket: hanya lembaga & hari piketnya, tanggal hari ini** [ASUMSI]. Pilihan pengganti di AC-6a = pegawai aktif lembaga itu (guru piket hari itu di atas); saran tidak bentrok di AC-6b.
+- **Kelas saya**: bagian "Mengajar 7 hari terakhir" — pertemuan miliknya beserta status; tombol **Sudah mengajar** untuk yang belum dicatat, paling cepat saat jam pelajaran mulai, paling lama 7 hari ke belakang [ASUMSI]. Pertemuan yang sudah dicatat petugas tidak bisa diubah guru.
+- Mapel kelas yang sudah punya presensi mengajar tidak bisa dilepas dari kelas.
+- Audit `academic.duty_roster_updated` (hari, jumlah guru) dan `academic.teaching_recorded` (tanggal, jam, mapel, status, pengganti diisi ya/tidak; tanpa keterangan).
+
+### 20.3 AC-6b Cuti & guru pengganti
+
+- Kontrak HR baru (cuti disetujui per pegawai & tanggal): pertemuan guru yang cuti ditandai **"Perlu pengganti"** di semua lembaga.
+- Halaman **Perlu pengganti** per lembaga: hari ini s.d. 7 hari ke depan (cuti) + pertemuan bertanda Kosong.
+- **Tunjuk pengganti** (boleh sebelum hari-H): saran = guru piket hari itu, lalu pegawai aktif lembaga yang tidak bentrok jadwal mengajar di semua lembaga dan tidak cuti.
+- Pengganti melihat tugasnya di Kelas saya dan boleh mengisi presensi siswa pertemuan itu saja; lembaga mode per pertemuan: mengisi presensi siswa otomatis mencatat Mengajar (pengampu) / Digantikan (pengganti).
+
+### 20.4 AC-6c Rekap
+
+- Rekap bulanan per lembaga per guru: terjadwal, mengajar, digantikan, kosong, belum dicatat, dan jumlah **menggantikan**; unduh .xlsx.
+
+### 20.5 Di luar AC-6
+
+Izin per jam pelajaran (bukan sehari penuh), honor/insentif piket, notifikasi ke guru pengganti, tukar jadwal permanen.

@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.11 (2026-10-22: rincian HR-3 Cuti & Izin — §13)
-- **Versi sebelumnya:** 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b dikerjakan; HR-2, HR-4 dst. belum dirinci
+- **Versi:** 0.12 (2026-10-22: rincian HR-4 Presensi pegawai — §14)
+- **Versi sebelumnya:** 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a kode siap (menunggu push), HR-4b/4c sesudah Akademik AC-6; HR-2, HR-5 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -40,7 +40,7 @@ Prinsip:
 | HR-2 Dokumen & SK                  | Arsip SK/kontrak (file privat), masa berlaku dan pengingat                                                                                                                  | Butuh keputusan penyimpanan file                                                          |
 | Core: Kelola akses                 | Halaman buat akun login, penugasan, pasang/cabut role                                                                                                                       | **Dibuat sesudah HR-1, sebelum HR-3** [OWNER, OD-HR-03]                                   |
 | HR-3 Cuti & Izin + layanan mandiri | Jenis cuti, jatah, pengajuan, persetujuan berjenjang (memakai aturan berjenjang PRD-000 §8)                                                                                 | Pegawai perlu akun login; **dirinci di §13** [OWNER, 2026-10-22: dikerjakan sebelum HR-2] |
-| HR-4 Presensi                      | Input manual/impor + rekap; mesin absen menyusul                                                                                                                            | [LAMA OD-HR-005]                                                                          |
+| HR-4 Presensi                      | Absen mandiri + lembar petugas + rekap; mesin absen menyusul                                                                                                                | [LAMA OD-HR-005]; **dirinci di §14** [OWNER, 2026-10-22]                                  |
 | HR-5 Komponen gaji                 | Data tunjangan + rekap input gaji (ekspor); modul Keuangan belum ada                                                                                                        | [LAMA OD-HR-003]                                                                          |
 | HR-6 dst.                          | Kinerja/PKG & PKB, rekrutmen, disiplin, ekspor Dapodik/EMIS/Simpatika                                                                                                       | [LAMA HR-001 §7]                                                                          |
 
@@ -320,16 +320,17 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 
 ## 11. Open decisions
 
-| ID       | Topik                                                                                                                   | Status                                                                                                                                                                                                         |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK. **Tanpa NIK**; NIK menyusul saat ekspor Dapodik/EMIS (§4.5) [OWNER, 2026-10-13]                                  |
-| OD-HR-02 | Hak menambah/mengubah pegawai                                                                                           | **DIPUTUSKAN** — hanya Admin SDM pusat (dan Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-13]                                                                                                   |
-| OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                                                               |
-| OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                                                     |
-| OD-HR-05 | Impor pegawai (HR-1e)                                                                                                   | **DIPUTUSKAN** — file Excel (.xlsx) + CSV dengan template; simpan hanya bila semua baris benar (semua atau tidak); orang ganda = peringatan + konfirmasi; impor hanya membuat pegawai baru [OWNER, 2026-10-14] |
-| OD-HR-06 | Alur persetujuan cuti                                                                                                   | **DIPUTUSKAN** — bisa diatur per jenjang/lembaga lewat aturan berjenjang: 1 tahap (Kepala Lembaga) atau 2 tahap (Kepala Lembaga lalu Admin SDM); bawaan 2 tahap [OWNER, 2026-10-22]                            |
-| OD-HR-07 | Cara menghitung jumlah hari cuti                                                                                        | **DIPUTUSKAN** — hari kerja: rentang tanggal dikurangi libur mingguan dan daftar hari libur (tanggal merah) di kalender kerja HR, terpisah dari kalender akademik [OWNER, 2026-10-22]                          |
-| OD-HR-08 | Sisa jatah cuti tahunan                                                                                                 | **DIPUTUSKAN** — hangus di akhir tahun kalender; Admin SDM bisa menambah lewat penyesuaian [OWNER, 2026-10-22]                                                                                                 |
+| ID       | Topik                                                                                                                   | Status                                                                                                                                                                                                                                                                                                                        |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-HR-01 | Data pribadi di HR-1                                                                                                    | **DIPUTUSKAN** — minimal: tempat & tanggal lahir, no. HP, alamat, pendidikan terakhir, NUPTK. **Tanpa NIK**; NIK menyusul saat ekspor Dapodik/EMIS (§4.5) [OWNER, 2026-10-13]                                                                                                                                                 |
+| OD-HR-02 | Hak menambah/mengubah pegawai                                                                                           | **DIPUTUSKAN** — hanya Admin SDM pusat (dan Admin Yayasan); Kepala Lembaga hanya melihat [OWNER, 2026-10-13]                                                                                                                                                                                                                  |
+| OD-HR-03 | Akun login & role pegawai                                                                                               | **DIPUTUSKAN** — halaman kelola akses (Core) dibuat sesudah HR-1, sebelum HR-3 Cuti; HR-1 tidak membuat akun [OWNER, 2026-10-13]                                                                                                                                                                                              |
+| OD-HR-04 | Penyederhanaan model data (§4.2), role Admin SDM & hak Admin Yayasan (§5.2), aturan penyaringan pegawai berhenti (§5.3) | **ASUMSI** — dianggap disetujui bila owner tidak keberatan                                                                                                                                                                                                                                                                    |
+| OD-HR-05 | Impor pegawai (HR-1e)                                                                                                   | **DIPUTUSKAN** — file Excel (.xlsx) + CSV dengan template; simpan hanya bila semua baris benar (semua atau tidak); orang ganda = peringatan + konfirmasi; impor hanya membuat pegawai baru [OWNER, 2026-10-14]                                                                                                                |
+| OD-HR-06 | Alur persetujuan cuti                                                                                                   | **DIPUTUSKAN** — bisa diatur per jenjang/lembaga lewat aturan berjenjang: 1 tahap (Kepala Lembaga) atau 2 tahap (Kepala Lembaga lalu Admin SDM); bawaan 2 tahap [OWNER, 2026-10-22]                                                                                                                                           |
+| OD-HR-07 | Cara menghitung jumlah hari cuti                                                                                        | **DIPUTUSKAN** — hari kerja: rentang tanggal dikurangi libur mingguan dan daftar hari libur (tanggal merah) di kalender kerja HR, terpisah dari kalender akademik [OWNER, 2026-10-22]                                                                                                                                         |
+| OD-HR-08 | Sisa jatah cuti tahunan                                                                                                 | **DIPUTUSKAN** — hangus di akhir tahun kalender; Admin SDM bisa menambah lewat penyesuaian [OWNER, 2026-10-22]                                                                                                                                                                                                                |
+| OD-HR-09 | Presensi pegawai: pencatat, rincian, jam kerja guru                                                                     | **DIPUTUSKAN** — pegawai absen sendiri **dan** petugas lembaga mengisi/mengoreksi; status + jam masuk/pulang; jam kerja guru dari jadwal mengajar, staf dari jam kerja per jenjang/lembaga; impor mesin absen menyusul [OWNER, 2026-10-22]. Presensi mengajar per jadwal & guru pengganti → Akademik AC-6 [OWNER, 2026-10-23] |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 
@@ -408,3 +409,37 @@ Desain lama HR-004 (Leave & Permit) **disederhanakan** untuk tim kecil (ADR-001)
 ### 13.7 Di luar HR-3
 
 Satuan jam/setengah hari, lampiran, carry-over, delegasi tugas selama cuti, guru pengganti (Academic), sinkron ke presensi pegawai (HR-4), notifikasi email/WA, potongan gaji.
+
+## 14. HR-4 Presensi pegawai [OWNER, 2026-10-22 — OD-HR-09 + usulan rincian disetujui]
+
+### 14.1 Aturan dasar
+
+- **Satu catatan per pegawai per hari** (`hr_attendances`): status, jam masuk, jam pulang, terlambat (menit), pulang cepat (menit), jam wajib saat dicatat, sumber jam (mandiri/petugas), keterangan (maks. 300), pengubah terakhir. Lembaga = penempatan utama saat dicatat.
+- **Status**: Hadir, Sakit, Izin, Alpa, Dinas luar. **Cuti** yang disetujui tampil otomatis dari data cuti (tidak disimpan di presensi) sehingga pembatalan cuti langsung tercermin [ASUMSI].
+- **Jam wajib per hari** [OWNER]:
+    - **Guru** = pegawai yang punya jadwal mengajar (AC-3) di tahun ajaran yang memuat tanggal itu: jam masuk = jam pelajaran pertama, jam pulang = jam pelajaran terakhir hari itu, gabungan semua lembaga. Hari tanpa pelajaran (termasuk libur kalender akademik) = tidak wajib hadir.
+    - **Staf**: aturan berjenjang **`hr.work_hours`** (jam masuk, jam pulang, toleransi terlambat dalam menit; bawaan 07.00–14.00, toleransi 15) di lembaga penempatan utama, pada hari kerja kalender kerja HR (§13.2).
+    - Toleransi terlambat guru memakai toleransi `hr.work_hours` lembaga penempatan utamanya [ASUMSI].
+- **Terlambat** = jam masuk lewat dari jam wajib + toleransi (menit dihitung dari jam wajib). **Pulang cepat** = jam pulang sebelum jam wajib selesai.
+- Hari wajib yang belum diisi = **"Belum diisi"**, tidak otomatis Alpa [ASUMSI].
+- **Batas modul**: HR mendefinisikan kontrak `Modules\HR\Contracts\TeachingSchedule`; Academic mengisinya dari jadwal & libur sekolah. Tanpa modul Academic semua pegawai dianggap staf.
+
+### 14.2 HR-4a Jam kerja & Presensi saya
+
+- Pengaturan **Jam kerja** per jenjang/lembaga di halaman Pengaturan cuti & presensi (Admin SDM/Admin Yayasan), sama seperti libur mingguan.
+- Halaman **Presensi saya** (`/presensi-saya`, menu muncul bila akun tertaut ke data pegawai): jam wajib hari ini, tombol **Absen masuk** / **Absen pulang** (hari ini saja, jam server), riwayat bulan berjalan.
+- Rincian teknis [ASUMSI]: absen masuk sekali per hari; absen pulang sekali dan tidak sebelum jam masuk; hari tidak wajib (libur/tanpa pelajaran) tetap boleh absen tanpa hitungan terlambat; ditolak bila hari itu tercatat cuti disetujui atau sudah diisi petugas dengan status selain Hadir; hanya pegawai aktif dengan penempatan utama. Tanpa GPS/QR; jam memakai menit (detik dibuang). Audit `hr.attendance_checked_in|checked_out` (jam & terlambat).
+
+### 14.3 HR-4b Lembar presensi pegawai (petugas)
+
+- Lembar per lembaga & tanggal: pegawai dengan penempatan utama di lembaga itu, jam wajib, status, jam masuk/pulang, keterangan; absen mandiri ditandai; cuti tampil otomatis.
+- Permission baru **`hr.attendance.manage`**: Kepala Lembaga (cakupannya), Admin SDM & Admin Yayasan (semua lembaga), dan role penugasan baru **Petugas Presensi** (dipasang per lembaga lewat Kelola akses) [ASUMSI].
+- Batas koreksi: petugas lembaga 7 hari ke belakang; Admin SDM/Admin Yayasan bebas; tidak di masa depan [ASUMSI]. Audit perubahan tanpa isi keterangan.
+
+### 14.4 HR-4c Rekap
+
+- Rekap bulanan per lembaga: hari wajib, hadir, terlambat (kali & menit), pulang cepat, sakit, izin, dinas luar, cuti, alpa, belum diisi; unduh .xlsx; ringkasan di Presensi saya & detail pegawai (bagi yang boleh melihat data pribadi).
+
+### 14.5 Di luar HR-4
+
+Impor/sinkron mesin absen (fingerprint) — menunggu contoh file; GPS/QR/geofencing; lembur & potongan gaji (HR-5). **Presensi mengajar per jadwal di tiap lembaga, jadwal piket, dan guru pengganti** dikerjakan di modul Akademik (PRD-002 §20, AC-6) [OWNER, 2026-10-23]; HR-4 tetap berisi kehadiran kerja harian.

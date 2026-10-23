@@ -352,6 +352,11 @@ final class ManageClassSubjects
                 throw ClassException::make('form', "Mata pelajaran {$subject->name} sudah punya nilai, jadi tidak bisa dilepas dari kelas.");
             }
 
+            // Riwayat presensi mengajar tidak boleh hilang (AC-6a).
+            if (DB::table('ac_teaching_records')->where('class_subject_id', $row->id)->exists()) {
+                throw ClassException::make('form', "Mata pelajaran {$subject->name} sudah punya presensi mengajar, jadi tidak bisa dilepas dari kelas. Hapus jadwalnya saja bila tidak dipakai lagi.");
+            }
+
             // Jadwal mapel ini ikut terhapus (FK cascade, AC-3c).
             $scheduleRows = DB::table('ac_schedule_entries')->where('class_subject_id', $row->id)->count();
 

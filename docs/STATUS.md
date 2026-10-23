@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-22
-- **Tahap aktif:** HR-3d-b — Saldo, penyesuaian jatah & rekap cuti (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `4544d79` — feat(hr): HR-3d-a kelola cuti admin SDM
+- **Diperbarui:** 2026-10-23
+- **Tahap aktif:** AC-6a — Jadwal piket & presensi mengajar (kode siap, menunggu verifikasi owner); HR-4a + fix1 menunggu push
+- **Commit terakhir:** `451f94d` — feat(hr): HR-3d-b saldo, penyesuaian jatah, rekap cuti
 
 ## Keputusan penting
 
@@ -35,6 +35,7 @@
 | 2026-10-14 | Satu lembaga kerja aktif; halaman tingkat Yayasan hanya dari "Seluruh Yayasan"; tanpa prefetch di navigasi                                                                                                                                         | PRD-000 §6                 |
 | 2026-10-14 | Kelola akses dari detail pegawai, hanya Admin Yayasan; akun dibuat dengan kata sandi sementara tampil sekali + wajib ganti; Kepala Lembaga tidak lagi kelola anggota; akun Superadmin & akun lintas yayasan tidak bisa diatur dari halaman yayasan | PRD-000 §4.7, OD-20–22     |
 | 2026-10-13 | Audit log aksi penting (append-only, IP & user agent, masa simpan 1 tahun); halaman log audit untuk Admin Yayasan; README mengasumsikan VPS Linux, script backup Linux & Windows                                                                   | PRD-000 OD-15–18           |
+| 2026-10-23 | Presensi dibagi dua: kehadiran kerja harian di HR-4; presensi mengajar per jadwal di tiap lembaga, jadwal piket, dan guru pengganti di Akademik AC-6 (ADR-001: HR tidak bergantung pada Academic)                                                  | PRD-002 §20, PRD-001 §14.5 |
 
 ## Fitur yang sudah ada
 
@@ -401,6 +402,18 @@
 
 **AC-5 Penilaian & rapor SELESAI (2026-10-22).**
 
+**AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
+
+**AC-6a — Jadwal piket & presensi mengajar: KODE SIAP (2026-10-23, menunggu verifikasi)**
+
+- Dibangun di atas HR-4a + fix1 (belum di origin saat dibuat).
+- Permission baru `academic.teaching.manage` (Operator Akademik, Admin Yayasan, Kepala Lembaga) → jalankan `educore:sync-access`; `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan.
+- Migrasi `2026_10_23_200013`: `ac_duty_rosters` (lembaga × tahun ajaran × hari × pegawai) dan `ac_teaching_records` (satu per baris jadwal × tanggal; status MENGAJAR/DIGANTIKAN/KOSONG, pengganti, alasan, keterangan, sumber GURU/PETUGAS/OTOMATIS; mapel, jam & pengampu tersalin).
+- `Domain/Teaching/{TeachingStatus, AbsenceReason, Exceptions/TeachingException}`; `Application/Teaching/{DutyRoster, Lessons (pertemuan per lembaga/guru + catatan), ManageTeachingRecords (markTaught, record), TeachingAccess (izin vs guru piket hari ini)}`.
+- `TeachingController`: `/akademik/presensi-mengajar` (+ `POST /{entry}`), `POST /kelas-saya/jadwal/{entry}/mengajar`; `DutyRosterController`: `/akademik/jadwal-piket`. Menu **Presensi mengajar** (izin atau prop bersama `academic.teachingDuty`). Kelas saya mendapat bagian **Presensi mengajar 7 hari terakhir**.
+- Mapel kelas yang punya presensi mengajar tidak bisa dilepas. Audit `academic.duty_roster_updated`, `academic.teaching_recorded` (tanpa keterangan).
+- Target bukti: 575 test (571 + 4 baru, `TeachingTest`).
+
 **HR-3 Cuti & Izin (PRD-001 §13, rincian disetujui 2026-10-22)**
 
 **HR-3a — Jenis cuti & kalender kerja: SELESAI (2026-10-22, commit `4cf3e44`)**
@@ -438,14 +451,27 @@
 - Bukti: 564 test lulus (4 test baru, `LeaveAdminTest`); perbaikan lint `no-base-to-string` (fix1); uji manual owner lancar.
 - Pelajaran: nilai `FormData.get()` bisa berupa `File`; cek `typeof value === 'string'` sebelum dipakai sebagai teks.
 
-**HR-3d-b — Saldo, penyesuaian jatah & rekap: KODE SIAP (2026-10-22, menunggu verifikasi)**
+**HR-3d-b — Saldo, penyesuaian jatah & rekap: SELESAI (2026-10-22, commit `451f94d`)**
 
 - Migrasi `2026_10_22_100009`: `hr_leave_adjustments` (pegawai, jenis berjatah, tahun, ±hari, alasan, oleh, waktu). `LeaveBalances` kini menjumlah penyesuaian + `table()` (saldo banyak pegawai sekaligus).
 - `Application/Leave/{ManageLeaveAdjustments (tahun berjalan/sebelumnya, sisa tidak boleh negatif, bukan diri sendiri), LeaveBalanceSheet (saldo per pegawai aktif + saringan), LeaveRecapExport (xlsx: "Daftar cuti" disetujui per periode + "Saldo {tahun}"), EmployeeLeaveSummary}`.
 - `LeaveBalanceController`: `/pegawai/cuti/saldo` (halaman `hr/leaves/balances`), `POST /pegawai/cuti/saldo/{employee}`, `/pegawai/cuti/rekap?tahun=&bulan=&lembaga=&jenis=`. Kelola cuti mendapat tombol **Saldo & rekap**.
 - Detail pegawai: bagian **Cuti {tahun}** (saldo + 5 cuti terbaru) bagi yang boleh melihat data pribadi; Admin SDM mendapat tombol Catat cuti & Saldo.
 - Audit `hr.leave_adjusted` (jenis, tahun, hari; tanpa alasan).
-- Target bukti: 568 test (4 test baru, `LeaveBalanceTest`).
+- Bukti: 568 test lulus (4 test baru, `LeaveBalanceTest`; fix1 perbandingan audit jsonb); uji manual owner lancar.
+- **HR-3 Cuti & Izin SELESAI (2026-10-22).**
+
+**HR-4 Presensi pegawai (PRD-001 §14, OD-HR-09, rincian disetujui 2026-10-22)** — absen mandiri + petugas; status + jam masuk/pulang; jam wajib guru dari jadwal mengajar, staf dari jam kerja per jenjang/lembaga; mesin absen menyusul.
+
+**HR-4a — Jam kerja & Presensi saya: KODE SIAP (2026-10-22, menunggu verifikasi)**
+
+- Migrasi `2026_10_22_100010`: `hr_attendances` (satu baris per pegawai per tanggal; lembaga, status, jam masuk/pulang + sumber MANDIRI/PETUGAS, jam wajib tersalin, terlambat & pulang cepat dalam menit, keterangan).
+- Kontrak baru `Modules\HR\Contracts\TeachingSchedule` (bawaan `NoTeachingSchedule`); Academic mengisinya lewat `Application/Classroom/AcademicTeachingSchedule` (jadwal kelas aktif + libur kalender akademik), didaftarkan di `AcademicServiceProvider::register()`.
+- `Application/Attendance/{WorkHoursSetting (hr.work_hours, bawaan 07:00–14:00 toleransi 15), ExpectedHours, ManageAttendance (checkIn/checkOut), MyAttendance}`; `Domain/Attendance/{AttendanceStatus, Exceptions/AttendanceException}`.
+- `MyAttendanceController`: `/presensi-saya` (+ `POST /masuk`, `/pulang`); menu **Presensi saya**. Pengaturan cuti → **Pengaturan cuti & presensi** dengan bagian **Jam kerja** (`POST /pegawai/cuti/jam-kerja`).
+- Audit `hr.attendance_checked_in|checked_out` (tanggal, jam, menit terlambat/pulang cepat).
+- Target bukti: 571 test (3 test baru, `MyAttendanceTest`).
+- Pelajaran (fix1): Larastan `nullsafe.neverNull` — `$x?->prop ?? …` tidak perlu `?->` (operator `??` sudah aman untuk properti); untuk beberapa cabang pakai `match (true)` agar jelas.
 - Pelajaran (fix1): kolom `jsonb` PostgreSQL menyusun ulang key (yang pendek dulu); di test bandingkan isi audit dengan `toEqual`, bukan `toBe`.
 
 ## Struktur file utama
@@ -485,5 +511,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-3d-b (PANDUAN-HR3D-B.md), migrate, commit & push → HR-3 Cuti & Izin selesai.
-2. Tentukan modul berikutnya bersama owner (mis. HR-2 atau HR-4 presensi pegawai, PRD-001 §3).
+1. Commit & push HR-4a + fix1, lalu verifikasi AC-6a (PANDUAN-AC6A.md), migrate, commit & push.
+2. AC-6b cuti & guru pengganti → AC-6c rekap presensi mengajar (PRD-002 §20).
+3. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).

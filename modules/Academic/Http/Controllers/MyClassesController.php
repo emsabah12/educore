@@ -2,12 +2,16 @@
 
 namespace Modules\Academic\Http\Controllers;
 
+use Carbon\CarbonImmutable;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Application\Classroom\ClassRosterExport;
 use Modules\Academic\Application\Classroom\MyClasses;
+use Modules\Academic\Application\Teaching\Lessons;
+use Modules\Academic\Application\Teaching\ManageTeachingRecords;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -22,17 +26,27 @@ final class MyClassesController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(MyClasses $myClasses): Response
+    public function index(MyClasses $myClasses, Lessons $lessons): Response
     {
         $context = $this->tenantContext->require();
         $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
         $classes = $employeeId === null ? [] : $myClasses->classes($context->tenantId, $employeeId);
+        $today = BusinessClock::todayString();
 
         return Inertia::render('academic/my-classes/index', [
             'linked' => $employeeId !== null,
             'classes' => $classes,
             'schedule' => $employeeId === null ? [] : $myClasses->schedule($employeeId, array_column($classes, 'id')),
             'days' => MyClasses::days(),
+            // Presensi mengajar 7 hari terakhir (PRD-002 §20.2, AC-6a).
+            'teaching' => $employeeId === null ? [] : $lessons->forTeacher(
+                $context->tenantId,
+                $employeeId,
+                BusinessClock::today()->subDays(ManageTeachingRecords::TEACHER_WINDOW_DAYS)->toDateString(),
+                $today,
+            ),
+            'today' => $today,
+            'now' => CarbonImmutable::now(BusinessClock::timezone())->format('H:i'),
         ]);
     }
 
