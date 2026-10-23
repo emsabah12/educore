@@ -24,6 +24,19 @@ test('users can authenticate with their email', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('sesudah login selalu ke Dashboard, bukan ke halaman terakhir sebelum sesi habis', function () {
+    $user = User::factory()->create(['email' => 'guru@example.com']);
+
+    // Tamu membuka halaman yang butuh login (mis. sesi habis): diarahkan ke login dan URL-nya diingat Laravel.
+    $this->get('/pegawai/cuti/pengaturan')->assertRedirect(route('login'));
+
+    $this->post(route('login.store'), ['login' => 'guru@example.com', 'password' => 'password'])
+        ->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticatedAs($user);
+    expect(session()->has('url.intended'))->toBeFalse();
+});
+
 test('users can authenticate with their username', function () {
     $user = User::factory()->create(['username' => 'budi.santoso']);
 
