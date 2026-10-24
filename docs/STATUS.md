@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-4c — Rekap presensi pegawai bulanan (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `58b83d0` — feat(hr): HR-4b lembar presensi pegawai oleh petugas
+- **Tahap aktif:** HR-2a — Dokumen & SK pegawai (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `e3df916` — feat(hr): HR-4c rekap presensi pegawai bulanan + xlsx + ringkasan
 
 ## Keputusan penting
 
@@ -38,6 +38,7 @@
 | 2026-10-23 | Presensi dibagi dua: kehadiran kerja harian di HR-4; presensi mengajar per jadwal di tiap lembaga, jadwal piket, dan guru pengganti di Akademik AC-6 (ADR-001: HR tidak bergantung pada Academic)                                                                         | PRD-002 §20, PRD-001 §14.5                               |
 | 2026-10-23 | NIK menjadi penanda unik orang (mengganti "tanpa NIK"): terenkripsi + fingerprint di `person_identifiers`; wajib untuk pegawai baru; nanti juga siswa & orang tua (opsional). Impor pegawai: kolom `nik` + `lembaga_tambahan` (guru di beberapa lembaga cukup satu baris) | PRD-001 OD-HR-01 §4.5 §6.2, PRD-002 OD-AC-02, PRD-000 §5 |
 | 2026-10-23 | Libur mingguan HR tetap terpisah dari kalender akademik (opsi A); Pengaturan cuti & presensi menampilkan libur kalender akademik sebagai pembanding + tanda ⚠ bila berbeda                                                                                                | PRD-001 §13.2, OD-HR-07                                  |
+| 2026-10-24 | "HR selesai" = inti: HR-2 Dokumen & SK → HR-5 komponen gaji (tetap, honor JP, potongan presensi, tunjangan lain; rekap input .xlsx) → HR-6a laporan; file dokumen di disk server privat, file tidak diganti (batalkan + unggah baru)                                      | PRD-001 §3, §15, OD-HR-10                                |
 
 ## Fitur yang sudah ada
 
@@ -553,15 +554,28 @@
 - Test: `AttendanceSheetTest` (5 test, awalan `lpp`).
 - Bukti: 618 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 
-**HR-4c — Rekap presensi pegawai bulanan: KODE SIAP (2026-10-24, menunggu verifikasi)**
+**HR-4c — Rekap presensi pegawai bulanan: SELESAI (2026-10-24, commit `e3df916`)**
 
 - `Application/Attendance/AttendanceRecap` (`month`, `range`, `forOrganization`, `forEmployee`; aturan hitung di docblock) dan `AttendanceRecapExport` (xlsx Rekap & Rincian).
 - `AttendanceSheetController::recap/recapExport` + route `pegawai/presensi/rekap` (`hr.attendance.recap`) & `/unduh` (`hr.attendance.recap.export`); halaman `hr/attendance/recap` (tabel di layar lebar, kartu di HP); tombol **Rekap bulanan** di Presensi pegawai.
 - Ringkasan bulan berjalan: prop `summary` di Presensi saya, prop `attendance` di detail pegawai (komponen `components/hr/attendance-summary.tsx`).
 - Test: `AttendanceRecapTest` (4 test, awalan `rpg`).
-- Bukti (salinan kerja Claude): 622 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 622 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 - Pelajaran: alias tipe phpstan berbentuk irisan (`array{...}&Counts`) tidak bisa di-resolve; tulis bentuk array lengkap.
-- **HR-4 Presensi pegawai SELESAI setelah HR-4c diverifikasi** (mesin absen menunggu contoh file, §14.5).
+- **HR-4 Presensi pegawai SELESAI (2026-10-24)** (mesin absen menunggu contoh file, §14.5).
+
+**Cakupan "HR selesai" [OWNER, 2026-10-24]:** HR-2a → HR-2b → HR-5 (komponen tetap, honor JP, potongan presensi, tunjangan lain → rekap input gaji .xlsx) → HR-6a (laporan & ekspor daftar pegawai). Sisanya menyusul (PRD-001 §3).
+
+**HR-2a — Dokumen & SK pegawai: KODE SIAP (2026-10-24, menunggu verifikasi)** — PRD-001 §15.1, OD-HR-10
+
+- Migrasi `2026_10_24_100011_create_hr_documents_tables` (`hr_document_types`, `hr_documents`).
+- Jenis dokumen = `CatalogKind::DocumentType` (`jenis-dokumen`, model `Domain/Catalog/DocumentType`, kolom `has_expiry`) — tab baru di Katalog SDM; `CreateCatalogItem` (+`hasExpiry`), `UpdateCatalogItem::setHasExpiry`, audit `hr.catalog_updated`; isi awal 7 jenis via `HrCatalogSeeder` (aman diulang).
+- `Domain/Document/{EmployeeDocument, Exceptions/DocumentException}`; `Application/Document/{DocumentData, DocumentFileStore (disk privat, finfo, SHA-256, nama aman), ManageEmployeeDocuments (add/update/void/download + audit), EmployeeDocuments (daftar + status HABIS/SEGERA ≤ 60 hari)}`.
+- `EmployeeDocumentController` + route `hr.employees.documents.{store,update,void,download}`; `EmployeeController::show` prop `documents` (bila view_personal) + `manage.options.documentTypes/documentMaxMb`.
+- Frontend: `components/hr/employee-documents.tsx` (bagian **Dokumen & SK**: daftar, tambah dengan unggah, ubah isian, batalkan, unduh, tampilkan yang dibatalkan); `pages/hr/catalog.tsx` (pilihan masa berlaku).
+- Test: `EmployeeDocumentTest` (5 test, awalan `dok`); `HrCatalogTest` disesuaikan (23 item awal, 4 katalog).
+- Bukti (salinan kerja Claude): 627 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Pelajaran: `UploadedFile::fake()` melaporkan MIME dari ekstensi; untuk menguji pemeriksaan isi file pakai `new UploadedFile($path, $name, null, null, true)` dari file sungguhan.
 
 ## Struktur file utama
 
@@ -600,5 +614,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-4c (PANDUAN-HR-4C.md), commit & push.
-2. Tahap berikutnya belum dirinci: pilihan dari PRD — HR-2 / HR-5 (belum dirinci), AC-7 (akun orang tua, ekspor Dapodik/EMIS yang kini bisa memakai NIK, PPDB, asrama), atau impor mesin absen (menunggu contoh file). Tentukan prioritas bersama owner.
+1. Verifikasi HR-2a (PANDUAN-HR-2A.md): `migrate`, seeder katalog, uji manual; pastikan `storage/app/private` ikut backup; commit & push.
+2. HR-2b: Dokumen saya + halaman Dokumen akan habis + kartu Beranda (PRD-001 §15.2).
+3. HR-5 komponen gaji (perlu contoh aturan gaji yayasan untuk dirinci), lalu HR-6a.
+4. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).

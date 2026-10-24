@@ -6,6 +6,7 @@ use Modules\HR\Http\Controllers\AttendanceSheetController;
 use Modules\HR\Http\Controllers\CatalogController;
 use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
+use Modules\HR\Http\Controllers\EmployeeDocumentController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
@@ -96,4 +97,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/{employee}/penempatan/{placement}/utama', [EmployeeActionController::class, 'makePrimary'])->whereUuid(['employee', 'placement'])->name('hr.employees.placements.primary');
     Route::post('pegawai/{employee}/berhenti', [EmployeeActionController::class, 'end'])->whereUuid('employee')->name('hr.employees.end');
     Route::post('pegawai/{employee}/aktifkan', [EmployeeActionController::class, 'rehire'])->whereUuid('employee')->name('hr.employees.rehire');
+
+    // Dokumen & SK pegawai (PRD-001 §15, HR-2a). Kelola: Admin SDM / Admin Yayasan; unduh: lihat data pribadi.
+    Route::post('pegawai/{employee}/dokumen', [EmployeeDocumentController::class, 'store'])->whereUuid('employee')->name('hr.employees.documents.store');
+    Route::patch('pegawai/{employee}/dokumen/{document}', [EmployeeDocumentController::class, 'update'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.update');
+    Route::post('pegawai/{employee}/dokumen/{document}/batalkan', [EmployeeDocumentController::class, 'void'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.void');
+    Route::get('pegawai/{employee}/dokumen/{document}/unduh', [EmployeeDocumentController::class, 'download'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.download');
 });

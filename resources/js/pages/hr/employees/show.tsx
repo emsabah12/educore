@@ -26,6 +26,8 @@ import {
 import Heading from '@/components/heading';
 import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
+import { DocumentSection } from '@/components/hr/employee-documents';
+import type { EmployeeDocument } from '@/components/hr/employee-documents';
 import {
     formatLeaveRange,
     LEAVE_STATUS_CLASS,
@@ -89,6 +91,8 @@ type Props = {
     leave: LeaveSummary | null;
     /** Ringkasan presensi bulan berjalan (HR-4c), hanya bagi yang boleh melihat data pribadi. */
     attendance: AttendanceSummaryData | null;
+    /** Dokumen & SK (HR-2a), hanya bagi yang boleh melihat data pribadi. */
+    documents: EmployeeDocument[] | null;
     canManageLeave: boolean;
 };
 
@@ -141,6 +145,7 @@ export default function EmployeeDetail({
     access,
     leave,
     attendance,
+    documents,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -456,6 +461,22 @@ export default function EmployeeDetail({
                     >
                         <AttendanceSummary summary={attendance} />
                     </Section>
+                )}
+
+                {documents && (
+                    <DocumentSection
+                        employeeId={employee.id}
+                        documents={documents}
+                        manage={
+                            manage
+                                ? {
+                                      today: manage.today,
+                                      types: manage.options.documentTypes,
+                                      maxMb: manage.options.documentMaxMb,
+                                  }
+                                : null
+                        }
+                    />
                 )}
 
                 {access && <LoginAccessSection access={access} />}

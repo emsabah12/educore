@@ -25,6 +25,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Attendance\AttendanceRecap;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Document\DocumentFileStore;
+use Modules\HR\Application\Document\EmployeeDocuments;
 use Modules\HR\Application\Employee\CreateEmployee;
 use Modules\HR\Application\Employee\EmployeeDirectory;
 use Modules\HR\Application\Employee\EmployeeFilters;
@@ -34,6 +36,7 @@ use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
 use Modules\HR\Domain\Catalog\CatalogKind;
+use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\Employee;
 use Modules\HR\Domain\Employee\EndReason;
@@ -100,6 +103,7 @@ final class EmployeeController
         MemberAccessSummary $memberAccess,
         EmployeeLeaveSummary $leaveSummary,
         AttendanceRecap $attendanceRecap,
+        EmployeeDocuments $employeeDocuments,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -129,6 +133,8 @@ final class EmployeeController
             'leave' => $withPersonal ? $leaveSummary->for($this->tenantContext->require()->tenantId, $employee) : null,
             // Ringkasan presensi bulan berjalan (HR-4c): hanya bagi yang boleh melihat data pribadi.
             'attendance' => $withPersonal ? $attendanceRecap->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
+            // Dokumen & SK (HR-2a): hanya bagi yang boleh melihat data pribadi pegawai ini.
+            'documents' => $withPersonal ? $employeeDocuments->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()
@@ -142,6 +148,8 @@ final class EmployeeController
                     'employmentTypes' => $this->catalogOptions(CatalogKind::EmploymentType),
                     'classifications' => $this->catalogOptions(CatalogKind::Classification),
                     'positions' => $this->catalogOptions(CatalogKind::Position),
+                    'documentTypes' => $this->documentTypeOptions(),
+                    'documentMaxMb' => intdiv(DocumentFileStore::MAX_KILOBYTES, 1024),
                     'organizations' => $this->organizationOptions(),
                     'educationLevels' => $this->educationOptions(),
                     'genders' => $this->genderOptions(),
@@ -362,6 +370,27 @@ final class EmployeeController
 
         foreach ($items as $item) {
             $options[] = ['value' => $item->id, 'label' => $item->is_active ? $item->name : "{$item->name} — nonaktif"];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Jenis dokumen (HR-2a), termasuk yang nonaktif agar dokumen lama tetap bisa diubah isiannya.
+     *
+     * @return list<array{value: string, label: string, has_expiry: bool, is_active: bool}>
+     */
+    private function documentTypeOptions(): array
+    {
+        $options = [];
+
+        foreach (DocumentType::query()->orderByDesc('is_active')->orderBy('name')->get() as $type) {
+            $options[] = [
+                'value' => $type->id,
+                'label' => $type->is_active ? $type->name : "{$type->name} — nonaktif",
+                'has_expiry' => $type->has_expiry,
+                'is_active' => $type->is_active,
+            ];
         }
 
         return $options;

@@ -5,13 +5,15 @@ namespace Modules\HR\Domain\Catalog;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Tiga katalog SDM per yayasan (PRD-001 §4.3). Nilai enum dipakai di URL halaman Katalog SDM.
+ * Katalog SDM per yayasan (PRD-001 §4.3), ditambah jenis dokumen (§15, HR-2a). Nilai enum dipakai di
+ * URL halaman Katalog SDM.
  */
 enum CatalogKind: string
 {
     case EmploymentType = 'jenis-pegawai';
     case Classification = 'status-kepegawaian';
     case Position = 'jabatan';
+    case DocumentType = 'jenis-dokumen';
 
     public function label(): string
     {
@@ -19,6 +21,7 @@ enum CatalogKind: string
             self::EmploymentType => 'Jenis pegawai',
             self::Classification => 'Status kepegawaian',
             self::Position => 'Jabatan',
+            self::DocumentType => 'Jenis dokumen',
         };
     }
 
@@ -31,6 +34,7 @@ enum CatalogKind: string
             self::EmploymentType => 'Bentuk hubungan kerja, mis. Tetap, Kontrak, Honorer.',
             self::Classification => 'Status kepegawaian yayasan, mis. GTY, GTT, PTY, PTT. Boleh dikosongkan di data pegawai.',
             self::Position => 'Jabatan di lembaga. Jabatan tidak memberi hak akses apa pun di aplikasi.',
+            self::DocumentType => 'Jenis dokumen & SK pegawai, mis. SK Pengangkatan, Kontrak Kerja. Jenis yang punya masa berlaku masuk pengingat dokumen akan habis.',
         };
     }
 
@@ -43,13 +47,14 @@ enum CatalogKind: string
             self::EmploymentType => 'hr_employment_type',
             self::Classification => 'hr_employment_classification',
             self::Position => 'hr_position',
+            self::DocumentType => 'hr_document_type',
         };
     }
 
     /**
      * Query model katalog jenis ini (ikut tersaring ke yayasan aktif bila konteks kerja ada).
      *
-     * @return Builder<EmploymentType>|Builder<EmploymentClassification>|Builder<Position>
+     * @return Builder<EmploymentType>|Builder<EmploymentClassification>|Builder<Position>|Builder<DocumentType>
      */
     public function query(): Builder
     {
@@ -57,6 +62,7 @@ enum CatalogKind: string
             self::EmploymentType => EmploymentType::query(),
             self::Classification => EmploymentClassification::query(),
             self::Position => Position::query(),
+            self::DocumentType => DocumentType::query(),
         };
     }
 
@@ -69,6 +75,15 @@ enum CatalogKind: string
             self::EmploymentType => new EmploymentType,
             self::Classification => new EmploymentClassification,
             self::Position => new Position,
+            self::DocumentType => new DocumentType,
         };
+    }
+
+    /**
+     * Katalog ini punya pilihan "punya masa berlaku" (hanya jenis dokumen).
+     */
+    public function hasExpiryFlag(): bool
+    {
+        return $this === self::DocumentType;
     }
 }

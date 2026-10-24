@@ -12,6 +12,9 @@ final class HrAuditAction
 
     public const CATALOG_RENAMED = 'hr.catalog_renamed';
 
+    /** Pilihan katalog selain nama diubah, mis. "punya masa berlaku" jenis dokumen (HR-2a). */
+    public const CATALOG_UPDATED = 'hr.catalog_updated';
+
     public const CATALOG_DEACTIVATED = 'hr.catalog_deactivated';
 
     public const CATALOG_ACTIVATED = 'hr.catalog_activated';
@@ -77,6 +80,17 @@ final class HrAuditAction
     /** Petugas mengisi/mengubah/menghapus presensi pegawai di lembar presensi (HR-4b). */
     public const ATTENDANCE_RECORDED = 'hr.attendance_recorded';
 
+    /** Dokumen pegawai (HR-2a): tambah, ubah isian, batalkan, unduh. Isi dokumen tidak dicatat. */
+    public const DOCUMENT_ADDED = 'hr.document_added';
+
+    public const DOCUMENT_UPDATED = 'hr.document_updated';
+
+    public const DOCUMENT_VOIDED = 'hr.document_voided';
+
+    public const DOCUMENT_DOWNLOADED = 'hr.document_downloaded';
+
+    public const SUBJECT_DOCUMENT = 'hr_document';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -92,6 +106,7 @@ final class HrAuditAction
         return [
             self::CATALOG_CREATED => 'Katalog SDM ditambahkan',
             self::CATALOG_RENAMED => 'Nama katalog SDM diubah',
+            self::CATALOG_UPDATED => 'Katalog SDM diubah',
             self::CATALOG_DEACTIVATED => 'Katalog SDM dinonaktifkan',
             self::CATALOG_ACTIVATED => 'Katalog SDM diaktifkan kembali',
             self::EMPLOYEE_CREATED => 'Pegawai ditambahkan',
@@ -121,6 +136,10 @@ final class HrAuditAction
             self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
             self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
             self::ATTENDANCE_RECORDED => 'Presensi pegawai dicatat petugas',
+            self::DOCUMENT_ADDED => 'Dokumen pegawai ditambahkan',
+            self::DOCUMENT_UPDATED => 'Isian dokumen pegawai diubah',
+            self::DOCUMENT_VOIDED => 'Dokumen pegawai dibatalkan',
+            self::DOCUMENT_DOWNLOADED => 'Dokumen pegawai diunduh',
         ];
     }
 }

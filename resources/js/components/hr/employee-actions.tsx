@@ -24,7 +24,15 @@ export type ManageData = {
         educationLevels: Option[];
         genders: Option[];
         endReasons: Option[];
+        /** Jenis dokumen (HR-2a), termasuk yang nonaktif. */
+        documentTypes: DocumentTypeOption[];
+        documentMaxMb: number;
     };
+};
+
+export type DocumentTypeOption = Option & {
+    has_expiry: boolean;
+    is_active: boolean;
 };
 
 export type PlacementRef = {

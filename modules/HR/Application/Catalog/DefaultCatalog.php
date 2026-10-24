@@ -10,6 +10,9 @@ use Modules\HR\Domain\Catalog\CatalogKind;
  */
 final class DefaultCatalog
 {
+    /** Kode jenis dokumen awal yang punya masa berlaku. */
+    public const DOCUMENT_TYPES_WITH_EXPIRY = ['KONTRAK'];
+
     /**
      * @return array<string, array<string, string>> nilai CatalogKind => [kode => nama]
      */
@@ -37,6 +40,16 @@ final class DefaultCatalog
                 'BENDAHARA' => 'Bendahara',
                 'OPERATOR' => 'Operator',
                 'STAF-BIRO' => 'Staf Biro',
+            ],
+            // HR-2a (§15): Kontrak Kerja punya masa berlaku (DOCUMENT_TYPES_WITH_EXPIRY).
+            CatalogKind::DocumentType->value => [
+                'SK-PENGANGKATAN' => 'SK Pengangkatan',
+                'SK-MUTASI' => 'SK Penempatan/Mutasi',
+                'SK-JABATAN' => 'SK Jabatan',
+                'KONTRAK' => 'Kontrak Kerja',
+                'IJAZAH' => 'Ijazah',
+                'SERTIFIKAT-PENDIDIK' => 'Sertifikat Pendidik',
+                'LAINNYA' => 'Dokumen lainnya',
             ],
         ];
     }

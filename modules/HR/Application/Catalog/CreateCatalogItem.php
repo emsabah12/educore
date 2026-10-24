@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Catalog\CatalogItem;
 use Modules\HR\Domain\Catalog\CatalogKind;
+use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Catalog\Exceptions\CatalogException;
 
 /**
@@ -28,7 +29,7 @@ final class CreateCatalogItem
     /**
      * @throws CatalogException
      */
-    public function handle(string $tenantId, CatalogKind $kind, string $code, string $name): CatalogItem
+    public function handle(string $tenantId, CatalogKind $kind, string $code, string $name, bool $hasExpiry = false): CatalogItem
     {
         $code = Str::upper(trim($code));
         $name = trim($name);
@@ -42,7 +43,7 @@ final class CreateCatalogItem
         }
 
         try {
-            return DB::transaction(function () use ($tenantId, $kind, $code, $name): CatalogItem {
+            return DB::transaction(function () use ($tenantId, $kind, $code, $name, $hasExpiry): CatalogItem {
                 $exists = $kind->query()
                     ->withoutGlobalScope('tenant')
                     ->where('tenant_id', $tenantId)
@@ -57,13 +58,21 @@ final class CreateCatalogItem
                 $item->tenant_id = $tenantId;
                 $item->code = $code;
                 $item->name = $name;
+                $changes = ['katalog' => $kind->label(), 'code' => $code, 'name' => $name];
+
+                // Hanya jenis dokumen (HR-2a) yang punya pilihan masa berlaku.
+                if ($item instanceof DocumentType) {
+                    $item->has_expiry = $hasExpiry;
+                    $changes['has_expiry'] = $hasExpiry;
+                }
+
                 $item->save();
 
                 $this->audit->record(
                     HrAuditAction::CATALOG_CREATED,
                     $kind->auditSubject(),
                     $item->id,
-                    ['katalog' => $kind->label(), 'code' => $code, 'name' => $name],
+                    $changes,
                     tenantId: $tenantId,
                 );
 

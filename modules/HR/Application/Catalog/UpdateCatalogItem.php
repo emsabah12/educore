@@ -8,6 +8,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Catalog\CatalogItem;
 use Modules\HR\Domain\Catalog\CatalogKind;
+use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Catalog\Exceptions\CatalogException;
 
 /**
@@ -76,6 +77,36 @@ final class UpdateCatalogItem
                 $kind->auditSubject(),
                 $item->id,
                 ['katalog' => $kind->label(), 'code' => $item->code, 'is_active' => [! $active, $active]],
+                tenantId: $tenantId,
+            );
+
+            return $item;
+        });
+    }
+
+    /**
+     * Ubah pilihan "punya masa berlaku" jenis dokumen (HR-2a). Dokumen lama tidak diubah; aturan baru
+     * berlaku saat dokumen ditambah/diubah.
+     *
+     * @throws CatalogException
+     */
+    public function setHasExpiry(string $tenantId, string $itemId, bool $hasExpiry): CatalogItem
+    {
+        return DB::transaction(function () use ($tenantId, $itemId, $hasExpiry): CatalogItem {
+            $item = $this->lockItem($tenantId, CatalogKind::DocumentType, $itemId);
+
+            if (! $item instanceof DocumentType || $item->has_expiry === $hasExpiry) {
+                return $item;
+            }
+
+            $item->has_expiry = $hasExpiry;
+            $item->save();
+
+            $this->audit->record(
+                HrAuditAction::CATALOG_UPDATED,
+                CatalogKind::DocumentType->auditSubject(),
+                $item->id,
+                ['katalog' => CatalogKind::DocumentType->label(), 'code' => $item->code, 'has_expiry' => [! $hasExpiry, $hasExpiry]],
                 tenantId: $tenantId,
             );
 
