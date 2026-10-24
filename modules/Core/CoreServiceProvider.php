@@ -15,6 +15,7 @@ use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Authorization\AccessScope;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
+use Modules\Core\Application\Dashboard\DashboardCards;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Console\CreateAdminCommand;
 use Modules\Core\Console\CreateSuperadminCommand;
@@ -50,6 +51,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         // Katalog yang diisi modul saat boot; berlaku selama aplikasi hidup.
         $this->app->singleton(AccessCatalog::class);
         $this->app->singleton(SettingRegistry::class);
+        $this->app->singleton(DashboardCards::class);
     }
 
     public function boot(): void

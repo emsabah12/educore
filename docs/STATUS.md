@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-2a — Dokumen & SK pegawai (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `e3df916` — feat(hr): HR-4c rekap presensi pegawai bulanan + xlsx + ringkasan
+- **Tahap aktif:** HR-2b — Dokumen saya, Dokumen akan habis, kartu Beranda (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `287f261` — feat(hr): HR-2a dokumen & SK pegawai (jenis dokumen, unggah, unduh, batalkan)
 
 ## Keputusan penting
 
@@ -566,7 +566,7 @@
 
 **Cakupan "HR selesai" [OWNER, 2026-10-24]:** HR-2a → HR-2b → HR-5 (komponen tetap, honor JP, potongan presensi, tunjangan lain → rekap input gaji .xlsx) → HR-6a (laporan & ekspor daftar pegawai). Sisanya menyusul (PRD-001 §3).
 
-**HR-2a — Dokumen & SK pegawai: KODE SIAP (2026-10-24, menunggu verifikasi)** — PRD-001 §15.1, OD-HR-10
+**HR-2a — Dokumen & SK pegawai: SELESAI (2026-10-24, commit `287f261`)** — PRD-001 §15.1, OD-HR-10
 
 - Migrasi `2026_10_24_100011_create_hr_documents_tables` (`hr_document_types`, `hr_documents`).
 - Jenis dokumen = `CatalogKind::DocumentType` (`jenis-dokumen`, model `Domain/Catalog/DocumentType`, kolom `has_expiry`) — tab baru di Katalog SDM; `CreateCatalogItem` (+`hasExpiry`), `UpdateCatalogItem::setHasExpiry`, audit `hr.catalog_updated`; isi awal 7 jenis via `HrCatalogSeeder` (aman diulang).
@@ -574,8 +574,18 @@
 - `EmployeeDocumentController` + route `hr.employees.documents.{store,update,void,download}`; `EmployeeController::show` prop `documents` (bila view_personal) + `manage.options.documentTypes/documentMaxMb`.
 - Frontend: `components/hr/employee-documents.tsx` (bagian **Dokumen & SK**: daftar, tambah dengan unggah, ubah isian, batalkan, unduh, tampilkan yang dibatalkan); `pages/hr/catalog.tsx` (pilihan masa berlaku).
 - Test: `EmployeeDocumentTest` (5 test, awalan `dok`); `HrCatalogTest` disesuaikan (23 item awal, 4 katalog).
-- Bukti (salinan kerja Claude): 627 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 627 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 - Pelajaran: `UploadedFile::fake()` melaporkan MIME dari ekstensi; untuk menguji pemeriksaan isi file pakai `new UploadedFile($path, $name, null, null, true)` dari file sungguhan.
+
+**HR-2b — Dokumen saya, Dokumen akan habis, kartu Beranda: KODE SIAP (2026-10-24, menunggu verifikasi)** — PRD-001 §15.2
+
+- Core: `Application/Dashboard/DashboardCards` (registri kartu Beranda, singleton) + `Http/Controllers/DashboardController` (route `dashboard` kini controller, prop `cards`); halaman `dashboard.tsx` diganti sambutan + kartu (placeholder starter kit dibuang).
+- HR: `Application/Document/ExpiringDocuments` (`list`, `counts`); `MyDocumentController` (`hr.my-documents.index|download`), `ExpiringDocumentController` (`hr.documents.expiring`); kartu `hr.expiring_documents` didaftarkan di `HRServiceProvider`.
+- Frontend: `pages/hr/my-documents.tsx`, `pages/hr/documents/expiring.tsx`; `DocumentSection` menerima `downloadUrl`; menu **Dokumen saya** & **Dokumen akan habis**.
+- `EmployeeDocuments` kini diurutkan juga dengan `id` (UUIDv7) agar urutan stabil saat waktu dibuat sama.
+- Test: `DocumentSelfServiceTest` (4 test, awalan `dks`).
+- Bukti (salinan kerja Claude): 631 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- **HR-2 Dokumen & SK SELESAI setelah HR-2b diverifikasi.**
 
 ## Struktur file utama
 
@@ -614,7 +624,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-2a (PANDUAN-HR-2A.md): `migrate`, seeder katalog, uji manual; pastikan `storage/app/private` ikut backup; commit & push.
-2. HR-2b: Dokumen saya + halaman Dokumen akan habis + kartu Beranda (PRD-001 §15.2).
-3. HR-5 komponen gaji (perlu contoh aturan gaji yayasan untuk dirinci), lalu HR-6a.
-4. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).
+1. Verifikasi HR-2b (PANDUAN-HR-2B.md), commit & push.
+2. HR-5 komponen gaji (perlu contoh aturan gaji yayasan untuk dirinci), lalu HR-6a.
+3. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).

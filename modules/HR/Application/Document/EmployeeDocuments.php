@@ -50,6 +50,7 @@ final class EmployeeDocuments
             ->orderByRaw('voided_at IS NOT NULL')
             ->orderByRaw('COALESCE(issued_on, valid_from) DESC NULLS LAST')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         $types = DocumentType::query()

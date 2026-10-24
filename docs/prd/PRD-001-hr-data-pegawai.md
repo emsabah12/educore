@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.16 (2026-10-24: cakupan "HR selesai" ditetapkan — §3; rincian HR-2 Dokumen & SK — §15, OD-HR-10; pembangunan HR-2a)
-- **Versi sebelumnya:** 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: **HR-2a dibangun 2026-10-24**; HR-5, HR-6a belum dirinci
+- **Versi:** 0.17 (2026-10-24: rincian & pembangunan HR-2b Dokumen saya, Dokumen akan habis, kartu Beranda — §15.2)
+- **Versi sebelumnya:** 0.16 (cakupan "HR selesai" — §3; HR-2 Dokumen & SK — §15, OD-HR-10; HR-2a), 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: HR-2a SELESAI (`287f261`), **HR-2b dibangun 2026-10-24**; HR-5, HR-6a belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -493,6 +493,10 @@ Desain lama HR-008 **disederhanakan** (ADR-001): tanpa versi file, status DRAFT/
 
 - **Dokumen saya**: pegawai (akun tertaut ke data pegawai) melihat & mengunduh dokumennya sendiri yang berlaku (tanpa permission, seperti Cuti saya).
 - **Dokumen akan habis**: halaman untuk Admin SDM/Admin Yayasan berisi dokumen berlaku yang sudah habis atau habis dalam ≤ 60 hari, ditambah kartu ringkas di Beranda. Belum ada email/WA (infrastruktur notifikasi belum ada). Kontrak habis **tidak** memberhentikan pegawai otomatis.
+- Rincian HR-2b [ASUMSI, 2026-10-24]:
+    - **Dokumen saya** (`/dokumen-saya`, menu muncul bersama Cuti saya & Presensi saya): hanya dokumen yang **berlaku** (yang dibatalkan tidak tampil); unduhan tercatat di audit `hr.document_downloaded`. Dokumen batal atau milik pegawai lain → 404.
+    - **Dokumen akan habis** (`/pegawai/dokumen/akan-habis`, menu tingkat Yayasan bagi pemilik `hr.employees.manage`): dokumen berlaku milik pegawai **aktif** (pegawai berhenti tidak diingatkan), dikelompokkan **Sudah habis** dan **Habis dalam 60 hari**, urut tanggal habis; tiap baris menautkan ke detail pegawai (lembaga = penempatan utama). Perpanjangan = unggah dokumen baru lalu batalkan yang lama bila perlu.
+    - **Beranda**: kartu **Dokumen akan habis** (jumlah + "x sudah habis, y habis dalam 60 hari"; merah bila ada yang habis, kuning bila hanya akan habis). Kartu didaftarkan modul HR ke registri kartu Beranda milik Core (`DashboardCards`) sehingga Core tetap tidak bergantung pada HR; Beranda tanpa kartu hanya menampilkan sambutan.
 
 ### 15.3 Di luar HR-2
 

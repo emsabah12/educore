@@ -6,6 +6,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use Inertia\Inertia;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
+use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Dashboard\DashboardCards;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\ModuleServiceProvider;
@@ -13,6 +15,8 @@ use Modules\HR\Application\Attendance\NoTeachingSchedule;
 use Modules\HR\Application\Attendance\WorkHoursSetting;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Document\EmployeeDocuments;
+use Modules\HR\Application\Document\ExpiringDocuments;
 use Modules\HR\Application\Employee\EloquentActiveEmployees;
 use Modules\HR\Application\Employee\EloquentEmployeeLookup;
 use Modules\HR\Application\Leave\EloquentApprovedLeaves;
@@ -67,6 +71,9 @@ class HRServiceProvider extends ModuleServiceProvider
             // Jam kerja staf per jenjang/lembaga (PRD-001 §14.1).
             ->define(WorkHoursSetting::definition());
 
+        // Kartu Beranda "Dokumen akan habis" (PRD-001 §15.2, HR-2b): hanya Admin SDM / Admin Yayasan.
+        $this->app->make(DashboardCards::class)->register('hr.expiring_documents', fn (): ?array => $this->expiringDocumentsCard());
+
         // Petunjuk menu "Cuti saya" & "Presensi saya" (HR-3b, HR-4a): akun tertaut ke data pegawai di yayasan aktif.
         Inertia::share('hr', fn (): array => ['isEmployee' => $this->isEmployee()]);
 
@@ -78,6 +85,31 @@ class HRServiceProvider extends ModuleServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('hr:prune-imports')->hourly()->withoutOverlapping();
         });
+    }
+
+    /**
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function expiringDocumentsCard(): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        if ($context === null || ! $this->app->make(AuthorizationService::class)->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed()) {
+            return null;
+        }
+
+        $counts = $this->app->make(ExpiringDocuments::class)->counts($context->tenantId);
+
+        return [
+            'key' => 'hr.expiring_documents',
+            'title' => 'Dokumen akan habis',
+            'value' => $counts['expired'] + $counts['expiring'],
+            'description' => $counts['expired'] + $counts['expiring'] === 0
+                ? 'Tidak ada dokumen pegawai yang habis dalam '.EmployeeDocuments::EXPIRING_DAYS.' hari.'
+                : "{$counts['expired']} sudah habis, {$counts['expiring']} habis dalam ".EmployeeDocuments::EXPIRING_DAYS.' hari.',
+            'href' => '/pegawai/dokumen/akan-habis',
+            'tone' => $counts['expired'] > 0 ? 'danger' : ($counts['expiring'] > 0 ? 'warning' : 'default'),
+        ];
     }
 
     /**

@@ -69,10 +69,13 @@ export function DocumentSection({
     employeeId,
     documents,
     manage,
+    downloadUrl,
 }: {
     employeeId: string;
     documents: EmployeeDocument[];
     manage: DocumentManage | null;
+    /** Alamat unduh; bawaan lewat detail pegawai. Dokumen saya (HR-2b) memakai `/dokumen-saya/…`. */
+    downloadUrl?: (document: EmployeeDocument) => string;
 }) {
     const [adding, setAdding] = useState(false);
     const [showVoided, setShowVoided] = useState(false);
@@ -124,6 +127,7 @@ export function DocumentSection({
                             employeeId={employeeId}
                             document={document}
                             manage={manage}
+                            downloadUrl={downloadUrl}
                         />
                     ))}
                 </ul>
@@ -150,10 +154,12 @@ function DocumentRow({
     employeeId,
     document,
     manage,
+    downloadUrl,
 }: {
     employeeId: string;
     document: EmployeeDocument;
     manage: DocumentManage | null;
+    downloadUrl?: (document: EmployeeDocument) => string;
 }) {
     const [mode, setMode] = useState<'view' | 'edit' | 'void'>('view');
     const baseUrl = `/pegawai/${employeeId}/dokumen/${document.id}`;
@@ -199,7 +205,13 @@ function DocumentRow({
                     </div>
                 </div>
                 <Button variant="outline" size="sm" asChild>
-                    <a href={`${baseUrl}/unduh`}>
+                    <a
+                        href={
+                            downloadUrl
+                                ? downloadUrl(document)
+                                : `${baseUrl}/unduh`
+                        }
+                    >
                         <Download />
                         Unduh
                     </a>

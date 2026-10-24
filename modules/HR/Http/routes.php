@@ -8,11 +8,13 @@ use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeDocumentController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
+use Modules\HR\Http\Controllers\ExpiringDocumentController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
 use Modules\HR\Http\Controllers\LeaveBalanceController;
 use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
+use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
 
 /*
@@ -74,6 +76,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/cuti/rekap', [LeaveBalanceController::class, 'export'])->name('hr.leave-balances.export');
     Route::get('pegawai/cuti/{leave}', [LeaveAdminController::class, 'show'])->whereUuid('leave')->name('hr.leaves.show');
     Route::post('pegawai/cuti/{leave}/batalkan', [LeaveAdminController::class, 'cancel'])->whereUuid('leave')->name('hr.leaves.cancel');
+
+    // Dokumen saya (layanan mandiri) & Dokumen akan habis (Admin SDM) — PRD-001 §15.2, HR-2b.
+    Route::get('dokumen-saya', [MyDocumentController::class, 'index'])->name('hr.my-documents.index');
+    Route::get('dokumen-saya/{document}/unduh', [MyDocumentController::class, 'download'])->whereUuid('document')->name('hr.my-documents.download');
+    Route::get('pegawai/dokumen/akan-habis', [ExpiringDocumentController::class, 'index'])->name('hr.documents.expiring');
 
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');

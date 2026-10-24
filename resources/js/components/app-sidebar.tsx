@@ -8,6 +8,8 @@ import {
     ClipboardList,
     ClipboardPen,
     Clock,
+    FileClock,
+    FileText,
     GraduationCap,
     LayoutGrid,
     Network,
@@ -98,6 +100,18 @@ const myLeaveNavItem: NavItem = {
     icon: Plane,
 };
 
+const myDocumentsNavItem: NavItem = {
+    title: 'Dokumen saya',
+    href: '/dokumen-saya',
+    icon: FileText,
+};
+
+const expiringDocumentsNavItem: NavItem = {
+    title: 'Dokumen akan habis',
+    href: '/pegawai/dokumen/akan-habis',
+    icon: FileClock,
+};
+
 const leaveApprovalsNavItem: NavItem = {
     title: 'Persetujuan cuti',
     href: '/persetujuan-cuti',
@@ -168,7 +182,9 @@ export function AppSidebar() {
         academic?.teachingDuty
             ? [teachingNavItem]
             : []),
-        ...(hr?.isEmployee ? [myAttendanceNavItem, myLeaveNavItem] : []),
+        ...(hr?.isEmployee
+            ? [myAttendanceNavItem, myLeaveNavItem, myDocumentsNavItem]
+            : []),
         ...(permissions.includes('hr.attendance.manage')
             ? [attendanceSheetNavItem]
             : []),
@@ -178,6 +194,9 @@ export function AppSidebar() {
             : []),
         ...(atTenantLevel && permissions.includes('hr.leave.manage')
             ? [leavesNavItem]
+            : []),
+        ...(atTenantLevel && permissions.includes('hr.employees.manage')
+            ? [expiringDocumentsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.catalog.manage')
             ? [hrCatalogNavItem]
