@@ -219,6 +219,7 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,
+            HrAccess::ATTENDANCE_MANAGE,
             HrAccess::EMPLOYEES_VIEW,
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
             HrAccess::LEAVE_APPROVE,

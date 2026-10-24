@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\HR\Domain\Catalog\CatalogKind;
+use Modules\HR\Http\Controllers\AttendanceSheetController;
 use Modules\HR\Http\Controllers\CatalogController;
 use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
@@ -45,6 +46,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('cuti-saya/{leave}/tarik', [MyLeaveController::class, 'withdraw'])->whereUuid('leave')->name('hr.my-leave.withdraw');
 
     // Presensi saya — absen mandiri (PRD-001 §14.2, HR-4a). Tanpa permission: akun tertaut ke data pegawai.
+    // Lembar presensi pegawai oleh petugas (PRD-001 §14.3, HR-4b).
+    Route::get('pegawai/presensi', [AttendanceSheetController::class, 'index'])->name('hr.attendance.index');
+    Route::post('pegawai/presensi', [AttendanceSheetController::class, 'store'])->name('hr.attendance.store');
+
     Route::get('presensi-saya', [MyAttendanceController::class, 'index'])->name('hr.my-attendance.index');
     Route::post('presensi-saya/masuk', [MyAttendanceController::class, 'checkIn'])->name('hr.my-attendance.check-in');
     Route::post('presensi-saya/pulang', [MyAttendanceController::class, 'checkOut'])->name('hr.my-attendance.check-out');

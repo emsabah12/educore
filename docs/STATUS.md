@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** AC-6c — rekap presensi mengajar bulanan (kode siap, menunggu verifikasi owner); AC-6b-2 lolos uji owner, menunggu push
-- **Commit terakhir:** `6360f6a` — feat(academic): AC-1g-b NIK di impor siswa (AC-1g-a ikut di commit ini)
+- **Tahap aktif:** HR-4b — Lembar presensi pegawai oleh petugas (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `c13d0d7` — feat(academic): AC-6c rekap presensi mengajar bulanan
 
 ## Keputusan penting
 
@@ -526,7 +526,7 @@
 - Test: `StudentImportNikTest` (4 test, awalan `sni`).
 - Bukti: 605 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar (termasuk masuk kelas lewat impor).
 
-**AC-6b-2 — Tugas pengganti & presensi siswa oleh pengganti: SELESAI uji owner (2026-10-24, menunggu push)**
+**AC-6b-2 — Tugas pengganti & presensi siswa oleh pengganti: SELESAI (2026-10-24, commit `bc3d261`)**
 
 - `Application/Teaching/SubstituteTasks` (daftar tugas menggantikan, `hasAny` untuk menu, `find`, `fillable`). Kelas saya mengirim `substitutions`; menu Kelas saya juga muncul bagi pengganti tanpa kelas (`AcademicServiceProvider::hasMyClasses`).
 - `AttendanceController::showSubstitute/storeSubstitute` + route `kelas-saya/menggantikan/{entry}/{date}/presensi` (`academic.substitute-attendance.show|store`); lembar presensi menerima rentang tetap satu tanggal dan prop `asSubstitute`.
@@ -535,7 +535,7 @@
 - Test: `SubstituteTaskTest` (5 test, awalan `sbt`).
 - Bukti (salinan kerja Claude): 610 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 
-**AC-6c — Rekap presensi mengajar bulanan: KODE SIAP (2026-10-24, menunggu verifikasi)**
+**AC-6c — Rekap presensi mengajar bulanan: SELESAI (2026-10-24, commit `c13d0d7`)**
 
 - Dibangun di atas AC-6b-2 (belum di origin saat paket dibuat).
 - `Application/Teaching/TeachingRecap` (bulan sah, label, `build`: baris per guru + jumlah + daftar pertemuan, memakai `Lessons::forOrganization` per hari) dan `TeachingRecapExport` (xlsx: Rekap & Rincian).
@@ -543,7 +543,15 @@
 - Halaman `academic/teaching/recap` (tabel di layar lebar, kartu di HP); tombol **Rekap** di Presensi mengajar (pemilik izin).
 - Test: `TeachingRecapTest` (3 test, awalan `rmg`).
 - Bukti (salinan kerja Claude): 613 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
-- **AC-6 Presensi mengajar & guru pengganti SELESAI setelah AC-6c diverifikasi.**
+- **AC-6 Presensi mengajar & guru pengganti SELESAI (2026-10-24).**
+
+**HR-4b — Lembar presensi pegawai (petugas): KODE SIAP (2026-10-24, menunggu verifikasi)**
+
+- Permission baru `hr.attendance.manage` (Admin SDM, Admin Yayasan, Kepala Lembaga) dan role penugasan baru **Petugas Presensi** (`petugas-presensi`) → jalankan `educore:sync-access`. `AccessCatalogTest`, `MemberAccessTest`, `TreeAuthorizationTest` disesuaikan.
+- `Application/Attendance/AttendanceSheet` (`rows`, `save`, `earliest`; aturan di docblock). Audit `hr.attendance_recorded`.
+- `AttendanceSheetController` + route `GET|POST pegawai/presensi` (`hr.attendance.index|store`); halaman `hr/attendance/sheet` (kartu per pegawai, tombol simpan menempel di bawah); menu **Presensi pegawai**.
+- Test: `AttendanceSheetTest` (5 test, awalan `lpp`).
+- Bukti (salinan kerja Claude): 618 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 
 ## Struktur file utama
 
@@ -582,5 +590,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Push AC-6b-2, lalu verifikasi AC-6c (PANDUAN-AC-6C.md), commit & push.
-2. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).
+1. Verifikasi HR-4b (PANDUAN-HR-4B.md), `educore:sync-access`, commit & push.
+2. HR-4c rekap presensi pegawai bulanan + .xlsx + ringkasan di Presensi saya & detail pegawai (PRD-001 §14.4).

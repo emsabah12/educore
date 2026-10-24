@@ -16,6 +16,7 @@ import {
     ScrollText,
     ShieldCheck,
     Tags,
+    UserCheck,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -83,6 +84,12 @@ const myAttendanceNavItem: NavItem = {
     title: 'Presensi saya',
     href: '/presensi-saya',
     icon: Clock,
+};
+
+const attendanceSheetNavItem: NavItem = {
+    title: 'Presensi pegawai',
+    href: '/pegawai/presensi',
+    icon: UserCheck,
 };
 
 const myLeaveNavItem: NavItem = {
@@ -162,6 +169,9 @@ export function AppSidebar() {
             ? [teachingNavItem]
             : []),
         ...(hr?.isEmployee ? [myAttendanceNavItem, myLeaveNavItem] : []),
+        ...(permissions.includes('hr.attendance.manage')
+            ? [attendanceSheetNavItem]
+            : []),
         ...(permissions.includes('hr.leave.approve') ||
         (atTenantLevel && permissions.includes('hr.leave.manage'))
             ? [leaveApprovalsNavItem]

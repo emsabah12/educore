@@ -74,6 +74,9 @@ final class HrAuditAction
     /** Pegawai absen pulang sendiri (HR-4a). */
     public const ATTENDANCE_CHECKED_OUT = 'hr.attendance_checked_out';
 
+    /** Petugas mengisi/mengubah/menghapus presensi pegawai di lembar presensi (HR-4b). */
+    public const ATTENDANCE_RECORDED = 'hr.attendance_recorded';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -117,6 +120,7 @@ final class HrAuditAction
             self::LEAVE_ADJUSTED => 'Jatah cuti disesuaikan',
             self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
             self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
+            self::ATTENDANCE_RECORDED => 'Presensi pegawai dicatat petugas',
         ];
     }
 }

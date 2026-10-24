@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.13 (2026-10-23: NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor kolom `nik` dan `lembaga_tambahan` — §6.2; HR-1g)
-- **Versi sebelumnya:** 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b/4c sesudah Akademik AC-6; **HR-1g (NIK + lembaga tambahan di impor) dibangun 2026-10-23**; HR-2, HR-5 dst. belum dirinci
+- **Versi:** 0.14 (2026-10-24: rincian & pembangunan HR-4b Lembar presensi pegawai — §14.3)
+- **Versi sebelumnya:** 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), **HR-4b dibangun 2026-10-24**, HR-4c berikutnya; **HR-1g SELESAI (`9849873`)**; HR-2, HR-5 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -446,6 +446,14 @@ Satuan jam/setengah hari, lampiran, carry-over, delegasi tugas selama cuti, guru
 - Lembar per lembaga & tanggal: pegawai dengan penempatan utama di lembaga itu, jam wajib, status, jam masuk/pulang, keterangan; absen mandiri ditandai; cuti tampil otomatis.
 - Permission baru **`hr.attendance.manage`**: Kepala Lembaga (cakupannya), Admin SDM & Admin Yayasan (semua lembaga), dan role penugasan baru **Petugas Presensi** (dipasang per lembaga lewat Kelola akses) [ASUMSI].
 - Batas koreksi: petugas lembaga 7 hari ke belakang; Admin SDM/Admin Yayasan bebas; tidak di masa depan [ASUMSI]. Audit perubahan tanpa isi keterangan.
+- Rincian teknis HR-4b [ASUMSI, 2026-10-24]:
+    - Halaman **Presensi pegawai** (`/pegawai/presensi?lembaga=&tanggal=`, menu bagi pemilik `hr.attendance.manage`). Pilihan lembaga = node aktif di cakupan izin (termasuk Biro/Unit tempat staf ditempatkan). Pegawai di lembar = penempatan **utama** di lembaga itu pada tanggal itu, urut nama.
+    - "Petugas lembaga 7 hari" = hari ini s.d. 6 hari sebelumnya; "bebas" = pemegang izin dari role tingkat Yayasan di lembaga kerja Seluruh Yayasan.
+    - Setiap baris: jam wajib (§14.1), status (kosong = Belum diisi), jam masuk/pulang (hanya Hadir & Dinas luar; jam pulang tidak sebelum jam masuk, wajib ada jam masuk), keterangan maks. 300. Terlambat & pulang cepat dihitung untuk **Hadir** saja. Mengosongkan status baris yang sudah terisi **menghapus** catatannya.
+    - Absen mandiri tampil bertanda; jam yang tidak diubah petugas tetap bersumber MANDIRI, yang diisi/diubah petugas bersumber PETUGAS. Pengubah terakhir tampil.
+    - Pegawai yang cuti disetujui pada tanggal itu tampil "Cuti (jenis)" dan tidak bisa diisi dari lembar.
+    - Simpan seluruh lembar sekaligus; hanya baris yang berubah ditulis. Audit `hr.attendance_recorded` per baris (tanggal, status, jam, terlambat, koreksi ya/tidak) tanpa isi keterangan.
+    - Role penugasan **Petugas Presensi** (`petugas-presensi`) hanya berisi `hr.attendance.manage`; dipasang per lembaga di Kelola akses → `php artisan educore:sync-access`.
 
 ### 14.4 HR-4c Rekap
 
