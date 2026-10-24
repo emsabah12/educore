@@ -8,6 +8,7 @@ import {
     UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
+import { NikField } from '@/components/nik-field';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const FIELD_LABELS: Record<string, string> = {
     birth_date: 'Tanggal lahir',
     phone: 'Nomor HP siswa',
     nisn: 'NISN',
+    nik: 'NIK siswa',
     address: 'Alamat',
     organization_id: 'Lembaga',
     student_number: 'Nomor induk siswa',
@@ -57,6 +59,7 @@ const GUARDIAN_FIELD_LABELS: Record<string, string> = {
     name: 'nama',
     gender: 'jenis kelamin',
     phone: 'nomor HP',
+    nik: 'NIK',
 };
 
 /** "guardians.1.phone" → "Orang tua/wali ke-2 — nomor HP". */
@@ -94,6 +97,11 @@ export default function CreateStudent({
     const [guardianKeys, setGuardianKeys] = useState<number[]>([]);
     const [nextKey, setNextKey] = useState(0);
     const [primary, setPrimary] = useState(0);
+    // Untuk peringatan NIK vs tanggal lahir/jenis kelamin (tidak menghalangi simpan).
+    const [birthDate, setBirthDate] = useState('');
+    const [gender, setGender] = useState('');
+    // Kolom NIK menyimpan isiannya sendiri: ganti key agar ikut kosong sesudah simpan.
+    const [savedCount, setSavedCount] = useState(0);
 
     const addGuardian = () => {
         setGuardianKeys([...guardianKeys, nextKey]);
@@ -113,6 +121,9 @@ export default function CreateStudent({
         setChoice('');
         setGuardianKeys([]);
         setPrimary(0);
+        setBirthDate('');
+        setGender('');
+        setSavedCount((count) => count + 1);
     };
 
     const singleOrganization =
@@ -189,6 +200,7 @@ export default function CreateStudent({
                                         name="gender"
                                         options={options.genders}
                                         placeholder="Pilih jenis kelamin"
+                                        onChange={setGender}
                                         required
                                     />
                                 </Field>
@@ -213,6 +225,9 @@ export default function CreateStudent({
                                         name="birth_date"
                                         type="date"
                                         max={today}
+                                        onChange={(event) =>
+                                            setBirthDate(event.target.value)
+                                        }
                                     />
                                 </Field>
                                 <Field
@@ -241,6 +256,16 @@ export default function CreateStudent({
                                         maxLength={14}
                                     />
                                 </Field>
+                                <NikField
+                                    key={`nik-${savedCount}`}
+                                    id="nik"
+                                    label="NIK siswa"
+                                    required={false}
+                                    birthDate={birthDate}
+                                    gender={gender}
+                                    error={errors.nik}
+                                    hint="Opsional. Bila sudah tercatat, siswa yang sama ikut ditampilkan."
+                                />
                                 <Field
                                     id="address"
                                     label="Alamat"
@@ -529,6 +554,15 @@ function GuardianRow({
                         maxLength={25}
                     />
                 </Field>
+                <NikField
+                    id={id('nik')}
+                    name={name('nik')}
+                    required={false}
+                    birthDate=""
+                    gender=""
+                    error={error('nik')}
+                    hint="Opsional. NIK yang sudah tercatat = orang yang sama (dipakai ulang)."
+                />
             </div>
 
             {/* Grid otomatis agar tombol turun baris di HP. */}
@@ -716,6 +750,7 @@ function SelectOptions({
     placeholder,
     defaultValue = '',
     required = false,
+    onChange,
 }: {
     id: string;
     name: string;
@@ -723,6 +758,7 @@ function SelectOptions({
     placeholder: string;
     defaultValue?: string;
     required?: boolean;
+    onChange?: (value: string) => void;
 }) {
     return (
         <select
@@ -731,6 +767,7 @@ function SelectOptions({
             className={selectClass}
             defaultValue={defaultValue}
             required={required}
+            onChange={(event) => onChange?.(event.target.value)}
         >
             <option value="" disabled={required}>
                 {placeholder}

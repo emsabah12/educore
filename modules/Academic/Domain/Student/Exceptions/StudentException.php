@@ -105,6 +105,21 @@ final class StudentException extends DomainException
         return new self('primary_guardian', 'Pilih salah satu orang tua/wali sebagai kontak utama.');
     }
 
+    public static function nikInvalid(string $field = 'nik'): self
+    {
+        return new self($field, 'NIK harus 16 angka.');
+    }
+
+    public static function nikMismatch(): self
+    {
+        return new self('nik', 'NIK berbeda dengan yang sudah tercatat untuk orang ini. Kosongkan bila tidak ingin mengubahnya.');
+    }
+
+    public static function nikCannotBeRemoved(): self
+    {
+        return new self('nik', 'NIK yang sudah tercatat tidak bisa dikosongkan. Perbaiki angkanya bila salah.');
+    }
+
     public static function conflict(): self
     {
         return new self('form', 'Data berubah saat disimpan (mungkin diisi bersamaan). Muat ulang halaman lalu coba lagi.');

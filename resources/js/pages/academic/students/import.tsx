@@ -145,8 +145,10 @@ export default function StudentImport({
                             Template berisi lembar <strong>Siswa</strong> untuk
                             diisi dan <strong>Petunjuk</strong> (arti kolom,
                             kode, dan daftar kelas aktif lembaga ini). Kolom
-                            NISN dan nomor HP sudah berformat teks. Siswa yang
-                            sudah tercatat di yayasan cukup diisi NISN-nya.
+                            NISN, NIK, dan nomor HP sudah berformat teks. Siswa
+                            yang sudah tercatat di yayasan cukup diisi NISN atau
+                            NIK-nya. NIK ayah/ibu/wali (opsional) yang sudah
+                            tercatat membuat orang tuanya dipakai ulang.
                         </p>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
                             {organizationId === '' ? (

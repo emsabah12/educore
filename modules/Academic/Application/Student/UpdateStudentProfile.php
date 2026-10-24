@@ -9,6 +9,8 @@ use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
 use Modules\Academic\Domain\Student\Student;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Application\Person\PersonNik;
+use Modules\Core\Domain\Person\Exceptions\NikTakenException;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Support\BusinessClock;
@@ -26,6 +28,8 @@ final class UpdateStudentProfile
 {
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly PersonNik $personNik,
+        private readonly StudentNik $studentNik,
     ) {}
 
     /**
@@ -78,6 +82,15 @@ final class UpdateStudentProfile
                     array_keys($student->getDirty()),
                 )));
 
+                if ($data->nik === null && $data->nikSubmitted && $this->personNik->valueOf($person->id) !== null) {
+                    throw StudentException::nikCannotBeRemoved();
+                }
+
+                // Hanya nama field yang dicatat di audit, bukan nilai NIK.
+                if ($data->nik !== null && $this->personNik->assign($person->id, $data->nik)) {
+                    $changed[] = 'nik';
+                }
+
                 if ($changed === []) {
                     return [];
                 }
@@ -95,6 +108,8 @@ final class UpdateStudentProfile
 
                 return $changed;
             });
+        } catch (NikTakenException $exception) {
+            throw StudentException::make('nik', $this->studentNik->takenMessage($tenantId, $exception->ownerPersonId));
         } catch (UniqueConstraintViolationException) {
             // Dua operator mengisi NISN yang sama pada saat bersamaan.
             throw StudentException::duplicateNisn();
@@ -126,6 +141,10 @@ final class UpdateStudentProfile
 
         if ($data->nisn !== null && preg_match(StudentInput::NISN_PATTERN, $data->nisn) !== 1) {
             throw StudentException::make('nisn', 'NISN harus 10 angka.');
+        }
+
+        if ($data->nik !== null && ! PersonNik::isValid($data->nik)) {
+            throw StudentException::nikInvalid();
         }
     }
 }

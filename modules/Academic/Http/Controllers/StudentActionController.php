@@ -20,6 +20,7 @@ use Modules\Academic\Domain\Student\Enrollment;
 use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\TenantContext;
@@ -51,13 +52,18 @@ final class StudentActionController
             abort(403);
         }
 
+        // Dicatat sebelum merge (merge selalu membuat kunci "nik").
+        $nikSubmitted = $request->exists('nik');
+
         $request->merge([
             'phone' => StudentInput::phone($request->input('phone')),
             'nisn' => StudentInput::nisn($request->input('nisn')),
+            'nik' => PersonNik::normalize($request->input('nik')),
         ]);
 
         $request->validate([
             'name' => ['required', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
+            'nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
             'gender' => ['required', Rule::enum(Gender::class)],
             'birth_place' => ['nullable', 'string', 'max:100'],
             'birth_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.BusinessClock::todayString()],
@@ -70,6 +76,7 @@ final class StudentActionController
             'birth_date.before_or_equal' => 'Tanggal lahir tidak boleh di masa depan.',
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
             'nisn.regex' => 'NISN harus 10 angka.',
+            'nik.regex' => 'NIK harus 16 angka.',
         ], $this->attributes());
 
         /** @var Gender $gender */
@@ -83,6 +90,8 @@ final class StudentActionController
             phone: StudentInput::text($request->input('phone')),
             address: StudentInput::text($request->input('address')),
             nisn: StudentInput::text($request->input('nisn')),
+            nik: StudentInput::text($request->input('nik')),
+            nikSubmitted: $nikSubmitted,
         )));
 
         return $this->done($changed === [] ? 'Tidak ada data yang berubah.' : 'Data diri siswa disimpan.');
@@ -302,6 +311,7 @@ final class StudentActionController
             'phone' => 'nomor HP',
             'address' => 'alamat',
             'nisn' => 'NISN',
+            'nik' => 'NIK',
             'organization_id' => 'lembaga',
             'student_number' => 'nomor induk',
             'start_date' => 'tanggal masuk',

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\GuardianRelation;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Support\BusinessClock;
 
@@ -19,12 +20,13 @@ use Modules\Core\Support\BusinessClock;
  *
  * @phpstan-type EnrollmentRow array{id: string, organization_id: string, organization: string, organization_code: string, student_number: string|null, entry_type: string, entry_type_code: string, start_date: string, end_date: string|null, end_reason: string|null, end_note: string|null, open: bool}
  * @phpstan-type ClassRow array{id: string, class_id: string, class_name: string, organization_id: string, organization: string, academic_year_id: string, year: string, start_date: string, end_date: string|null, open: bool, past: bool, future: bool}
- * @phpstan-type GuardianRow array{id: string, name: string, relation: string, relation_code: string, gender: string|null, gender_code: string|null, phone: string|null, is_primary: bool, locked: bool, other_students: int}
+ * @phpstan-type GuardianRow array{id: string, name: string, relation: string, relation_code: string, gender: string|null, gender_code: string|null, phone: string|null, nik: string|null, is_primary: bool, locked: bool, other_students: int}
  */
 final class StudentProfile
 {
     public function __construct(
         private readonly ManageGuardians $guardians,
+        private readonly PersonNik $personNik,
     ) {}
 
     /**
@@ -34,7 +36,7 @@ final class StudentProfile
      *     gender: string|null,
      *     nisn: string|null,
      *     active: bool,
-     *     personal: array{birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null}|null,
+     *     personal: array{nik: string|null, nik_warning: string|null, birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null}|null,
      *     guardians: list<GuardianRow>|null,
      *     enrollments: array{current: list<EnrollmentRow>, history: list<EnrollmentRow>},
      *     classes: list<ClassRow>,
@@ -47,7 +49,7 @@ final class StudentProfile
             ->join('persons as p', 'p.id', '=', 'm.person_id')
             ->where('s.tenant_id', $tenantId)
             ->where('s.id', $studentId)
-            ->first(['s.id', 's.nisn', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address']);
+            ->first(['s.id', 's.nisn', 'p.id as person_id', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address']);
 
         if ($row === null) {
             return null;
@@ -55,6 +57,9 @@ final class StudentProfile
 
         $gender = $row->gender === null ? null : Gender::tryFrom((string) $row->gender);
         $enrollments = $this->enrollments($studentId);
+        $birthDate = $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10);
+        // NIK hanya dibuka bila berhak melihat data pribadi; selalu tersamar di halaman detail.
+        $nik = $withPersonal ? $this->personNik->valueOf((string) $row->person_id) : null;
 
         return [
             'id' => (string) $row->id,
@@ -64,8 +69,10 @@ final class StudentProfile
             'active' => $enrollments['current'] !== [],
             // Data pribadi anak (kelas CONFIDENTIAL, PRD-002 §4.5): null bila tidak berhak melihat.
             'personal' => $withPersonal ? [
+                'nik' => $nik === null ? null : PersonNik::mask($nik),
+                'nik_warning' => $nik === null ? null : PersonNik::mismatch($nik, $birthDate, $gender),
                 'birth_place' => $row->birth_place === null ? null : (string) $row->birth_place,
-                'birth_date' => $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10),
+                'birth_date' => $birthDate,
                 'phone' => $row->phone === null ? null : (string) $row->phone,
                 'address' => $row->address === null ? null : (string) $row->address,
             ] : null,
@@ -79,7 +86,7 @@ final class StudentProfile
      * Isi awal form "Ubah data diri" (nilai mentah, bukan label). Pemanggil WAJIB sudah memastikan
      * pengguna boleh mengubah data diri siswa ini (StudentManageAccess::canEditProfile).
      *
-     * @return array{name: string, gender: string|null, birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null, nisn: string|null}|null
+     * @return array{name: string, gender: string|null, birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null, nisn: string|null, nik: string|null}|null
      */
     public function editValues(string $tenantId, string $studentId): ?array
     {
@@ -88,7 +95,7 @@ final class StudentProfile
             ->join('persons as p', 'p.id', '=', 'm.person_id')
             ->where('s.tenant_id', $tenantId)
             ->where('s.id', $studentId)
-            ->first(['s.nisn', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address']);
+            ->first(['s.nisn', 'p.id as person_id', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address']);
 
         if ($row === null) {
             return null;
@@ -102,6 +109,8 @@ final class StudentProfile
             'phone' => $row->phone === null ? null : (string) $row->phone,
             'address' => $row->address === null ? null : (string) $row->address,
             'nisn' => $row->nisn === null ? null : (string) $row->nisn,
+            // NIK lengkap hanya untuk form ubah (pemanggil sudah memastikan boleh mengubah).
+            'nik' => $this->personNik->valueOf((string) $row->person_id),
         ];
     }
 
@@ -222,7 +231,7 @@ final class StudentProfile
             ->orderByDesc('g.is_primary_contact')
             ->orderBy('p.name')
             ->get([
-                'g.id', 'g.guardian_membership_id', 'g.relation', 'g.is_primary_contact', 'p.name', 'p.gender', 'p.phone',
+                'g.id', 'g.guardian_membership_id', 'g.relation', 'g.is_primary_contact', 'p.id as person_id', 'p.name', 'p.gender', 'p.phone',
                 DB::raw('(SELECT count(*) FROM ac_student_guardians og WHERE og.guardian_membership_id = g.guardian_membership_id AND og.student_id <> g.student_id) AS other_students'),
             ]);
 
@@ -247,6 +256,7 @@ final class StudentProfile
                 'gender' => $gender?->label(),
                 'gender_code' => $gender?->value,
                 'phone' => $row->phone === null ? null : (string) $row->phone,
+                'nik' => $this->maskedNik((string) $row->person_id),
                 'is_primary' => (bool) $row->is_primary_contact,
                 'locked' => isset($locked[(string) $row->guardian_membership_id]),
                 'other_students' => (int) $row->other_students,
@@ -254,5 +264,12 @@ final class StudentProfile
         }
 
         return $guardians;
+    }
+
+    private function maskedNik(string $personId): ?string
+    {
+        $nik = $this->personNik->valueOf($personId);
+
+        return $nik === null ? null : PersonNik::mask($nik);
     }
 }

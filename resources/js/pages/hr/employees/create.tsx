@@ -2,7 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { ArrowLeft, TriangleAlert, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
-import { NikField } from '@/components/hr/nik-field';
+import { NikField } from '@/components/nik-field';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

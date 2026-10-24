@@ -17,6 +17,7 @@ use Modules\Academic\Application\Student\StudentVisibility;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
 use Modules\Academic\Domain\Student\GuardianRelation;
 use Modules\Academic\Domain\Student\StudentGuardian;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\TenantContext;
 
@@ -62,10 +63,11 @@ final class StudentGuardianController
     {
         $this->authorize($student);
 
-        $request->merge(['phone' => StudentInput::phone($request->input('phone'))]);
+        $request->merge(['phone' => StudentInput::phone($request->input('phone')), 'nik' => PersonNik::normalize($request->input('nik'))]);
 
         $request->validate([
             'mode' => ['required', Rule::in(['baru', 'ada'])],
+            'nik' => ['exclude_unless:mode,baru', 'nullable', 'string', 'regex:'.PersonNik::PATTERN],
             'relation' => ['required', Rule::enum(GuardianRelation::class)],
             'make_primary' => ['nullable', 'boolean'],
             'name' => ['exclude_unless:mode,baru', 'required', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
@@ -78,6 +80,7 @@ final class StudentGuardianController
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
             'phone.required_if' => 'Cari dulu lewat nomor HP.',
             'membership_id.required' => 'Pilih salah satu orang dari hasil pencarian.',
+            'nik.regex' => 'NIK harus 16 angka.',
         ], $this->attributes());
 
         /** @var GuardianRelation $relation */
@@ -102,10 +105,11 @@ final class StudentGuardianController
             name: (string) StudentInput::name($request->input('name')),
             gender: $request->enum('gender', Gender::class),
             phone: StudentInput::text($request->input('phone')),
+            nik: StudentInput::text($request->input('nik')),
         ), $makePrimary));
 
         return $this->done($reused
-            ? 'Orang tua/wali ditambahkan memakai data yang sudah ada (nama & HP sama).'
+            ? 'Orang tua/wali ditambahkan memakai data yang sudah ada (NIK atau nama & HP sama).'
             : 'Orang tua/wali ditambahkan.');
     }
 
@@ -113,10 +117,12 @@ final class StudentGuardianController
     {
         $this->authorize($student);
 
-        $request->merge(['phone' => StudentInput::phone($request->input('phone'))]);
+        $request->merge(['phone' => StudentInput::phone($request->input('phone')), 'nik' => PersonNik::normalize($request->input('nik'))]);
 
         $request->validate([
             'relation' => ['required', Rule::enum(GuardianRelation::class)],
+            // Kosong = NIK tidak diubah (form tidak menampilkan NIK lengkap orang tua/wali).
+            'nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
             // Data diri hanya dikirim form bila orang ini bukan pegawai/siswa (service yang menentukan).
             'name' => ['nullable', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
             'gender' => ['nullable', Rule::enum(Gender::class)],
@@ -124,6 +130,7 @@ final class StudentGuardianController
         ], [
             'relation.required' => 'Pilih hubungan.',
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
+            'nik.regex' => 'NIK harus 16 angka.',
         ], $this->attributes());
 
         /** @var GuardianRelation $relation */
@@ -137,6 +144,7 @@ final class StudentGuardianController
             (string) StudentInput::name($request->input('name')),
             $request->enum('gender', Gender::class),
             StudentInput::text($request->input('phone')),
+            StudentInput::text($request->input('nik')),
         ));
 
         return $this->done($changed === [] ? 'Tidak ada data yang berubah.' : 'Data orang tua/wali disimpan.');
@@ -229,6 +237,7 @@ final class StudentGuardianController
             'name' => 'nama orang tua/wali',
             'gender' => 'jenis kelamin',
             'phone' => 'nomor HP',
+            'nik' => 'NIK',
             'membership_id' => 'orang yang dipilih',
             'make_primary' => 'kontak utama',
         ];

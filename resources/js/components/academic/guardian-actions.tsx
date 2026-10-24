@@ -8,6 +8,7 @@ import {
     SelectOptions,
 } from '@/components/academic/student-actions';
 import InputError from '@/components/input-error';
+import { NikField } from '@/components/nik-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -24,6 +25,8 @@ export type GuardianRow = {
     gender: string | null;
     gender_code: string | null;
     phone: string | null;
+    /** NIK tersamar, mis. "3201 •••• •••• 0001". */
+    nik: string | null;
     is_primary: boolean;
     locked: boolean;
     other_students: number;
@@ -122,6 +125,14 @@ export function AddGuardianForm({
                                     maxLength={25}
                                 />
                             </Field>
+                            <NikField
+                                id="ag-nik"
+                                required={false}
+                                birthDate=""
+                                gender=""
+                                error={errors.nik}
+                                hint="Opsional. Bila NIK sudah tercatat, orang yang sama dipakai ulang."
+                            />
                         </>
                     ) : (
                         <PhoneSearch studentId={studentId} errors={errors} />
@@ -398,6 +409,19 @@ export function EditGuardianForm({
                                     maxLength={25}
                                 />
                             </Field>
+                            {/* NIK lengkap tidak dikirim ke browser: kosong = tetap. */}
+                            <NikField
+                                id="eg-nik"
+                                required={false}
+                                birthDate=""
+                                gender=""
+                                error={errors.nik}
+                                hint={
+                                    guardian.nik
+                                        ? `Tercatat: ${guardian.nik}. Kosongkan bila tidak diubah; isi untuk memperbaiki.`
+                                        : 'Opsional.'
+                                }
+                            />
                         </>
                     )}
                 </>

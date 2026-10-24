@@ -14,6 +14,8 @@ use Modules\Academic\Domain\Student\Student;
 use Modules\Academic\Domain\Student\StudentGuardian;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Application\Membership\GrantMembership;
+use Modules\Core\Application\Person\PersonNik;
+use Modules\Core\Domain\Person\Exceptions\NikTakenException;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
@@ -34,6 +36,10 @@ use Modules\HR\Contracts\EmployeeLookup;
  *
  * Hak akses (StudentManageAccess::canManageGuardians) dicek pemanggil. Membuat orang tua/wali tidak
  * membuat akun login dan tidak memberi hak akses apa pun. Audit tanpa nilai data pribadi.
+ *
+ * NIK orang tua/wali (opsional, OD-AC-02 revisi 2026-10-23): NIK yang sudah tercatat di yayasan ini
+ * = orang yang sama (dipakai ulang, mis. kakak-adik), lebih pasti daripada nama + HP. NIK milik orang
+ * di luar yayasan ditolak dengan pesan umum.
  */
 final class ManageGuardians
 {
@@ -43,6 +49,8 @@ final class ManageGuardians
         private readonly GrantMembership $grantMembership,
         private readonly EmployeeLookup $employees,
         private readonly AuditLogger $audit,
+        private readonly PersonNik $personNik,
+        private readonly StudentNik $studentNik,
     ) {}
 
     // ── Pencarian ────────────────────────────────────────────────────────────
@@ -81,7 +89,7 @@ final class ManageGuardians
      */
     public function addNew(string $tenantId, string $studentId, GuardianData $guardian, bool $makePrimary): array
     {
-        $this->assertGuardianInput($guardian->name, $guardian->phone);
+        $this->assertGuardianInput($guardian->name, $guardian->phone, $guardian->nik);
 
         return $this->transaction(function () use ($tenantId, $studentId, $guardian, $makePrimary): array {
             $student = $this->lockStudent($tenantId, $studentId);
@@ -115,32 +123,52 @@ final class ManageGuardians
     }
 
     /**
-     * Orang tua/wali untuk isian "orang baru": dipakai ulang bila NAMA dan NOMOR HP sama persis dengan
-     * anggota yayasan (kakak-adik berbagi orang tua) [usulan B AC-1b]; selain itu orang baru.
+     * Orang tua/wali untuk isian "orang baru". Urutan pencocokan:
+     *
+     * 1. NIK diisi dan sudah tercatat untuk anggota yayasan ini → orang itu (OD-AC-02 revisi);
+     *    NIK milik orang di luar yayasan → ditolak (pesan umum, $nikField).
+     * 2. NAMA dan NOMOR HP sama persis dengan anggota yayasan (kakak-adik berbagi orang tua)
+     *    [usulan B AC-1b] — bila NIK diisi, orang lama yang sudah ber-NIK (pasti beda) dilewati,
+     *    dan NIK melengkapi orang yang dipakai ulang.
+     * 3. Selain itu orang baru.
+     *
      * Pemanggil wajib di dalam transaksi.
      *
      * @return array{0: Membership, 1: bool} membership orang tua/wali, dan apakah orangnya sudah ada
      */
-    public function membershipFor(string $tenantId, GuardianData $guardian): array
+    public function membershipFor(string $tenantId, GuardianData $guardian, string $nikField = 'nik'): array
     {
+        if ($guardian->nik !== null) {
+            $ownerPersonId = null;
+            $owner = $this->studentNik->memberOwning($tenantId, $guardian->nik, $ownerPersonId);
+
+            if ($owner !== null) {
+                return [$this->reuse($tenantId, $owner['person_id'], $guardian), true];
+            }
+
+            if ($ownerPersonId !== null) {
+                throw StudentException::make($nikField, $this->studentNik->takenMessage($tenantId, $ownerPersonId));
+            }
+        }
+
         if ($guardian->phone !== null) {
             $personId = DB::table('persons as p')
                 ->join('memberships as m', 'm.person_id', '=', 'p.id')
                 ->where('m.tenant_id', $tenantId)
                 ->where('p.phone', $guardian->phone)
                 ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [StudentInput::comparableName($guardian->name)])
+                ->when($guardian->nik !== null, fn (Builder $query) => $query->whereNotExists(fn (Builder $sub) => $sub->select(DB::raw(1))
+                    ->from('person_identifiers as pi')
+                    ->whereColumn('pi.person_id', 'p.id')
+                    ->where('pi.type', PersonNik::TYPE)))
                 ->orderBy('p.id')
                 ->value('p.id');
 
             if (is_string($personId)) {
-                $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+                $membership = $this->reuse($tenantId, $personId, $guardian);
+                $this->assignNik($tenantId, $personId, $guardian->nik, $nikField);
 
-                if ($person->gender === null && $guardian->gender !== null) {
-                    $person->gender = $guardian->gender;
-                    $person->save();
-                }
-
-                return [$this->grantMembership->handle($person->id, $tenantId), true];
+                return [$membership, true];
             }
         }
 
@@ -150,35 +178,72 @@ final class ManageGuardians
             'phone' => $guardian->phone,
         ]);
 
+        $this->assignNik($tenantId, $person->id, $guardian->nik, $nikField);
+
         return [$this->grantMembership->handle($person->id, $tenantId), false];
+    }
+
+    /**
+     * Pakai ulang orang yang sudah ada: data dirinya tidak ditimpa, hanya jenis kelamin yang kosong dilengkapi.
+     */
+    private function reuse(string $tenantId, string $personId, GuardianData $guardian): Membership
+    {
+        $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+
+        if ($person->gender === null && $guardian->gender !== null) {
+            $person->gender = $guardian->gender;
+            $person->save();
+        }
+
+        return $this->grantMembership->handle($person->id, $tenantId);
+    }
+
+    private function assignNik(string $tenantId, string $personId, ?string $nik, string $nikField): bool
+    {
+        if ($nik === null) {
+            return false;
+        }
+
+        try {
+            return $this->personNik->assign($personId, $nik);
+        } catch (NikTakenException $exception) {
+            throw StudentException::make($nikField, $this->studentNik->takenMessage($tenantId, $exception->ownerPersonId));
+        }
     }
 
     // ── Ubah ─────────────────────────────────────────────────────────────────
 
     /**
-     * Data diri ($name, $gender, $phone) diabaikan bila orang ini juga pegawai atau siswa: datanya
+     * Data diri ($name, $gender, $phone, $nik) diabaikan bila orang ini juga pegawai atau siswa: datanya
      * dikelola dari menu masing-masing [OWNER, 2026-10-19].
+     *
+     * $nik null = NIK tidak diubah (form tidak mengirim NIK lengkap; NIK yang tercatat tidak bisa
+     * dikosongkan). Diisi = melengkapi atau memperbaiki.
      *
      * @return list<string> field yang berubah
      *
      * @throws StudentException
      */
-    public function update(string $tenantId, string $studentId, string $linkId, GuardianRelation $relation, string $name, ?Gender $gender, ?string $phone): array
+    public function update(string $tenantId, string $studentId, string $linkId, GuardianRelation $relation, string $name, ?Gender $gender, ?string $phone, ?string $nik = null): array
     {
-        return $this->transaction(function () use ($tenantId, $studentId, $linkId, $relation, $name, $gender, $phone): array {
+        return $this->transaction(function () use ($tenantId, $studentId, $linkId, $relation, $name, $gender, $phone, $nik): array {
             $this->lockStudent($tenantId, $studentId);
             $link = $this->lockLink($studentId, $linkId);
             $link->relation = $relation;
             $changed = array_keys($link->getDirty());
 
             if (! $this->isLocked($tenantId, $link->guardian_membership_id)) {
-                $this->assertGuardianInput($name, $phone);
+                $this->assertGuardianInput($name, $phone, $nik);
 
                 $membership = Membership::query()->withoutGlobalScope('tenant')->whereKey($link->guardian_membership_id)->firstOrFail();
                 $person = Person::query()->whereKey($membership->person_id)->lockForUpdate()->firstOrFail();
                 $person->fill(['name' => $name, 'gender' => $gender, 'phone' => $phone]);
                 $changed = array_merge($changed, array_keys($person->getDirty()));
                 $person->save();
+
+                if ($this->assignNik($tenantId, $person->id, $nik, 'nik')) {
+                    $changed[] = 'nik';
+                }
             }
 
             if ($changed === []) {
@@ -427,8 +492,12 @@ final class ManageGuardians
         return $link;
     }
 
-    private function assertGuardianInput(string $name, ?string $phone): void
+    private function assertGuardianInput(string $name, ?string $phone, ?string $nik = null): void
     {
+        if ($nik !== null && ! PersonNik::isValid($nik)) {
+            throw StudentException::nikInvalid();
+        }
+
         if (trim($name) === '' || mb_strlen($name) > StudentInput::NAME_MAX_LENGTH) {
             throw StudentException::make('name', 'Nama orang tua/wali wajib diisi, maksimal 200 karakter.');
         }

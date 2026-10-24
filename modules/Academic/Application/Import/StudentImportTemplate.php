@@ -98,6 +98,7 @@ final class StudentImportTemplate
             'Isi data mulai baris ke-2 lembar Siswa. Jangan ubah judul kolom; kolom bertanda * wajib diisi.',
             'Satu baris = satu siswa yang didaftarkan ke '.$organization->name.'. Lembaga lain memakai file tersendiri.',
             'Siswa yang sudah tercatat di yayasan (mis. santri MDA yang juga masuk SMP): isi NISN-nya; bila NISN & nama cocok, ia hanya didaftarkan ke lembaga ini.',
+            'NIK siswa dan NIK ayah/ibu/wali opsional (16 angka, format Teks). NIK orang tua yang sudah tercatat = orang yang sama; NIK milik orang lain ditolak.',
             'Maksimal '.StudentImportReader::MAX_ROWS.' baris per file. Simpan hanya bisa bila tidak ada baris yang salah.',
             'Boleh juga disimpan sebagai CSV (pemisah koma atau titik koma) dengan judul kolom yang sama.',
         ] as $note) {

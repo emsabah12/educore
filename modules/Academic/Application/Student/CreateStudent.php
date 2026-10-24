@@ -14,7 +14,9 @@ use Modules\Academic\Domain\Student\Student;
 use Modules\Academic\Domain\Student\StudentGuardian;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Application\Membership\GrantMembership;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
+use Modules\Core\Domain\Person\Exceptions\NikTakenException;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Support\BusinessClock;
@@ -30,6 +32,10 @@ use Modules\Core\Support\BusinessClock;
  * Tidak membuat akun login dan tidak memberi hak akses apa pun, termasuk untuk orang tua/wali.
  *
  * Hak akses ke lembaga tujuan (academic.students.manage) dicek pemanggil (controller) lewat Gate.
+ *
+ * NIK (opsional, OD-AC-02 revisi 2026-10-23): NIK yang sudah milik anggota yayasan ini = orang yang
+ * sama (operator memilihnya dari kotak peringatan); milik orang di luar yayasan ditolak dengan pesan
+ * umum. Disimpan terenkripsi lewat Core PersonNik; tidak pernah masuk audit.
  */
 final class CreateStudent
 {
@@ -40,6 +46,8 @@ final class CreateStudent
         private readonly ManageGuardians $guardians,
         private readonly ManageClassMembers $classMembers,
         private readonly AuditLogger $audit,
+        private readonly PersonNik $personNik,
+        private readonly StudentNik $studentNik,
     ) {}
 
     /**
@@ -52,6 +60,9 @@ final class CreateStudent
 
         try {
             return DB::transaction(fn (): StudentCreated => $this->create($data));
+        } catch (NikTakenException $exception) {
+            // Jaga-jaga bila NIK yang sama disimpan bersamaan oleh operator lain.
+            throw StudentException::make('nik', $this->studentNik->takenMessage($data->tenantId, $exception->ownerPersonId));
         } catch (UniqueConstraintViolationException $exception) {
             // Jaga-jaga bila dua operator menyimpan data yang sama pada saat bersamaan.
             throw $this->fromUniqueViolation($exception, $data);
@@ -146,8 +157,13 @@ final class CreateStudent
 
         $person = Person::query()->create(['name' => $data->name, 'gender' => $data->gender] + $personal);
         $membership = $this->grantMembership->handle($person->id, $data->tenantId);
+        $fields = array_keys($personal);
 
-        return [$membership, $person, array_keys($personal)];
+        if ($data->nik !== null && $this->personNik->assign($person->id, $data->nik)) {
+            $fields[] = 'nik';
+        }
+
+        return [$membership, $person, $fields];
     }
 
     /**
@@ -158,12 +174,25 @@ final class CreateStudent
      * - NISN sudah dipakai siswa lain — bila pemiliknya termasuk calon nama sama, pesannya menunjuk ke
      *   kotak peringatan (kemungkinan orang yang sama), tanpa membuka data orang lain;
      * - nomor induk sudah dipakai siswa lain di lembaga ini;
-     * - nama sama dengan anggota yayasan (kecuali operator sudah memilih "Orang berbeda").
+     * - nama sama dengan anggota yayasan (kecuali operator sudah memilih "Orang berbeda");
+     * - NIK sudah milik orang lain: di yayasan ini → pemiliknya ikut di kotak peringatan (walau
+     *   operator memilih "Orang berbeda", karena NIK sama pasti orang yang sama); di luar → pesan umum.
      */
     private function precheckNewPerson(NewStudentData $data, Organization $organization): void
     {
         $errors = [];
-        $candidates = $data->confirmNew ? [] : $this->duplicateCandidates->find($data->tenantId, $data->name);
+        $ownerPersonId = null;
+        $nikMember = $data->nik === null ? null : $this->studentNik->memberOwning($data->tenantId, $data->nik, $ownerPersonId);
+
+        if ($nikMember !== null) {
+            $errors['nik'] = "NIK ini sudah tercatat untuk {$nikMember['name']} (lihat kotak peringatan). Bila orangnya sama, pilih orang tersebut; bila berbeda, periksa lagi NIK-nya.";
+        } elseif ($ownerPersonId !== null) {
+            $errors['nik'] = $this->studentNik->takenMessage($data->tenantId, $ownerPersonId);
+        }
+
+        $candidates = $data->confirmNew && $nikMember === null
+            ? []
+            : $this->duplicateCandidates->find($data->tenantId, $data->name, $data->nik, $data->birthDate);
         $candidateIds = array_column($candidates, 'membership_id');
 
         if ($data->gender === null) {
@@ -211,7 +240,14 @@ final class CreateStudent
      */
     private function useCandidate(NewStudentData $data, string $membershipId): array
     {
-        if (! in_array($membershipId, $this->duplicateCandidates->membershipIds($data->tenantId, $data->name), true)) {
+        // Calon sah: nama sama (tanpa saringan NIK, agar NIK yang berbeda mendapat pesan yang jelas di
+        // bawah), atau pemilik NIK yang sama.
+        $allowed = array_merge(
+            $this->duplicateCandidates->membershipIds($data->tenantId, $data->name),
+            $data->nik === null ? [] : $this->duplicateCandidates->membershipIds($data->tenantId, $data->name, $data->nik, $data->birthDate),
+        );
+
+        if (! in_array($membershipId, $allowed, true)) {
             throw StudentException::candidateInvalid();
         }
 
@@ -255,7 +291,22 @@ final class CreateStudent
             $person->save();
         }
 
-        return [$membership, $person, array_keys($filled)];
+        $fields = array_keys($filled);
+
+        // NIK sama dengan aturan NISN: melengkapi yang kosong, tidak boleh berbeda dari yang tercatat.
+        if ($data->nik !== null) {
+            $current = $this->personNik->valueOf($person->id);
+
+            if ($current !== null && $current !== $data->nik) {
+                throw StudentException::nikMismatch();
+            }
+
+            if ($current === null && $this->personNik->assign($person->id, $data->nik)) {
+                $fields[] = 'nik';
+            }
+        }
+
+        return [$membership, $person, $fields];
     }
 
     /**
@@ -355,7 +406,7 @@ final class CreateStudent
         $reused = 0;
 
         foreach ($data->guardians as $index => $guardian) {
-            [$membership, $isReused] = $this->guardians->membershipFor($data->tenantId, $guardian);
+            [$membership, $isReused] = $this->guardians->membershipFor($data->tenantId, $guardian, "guardians.{$index}.nik");
 
             if ($membership->id === $studentMembership->id) {
                 throw StudentException::guardianIsStudent($index);
@@ -461,6 +512,10 @@ final class CreateStudent
             throw StudentException::make('nisn', 'NISN harus 10 angka.');
         }
 
+        if ($data->nik !== null && ! PersonNik::isValid($data->nik)) {
+            throw StudentException::nikInvalid();
+        }
+
         if ($data->studentNumber !== null && preg_match(StudentInput::STUDENT_NUMBER_PATTERN, $data->studentNumber) !== 1) {
             throw StudentException::make('student_number', 'Nomor induk hanya huruf, angka, titik, garis miring, dan tanda "-", maksimal 30 karakter.');
         }
@@ -476,6 +531,10 @@ final class CreateStudent
 
             if ($guardian->phone !== null && preg_match(StudentInput::PHONE_PATTERN, $guardian->phone) !== 1) {
                 throw StudentException::make("guardians.{$index}.phone", 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.');
+            }
+
+            if ($guardian->nik !== null && ! PersonNik::isValid($guardian->nik)) {
+                throw StudentException::nikInvalid("guardians.{$index}.nik");
             }
         }
 

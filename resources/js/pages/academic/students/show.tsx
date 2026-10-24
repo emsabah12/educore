@@ -61,6 +61,9 @@ type Student = {
     nisn: string | null;
     active: boolean;
     personal: {
+        /** NIK tersamar, mis. "3201 •••• •••• 0001". */
+        nik: string | null;
+        nik_warning: string | null;
         birth_place: string | null;
         birth_date: string | null;
         phone: string | null;
@@ -233,8 +236,18 @@ export default function StudentDetail({
                 )}
 
                 <Section title="Data pribadi">
+                    {student.personal?.nik_warning && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                            {student.personal.nik_warning}
+                        </p>
+                    )}
                     {student.personal ? (
                         <dl className="grid gap-3 sm:grid-cols-2">
+                            <Item
+                                label="NIK"
+                                value={student.personal.nik}
+                                mono
+                            />
                             <Item
                                 label="Tempat lahir"
                                 value={student.personal.birth_place}
@@ -648,6 +661,11 @@ function GuardianList({
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </p>
+                                    {guardian.nik && (
+                                        <p className="font-mono text-xs text-muted-foreground">
+                                            NIK {guardian.nik}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5">
                                     {guardian.phone && (

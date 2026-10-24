@@ -46,10 +46,13 @@ export function nikMismatch(
 }
 
 /**
- * Kolom NIK (OD-HR-01 revisi 2026-10-23): 16 angka, spasi/titik boleh (dirapikan server).
+ * Kolom NIK (OD-HR-01 & OD-AC-02 revisi 2026-10-23): 16 angka, spasi/titik boleh (dirapikan server).
+ * Peringatan tidak cocok hanya tampil bila tanggal lahir/jenis kelamin diberikan.
  */
 export function NikField({
     id,
+    name = 'nik',
+    label = 'NIK',
     required,
     defaultValue = '',
     birthDate,
@@ -58,6 +61,8 @@ export function NikField({
     hint,
 }: {
     id: string;
+    name?: string;
+    label?: string;
     required: boolean;
     defaultValue?: string;
     birthDate: string;
@@ -71,14 +76,14 @@ export function NikField({
     return (
         <div className="grid content-start gap-1.5">
             <Label htmlFor={id}>
-                NIK
+                {label}
                 {required && (
                     <span className="text-red-600 dark:text-red-400"> *</span>
                 )}
             </Label>
             <Input
                 id={id}
-                name="nik"
+                name={name}
                 inputMode="numeric"
                 autoComplete="off"
                 maxLength={22}

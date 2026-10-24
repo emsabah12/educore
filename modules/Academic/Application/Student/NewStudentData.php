@@ -11,6 +11,7 @@ use Modules\Core\Domain\Person\Gender;
  *
  * $existingMembershipId terisi = operator memilih "ini orang yang sama" dari daftar calon orang
  * ganda; $confirmNew = operator menyatakan orang berbeda. $classId = langsung masuk kelas (opsional, AC-1d-b).
+ * $nik = NIK siswa, opsional (OD-AC-02 revisi 2026-10-23).
  */
 final readonly class NewStudentData
 {
@@ -36,5 +37,6 @@ final readonly class NewStudentData
         public ?string $existingMembershipId = null,
         public bool $confirmNew = false,
         public ?string $classId = null,
+        public ?string $nik = null,
     ) {}
 }

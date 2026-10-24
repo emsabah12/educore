@@ -1,5 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { CircleAlert } from 'lucide-react';
+import { useState } from 'react';
+import { NikField } from '@/components/nik-field';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +22,8 @@ export type ProfileValues = {
     phone: string | null;
     address: string | null;
     nisn: string | null;
+    /** NIK lengkap (hanya untuk form ubah). */
+    nik: string | null;
 };
 
 export type StudentManageData = {
@@ -60,6 +64,7 @@ const fieldLabels: Record<string, string> = {
     phone: 'Nomor HP',
     address: 'Alamat',
     nisn: 'NISN',
+    nik: 'NIK',
     organization_id: 'Lembaga',
     student_number: 'Nomor induk',
     start_date: 'Tanggal masuk',
@@ -97,6 +102,10 @@ export function ProfileForm({
     values: ProfileValues;
     onDone: () => void;
 }) {
+    // Untuk peringatan NIK vs tanggal lahir/jenis kelamin (tidak menghalangi simpan).
+    const [birthDate, setBirthDate] = useState(values.birth_date ?? '');
+    const [gender, setGender] = useState(values.gender ?? '');
+
     return (
         <ActionForm
             title="Ubah data diri"
@@ -105,7 +114,7 @@ export function ProfileForm({
             errorBag="studentProfile"
             submitLabel="Simpan data diri"
             onDone={onDone}
-            note="Kolom yang dikosongkan berarti datanya dihapus. Data diri melekat pada orangnya, jadi perubahan nama ikut terlihat di semua lembaga (dan di data pegawai/akun login bila orang ini juga punya)."
+            note="Kolom yang dikosongkan berarti datanya dihapus (kecuali NIK yang sudah tercatat). Data diri melekat pada orangnya, jadi perubahan nama ikut terlihat di semua lembaga (dan di data pegawai/akun login bila orang ini juga punya)."
         >
             {(errors) => (
                 <>
@@ -135,6 +144,7 @@ export function ProfileForm({
                             options={manage.options.genders}
                             placeholder="Pilih"
                             defaultValue={values.gender ?? ''}
+                            onChange={setGender}
                             required
                         />
                     </Field>
@@ -161,6 +171,9 @@ export function ProfileForm({
                             type="date"
                             max={manage.today}
                             defaultValue={values.birth_date ?? ''}
+                            onChange={(event) =>
+                                setBirthDate(event.target.value)
+                            }
                         />
                     </Field>
                     <Field id="sp-nisn" label="NISN" error={errors.nisn}>
@@ -172,6 +185,15 @@ export function ProfileForm({
                             maxLength={12}
                         />
                     </Field>
+                    <NikField
+                        id="sp-nik"
+                        required={Boolean(values.nik)}
+                        defaultValue={values.nik ?? ''}
+                        birthDate={birthDate}
+                        gender={gender}
+                        error={errors.nik}
+                        hint={values.nik ? undefined : 'Opsional.'}
+                    />
                     <Field id="sp-phone" label="Nomor HP" error={errors.phone}>
                         <Input
                             id="sp-phone"
@@ -569,6 +591,7 @@ export function SelectOptions({
     placeholder,
     defaultValue = '',
     required = false,
+    onChange,
 }: {
     id: string;
     name: string;
@@ -576,6 +599,7 @@ export function SelectOptions({
     placeholder: string;
     defaultValue?: string;
     required?: boolean;
+    onChange?: (value: string) => void;
 }) {
     return (
         <select
@@ -584,6 +608,7 @@ export function SelectOptions({
             className={selectClass}
             defaultValue={defaultValue}
             required={required}
+            onChange={(event) => onChange?.(event.target.value)}
         >
             <option value="" disabled={required}>
                 {placeholder}

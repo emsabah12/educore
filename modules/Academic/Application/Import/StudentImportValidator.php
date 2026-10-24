@@ -8,9 +8,11 @@ use Modules\Academic\Application\Calendar\AcademicCalendarResolver;
 use Modules\Academic\Application\Student\GuardianData;
 use Modules\Academic\Application\Student\NewStudentData;
 use Modules\Academic\Application\Student\StudentInput;
+use Modules\Academic\Application\Student\StudentNik;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Student\EntryType;
 use Modules\Academic\Domain\Student\GuardianRelation;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\MembershipStatus;
@@ -30,6 +32,13 @@ use Modules\Core\Support\Import\ImportCell;
  * - NISN & nomor induk dobel di dalam file, serta NISN/HP yang tersimpan sebagai angka → Salah;
  * - kelas = nama kelas aktif tahun ajaran berjalan lembaga itu.
  *
+ * NIK (opsional, AC-1g-b, OD-AC-02 revisi 2026-10-23), aturannya sama dengan form:
+ * - NIK siswa sudah milik anggota yayasan dengan NAMA yang sama → orang itu (hanya didaftarkan);
+ *   nama lain atau orang di luar yayasan → Salah; dobel di file / tersimpan sebagai angka → Salah;
+ *   tidak cocok dengan tanggal lahir/jenis kelamin → Peringatan;
+ * - NIK ayah/ibu/wali: milik anggota yayasan → orang itu dipakai ulang saat simpan; milik orang di
+ *   luar yayasan, sama dengan NIK siswa, atau dobel di baris yang sama → Salah.
+ *
  * @phpstan-type CellValue bool|DateTimeImmutable|float|int|string|null
  */
 final class StudentImportValidator
@@ -40,6 +49,8 @@ final class StudentImportValidator
 
     public function __construct(
         private readonly AcademicCalendarResolver $calendars,
+        private readonly PersonNik $personNik,
+        private readonly StudentNik $studentNik,
     ) {}
 
     /**
@@ -58,6 +69,7 @@ final class StudentImportValidator
         }
 
         $this->checkNisn($tenantId, $organization, $drafts);
+        $this->checkNik($tenantId, $organization, $drafts);
         $this->checkStudentNumbers($tenantId, $organization, $drafts);
         $this->checkSimilarPeople($tenantId, $drafts);
 
@@ -130,6 +142,7 @@ final class StudentImportValidator
         $draft->birthDate = $this->date($draft, StudentImportColumns::BIRTH_DATE, $value(StudentImportColumns::BIRTH_DATE), $today, required: false);
         $draft->phone = $this->phone($draft, StudentImportColumns::PHONE, $value(StudentImportColumns::PHONE));
         $draft->nisn = $this->nisn($draft, $value(StudentImportColumns::NISN));
+        $draft->nik = $this->nik($draft, StudentImportColumns::NIK, $value(StudentImportColumns::NIK));
 
         // Pendaftaran
         $number = StudentInput::studentNumber(ImportCell::text($value(StudentImportColumns::STUDENT_NUMBER)));
@@ -169,6 +182,12 @@ final class StudentImportValidator
 
         $this->guardians($draft, $value);
 
+        $mismatch = $draft->nik === null ? null : PersonNik::mismatch($draft->nik, $draft->birthDate, $draft->gender);
+
+        if ($mismatch !== null) {
+            $draft->warnings[] = $mismatch;
+        }
+
         return $draft;
     }
 
@@ -181,16 +200,35 @@ final class StudentImportValidator
     {
         $filled = [];
 
+        // NIK => kolom yang memakainya di baris ini (agar NIK yang sama di satu baris ketahuan).
+        $niks = [];
+
+        if ($draft->nik !== null) {
+            $niks[$draft->nik] = StudentImportColumns::NIK;
+        }
+
         foreach (StudentImportColumns::guardians() as $column) {
             $name = StudentInput::name(ImportCell::text($value($column['name'])));
             $phone = $this->phone($draft, $column['phone'], $value($column['phone']));
+            $nik = $this->nik($draft, $column['nik'], $value($column['nik']));
 
             if ($name === null) {
                 if ($phone !== null) {
                     $draft->error($column['name'], 'Nomor HP diisi, tetapi namanya kosong.');
                 }
 
+                if ($nik !== null) {
+                    $draft->error($column['name'], 'NIK diisi, tetapi namanya kosong.');
+                }
+
                 continue;
+            }
+
+            if ($nik !== null && isset($niks[$nik])) {
+                $draft->error($column['nik'], 'Sama dengan '.StudentImportColumns::label($niks[$nik]).' di baris ini.');
+                $nik = null;
+            } elseif ($nik !== null) {
+                $niks[$nik] = $column['nik'];
             }
 
             if (mb_strlen($name) > StudentInput::NAME_MAX_LENGTH) {
@@ -208,7 +246,9 @@ final class StudentImportValidator
                     default => null,
                 },
                 phone: $phone,
+                nik: $nik,
             );
+            $draft->guardianNikColumns[count($filled) - 1] = $column['nik'];
         }
 
         $draft->guardians = array_values($filled);
@@ -298,6 +338,29 @@ final class StudentImportValidator
         }
 
         return $nisn;
+    }
+
+    /**
+     * @param  CellValue  $raw
+     */
+    private function nik(StudentImportDraft $draft, string $column, bool|DateTimeImmutable|float|int|string|null $raw): ?string
+    {
+        // Angka 16 digit melebihi ketelitian angka Excel: digit terakhir bisa berubah tanpa terlihat.
+        if (ImportCell::isNumber($raw)) {
+            $draft->error($column, 'Tersimpan sebagai angka sehingga digitnya bisa berubah. Ubah format sel menjadi Teks lalu ketik ulang.');
+
+            return null;
+        }
+
+        $nik = PersonNik::normalize(ImportCell::text($raw));
+
+        if ($nik !== null && ! PersonNik::isValid($nik)) {
+            $draft->error($column, 'Harus 16 angka.');
+
+            return null;
+        }
+
+        return $nik;
     }
 
     /**
@@ -401,6 +464,141 @@ final class StudentImportValidator
     }
 
     /**
+     * NIK siswa & orang tua/wali terhadap database dan baris lain (aturan di docblock kelas).
+     *
+     * @param  list<StudentImportDraft>  $drafts
+     */
+    private function checkNik(string $tenantId, Organization $organization, array $drafts): void
+    {
+        $all = [];
+
+        foreach ($drafts as $draft) {
+            if ($draft->nik !== null) {
+                $all[] = $draft->nik;
+            }
+
+            foreach ($draft->guardians as $guardian) {
+                if ($guardian->nik !== null) {
+                    $all[] = $guardian->nik;
+                }
+            }
+        }
+
+        if ($all === []) {
+            return;
+        }
+
+        // NIK 16 digit menjadi kunci int di array PHP; selalu dicari dengan isset($owners[$nik]).
+        $owners = $this->personNik->ownersOf(array_values(array_unique($all)));
+        $members = $this->members($tenantId, $organization, array_values(array_unique($owners)));
+
+        /** @var array<string, int> $seen */
+        $seen = [];
+
+        foreach ($drafts as $draft) {
+            foreach ($draft->guardians as $index => $guardian) {
+                $owner = $guardian->nik === null ? null : ($owners[$guardian->nik] ?? null);
+
+                if ($owner !== null && ! isset($members[$owner])) {
+                    $draft->error($draft->guardianNikColumns[$index] ?? StudentImportColumns::NIK, $this->studentNik->takenMessage($tenantId, $owner));
+                }
+            }
+
+            if ($draft->nik === null) {
+                continue;
+            }
+
+            if (isset($seen[$draft->nik])) {
+                $draft->error(StudentImportColumns::NIK, 'Sama dengan baris '.$seen[$draft->nik].'.');
+
+                continue;
+            }
+
+            $seen[$draft->nik] = $draft->line;
+            $this->checkStudentNik($tenantId, $draft, $owners[$draft->nik] ?? null, $members);
+        }
+    }
+
+    /**
+     * @param  array<string, array{membership_id: string, name: string, student_id: string|null, nisn: string|null, enrolled_here: bool}>  $members
+     */
+    private function checkStudentNik(string $tenantId, StudentImportDraft $draft, ?string $owner, array $members): void
+    {
+        $column = StudentImportColumns::NIK;
+
+        // Siswa lama dari NISN: NIK harus milik orang itu, atau orang itu belum ber-NIK.
+        if ($draft->existingMembershipId !== null) {
+            $existingPerson = (string) DB::table('memberships')->where('id', $draft->existingMembershipId)->value('person_id');
+
+            if ($owner !== null && $owner !== $existingPerson) {
+                $draft->error($column, 'NIK ini milik orang lain, bukan siswa dengan NISN tersebut. Periksa lagi NIK atau NISN-nya.');
+            } elseif ($owner === null && $this->personNik->valueOf($existingPerson) !== null) {
+                $draft->error($column, 'NIK berbeda dengan yang sudah tercatat untuk siswa ini. Kosongkan bila tidak ingin mengubahnya.');
+            }
+
+            return;
+        }
+
+        if ($owner === null) {
+            return;
+        }
+
+        $member = $members[$owner] ?? null;
+
+        if ($member === null) {
+            $draft->error($column, $this->studentNik->takenMessage($tenantId, $owner));
+        } elseif ($draft->name === null || StudentInput::comparableName($member['name']) !== StudentInput::comparableName($draft->name)) {
+            // Sama dengan aturan NISN: nama pemilik tidak disebut.
+            $draft->error($column, 'NIK ini sudah tercatat untuk orang lain dengan nama berbeda. Periksa lagi NIK atau namanya.');
+        } elseif ($member['enrolled_here']) {
+            $draft->error($column, 'Siswa ini sudah terdaftar aktif di lembaga ini.');
+        } elseif ($draft->nisn !== null && $member['nisn'] !== null && $member['nisn'] !== $draft->nisn) {
+            $draft->error(StudentImportColumns::NISN, 'NISN berbeda dengan yang sudah tercatat untuk orang dengan NIK ini.');
+        } else {
+            // NIK & nama cocok: orang yang sama, hanya didaftarkan ke lembaga ini (seperti NISN).
+            $draft->existingMembershipId = $member['membership_id'];
+            $draft->existingStudentId = $member['student_id'];
+        }
+    }
+
+    /**
+     * Keanggotaan AKTIF di yayasan ini milik orang-orang ini.
+     *
+     * @param  list<string>  $personIds
+     * @return array<string, array{membership_id: string, name: string, student_id: string|null, nisn: string|null, enrolled_here: bool}>
+     */
+    private function members(string $tenantId, Organization $organization, array $personIds): array
+    {
+        if ($personIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('memberships as m')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->leftJoin('ac_students as s', 's.membership_id', '=', 'm.id')
+            ->where('m.tenant_id', $tenantId)
+            ->where('m.status', MembershipStatus::Active->value)
+            ->whereIn('m.person_id', $personIds)
+            ->selectRaw('m.id, m.person_id, p.name, s.id as student_id, s.nisn')
+            ->selectRaw('EXISTS (SELECT 1 FROM ac_enrollments e WHERE e.student_id = s.id AND e.organization_id = ? AND e.end_date IS NULL) AS enrolled_here', [$organization->id])
+            ->get();
+
+        $members = [];
+
+        foreach ($rows as $row) {
+            $members[(string) $row->person_id] = [
+                'membership_id' => (string) $row->id,
+                'name' => (string) $row->name,
+                'student_id' => $row->student_id === null ? null : (string) $row->student_id,
+                'nisn' => $row->nisn === null ? null : (string) $row->nisn,
+                'enrolled_here' => (bool) $row->enrolled_here,
+            ];
+        }
+
+        return $members;
+    }
+
+    /**
      * Nomor induk tidak boleh dipakai siswa LAIN di lembaga ini (§4.2), maupun dobel di dalam file.
      *
      * @param  list<StudentImportDraft>  $drafts
@@ -455,6 +653,8 @@ final class StudentImportValidator
     /**
      * Orang baru dengan nama sama dengan anggota yayasan ini atau baris lain di file → Peringatan
      * (pola §4.5 & HR-1e). Hanya yayasan yang sama; nama dibandingkan tanpa beda huruf & spasi ganda.
+     * Bila keduanya ber-NIK (pasti berbeda), hanya diperingatkan bila tanggal lahir juga sama
+     * (sama dengan aturan pegawai, PRD-001 §6) [2026-10-24].
      *
      * @param  list<StudentImportDraft>  $drafts
      */
@@ -468,7 +668,7 @@ final class StudentImportValidator
             }
         }
 
-        /** @var array<string, list<string>> $existing nama => keterangan orang */
+        /** @var array<string, list<array{label: string, birthDate: string|null, hasNik: bool}>> $existing nama => orang */
         $existing = [];
 
         if ($names !== []) {
@@ -478,16 +678,21 @@ final class StudentImportValidator
                 ->where('m.status', MembershipStatus::Active->value)
                 ->whereIn(DB::raw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g'))"), array_values(array_unique($names)))
                 ->orderBy('p.name')
-                ->get(['p.name', 'p.birth_date']);
+                ->select(['p.name', 'p.birth_date'])
+                ->selectRaw("EXISTS (SELECT 1 FROM person_identifiers pi WHERE pi.person_id = p.id AND pi.type = 'NIK') AS has_nik")
+                ->get();
 
             foreach ($people as $person) {
                 $birthDate = $person->birth_date === null ? null : substr((string) $person->birth_date, 0, 10);
-                $existing[StudentInput::comparableName((string) $person->name)][] = (string) $person->name
-                    .' ('.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate).')';
+                $existing[StudentInput::comparableName((string) $person->name)][] = [
+                    'label' => (string) $person->name.' ('.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate).')',
+                    'birthDate' => $birthDate,
+                    'hasNik' => (bool) $person->has_nik,
+                ];
             }
         }
 
-        /** @var array<string, int> $seen */
+        /** @var array<string, list<array{line: int, birthDate: string|null, hasNik: bool}>> $seen */
         $seen = [];
 
         foreach ($drafts as $draft) {
@@ -496,17 +701,23 @@ final class StudentImportValidator
             }
 
             $name = StudentInput::comparableName($draft->name);
+            $hasNik = $draft->nik !== null;
+            $relevant = fn (array $other): bool => ! ($hasNik && $other['hasNik'])
+                || ($draft->birthDate !== null && $other['birthDate'] === $draft->birthDate);
+            $people = array_values(array_filter($existing[$name] ?? [], $relevant));
 
-            if ($draft->existingMembershipId === null && isset($existing[$name])) {
-                $draft->warnings[] = 'Nama sama dengan anggota yayasan: '.implode(', ', array_slice($existing[$name], 0, 3))
-                    .'. Bila orangnya sama, isi NISN-nya agar hanya didaftarkan; bila berbeda, konfirmasi saat menyimpan.';
+            if ($draft->existingMembershipId === null && $people !== []) {
+                $draft->warnings[] = 'Nama sama dengan anggota yayasan: '.implode(', ', array_slice(array_column($people, 'label'), 0, 3))
+                    .'. Bila orangnya sama, isi NISN atau NIK-nya agar hanya didaftarkan; bila berbeda, konfirmasi saat menyimpan.';
             }
 
-            if (isset($seen[$name])) {
-                $draft->warnings[] = 'Nama sama dengan baris '.$seen[$name].'.';
-            } else {
-                $seen[$name] = $draft->line;
+            $earlier = array_values(array_filter($seen[$name] ?? [], $relevant));
+
+            if ($earlier !== []) {
+                $draft->warnings[] = 'Nama sama dengan baris '.$earlier[0]['line'].'.';
             }
+
+            $seen[$name][] = ['line' => $draft->line, 'birthDate' => $draft->birthDate, 'hasNik' => $hasNik];
         }
     }
 
@@ -557,6 +768,7 @@ final class StudentImportValidator
             // Peringatan orang ganda wajib dikonfirmasi sebelum Simpan (pola HR-1e).
             confirmNew: $draft->existingMembershipId === null && $draft->warnings !== [],
             classId: $draft->class?->id,
+            nik: $draft->nik,
         );
     }
 }

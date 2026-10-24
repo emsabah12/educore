@@ -30,6 +30,7 @@ use Modules\Academic\Domain\Student\Exceptions\StudentCheckFailed;
 use Modules\Academic\Domain\Student\Exceptions\StudentException;
 use Modules\Academic\Domain\Student\GuardianRelation;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Organization\OrganizationType;
@@ -193,10 +194,13 @@ final class StudentController
         // daftar calon tetap tampil agar pilihannya tidak hilang.
         $typedName = StudentInput::name($request->input('name'));
 
+        $typedNik = PersonNik::normalize($request->input('nik'));
+        $typedNik = $typedNik !== null && PersonNik::isValid($typedNik) ? $typedNik : null;
+
         if ($typedName !== null && ($request->filled('existing_membership_id') || $request->boolean('confirm_new'))) {
             $request->session()->flash(
                 self::CANDIDATES_SESSION_KEY,
-                $duplicateCandidates->find($this->tenantContext->require()->tenantId, $typedName),
+                $duplicateCandidates->find($this->tenantContext->require()->tenantId, $typedName, $typedNik, StudentInput::text($request->input('birth_date'))),
             );
         }
 
@@ -206,12 +210,14 @@ final class StudentController
         foreach (array_values((array) $request->input('guardians', [])) as $row) {
             $row = (array) $row;
             $row['phone'] = StudentInput::phone($row['phone'] ?? null);
+            $row['nik'] = PersonNik::normalize($row['nik'] ?? null);
             $guardiansInput[] = $row;
         }
 
         $request->merge([
             'phone' => StudentInput::phone($request->input('phone')),
             'nisn' => StudentInput::nisn($request->input('nisn')),
+            'nik' => PersonNik::normalize($request->input('nik')),
             'student_number' => StudentInput::studentNumber($request->input('student_number')),
             'guardians' => $guardiansInput,
         ]);
@@ -226,6 +232,7 @@ final class StudentController
             'phone' => ['nullable', 'string', 'regex:'.StudentInput::PHONE_PATTERN],
             'address' => ['nullable', 'string', 'max:500'],
             'nisn' => ['nullable', 'string', 'regex:'.StudentInput::NISN_PATTERN],
+            'nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
             'organization_id' => ['required', 'uuid'],
             'student_number' => ['nullable', 'string', 'regex:'.StudentInput::STUDENT_NUMBER_PATTERN],
             'start_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.$today],
@@ -235,6 +242,7 @@ final class StudentController
             'guardians.*.name' => ['required', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
             'guardians.*.gender' => ['nullable', Rule::enum(Gender::class)],
             'guardians.*.phone' => ['nullable', 'string', 'regex:'.StudentInput::PHONE_PATTERN],
+            'guardians.*.nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
             'primary_guardian' => ['nullable', 'integer', 'min:0'],
             'existing_membership_id' => ['nullable', 'uuid'],
             'confirm_new' => ['nullable', 'boolean'],
@@ -245,6 +253,8 @@ final class StudentController
             'start_date.before_or_equal' => 'Tanggal masuk tidak boleh di masa depan.',
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
             'nisn.regex' => 'NISN harus 10 angka.',
+            'nik.regex' => 'NIK harus 16 angka.',
+            'guardians.*.nik.regex' => 'NIK harus 16 angka.',
             'student_number.regex' => 'Nomor induk hanya huruf, angka, titik, garis miring, dan tanda "-", maksimal 30 karakter.',
             'organization_id.required' => 'Pilih lembaga.',
             'guardians.max' => 'Paling banyak '.StudentInput::MAX_GUARDIANS.' orang tua/wali.',
@@ -283,6 +293,7 @@ final class StudentController
                 name: (string) StudentInput::name($row['name'] ?? null),
                 gender: isset($row['gender']) && $row['gender'] !== '' ? Gender::tryFrom((string) $row['gender']) : null,
                 phone: StudentInput::text($row['phone'] ?? null),
+                nik: StudentInput::text($row['nik'] ?? null),
             );
         }
 
@@ -304,6 +315,7 @@ final class StudentController
             existingMembershipId: StudentInput::text($request->input('existing_membership_id')),
             confirmNew: $request->boolean('confirm_new'),
             classId: $classId,
+            nik: StudentInput::text($request->input('nik')),
         );
 
         try {
@@ -493,6 +505,7 @@ final class StudentController
             'phone' => 'nomor HP',
             'address' => 'alamat',
             'nisn' => 'NISN',
+            'nik' => 'NIK',
             'organization_id' => 'lembaga',
             'student_number' => 'nomor induk',
             'start_date' => 'tanggal masuk',

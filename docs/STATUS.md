@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-1g — NIK sebagai penanda unik + impor `lembaga_tambahan` (kode siap, menunggu verifikasi owner); AC-6b-1 juga menunggu push
-- **Commit terakhir:** `9e0a45f` — feat(hr): tampilkan pembanding libur mingguan kalender akademik
+- **Tahap aktif:** AC-1g-b — NIK di impor siswa (kode siap, menunggu verifikasi owner; AC-1g-a menunggu push)
+- **Commit terakhir:** `9849873` — feat(hr): HR-1g NIK sebagai penanda unik dan impor lembaga tambahan
 
 ## Keputusan penting
 
@@ -416,7 +416,7 @@
 - Mapel kelas yang punya presensi mengajar tidak bisa dilepas. Audit `academic.duty_roster_updated`, `academic.teaching_recorded` (tanpa keterangan).
 - Target bukti: 575 test (571 + 4 baru, `TeachingTest`).
 
-**AC-6b-1 — Cuti & tunjuk guru pengganti: KODE SIAP (2026-10-23, menunggu verifikasi)**
+**AC-6b-1 — Cuti & tunjuk guru pengganti: SELESAI (2026-10-23, commit `443a98d`)**
 
 - AC-6b dipecah: **6b-1** (paket ini) cuti → Perlu pengganti, tunjuk/batalkan pengganti dengan saran; **6b-2** tugas pengganti di Kelas saya, akses presensi siswa untuk pengganti, catatan otomatis dari presensi per pertemuan.
 - Kontrak HR baru `ApprovedLeaves` (`EloquentApprovedLeaves`). `Lessons` menambah `leave` per pertemuan. `SubstituteFinder` (calon + alasan tidak tersedia: cuti, jadwal sendiri beririsan, sudah menggantikan). `ManageTeachingRecords`: penunjukan sebelum hari-H (maks. 7 hari, hanya Digantikan), cek ketersediaan, `clearSubstitute`. `TeachingAccess::canAssign`.
@@ -496,7 +496,7 @@
 - `LeaveSettingsOverview`: `weeklyOff.usage` + `academic` & `differs`, `weeklyOff.differs` (jumlah lembaga berbeda). Halaman Pengaturan cuti & presensi menampilkan peringatan ⚠ dan pembanding per lembaga; halaman Kalender akademik memberi keterangan pemakaian libur mingguannya.
 - Target bukti: +1 test (`WeeklyOffComparisonTest`).
 
-**HR-1g — NIK + lembaga tambahan di impor: KODE SIAP (2026-10-23, menunggu verifikasi)**
+**HR-1g — NIK + lembaga tambahan di impor: SELESAI (2026-10-23, commit `9849873`)**
 
 - Nama tahap: HR-1f sudah dipakai (peringatan nama sama, 2026-10-17), jadi tahap ini HR-1g.
 - Migrasi Core `2026_10_23_000013`: `person_identifiers` (person_id, type `NIK`, encrypted_value, value_fingerprint; unik per orang+jenis dan per jenis+fingerprint; CHECK jenis & format fingerprint).
@@ -506,8 +506,25 @@
 - Peringatan orang ganda: bila kedua orang ber-NIK, hanya muncul bila tanggal lahir juga sama.
 - Frontend: `components/hr/nik-field.tsx` (kolom NIK + peringatan langsung); form Tambah pegawai, Ubah profil, detail pegawai, halaman impor.
 - Test: `EmployeeNikTest` (12 test, awalan helper `nik`); `tests/Support/TestNik` membuat NIK uji unik yang cocok dengan jenis kelamin & tanggal lahir; test impor/tambah pegawai lama disesuaikan.
-- Bukti (salinan kerja Claude): 592 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 592 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 - Pelajaran: string angka 16 digit (NIK) menjadi kunci **int** di array PHP; jangan jadikan NIK kunci array lalu dipakai ulang sebagai string (test sempat gagal karenanya).
+
+**AC-1g-a — NIK siswa & orang tua/wali (form): SELESAI uji owner (2026-10-24, menunggu push)**
+
+- AC-1g dipecah: **1g-a** form (tambah siswa, orang tua/wali, ubah data diri, detail); **1g-b** kolom NIK di impor siswa.
+- Academic `Application/Student/StudentNik` (pemilik NIK di yayasan ini + pesan aman lintas yayasan). `DuplicateCandidates::find(…, nik, birthDate)`: pemilik NIK sama ikut sebagai calon "(NIK sama)"; orang ber-NIK lain dengan tanggal lahir beda bukan calon.
+- `CreateStudent`: NIK siswa (orang baru → disimpan; orang yang sama → melengkapi, beda → ditolak); `NewStudentData::nik`, `GuardianData::nik`. `ManageGuardians::membershipFor` (NIK → nama+HP → orang baru) dan `update(…, nik)`. `UpdateStudentProfile` + `StudentProfileData::nik/nikSubmitted`. `StudentProfile`: NIK tersamar + `nik_warning` siswa, NIK tersamar orang tua/wali, NIK lengkap di `manage.profile`.
+- Frontend: `NikField` dipindah ke `components/nik-field.tsx` (dipakai HR & Academic; prop `name`, `label`); form Tambah siswa (siswa + tiap orang tua/wali), Ubah data diri, Tambah/Ubah orang tua/wali, detail siswa.
+- Test: `StudentNikTest` (9 test, awalan `snk`).
+- Bukti (salinan kerja Claude): 601 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+
+**AC-1g-b — NIK di impor siswa: KODE SIAP (2026-10-24, menunggu verifikasi)**
+
+- Dibangun di atas AC-1g-a (uji owner lancar, belum di origin saat paket dibuat).
+- `StudentImportColumns`: `nik`, `nik_ayah`, `nik_ibu`, `nik_wali`; `guardians()` membawa kolom NIK. Petunjuk template + teks halaman impor diperbarui.
+- `StudentImportValidator`: `nik()` (wajib teks, 16 angka), cek NIK orang tua di baris yang sama, `checkNik()` + `checkStudentNik()` + `members()` (NIK + nama cocok = siswa lama), peringatan NIK tidak cocok, peringatan nama sama memakai aturan NIK. `NewStudentData::nik` & `GuardianData::nik` terisi dari file.
+- Test: `StudentImportNikTest` (4 test, awalan `sni`).
+- Bukti (salinan kerja Claude): 605 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 
 ## Struktur file utama
 
@@ -546,8 +563,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi AC-6b-1 (PANDUAN-AC6B1.md), commit & push.
-2. Verifikasi HR-1g (PANDUAN-HR-1G.md): migrate, test, impor ulang data pegawai dengan kolom `nik` & `lembaga_tambahan`, commit & push.
-3. AC-1g: NIK siswa & orang tua/wali (opsional) di form, impor, dan ubah data; orang tua dengan NIK sama = orang yang sama (PRD-002 OD-AC-02 revisi).
-4. AC-6b-2 tugas pengganti di Kelas saya + akses presensi siswa + catatan otomatis → AC-6c rekap presensi mengajar (PRD-002 §20).
-5. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).
+1. Push AC-1g-a, lalu verifikasi AC-1g-b (PANDUAN-AC-1G-B.md), commit & push.
+2. AC-6b-2 tugas pengganti di Kelas saya + akses presensi siswa + catatan otomatis → AC-6c rekap presensi mengajar (PRD-002 §20).
+3. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).

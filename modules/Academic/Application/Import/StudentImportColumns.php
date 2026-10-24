@@ -27,6 +27,8 @@ final class StudentImportColumns
 
     public const NISN = 'nisn';
 
+    public const NIK = 'nik';
+
     public const STUDENT_NUMBER = 'nomor_induk';
 
     public const START_DATE = 'tanggal_masuk';
@@ -39,27 +41,33 @@ final class StudentImportColumns
 
     public const FATHER_PHONE = 'hp_ayah';
 
+    public const FATHER_NIK = 'nik_ayah';
+
     public const MOTHER_NAME = 'nama_ibu';
 
     public const MOTHER_PHONE = 'hp_ibu';
+
+    public const MOTHER_NIK = 'nik_ibu';
 
     public const GUARDIAN_NAME = 'nama_wali';
 
     public const GUARDIAN_PHONE = 'hp_wali';
 
+    public const GUARDIAN_NIK = 'nik_wali';
+
     public const PRIMARY_CONTACT = 'kontak_utama';
 
     /**
-     * Orang tua/wali di file: hubungan => [kolom nama, kolom HP], urutan = urutan bawaan kontak utama.
+     * Orang tua/wali di file: hubungan => [kolom nama, HP, NIK], urutan = urutan bawaan kontak utama.
      *
-     * @return list<array{relation: GuardianRelation, name: string, phone: string}>
+     * @return list<array{relation: GuardianRelation, name: string, phone: string, nik: string}>
      */
     public static function guardians(): array
     {
         return [
-            ['relation' => GuardianRelation::Father, 'name' => self::FATHER_NAME, 'phone' => self::FATHER_PHONE],
-            ['relation' => GuardianRelation::Mother, 'name' => self::MOTHER_NAME, 'phone' => self::MOTHER_PHONE],
-            ['relation' => GuardianRelation::Guardian, 'name' => self::GUARDIAN_NAME, 'phone' => self::GUARDIAN_PHONE],
+            ['relation' => GuardianRelation::Father, 'name' => self::FATHER_NAME, 'phone' => self::FATHER_PHONE, 'nik' => self::FATHER_NIK],
+            ['relation' => GuardianRelation::Mother, 'name' => self::MOTHER_NAME, 'phone' => self::MOTHER_PHONE, 'nik' => self::MOTHER_NIK],
+            ['relation' => GuardianRelation::Guardian, 'name' => self::GUARDIAN_NAME, 'phone' => self::GUARDIAN_PHONE, 'nik' => self::GUARDIAN_NIK],
         ];
     }
 
@@ -76,16 +84,20 @@ final class StudentImportColumns
             self::column(self::PHONE, 'Nomor HP siswa', false, true, '8–19 angka, boleh diawali +. Isi sebagai teks agar 0 di depan tidak hilang.'),
             self::column(self::ADDRESS, 'Alamat', false, true, 'Maksimal 500 karakter.'),
             self::column(self::NISN, 'NISN', false, true, '10 angka, isi sebagai teks. Bila NISN sudah tercatat untuk siswa dengan nama yang sama, siswa itu hanya didaftarkan ke lembaga ini.'),
+            self::column(self::NIK, 'NIK siswa', false, true, 'Opsional, 16 angka sesuai KK, isi sebagai teks. Bila NIK sudah tercatat untuk orang dengan nama yang sama, orang itu hanya didaftarkan ke lembaga ini.'),
             self::column(self::STUDENT_NUMBER, 'Nomor induk', false, true, 'Huruf, angka, titik, garis miring, "-"; maks. 30 karakter; tidak boleh dipakai siswa lain di lembaga ini.'),
             self::column(self::START_DATE, 'Tanggal masuk', true, false, 'Tanggal masuk ke lembaga; tidak boleh di masa depan.'),
             self::column(self::ENTRY_TYPE, 'Jenis masuk', false, true, 'BARU atau PINDAHAN; kosong = BARU.'),
             self::column(self::CLASS_NAME, 'Kelas', false, true, 'Opsional. Nama kelas aktif tahun ajaran berjalan (lihat daftar di bawah).'),
             self::column(self::FATHER_NAME, 'Nama ayah', false, true, 'Opsional, maks. 200 karakter.'),
             self::column(self::FATHER_PHONE, 'HP ayah', false, true, 'Opsional, seperti nomor HP siswa. Nama + HP sama dengan orang tua yang sudah tercatat = orang yang sama.'),
+            self::column(self::FATHER_NIK, 'NIK ayah', false, true, 'Opsional, 16 angka, isi sebagai teks. NIK yang sudah tercatat di yayasan = orang yang sama (kakak-adik).'),
             self::column(self::MOTHER_NAME, 'Nama ibu', false, true, 'Opsional, maks. 200 karakter.'),
             self::column(self::MOTHER_PHONE, 'HP ibu', false, true, 'Opsional, seperti HP ayah.'),
+            self::column(self::MOTHER_NIK, 'NIK ibu', false, true, 'Opsional, seperti NIK ayah.'),
             self::column(self::GUARDIAN_NAME, 'Nama wali', false, true, 'Opsional, maks. 200 karakter.'),
             self::column(self::GUARDIAN_PHONE, 'HP wali', false, true, 'Opsional, seperti HP ayah.'),
+            self::column(self::GUARDIAN_NIK, 'NIK wali', false, true, 'Opsional, seperti NIK ayah.'),
             self::column(self::PRIMARY_CONTACT, 'Kontak utama', false, true, 'AYAH, IBU, atau WALI (yang namanya diisi); kosong = orang tua pertama yang diisi.'),
         ];
     }

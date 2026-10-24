@@ -32,6 +32,8 @@ final class StudentImportDraft
 
     public ?string $nisn = null;
 
+    public ?string $nik = null;
+
     public ?string $studentNumber = null;
 
     public ?string $startDate = null;
@@ -47,6 +49,13 @@ final class StudentImportDraft
     public array $guardians = [];
 
     public ?int $primaryGuardian = null;
+
+    /**
+     * Indeks di $guardians => kolom NIK-nya (untuk pesan per kolom).
+     *
+     * @var array<int, string>
+     */
+    public array $guardianNikColumns = [];
 
     /** Terisi bila NISN & nama cocok dengan siswa yang sudah tercatat (siswa lama). */
     public ?string $existingMembershipId = null;

@@ -2,8 +2,10 @@
 
 namespace Modules\Academic\Application\Student;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Application\Person\PersonNik;
 use Modules\Core\Domain\Tenancy\MembershipStatus;
 
 /**
@@ -13,25 +15,51 @@ use Modules\Core\Domain\Tenancy\MembershipStatus;
  * keterangan secukupnya agar operator bisa menilai: peran di Academic dan tanggal lahir. Daftar
  * seluruh anggota tidak pernah ditampilkan; calon hanya muncul bila nama yang diketik sama persis.
  * Hanya yayasan yang sama, agar data yayasan lain tidak bocor.
+ *
+ * NIK (OD-AC-02 revisi 2026-10-23): pemilik NIK yang sama di yayasan ini selalu ikut (paling atas,
+ * bertanda "NIK sama") walau namanya beda. Bila orang baru ber-NIK, orang lama yang sudah ber-NIK
+ * (pasti beda) hanya ikut bila tanggal lahirnya juga sama — sama dengan aturan pegawai (PRD-001 §6).
  */
 final class DuplicateCandidates
 {
     public const LIMIT = 5;
 
+    public function __construct(
+        private readonly StudentNik $nikOwner,
+    ) {}
+
     /**
      * @return list<array{membership_id: string, label: string}>
      */
-    public function find(string $tenantId, string $name): array
+    public function find(string $tenantId, string $name, ?string $nik = null, ?string $birthDate = null): array
     {
+        $nikOwner = $nik === null ? null : $this->nikOwner->memberOwning($tenantId, $nik);
+        $ownerMembershipId = $nikOwner === null ? null : $nikOwner['membership_id'];
+
         $rows = DB::table('persons as p')
             ->join('memberships as m', 'm.person_id', '=', 'p.id')
             ->where('m.tenant_id', $tenantId)
             ->where('m.status', MembershipStatus::Active->value)
             ->whereRaw("lower(regexp_replace(trim(p.name), '\\s+', ' ', 'g')) = ?", [StudentInput::comparableName($name)])
+            ->when($nik !== null, fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                ->whereNotExists(fn (Builder $sub) => $sub->select(DB::raw(1))
+                    ->from('person_identifiers as pi')
+                    ->whereColumn('pi.person_id', 'p.id')
+                    ->where('pi.type', PersonNik::TYPE))
+                ->when($birthDate !== null, fn (Builder $either) => $either->orWhere('p.birth_date', $birthDate))))
+            ->when($ownerMembershipId !== null, fn (Builder $query) => $query->where('m.id', '<>', $ownerMembershipId))
             ->orderBy('p.birth_date')
             ->orderBy('m.id')
             ->limit(self::LIMIT)
             ->get(['m.id as membership_id', 'p.name', 'p.birth_date']);
+
+        if ($ownerMembershipId !== null) {
+            $owner = DB::table('persons as p')
+                ->join('memberships as m', 'm.person_id', '=', 'p.id')
+                ->where('m.id', $ownerMembershipId)
+                ->get(['m.id as membership_id', 'p.name', 'p.birth_date']);
+            $rows = $owner->concat($rows);
+        }
 
         if ($rows->isEmpty()) {
             return [];
@@ -53,7 +81,8 @@ final class DuplicateCandidates
             $candidates[] = [
                 'membership_id' => $membershipId,
                 'label' => (string) $row->name.' — '.($roles[$membershipId] ?? 'anggota yayasan')
-                    .', '.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate),
+                    .', '.($birthDate === null ? 'tanpa tanggal lahir' : 'lahir '.$birthDate)
+                    .($membershipId === $ownerMembershipId ? ' (NIK sama)' : ''),
             ];
         }
 
@@ -63,9 +92,9 @@ final class DuplicateCandidates
     /**
      * @return list<string>
      */
-    public function membershipIds(string $tenantId, string $name): array
+    public function membershipIds(string $tenantId, string $name, ?string $nik = null, ?string $birthDate = null): array
     {
-        return array_column($this->find($tenantId, $name), 'membership_id');
+        return array_column($this->find($tenantId, $name, $nik, $birthDate), 'membership_id');
     }
 
     /**
