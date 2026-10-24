@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** AC-1g-b — NIK di impor siswa (kode siap, menunggu verifikasi owner; AC-1g-a menunggu push)
-- **Commit terakhir:** `9849873` — feat(hr): HR-1g NIK sebagai penanda unik dan impor lembaga tambahan
+- **Tahap aktif:** AC-6b-2 — tugas pengganti di Kelas saya & presensi siswa oleh pengganti (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `6360f6a` — feat(academic): AC-1g-b NIK di impor siswa (AC-1g-a ikut di commit ini)
 
 ## Keputusan penting
 
@@ -509,7 +509,7 @@
 - Bukti: 592 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 - Pelajaran: string angka 16 digit (NIK) menjadi kunci **int** di array PHP; jangan jadikan NIK kunci array lalu dipakai ulang sebagai string (test sempat gagal karenanya).
 
-**AC-1g-a — NIK siswa & orang tua/wali (form): SELESAI uji owner (2026-10-24, menunggu push)**
+**AC-1g-a — NIK siswa & orang tua/wali (form): SELESAI (2026-10-24, ikut commit `6360f6a`)**
 
 - AC-1g dipecah: **1g-a** form (tambah siswa, orang tua/wali, ubah data diri, detail); **1g-b** kolom NIK di impor siswa.
 - Academic `Application/Student/StudentNik` (pemilik NIK di yayasan ini + pesan aman lintas yayasan). `DuplicateCandidates::find(…, nik, birthDate)`: pemilik NIK sama ikut sebagai calon "(NIK sama)"; orang ber-NIK lain dengan tanggal lahir beda bukan calon.
@@ -518,13 +518,22 @@
 - Test: `StudentNikTest` (9 test, awalan `snk`).
 - Bukti (salinan kerja Claude): 601 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 
-**AC-1g-b — NIK di impor siswa: KODE SIAP (2026-10-24, menunggu verifikasi)**
+**AC-1g-b — NIK di impor siswa: SELESAI (2026-10-24, commit `6360f6a`)**
 
 - Dibangun di atas AC-1g-a (uji owner lancar, belum di origin saat paket dibuat).
 - `StudentImportColumns`: `nik`, `nik_ayah`, `nik_ibu`, `nik_wali`; `guardians()` membawa kolom NIK. Petunjuk template + teks halaman impor diperbarui.
 - `StudentImportValidator`: `nik()` (wajib teks, 16 angka), cek NIK orang tua di baris yang sama, `checkNik()` + `checkStudentNik()` + `members()` (NIK + nama cocok = siswa lama), peringatan NIK tidak cocok, peringatan nama sama memakai aturan NIK. `NewStudentData::nik` & `GuardianData::nik` terisi dari file.
 - Test: `StudentImportNikTest` (4 test, awalan `sni`).
-- Bukti (salinan kerja Claude): 605 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 605 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar (termasuk masuk kelas lewat impor).
+
+**AC-6b-2 — Tugas pengganti & presensi siswa oleh pengganti: KODE SIAP (2026-10-24, menunggu verifikasi)**
+
+- `Application/Teaching/SubstituteTasks` (daftar tugas menggantikan, `hasAny` untuk menu, `find`, `fillable`). Kelas saya mengirim `substitutions`; menu Kelas saya juga muncul bagi pengganti tanpa kelas (`AcademicServiceProvider::hasMyClasses`).
+- `AttendanceController::showSubstitute/storeSubstitute` + route `kelas-saya/menggantikan/{entry}/{date}/presensi` (`academic.substitute-attendance.show|store`); lembar presensi menerima rentang tetap satu tanggal dan prop `asSubstitute`.
+- `ManageTeachingRecords::autoTaught` dipanggil sesudah pengampu menyimpan presensi per pertemuan (`storeMyLesson`): catatan Mengajar sumber OTOMATIS bila belum ada catatan; audit `oleh = otomatis dari presensi siswa`.
+- Frontend: bagian **Tugas menggantikan** di Kelas saya; `teaching.ts` (`SubstituteTask`, `recordedByLabel`); Presensi mengajar menampilkan "Dicatat otomatis dari presensi siswa".
+- Test: `SubstituteTaskTest` (5 test, awalan `sbt`).
+- Bukti (salinan kerja Claude): 610 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 
 ## Struktur file utama
 
@@ -563,6 +572,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Push AC-1g-a, lalu verifikasi AC-1g-b (PANDUAN-AC-1G-B.md), commit & push.
-2. AC-6b-2 tugas pengganti di Kelas saya + akses presensi siswa + catatan otomatis → AC-6c rekap presensi mengajar (PRD-002 §20).
+1. Verifikasi AC-6b-2 (PANDUAN-AC-6B-2.md), commit & push.
+2. AC-6c rekap presensi mengajar bulanan per guru + .xlsx (PRD-002 §20.4).
 3. HR-4b lembar presensi harian petugas → HR-4c rekap harian (PRD-001 §14).

@@ -13,6 +13,7 @@ import {
     describeRecord,
     displayTime,
     formatTeachingDate,
+    recordedByLabel,
     TEACHING_STATUS_CLASS,
 } from '@/components/academic/teaching';
 import Heading from '@/components/heading';
@@ -216,10 +217,7 @@ function LessonCard({
                     )}
                     {lesson.record && (
                         <p className="text-xs text-muted-foreground">
-                            Dicatat{' '}
-                            {lesson.record.source === 'GURU'
-                                ? 'guru sendiri'
-                                : (lesson.record.recorded_by ?? 'petugas')}
+                            Dicatat {recordedByLabel(lesson.record)}
                         </p>
                     )}
                 </div>

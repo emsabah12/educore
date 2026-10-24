@@ -23,6 +23,9 @@ use stdClass;
  *   Siapa boleh pada tanggal mana dicek pemanggil (TeachingAccess).
  * - Pertemuan harus benar-benar terjadwal pada tanggal itu, tidak di masa depan.
  * - Keterangan tidak masuk audit.
+ * - Otomatis (AC-6b-2): guru pengampu yang mengisi presensi siswa per pertemuan tercatat Mengajar
+ *   (sumber OTOMATIS) bila pertemuan itu belum punya catatan. Pengganti sudah tercatat "Digantikan"
+ *   sejak ditunjuk, jadi tidak ada yang perlu diubah.
  */
 final class ManageTeachingRecords
 {
@@ -73,6 +76,39 @@ final class ManageTeachingRecords
             }
 
             $this->write($tenantId, $lesson, $date, TeachingStatus::Taught, null, null, null, Lessons::SOURCE_TEACHER, $membershipId, null);
+        });
+    }
+
+    /**
+     * Presensi siswa per pertemuan diisi guru pengampunya → catat Mengajar bila belum ada catatan.
+     * Diam-diam dilewati bila tidak berlaku (bukan pertemuan terjadwal, belum dimulai, sudah dicatat,
+     * atau bukan pengampunya): presensi siswa tetap tersimpan.
+     *
+     * @return bool true bila catatan baru dibuat
+     */
+    public function autoTaught(string $tenantId, string $entryId, string $date, string $employeeId, string $membershipId): bool
+    {
+        if ($date > BusinessClock::todayString()) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($tenantId, $entryId, $date, $employeeId, $membershipId): bool {
+            $lesson = Str::isUuid($entryId) ? $this->lessons->find($tenantId, $entryId, $date) : null;
+
+            if ($lesson === null || (string) $lesson->teacher_employee_id !== $employeeId) {
+                return false;
+            }
+
+            $notStarted = $date === BusinessClock::todayString()
+                && CarbonImmutable::now(BusinessClock::timezone())->format('H:i') < substr((string) $lesson->start_time, 0, 5);
+
+            if ($notStarted || $this->existing((string) $lesson->id, $date) !== null) {
+                return false;
+            }
+
+            $this->write($tenantId, $lesson, $date, TeachingStatus::Taught, null, null, null, Lessons::SOURCE_AUTO, $membershipId, null);
+
+            return true;
         });
     }
 
@@ -238,7 +274,11 @@ final class ManageTeachingRecords
                 'mapel' => (string) $lesson->subject,
                 'status' => $status->label(),
                 'pengganti_diisi' => $substituteId !== null,
-                'oleh' => $source === Lessons::SOURCE_TEACHER ? 'guru' : 'petugas',
+                'oleh' => match ($source) {
+                    Lessons::SOURCE_TEACHER => 'guru',
+                    Lessons::SOURCE_AUTO => 'otomatis dari presensi siswa',
+                    default => 'petugas',
+                },
             ],
             organizationId: (string) $lesson->organization_id,
             tenantId: $tenantId,

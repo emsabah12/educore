@@ -1,6 +1,9 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Check, ChevronRight, ClipboardCheck } from 'lucide-react';
-import type { TeachingLesson } from '@/components/academic/teaching';
+import type {
+    SubstituteTask,
+    TeachingLesson,
+} from '@/components/academic/teaching';
 import {
     describeRecord,
     formatTeachingDate,
@@ -40,6 +43,8 @@ type Props = {
     days: { value: number; label: string }[];
     /** Pertemuan 7 hari terakhir beserta presensi mengajarnya (AC-6a). */
     teaching: TeachingLesson[];
+    /** Pertemuan yang Anda gantikan, 6 hari terakhir s.d. 7 hari ke depan (AC-6b-2). */
+    substitutions: SubstituteTask[];
     today: string;
     now: string;
 };
@@ -59,6 +64,7 @@ export default function MyClasses({
     schedule,
     days,
     teaching,
+    substitutions,
     today,
     now,
 }: Props) {
@@ -83,7 +89,14 @@ export default function MyClasses({
                 {!linked ? (
                     <EmptyState text="Akun Anda belum tertaut ke data pegawai. Hubungi Admin SDM bila Anda wali kelas atau guru pengampu." />
                 ) : classes.length === 0 ? (
-                    <EmptyState text="Anda belum memegang kelas di tahun ajaran berjalan." />
+                    substitutions.length === 0 ? (
+                        <EmptyState text="Anda belum memegang kelas di tahun ajaran berjalan." />
+                    ) : (
+                        <SubstitutionsSection
+                            tasks={substitutions}
+                            today={today}
+                        />
+                    )
                 ) : (
                     <>
                         <section className="space-y-3">
@@ -203,6 +216,13 @@ export default function MyClasses({
                                 </div>
                             )}
                         </section>
+
+                        {substitutions.length > 0 && (
+                            <SubstitutionsSection
+                                tasks={substitutions}
+                                today={today}
+                            />
+                        )}
 
                         <TeachingSection
                             lessons={teaching}
@@ -342,6 +362,96 @@ function TeachingRow({
                 <span className="text-muted-foreground">Belum dimulai</span>
             )}
         </li>
+    );
+}
+
+/**
+ * Tugas menggantikan (PRD-002 §20.3, AC-6b-2): pertemuan guru lain yang ditunjuk untuk Anda.
+ * Di lembaga yang memakai presensi per pertemuan, Anda mengisi presensi siswanya.
+ */
+function SubstitutionsSection({
+    tasks,
+    today,
+}: {
+    tasks: SubstituteTask[];
+    today: string;
+}) {
+    const dates = [...new Set(tasks.map((task) => task.date))];
+
+    return (
+        <section
+            aria-label="Tugas menggantikan"
+            className="space-y-3 rounded-xl border border-sky-500/40 p-4"
+        >
+            <div>
+                <h2 className="text-base font-medium">Tugas menggantikan</h2>
+                <p className="text-sm text-muted-foreground">
+                    Pertemuan guru lain yang ditunjuk untuk Anda gantikan. Bila
+                    lembaganya memakai presensi per pertemuan, isi presensi
+                    siswanya pada hari-H (paling lambat 6 hari sesudahnya).
+                </p>
+            </div>
+            <div className="space-y-3">
+                {dates.map((date) => (
+                    <div key={date} className="rounded-lg border">
+                        <h3 className="border-b bg-muted/40 px-3 py-1.5 text-sm font-medium">
+                            {formatTeachingDate(date)}
+                            {date === today && ' (hari ini)'}
+                        </h3>
+                        <ul className="divide-y">
+                            {tasks
+                                .filter((task) => task.date === date)
+                                .map((task) => (
+                                    <li
+                                        key={task.key}
+                                        className="flex flex-wrap items-start justify-between gap-2 px-3 py-2 text-sm"
+                                    >
+                                        <div className="min-w-0">
+                                            <p>
+                                                <span className="font-medium tabular-nums">
+                                                    {displayTime(task.start)}–
+                                                    {displayTime(task.end)}
+                                                </span>{' '}
+                                                {task.subject} ·{' '}
+                                                {task.class_name}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                {task.organization} ·
+                                                menggantikan{' '}
+                                                {task.teacher ?? 'pengampu'}
+                                                {task.reason &&
+                                                    ` (${task.reason})`}
+                                            </p>
+                                        </div>
+                                        {task.can_fill && task.entry_id ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                asChild
+                                            >
+                                                <Link
+                                                    href={`/kelas-saya/menggantikan/${task.entry_id}/${task.date}/presensi`}
+                                                >
+                                                    <ClipboardCheck />
+                                                    Isi presensi siswa
+                                                </Link>
+                                            </Button>
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                {!task.lesson_mode
+                                                    ? 'Presensi harian oleh wali kelas'
+                                                    : task.date > today
+                                                      ? 'Akan datang'
+                                                      : 'Lewat batas isi'}
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </section>
     );
 }
 

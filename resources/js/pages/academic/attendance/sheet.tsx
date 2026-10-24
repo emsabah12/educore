@@ -49,6 +49,8 @@ type Props = {
     statuses: Option[];
     asHomeroom: boolean;
     homeroomDays: number;
+    /** Diisi guru pengganti untuk pertemuan yang ia gantikan (AC-6b-2). */
+    asSubstitute?: boolean;
     noteMax: number;
     baseUrl: string;
     backUrl: string;
@@ -159,12 +161,13 @@ export default function AttendanceSheet(props: Props) {
                                 />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                {lesson
-                                    ? `Hanya tanggal hari ${lesson.day_label}. `
-                                    : ''}
-                                {asHomeroom
-                                    ? `${lesson ? 'Guru pengampu' : 'Wali kelas'} bisa mengisi atau mengoreksi ${homeroomDays} hari terakhir.`
-                                    : 'Operator bisa mengisi tanggal mana pun di tahun ajaran ini.'}
+                                {props.asSubstitute
+                                    ? 'Anda guru pengganti pertemuan ini: presensi hanya untuk tanggal ini.'
+                                    : `${lesson ? `Hanya tanggal hari ${lesson.day_label}. ` : ''}${
+                                          asHomeroom
+                                              ? `${lesson ? 'Guru pengampu' : 'Wali kelas'} bisa mengisi atau mengoreksi ${homeroomDays} hari terakhir.`
+                                              : 'Operator bisa mengisi tanggal mana pun di tahun ajaran ini.'
+                                      }`}
                             </p>
                         </div>
 

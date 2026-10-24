@@ -13,6 +13,7 @@ use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Application\Teaching\DutyRoster;
+use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Console\PruneStudentImportsCommand;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
@@ -103,6 +104,8 @@ class AcademicServiceProvider extends ModuleServiceProvider
         $myClasses = $this->app->make(MyClasses::class);
         $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
 
-        return $employeeId !== null && $myClasses->classes($context->tenantId, $employeeId) !== [];
+        // Guru pengganti yang tidak memegang kelas tetap mendapat menu untuk melihat tugasnya (AC-6b-2).
+        return $employeeId !== null && ($myClasses->classes($context->tenantId, $employeeId) !== []
+            || $this->app->make(SubstituteTasks::class)->hasAny($context->tenantId, $employeeId));
     }
 }

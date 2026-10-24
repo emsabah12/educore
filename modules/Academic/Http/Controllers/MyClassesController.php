@@ -9,6 +9,7 @@ use Modules\Academic\Application\Classroom\ClassRosterExport;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Teaching\Lessons;
 use Modules\Academic\Application\Teaching\ManageTeachingRecords;
+use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
@@ -26,7 +27,7 @@ final class MyClassesController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(MyClasses $myClasses, Lessons $lessons): Response
+    public function index(MyClasses $myClasses, Lessons $lessons, SubstituteTasks $substituteTasks): Response
     {
         $context = $this->tenantContext->require();
         $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
@@ -45,6 +46,8 @@ final class MyClassesController
                 BusinessClock::today()->subDays(ManageTeachingRecords::TEACHER_WINDOW_DAYS)->toDateString(),
                 $today,
             ),
+            // Tugas menggantikan 6 hari terakhir s.d. 7 hari ke depan (PRD-002 §20.3, AC-6b-2).
+            'substitutions' => $employeeId === null ? [] : $substituteTasks->list($context->tenantId, $employeeId),
             'today' => $today,
             'now' => CarbonImmutable::now(BusinessClock::timezone())->format('H:i'),
         ]);

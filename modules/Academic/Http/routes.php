@@ -126,6 +126,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('kelas/jadwal/{entry}/presensi', [AttendanceController::class, 'storeLesson'])->whereUuid('entry')->name('academic.lesson-attendance.store');
     Route::get('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'showMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.show');
     Route::post('kelas-saya/jadwal/{entry}/presensi', [AttendanceController::class, 'storeMyLesson'])->whereUuid('entry')->name('academic.my-lesson-attendance.store');
+    // Guru pengganti mengisi presensi siswa pertemuan yang ia gantikan (AC-6b-2).
+    Route::get('kelas-saya/menggantikan/{entry}/{date}/presensi', [AttendanceController::class, 'showSubstitute'])->whereUuid('entry')->where('date', '\d{4}-\d{2}-\d{2}')->name('academic.substitute-attendance.show');
+    Route::post('kelas-saya/menggantikan/{entry}/{date}/presensi', [AttendanceController::class, 'storeSubstitute'])->whereUuid('entry')->where('date', '\d{4}-\d{2}-\d{2}')->name('academic.substitute-attendance.store');
     // Rekap presensi (AC-4b). Lihat: izin lihat siswa; wali kelas: lewat Kelas saya.
     Route::get('kelas/{class}/rekap-presensi', [AttendanceController::class, 'recap'])->whereUuid('class')->name('academic.attendance.recap');
 

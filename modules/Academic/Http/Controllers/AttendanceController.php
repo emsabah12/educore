@@ -16,6 +16,8 @@ use Modules\Academic\Application\Attendance\ManageAttendance;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\SchoolDays;
 use Modules\Academic\Application\Classroom\MyClasses;
+use Modules\Academic\Application\Teaching\ManageTeachingRecords;
+use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Domain\Attendance\AttendanceStatus;
 use Modules\Academic\Domain\Attendance\Exceptions\AttendanceException;
 use Modules\Academic\Domain\Calendar\AcademicYear;
@@ -32,7 +34,9 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Harian (AC-4a): operator `/kelas/{class}/presensi` (`academic.classes.manage`, seluruh tahun
  *   ajaran); wali kelas `/kelas-saya/{class}/presensi` (7 hari terakhir).
  * - Per pertemuan (AC-4c): operator `/kelas/jadwal/{entry}/presensi`; guru pengampu mapel itu
- *   `/kelas-saya/jadwal/{entry}/presensi` (7 hari terakhir).
+ *   `/kelas-saya/jadwal/{entry}/presensi` (7 hari terakhir); guru pengganti (AC-6b-2)
+ *   `/kelas-saya/menggantikan/{entry}/{tanggal}/presensi` (pertemuan yang ia gantikan saja, hari-H
+ *   s.d. 6 hari sesudahnya). Pengampu yang mengisi otomatis tercatat Mengajar (PRD-002 §20.3).
  * Gate dengan datanya: di luar cakupan 404, tanpa izin 403. Pintu Kelas saya: bukan kelas/jadwal
  * yang ia pegang → 404. Mode lembaga menentukan jenis yang dibuka.
  *
@@ -100,11 +104,53 @@ final class AttendanceController
         return $this->sheet($request, $this->classOf($lesson), $lesson, true, $attendance, "/kelas-saya/jadwal/{$lesson->id}/presensi", '/kelas-saya', 'Kelas saya');
     }
 
-    public function storeMyLesson(Request $request, string $entry, MyClasses $myClasses, ManageAttendance $attendance): RedirectResponse
+    public function storeMyLesson(Request $request, string $entry, MyClasses $myClasses, ManageAttendance $attendance, ManageTeachingRecords $teaching): RedirectResponse
     {
         $lesson = $this->myLesson($entry, $myClasses);
+        $response = $this->save($request, $this->classOf($lesson), $lesson, true, $attendance, route('academic.my-lesson-attendance.show', ['entry' => $lesson->id]));
 
-        return $this->save($request, $this->classOf($lesson), $lesson, true, $attendance, route('academic.my-lesson-attendance.show', ['entry' => $lesson->id]));
+        // Presensi siswa tersimpan = guru mengajar pertemuan itu (AC-6b-2); catatan petugas tidak diubah.
+        $context = $this->tenantContext->require();
+        $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
+
+        if ($employeeId !== null) {
+            $teaching->autoTaught($context->tenantId, $lesson->id, $request->string('date')->value(), $employeeId, $context->membershipId);
+        }
+
+        return $response;
+    }
+
+    // ── Guru pengganti (AC-6b-2) ─────────────────────────────────────────────
+
+    public function showSubstitute(Request $request, string $entry, string $date, MyClasses $myClasses, SubstituteTasks $tasks, ManageAttendance $attendance): Response
+    {
+        $lesson = $this->substituteLesson($entry, $date, $myClasses, $tasks);
+        $fillable = SubstituteTasks::fillable($date);
+
+        return $this->sheet(
+            $request,
+            $this->classOf($lesson),
+            $lesson,
+            true,
+            $attendance,
+            "/kelas-saya/menggantikan/{$lesson->id}/{$date}/presensi",
+            '/kelas-saya',
+            'Kelas saya',
+            fixedWindow: $fillable ? ['min' => $date, 'max' => $date] : null,
+            fixedBlocked: $fillable ? null : 'Presensi pertemuan yang Anda gantikan bisa diisi pada hari-H sampai '.(ManageAttendance::HOMEROOM_DAYS - 1).' hari sesudahnya.',
+            asSubstitute: true,
+        );
+    }
+
+    public function storeSubstitute(Request $request, string $entry, string $date, MyClasses $myClasses, SubstituteTasks $tasks, ManageAttendance $attendance): RedirectResponse
+    {
+        $lesson = $this->substituteLesson($entry, $date, $myClasses, $tasks);
+
+        if ($request->input('date') !== $date || ! SubstituteTasks::fillable($date)) {
+            throw ValidationException::withMessages(['date' => 'Pengganti hanya bisa mengisi presensi pertemuan yang ia gantikan, pada hari-H sampai '.(ManageAttendance::HOMEROOM_DAYS - 1).' hari sesudahnya.']);
+        }
+
+        return $this->save($request, $this->classOf($lesson), $lesson, true, $attendance, route('academic.substitute-attendance.show', ['entry' => $lesson->id, 'date' => $date]));
     }
 
     // ── Rekap (AC-4b/c) ──────────────────────────────────────────────────────
@@ -203,10 +249,14 @@ final class AttendanceController
         ]);
     }
 
-    private function sheet(Request $request, SchoolClass $class, ?ScheduleEntry $lesson, bool $limited, ManageAttendance $attendance, string $baseUrl, string $backUrl, string $backLabel): Response
+    /**
+     * @param  array{min: string, max: string}|null  $fixedWindow  rentang tetap (pengganti: satu tanggal)
+     * @param  string|null  $fixedBlocked  alasan lembar tidak bisa diisi, menggantikan pemeriksaan biasa
+     */
+    private function sheet(Request $request, SchoolClass $class, ?ScheduleEntry $lesson, bool $limited, ManageAttendance $attendance, string $baseUrl, string $backUrl, string $backLabel, ?array $fixedWindow = null, ?string $fixedBlocked = null, bool $asSubstitute = false): Response
     {
-        $blocked = $attendance->modeProblem($class, $lesson !== null);
-        $window = $blocked === null ? $attendance->window($class, $limited, $lesson?->day_of_week) : null;
+        $blocked = $attendance->modeProblem($class, $lesson !== null) ?? $fixedBlocked;
+        $window = $blocked === null ? ($fixedWindow ?? $attendance->window($class, $limited, $lesson?->day_of_week)) : null;
         $date = ManageAttendance::pickDate($request->query('tanggal'), $window, $lesson?->day_of_week);
 
         return Inertia::render('academic/attendance/sheet', [
@@ -221,6 +271,7 @@ final class AttendanceController
             'statuses' => AttendanceStatus::options(),
             'asHomeroom' => $limited,
             'homeroomDays' => ManageAttendance::HOMEROOM_DAYS,
+            'asSubstitute' => $asSubstitute,
             'noteMax' => ManageAttendance::NOTE_MAX_LENGTH,
             'baseUrl' => $baseUrl,
             'backUrl' => $backUrl,
@@ -394,6 +445,24 @@ final class AttendanceController
         $class = SchoolClass::query()->withoutGlobalScope('tenant')->whereKey($picked['id'])->firstOrFail();
 
         return [$class, $picked['homeroom'], $employeeId];
+    }
+
+    /**
+     * Baris jadwal yang pertemuannya pada tanggal itu tercatat "Digantikan" oleh pengguna ini; selain itu 404.
+     */
+    private function substituteLesson(string $entryId, string $date, MyClasses $myClasses, SubstituteTasks $tasks): ScheduleEntry
+    {
+        $context = $this->tenantContext->require();
+        $employeeId = $myClasses->employeeId($context->tenantId, $context->membershipId);
+        $lesson = Str::isUuid($entryId) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1
+            ? ScheduleEntry::query()->withoutGlobalScope('tenant')->where('tenant_id', $context->tenantId)->whereKey($entryId)->first()
+            : null;
+
+        if ($employeeId === null || ! $lesson instanceof ScheduleEntry || $tasks->find($context->tenantId, $employeeId, $lesson->id, $date) === null) {
+            abort(404);
+        }
+
+        return $lesson;
     }
 
     /**
