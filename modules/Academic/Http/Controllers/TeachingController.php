@@ -15,16 +15,20 @@ use Modules\Academic\Application\Teaching\Lessons;
 use Modules\Academic\Application\Teaching\ManageTeachingRecords;
 use Modules\Academic\Application\Teaching\SubstituteFinder;
 use Modules\Academic\Application\Teaching\TeachingAccess;
+use Modules\Academic\Application\Teaching\TeachingRecap;
+use Modules\Academic\Application\Teaching\TeachingRecapExport;
 use Modules\Academic\Domain\Teaching\AbsenceReason;
 use Modules\Academic\Domain\Teaching\Exceptions\TeachingException;
 use Modules\Academic\Domain\Teaching\TeachingStatus;
+use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Contracts\EmployeeLookup;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Presensi mengajar (PRD-002 §20): per lembaga & tanggal (AC-6a), Perlu pengganti & tunjuk pengganti
- * (AC-6b), dan tombol "Sudah mengajar" dari Kelas saya.
+ * (AC-6b), tombol "Sudah mengajar" dari Kelas saya, dan rekap bulanan (AC-6c, hanya pemilik izin).
  *
  * Pintu petugas: pemilik `academic.teaching.manage` atau guru piket hari ini; tanpa keduanya 403.
  * Pertemuan yang tidak bisa ia catat → 403.
@@ -117,6 +121,50 @@ final class TeachingController
             'reasons' => self::reasons(),
             'noteMax' => ManageTeachingRecords::NOTE_MAX_LENGTH,
         ]);
+    }
+
+    /**
+     * Rekap bulanan per guru (AC-6c): hanya lembaga yang ia kelola (bukan guru piket).
+     */
+    public function recap(Request $request, TeachingRecap $recap): Response
+    {
+        $context = $this->tenantContext->require();
+        [$organizations, $organization] = $this->managedOrganization($request, $context->tenantId);
+        $month = TeachingRecap::month($request->query('bulan'));
+        $data = $recap->build($context->tenantId, $organization['value'], $month);
+
+        return Inertia::render('academic/teaching/recap', [
+            'organizations' => self::options($organizations),
+            'organization' => ['value' => $organization['value'], 'label' => $organization['label']],
+            'month' => $month,
+            'maxMonth' => BusinessClock::today()->format('Y-m'),
+            'label' => $data['label'],
+            'until' => $data['until'],
+            'rows' => $data['rows'],
+            'totals' => $data['totals'],
+        ]);
+    }
+
+    public function recapExport(Request $request, TeachingRecap $recap, TeachingRecapExport $export): BinaryFileResponse
+    {
+        $context = $this->tenantContext->require();
+        [, $organization] = $this->managedOrganization($request, $context->tenantId);
+        $month = TeachingRecap::month($request->query('bulan'));
+        $code = (string) Organization::query()->withoutGlobalScope('tenant')->whereKey($organization['value'])->value('code');
+
+        $path = tempnam(sys_get_temp_dir(), 'educore-rekap-mengajar-');
+
+        if ($path === false) {
+            abort(500, 'Rekap tidak bisa dibuat.');
+        }
+
+        $export->write($recap->build($context->tenantId, $organization['value'], $month), $organization['label'], $path);
+
+        return response()
+            ->download($path, TeachingRecapExport::fileName($code, $month), [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend();
     }
 
     public function store(Request $request, string $entry, Lessons $lessons, ManageTeachingRecords $records): RedirectResponse
@@ -243,6 +291,30 @@ final class TeachingController
 
         foreach ($organizations as $option) {
             if ($option['value'] === $requested) {
+                return [$organizations, $option];
+            }
+        }
+
+        abort(404);
+    }
+
+    /**
+     * Lembaga yang ia kelola (izin `academic.teaching.manage`); tanpa satu pun 403, lembaga lain 404.
+     *
+     * @return array{0: list<OrganizationOption>, 1: OrganizationOption}
+     */
+    private function managedOrganization(Request $request, string $tenantId): array
+    {
+        $organizations = array_values(array_filter($this->access->organizations($tenantId, null), fn (array $option): bool => $option['manages']));
+
+        if ($organizations === []) {
+            abort(403);
+        }
+
+        $requested = $request->string('lembaga')->value();
+
+        foreach ($organizations as $option) {
+            if ($requested === '' || $option['value'] === $requested) {
                 return [$organizations, $option];
             }
         }

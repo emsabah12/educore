@@ -137,6 +137,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('akademik/presensi-mengajar/{entry}', [TeachingController::class, 'store'])->whereUuid('entry')->name('academic.teaching.store');
     Route::get('akademik/perlu-pengganti', [TeachingController::class, 'substitutes'])->name('academic.substitutes.index');
     Route::post('akademik/presensi-mengajar/{entry}/batalkan-pengganti', [TeachingController::class, 'clearSubstitute'])->whereUuid('entry')->name('academic.substitutes.clear');
+    Route::get('akademik/rekap-mengajar', [TeachingController::class, 'recap'])->name('academic.teaching.recap');
+    Route::get('akademik/rekap-mengajar/unduh', [TeachingController::class, 'recapExport'])->name('academic.teaching.recap.export');
     Route::post('kelas-saya/jadwal/{entry}/mengajar', [TeachingController::class, 'markTaught'])->whereUuid('entry')->name('academic.my-teaching.store');
     Route::get('akademik/jadwal-piket', [DutyRosterController::class, 'index'])->name('academic.duty.index');
     Route::post('akademik/jadwal-piket', [DutyRosterController::class, 'update'])->name('academic.duty.update');

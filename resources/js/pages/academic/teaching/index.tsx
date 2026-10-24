@@ -1,5 +1,10 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { CalendarClock, Pencil, UserRoundSearch } from 'lucide-react';
+import {
+    CalendarClock,
+    ChartColumn,
+    Pencil,
+    UserRoundSearch,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     ReasonSelect,
@@ -91,6 +96,16 @@ export default function TeachingIndex(props: Props) {
                                 >
                                     <CalendarClock />
                                     Jadwal piket
+                                </Link>
+                            </Button>
+                        )}
+                        {props.manages && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/akademik/rekap-mengajar?lembaga=${props.organization.value}`}
+                                >
+                                    <ChartColumn />
+                                    Rekap
                                 </Link>
                             </Button>
                         )}
