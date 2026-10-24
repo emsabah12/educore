@@ -24,6 +24,8 @@ import {
     TransferForm,
 } from '@/components/hr/employee-actions';
 import Heading from '@/components/heading';
+import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
+import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import {
     formatLeaveRange,
     LEAVE_STATUS_CLASS,
@@ -85,6 +87,8 @@ type Props = {
     access: LoginAccess | null;
     /** Ringkasan cuti (HR-3d-b), hanya bagi yang boleh melihat data pribadi. */
     leave: LeaveSummary | null;
+    /** Ringkasan presensi bulan berjalan (HR-4c), hanya bagi yang boleh melihat data pribadi. */
+    attendance: AttendanceSummaryData | null;
     canManageLeave: boolean;
 };
 
@@ -136,6 +140,7 @@ export default function EmployeeDetail({
     manage,
     access,
     leave,
+    attendance,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -443,6 +448,14 @@ export default function EmployeeDetail({
                         canManage={canManageLeave}
                         canRecord={canManageLeave && isActive}
                     />
+                )}
+
+                {attendance && (
+                    <Section
+                        title={`Presensi ${attendance.label} (s.d. ${attendance.until})`}
+                    >
+                        <AttendanceSummary summary={attendance} />
+                    </Section>
                 )}
 
                 {access && <LoginAccessSection access={access} />}

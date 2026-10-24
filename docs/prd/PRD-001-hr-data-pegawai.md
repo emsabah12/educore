@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.14 (2026-10-24: rincian & pembangunan HR-4b Lembar presensi pegawai — §14.3)
-- **Versi sebelumnya:** 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), **HR-4b dibangun 2026-10-24**, HR-4c berikutnya; **HR-1g SELESAI (`9849873`)**; HR-2, HR-5 dst. belum dirinci
+- **Versi:** 0.15 (2026-10-24: rincian & pembangunan HR-4c Rekap presensi pegawai — §14.4)
+- **Versi sebelumnya:** 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), **HR-4b SELESAI (`58b83d0`)**, **HR-4c dibangun 2026-10-24**; **HR-1g SELESAI (`9849873`)**; HR-2, HR-5 dst. belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -458,6 +458,13 @@ Satuan jam/setengah hari, lampiran, carry-over, delegasi tugas selama cuti, guru
 ### 14.4 HR-4c Rekap
 
 - Rekap bulanan per lembaga: hari wajib, hadir, terlambat (kali & menit), pulang cepat, sakit, izin, dinas luar, cuti, alpa, belum diisi; unduh .xlsx; ringkasan di Presensi saya & detail pegawai (bagi yang boleh melihat data pribadi).
+- Rincian HR-4c [ASUMSI, 2026-10-24]:
+    - Halaman **Rekap presensi pegawai** (`/pegawai/presensi/rekap?lembaga=&bulan=`, tombol **Rekap bulanan** di Presensi pegawai), pemilik `hr.attendance.manage` di lembaga itu. Bulan yang akan datang → bulan berjalan; bulan berjalan dihitung sampai hari ini.
+    - Pegawai = penempatan **utama** di lembaga itu pada sebagian bulan; hanya hari-hari selama penempatan itu yang dihitung (mis. pegawai baru mulai tanggal 15).
+    - **Hari wajib** = hari dengan jam wajib (§14.1). **Cuti** dihitung di hari wajib (catatan presensinya, bila ada, diabaikan). Hari wajib tanpa catatan & bukan cuti = **Belum diisi**. Catatan di hari tidak wajib tetap dihitung statusnya (mis. Hadir di hari libur), sehingga Hadir bisa melebihi hari wajib.
+    - Terlambat & pulang cepat: jumlah kali dan total menit (tampil "2× (35 mnt)").
+    - Unduh `.xlsx`: lembar **Rekap** (per pegawai + Jumlah) dan **Rincian** (per pegawai per hari wajib/tercatat: jam wajib, status, jam masuk/pulang, terlambat, pulang cepat; **tanpa keterangan**).
+    - Ringkasan bulan berjalan di **Presensi saya** dan di **detail pegawai** (bagi pemilik izin lihat data pribadi), dihitung di penempatan utama pegawai saat ini.
 
 ### 14.5 Di luar HR-4
 

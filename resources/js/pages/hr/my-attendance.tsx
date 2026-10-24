@@ -1,6 +1,8 @@
 import { Form, Head } from '@inertiajs/react';
 import { LogIn, LogOut } from 'lucide-react';
 import Heading from '@/components/heading';
+import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
+import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { formatLeaveDate } from '@/components/hr/leave-format';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +32,8 @@ type Props =
           days: Day[];
           canCheckIn: boolean;
           canCheckOut: boolean;
+          /** Ringkasan bulan berjalan (HR-4c). */
+          summary: AttendanceSummaryData | null;
       };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -76,6 +80,14 @@ export default function MyAttendance(props: Props) {
                             canCheckIn={props.canCheckIn}
                             canCheckOut={props.canCheckOut}
                         />
+                        {props.summary && (
+                            <section className="space-y-3 rounded-xl border p-4">
+                                <h2 className="text-base font-medium">
+                                    Ringkasan {props.summary.label}
+                                </h2>
+                                <AttendanceSummary summary={props.summary} />
+                            </section>
+                        )}
                         <History days={props.days} />
                     </>
                 )}

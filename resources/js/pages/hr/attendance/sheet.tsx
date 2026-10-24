@@ -1,4 +1,5 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
+import { ChartColumn } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -82,10 +83,22 @@ export default function AttendanceSheetPage(props: Props) {
             <Head title="Presensi pegawai" />
 
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4">
-                <Heading
-                    title="Presensi pegawai"
-                    description="Isi atau koreksi kehadiran pegawai yang penempatan utamanya di lembaga ini. Absen mandiri pegawai tampil otomatis; cuti yang disetujui tidak perlu diisi."
-                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <Heading
+                        title="Presensi pegawai"
+                        description="Isi atau koreksi kehadiran pegawai yang penempatan utamanya di lembaga ini. Absen mandiri pegawai tampil otomatis; cuti yang disetujui tidak perlu diisi."
+                    />
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={`/pegawai/presensi/rekap?lembaga=${props.organization.value}`}
+                            >
+                                <ChartColumn />
+                                Rekap bulanan
+                            </Link>
+                        </Button>
+                    </div>
+                </div>
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3 rounded-xl border p-4">
                     <div className="grid gap-1.5">

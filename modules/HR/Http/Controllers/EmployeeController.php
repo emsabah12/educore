@@ -23,6 +23,7 @@ use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\MembershipStatus;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Attendance\AttendanceRecap;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\CreateEmployee;
 use Modules\HR\Application\Employee\EmployeeDirectory;
@@ -98,6 +99,7 @@ final class EmployeeController
         LoginAccountSummary $loginAccounts,
         MemberAccessSummary $memberAccess,
         EmployeeLeaveSummary $leaveSummary,
+        AttendanceRecap $attendanceRecap,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -125,6 +127,8 @@ final class EmployeeController
             'canManage' => $canManage,
             // Ringkasan cuti (HR-3d-b): hanya bagi yang boleh melihat data pribadi pegawai ini.
             'leave' => $withPersonal ? $leaveSummary->for($this->tenantContext->require()->tenantId, $employee) : null,
+            // Ringkasan presensi bulan berjalan (HR-4c): hanya bagi yang boleh melihat data pribadi.
+            'attendance' => $withPersonal ? $attendanceRecap->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()

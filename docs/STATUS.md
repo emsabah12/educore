@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-4b — Lembar presensi pegawai oleh petugas (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `c13d0d7` — feat(academic): AC-6c rekap presensi mengajar bulanan
+- **Tahap aktif:** HR-4c — Rekap presensi pegawai bulanan (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `58b83d0` — feat(hr): HR-4b lembar presensi pegawai oleh petugas
 
 ## Keputusan penting
 
@@ -545,13 +545,23 @@
 - Bukti (salinan kerja Claude): 613 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
 - **AC-6 Presensi mengajar & guru pengganti SELESAI (2026-10-24).**
 
-**HR-4b — Lembar presensi pegawai (petugas): KODE SIAP (2026-10-24, menunggu verifikasi)**
+**HR-4b — Lembar presensi pegawai (petugas): SELESAI (2026-10-24, commit `58b83d0`)**
 
 - Permission baru `hr.attendance.manage` (Admin SDM, Admin Yayasan, Kepala Lembaga) dan role penugasan baru **Petugas Presensi** (`petugas-presensi`) → jalankan `educore:sync-access`. `AccessCatalogTest`, `MemberAccessTest`, `TreeAuthorizationTest` disesuaikan.
 - `Application/Attendance/AttendanceSheet` (`rows`, `save`, `earliest`; aturan di docblock). Audit `hr.attendance_recorded`.
 - `AttendanceSheetController` + route `GET|POST pegawai/presensi` (`hr.attendance.index|store`); halaman `hr/attendance/sheet` (kartu per pegawai, tombol simpan menempel di bawah); menu **Presensi pegawai**.
 - Test: `AttendanceSheetTest` (5 test, awalan `lpp`).
-- Bukti (salinan kerja Claude): 618 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 618 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+
+**HR-4c — Rekap presensi pegawai bulanan: KODE SIAP (2026-10-24, menunggu verifikasi)**
+
+- `Application/Attendance/AttendanceRecap` (`month`, `range`, `forOrganization`, `forEmployee`; aturan hitung di docblock) dan `AttendanceRecapExport` (xlsx Rekap & Rincian).
+- `AttendanceSheetController::recap/recapExport` + route `pegawai/presensi/rekap` (`hr.attendance.recap`) & `/unduh` (`hr.attendance.recap.export`); halaman `hr/attendance/recap` (tabel di layar lebar, kartu di HP); tombol **Rekap bulanan** di Presensi pegawai.
+- Ringkasan bulan berjalan: prop `summary` di Presensi saya, prop `attendance` di detail pegawai (komponen `components/hr/attendance-summary.tsx`).
+- Test: `AttendanceRecapTest` (4 test, awalan `rpg`).
+- Bukti (salinan kerja Claude): 622 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Pelajaran: alias tipe phpstan berbentuk irisan (`array{...}&Counts`) tidak bisa di-resolve; tulis bentuk array lengkap.
+- **HR-4 Presensi pegawai SELESAI setelah HR-4c diverifikasi** (mesin absen menunggu contoh file, §14.5).
 
 ## Struktur file utama
 
@@ -590,5 +600,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-4b (PANDUAN-HR-4B.md), `educore:sync-access`, commit & push.
-2. HR-4c rekap presensi pegawai bulanan + .xlsx + ringkasan di Presensi saya & detail pegawai (PRD-001 §14.4).
+1. Verifikasi HR-4c (PANDUAN-HR-4C.md), commit & push.
+2. Tahap berikutnya belum dirinci: pilihan dari PRD — HR-2 / HR-5 (belum dirinci), AC-7 (akun orang tua, ekspor Dapodik/EMIS yang kini bisa memakai NIK, PPDB, asrama), atau impor mesin absen (menunggu contoh file). Tentukan prioritas bersama owner.

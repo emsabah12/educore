@@ -13,13 +13,17 @@ use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Attendance\AttendanceRecap;
+use Modules\HR\Application\Attendance\AttendanceRecapExport;
 use Modules\HR\Application\Attendance\AttendanceSheet;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Domain\Attendance\AttendanceStatus;
 use Modules\HR\Domain\Attendance\Exceptions\AttendanceException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Lembar presensi pegawai oleh petugas (PRD-001 §14.3, HR-4b): `/pegawai/presensi?lembaga=&tanggal=`.
+ * Lembar presensi pegawai oleh petugas (PRD-001 §14.3, HR-4b): `/pegawai/presensi?lembaga=&tanggal=`,
+ * dan rekap bulanan (§14.4, HR-4c): `/pegawai/presensi/rekap?lembaga=&bulan=` (+ `/unduh`).
  *
  * Pemilik `hr.attendance.manage` (Kepala Lembaga, Petugas Presensi di lembaganya; Admin SDM / Admin
  * Yayasan di semua lembaga). Tanpa izin di mana pun → 403; lembaga di luar cakupan → 404.
@@ -106,6 +110,50 @@ final class AttendanceSheetController
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return redirect()->route('hr.attendance.index', ['lembaga' => $organization['value'], 'tanggal' => $date]);
+    }
+
+    public function recap(Request $request, AttendanceRecap $recap): Response
+    {
+        [$organizations, $organization] = $this->organization($request->string('lembaga')->value());
+        $month = AttendanceRecap::month($request->query('bulan'));
+        $data = $recap->forOrganization($this->tenantContext->require()->tenantId, $organization['value'], $month);
+        [, $until] = AttendanceRecap::range($month);
+
+        return Inertia::render('hr/attendance/recap', [
+            'organizations' => $organizations,
+            'organization' => $organization,
+            'month' => $month,
+            'maxMonth' => BusinessClock::today()->format('Y-m'),
+            'label' => AttendanceRecap::monthLabel($month),
+            'until' => $until,
+            'rows' => $data['rows'],
+            'totals' => $data['totals'],
+        ]);
+    }
+
+    public function recapExport(Request $request, AttendanceRecap $recap, AttendanceRecapExport $export): BinaryFileResponse
+    {
+        [, $organization] = $this->organization($request->string('lembaga')->value());
+        $month = AttendanceRecap::month($request->query('bulan'));
+        [, $until] = AttendanceRecap::range($month);
+        $code = (string) Organization::query()->whereKey($organization['value'])->value('code');
+        $path = tempnam(sys_get_temp_dir(), 'educore-rekap-presensi-');
+
+        if ($path === false) {
+            abort(500, 'Rekap tidak bisa dibuat.');
+        }
+
+        $export->write(
+            $recap->forOrganization($this->tenantContext->require()->tenantId, $organization['value'], $month),
+            "Rekap presensi pegawai — {$organization['label']} — ".AttendanceRecap::monthLabel($month)." (s.d. {$until})",
+            $path,
+        );
+
+        return response()
+            ->download($path, AttendanceRecapExport::fileName($code, $month), [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend();
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────

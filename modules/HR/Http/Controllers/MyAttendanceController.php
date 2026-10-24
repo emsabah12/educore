@@ -7,6 +7,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\HR\Application\Attendance\AttendanceRecap;
 use Modules\HR\Application\Attendance\ManageAttendance;
 use Modules\HR\Application\Attendance\MyAttendance;
 use Modules\HR\Contracts\EmployeeLookup;
@@ -25,7 +26,7 @@ final class MyAttendanceController
         private readonly EmployeeLookup $lookup,
     ) {}
 
-    public function index(MyAttendance $attendance): Response
+    public function index(MyAttendance $attendance, AttendanceRecap $recap): Response
     {
         $context = $this->tenantContext->require();
         $employeeId = $this->lookup->employeeIdForMembership($context->tenantId, $context->membershipId);
@@ -34,7 +35,10 @@ final class MyAttendanceController
             return Inertia::render('hr/my-attendance', ['linked' => false]);
         }
 
-        return Inertia::render('hr/my-attendance', ['linked' => true] + $attendance->build($context->tenantId, $employeeId));
+        return Inertia::render('hr/my-attendance', ['linked' => true] + $attendance->build($context->tenantId, $employeeId) + [
+            // Ringkasan bulan berjalan (HR-4c, PRD-001 §14.4).
+            'summary' => $recap->forEmployee($context->tenantId, $employeeId),
+        ]);
     }
 
     public function checkIn(ManageAttendance $attendance): RedirectResponse

@@ -49,6 +49,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Lembar presensi pegawai oleh petugas (PRD-001 §14.3, HR-4b).
     Route::get('pegawai/presensi', [AttendanceSheetController::class, 'index'])->name('hr.attendance.index');
     Route::post('pegawai/presensi', [AttendanceSheetController::class, 'store'])->name('hr.attendance.store');
+    Route::get('pegawai/presensi/rekap', [AttendanceSheetController::class, 'recap'])->name('hr.attendance.recap');
+    Route::get('pegawai/presensi/rekap/unduh', [AttendanceSheetController::class, 'recapExport'])->name('hr.attendance.recap.export');
 
     Route::get('presensi-saya', [MyAttendanceController::class, 'index'])->name('hr.my-attendance.index');
     Route::post('presensi-saya/masuk', [MyAttendanceController::class, 'checkIn'])->name('hr.my-attendance.check-in');
