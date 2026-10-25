@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.17 (2026-10-24: rincian & pembangunan HR-2b Dokumen saya, Dokumen akan habis, kartu Beranda — §15.2)
-- **Versi sebelumnya:** 0.16 (cakupan "HR selesai" — §3; HR-2 Dokumen & SK — §15, OD-HR-10; HR-2a), 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: HR-2a SELESAI (`287f261`), **HR-2b dibangun 2026-10-24**; HR-5, HR-6a belum dirinci
+- **Versi:** 0.18 (2026-10-25: rincian HR-5 Komponen gaji & rekap input gaji — §16, OD-HR-11 "jam mati"; pembangunan HR-5a)
+- **Versi sebelumnya:** 0.17 (HR-2b Dokumen saya, Dokumen akan habis, kartu Beranda — §15.2), 0.16 (cakupan "HR selesai" — §3; HR-2 Dokumen & SK — §15, OD-HR-10; HR-2a), 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: HR-2a SELESAI (`287f261`), HR-2b SELESAI (`93b8e0c`) — **HR-2 SELESAI (2026-10-24)**; **HR-5 dirinci & disetujui (§16, 2026-10-25)**: **HR-5a dibangun 2026-10-25**; HR-6a belum dirinci
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -343,6 +343,7 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 | OD-HR-06 | Alur persetujuan cuti                                                                                                   | **DIPUTUSKAN** — bisa diatur per jenjang/lembaga lewat aturan berjenjang: 1 tahap (Kepala Lembaga) atau 2 tahap (Kepala Lembaga lalu Admin SDM); bawaan 2 tahap [OWNER, 2026-10-22]                                                                                                                                                                                                                                                           |
 | OD-HR-07 | Cara menghitung jumlah hari cuti                                                                                        | **DIPUTUSKAN** — hari kerja: rentang tanggal dikurangi libur mingguan dan daftar hari libur (tanggal merah) di kalender kerja HR, terpisah dari kalender akademik [OWNER, 2026-10-22] Ditegaskan ulang [OWNER, 2026-10-23]: tetap terpisah; Pengaturan cuti & presensi menampilkan libur mingguan kalender akademik tiap lembaga sebagai pembanding dan menandai yang berbeda (kontrak `SchoolWeeklyOff`). Tanggal merah juga tetap terpisah. |
 | OD-HR-08 | Sisa jatah cuti tahunan                                                                                                 | **DIPUTUSKAN** — hangus di akhir tahun kalender; Admin SDM bisa menambah lewat penyesuaian [OWNER, 2026-10-22]                                                                                                                                                                                                                                                                                                                                |
+| OD-HR-11 | Dasar honor mengajar (HR-5)                                                                                             | **DIPUTUSKAN** — honor per JP dengan **jam mati**: JP per minggu dari jadwal pelajaran (durasi ÷ menit per JP per jenjang/lembaga), bukan pertemuan yang terlaksana; tarif per JP per jenjang/lembaga; penerima = GTT/honorer; potongan presensi dihitung rupiahnya [OWNER, 2026-10-25]                                                                                                                                                       |
 | OD-HR-10 | Penyimpanan file dokumen HR                                                                                             | **DIPUTUSKAN** — disk privat server (`storage/app/private`), unduh hanya lewat aplikasi setelah cek izin; wajib ikut backup [OWNER, 2026-10-24]                                                                                                                                                                                                                                                                                               |
 | OD-HR-09 | Presensi pegawai: pencatat, rincian, jam kerja guru                                                                     | **DIPUTUSKAN** — pegawai absen sendiri **dan** petugas lembaga mengisi/mengoreksi; status + jam masuk/pulang; jam kerja guru dari jadwal mengajar, staf dari jam kerja per jenjang/lembaga; impor mesin absen menyusul [OWNER, 2026-10-22]. Presensi mengajar per jadwal & guru pengganti → Akademik AC-6 [OWNER, 2026-10-23]                                                                                                                 |
 
@@ -501,3 +502,34 @@ Desain lama HR-008 **disederhanakan** (ADR-001): tanpa versi file, status DRAFT/
 ### 15.3 Di luar HR-2
 
 Versi file, e-signature, pemindai virus, lampiran cuti (bisa memakai penyimpanan yang sama kemudian), dokumen siswa (Akademik), batas kuota penyimpanan per yayasan.
+
+## 16. HR-5 Komponen gaji & rekap input gaji [OWNER, 2026-10-25 — OD-HR-11 + usulan rincian disetujui]
+
+HR hanya menyiapkan **data input gaji** yang bisa ditelusuri; pajak/PPh 21, slip gaji, dan pembayaran tetap di Keuangan ([LAMA] OD-HR-003, FR-023–025). Semua di tingkat Yayasan dengan permission baru **`hr.payroll.manage`** (Admin SDM, Admin Yayasan; **bukan** Kepala Lembaga — data gaji sensitif). Audit tidak pernah mencatat nominal.
+
+### 16.1 HR-5a Komponen gaji & nominal per pegawai
+
+- Halaman **Pengaturan gaji** (`/pegawai/gaji/pengaturan`): katalog **komponen gaji** — kode (aturan sama dengan katalog SDM), nama, **jenis** (Pendapatan/Potongan), **cara hitung** (Tetap per bulan / Per hari hadir = nominal × hari Hadir + Dinas luar di rekap presensi bulan itu). Jenis & cara hitung tidak bisa diubah setelah dibuat; komponen tidak dihapus, hanya dinonaktifkan (tidak bisa diisi & tidak ikut rekap baru; nominal lama tetap tersimpan).
+- Isi awal [ASUMSI]: Gaji pokok, Tunjangan jabatan, Tunjangan wali kelas (pendapatan, tetap), Uang transport (pendapatan, per hari hadir), Iuran BPJS (potongan, tetap).
+- Bagian **Komponen gaji** di detail pegawai: nominal rupiah bulat 0 s.d. Rp 1.000.000.000 per komponen aktif (boleh ditulis "2.500.000" / "Rp 2.500.000"; kosong = tidak berlaku), ringkasan pendapatan tetap, potongan tetap, dan per hari hadir.
+- Audit: `hr.pay_component_created|updated|deactivated|reactivated`, `hr.employee_pay_updated` (kode komponen yang berubah saja).
+- Menyusul bila diperlukan: impor nominal massal dari .xlsx.
+
+### 16.2 HR-5b Tarif honor JP & potongan presensi
+
+- **Honor mengajar = jam mati** [OWNER, OD-HR-11]: dasar honor adalah **JP per minggu** dari jadwal pelajaran yang berlaku, bukan pertemuan yang terlaksana. Ketidakhadiran ditangani lewat potongan presensi.
+    - JP satu jadwal = durasi ÷ **menit per JP** (aturan berjenjang per jenjang/lembaga, bawaan 45), dibulatkan ke bawah per jadwal; jadwal yang durasinya bukan kelipatan ditandai peringatan [ASUMSI].
+    - Pengampu = guru mapel kelas pada jadwal itu; guru di dua lembaga dihitung per lembaga.
+    - **Honor bulanan = JP per minggu × tarif per JP lembaga itu** (tidak dikali jumlah minggu) [ASUMSI — perlu konfirmasi owner].
+    - Tarif per JP: aturan berjenjang per jenjang/lembaga.
+    - Penerima honor JP: centang **"menerima honor per JP"** di katalog Status kepegawaian (mis. GTT) dan Jenis pegawai (mis. Honorer).
+    - Mengajar sebagai pengganti tidak menambah honor (bisa lewat penyesuaian manual) [ASUMSI].
+    - Data jadwal diambil lewat kontrak di `Modules\HR\Contracts` yang diisi modul Akademik (HR tidak bergantung pada Akademik).
+- **Tarif potongan presensi** (aturan berjenjang per jenjang/lembaga penempatan utama): Rp per hari **Alpa**, Rp per kali **Terlambat**, Rp per kali **Pulang cepat**. Sakit, Izin, Dinas luar, Cuti tidak dipotong; hari **Belum diisi** tidak dipotong tetapi diperingatkan.
+
+### 16.3 HR-5c Rekap input gaji bulanan
+
+- Satu baris per pegawai aktif se-yayasan (saring per lembaga): komponen tetap, per hari hadir, honor JP, potongan presensi, potongan tetap, **penyesuaian manual** (nominal + keterangan per pegawai per bulan), total pendapatan, total potongan, bersih.
+- **Kunci bulan**: angka disimpan sebagai snapshot; perubahan nominal/tarif/jadwal sesudahnya tidak mengubah bulan terkunci. Buka kunci dengan alasan (audit).
+- Unduh `.xlsx`: **Rekap** dan **Rincian** (dasar hitung: hari hadir, JP per lembaga, alpa, terlambat, pulang cepat).
+- Di luar HR-5: pajak/PPh 21, slip gaji pegawai, transfer bank, THR, lembur terjadwal.

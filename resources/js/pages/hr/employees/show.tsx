@@ -27,6 +27,8 @@ import Heading from '@/components/heading';
 import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
+import { PaySection } from '@/components/hr/employee-pay';
+import type { PaySummary } from '@/components/hr/employee-pay';
 import type { EmployeeDocument } from '@/components/hr/employee-documents';
 import {
     formatLeaveRange,
@@ -93,6 +95,8 @@ type Props = {
     attendance: AttendanceSummaryData | null;
     /** Dokumen & SK (HR-2a), hanya bagi yang boleh melihat data pribadi. */
     documents: EmployeeDocument[] | null;
+    /** Komponen gaji (HR-5a), hanya bagi Admin SDM / Admin Yayasan. */
+    pay: PaySummary | null;
     canManageLeave: boolean;
 };
 
@@ -146,6 +150,7 @@ export default function EmployeeDetail({
     leave,
     attendance,
     documents,
+    pay,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -478,6 +483,8 @@ export default function EmployeeDetail({
                         }
                     />
                 )}
+
+                {pay && <PaySection employeeId={employee.id} pay={pay} />}
 
                 {access && <LoginAccessSection access={access} />}
 

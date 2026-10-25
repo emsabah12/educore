@@ -8,6 +8,7 @@ use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeDocumentController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
+use Modules\HR\Http\Controllers\EmployeePayController;
 use Modules\HR\Http\Controllers\ExpiringDocumentController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
@@ -16,6 +17,7 @@ use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
+use Modules\HR\Http\Controllers\PayrollSettingsController;
 
 /*
  * Route web modul HR (PRD-001 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -82,6 +84,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('dokumen-saya/{document}/unduh', [MyDocumentController::class, 'download'])->whereUuid('document')->name('hr.my-documents.download');
     Route::get('pegawai/dokumen/akan-habis', [ExpiringDocumentController::class, 'index'])->name('hr.documents.expiring');
 
+    // Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji. Admin SDM / Admin Yayasan.
+    Route::get('pegawai/gaji/pengaturan', [PayrollSettingsController::class, 'index'])->name('hr.payroll-settings.index');
+    Route::post('pegawai/gaji/komponen', [PayrollSettingsController::class, 'store'])->name('hr.pay-components.store');
+    Route::patch('pegawai/gaji/komponen/{component}', [PayrollSettingsController::class, 'update'])->whereUuid('component')->name('hr.pay-components.update');
+    Route::post('pegawai/gaji/komponen/{component}/nonaktifkan', [PayrollSettingsController::class, 'deactivate'])->whereUuid('component')->name('hr.pay-components.deactivate');
+    Route::post('pegawai/gaji/komponen/{component}/aktifkan', [PayrollSettingsController::class, 'activate'])->whereUuid('component')->name('hr.pay-components.activate');
+
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');
     Route::get('pegawai/tambah', [EmployeeController::class, 'create'])->name('hr.employees.create');
@@ -104,6 +113,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/{employee}/penempatan/{placement}/utama', [EmployeeActionController::class, 'makePrimary'])->whereUuid(['employee', 'placement'])->name('hr.employees.placements.primary');
     Route::post('pegawai/{employee}/berhenti', [EmployeeActionController::class, 'end'])->whereUuid('employee')->name('hr.employees.end');
     Route::post('pegawai/{employee}/aktifkan', [EmployeeActionController::class, 'rehire'])->whereUuid('employee')->name('hr.employees.rehire');
+
+    // Nominal komponen gaji pegawai (PRD-001 §16.1, HR-5a). Hanya hr.payroll.manage.
+    Route::patch('pegawai/{employee}/gaji', [EmployeePayController::class, 'update'])->whereUuid('employee')->name('hr.employees.pay.update');
 
     // Dokumen & SK pegawai (PRD-001 §15, HR-2a). Kelola: Admin SDM / Admin Yayasan; unduh: lihat data pribadi.
     Route::post('pegawai/{employee}/dokumen', [EmployeeDocumentController::class, 'store'])->whereUuid('employee')->name('hr.employees.documents.store');

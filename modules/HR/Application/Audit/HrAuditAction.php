@@ -91,6 +91,19 @@ final class HrAuditAction
 
     public const SUBJECT_DOCUMENT = 'hr_document';
 
+    /** Komponen gaji (HR-5a). Nominal tidak pernah dicatat di audit. */
+    public const PAY_COMPONENT_CREATED = 'hr.pay_component_created';
+
+    public const PAY_COMPONENT_UPDATED = 'hr.pay_component_updated';
+
+    public const PAY_COMPONENT_DEACTIVATED = 'hr.pay_component_deactivated';
+
+    public const PAY_COMPONENT_REACTIVATED = 'hr.pay_component_reactivated';
+
+    public const EMPLOYEE_PAY_UPDATED = 'hr.employee_pay_updated';
+
+    public const SUBJECT_PAY_COMPONENT = 'hr_pay_component';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -140,6 +153,11 @@ final class HrAuditAction
             self::DOCUMENT_UPDATED => 'Isian dokumen pegawai diubah',
             self::DOCUMENT_VOIDED => 'Dokumen pegawai dibatalkan',
             self::DOCUMENT_DOWNLOADED => 'Dokumen pegawai diunduh',
+            self::PAY_COMPONENT_CREATED => 'Komponen gaji ditambahkan',
+            self::PAY_COMPONENT_UPDATED => 'Nama komponen gaji diubah',
+            self::PAY_COMPONENT_DEACTIVATED => 'Komponen gaji dinonaktifkan',
+            self::PAY_COMPONENT_REACTIVATED => 'Komponen gaji diaktifkan kembali',
+            self::EMPLOYEE_PAY_UPDATED => 'Nominal komponen gaji pegawai diubah',
         ];
     }
 }

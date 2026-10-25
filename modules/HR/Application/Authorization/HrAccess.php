@@ -34,6 +34,9 @@ final class HrAccess
     /** Lembar presensi pegawai per lembaga & tanggal (PRD-001 §14.3, HR-4b), di cakupan penugasannya. */
     public const ATTENDANCE_MANAGE = 'hr.attendance.manage';
 
+    /** Komponen gaji, nominal per pegawai, tarif, rekap input gaji (PRD-001 §16, HR-5). Tingkat Yayasan. */
+    public const PAYROLL_MANAGE = 'hr.payroll.manage';
+
     public const ROLE_ADMIN_SDM = 'admin-sdm';
 
     /** Petugas presensi lembaga (HR-4b): hanya mengisi lembar presensi pegawai lembaganya. */
@@ -48,7 +51,8 @@ final class HrAccess
             ->permission(self::CATALOG_MANAGE, 'Kelola katalog SDM')
             ->permission(self::LEAVE_APPROVE, 'Setujui cuti pegawai lembaga')
             ->permission(self::LEAVE_MANAGE, 'Kelola cuti pegawai')
-            ->permission(self::ATTENDANCE_MANAGE, 'Kelola presensi pegawai');
+            ->permission(self::ATTENDANCE_MANAGE, 'Kelola presensi pegawai')
+            ->permission(self::PAYROLL_MANAGE, 'Kelola komponen & rekap gaji');
 
         $all = [
             self::EMPLOYEES_VIEW,
@@ -58,6 +62,8 @@ final class HrAccess
             self::LEAVE_APPROVE,
             self::LEAVE_MANAGE,
             self::ATTENDANCE_MANAGE,
+            // Data gaji sensitif: hanya Admin SDM & Admin Yayasan, bukan Kepala Lembaga (PRD-001 §16).
+            self::PAYROLL_MANAGE,
         ];
 
         $catalog

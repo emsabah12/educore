@@ -29,11 +29,12 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     // HR-3 cuti (PRD-001 §13): +2 permission HR (setujui & kelola cuti).
     // HR-4b (PRD-001 §14.3): +1 permission (kelola presensi pegawai) untuk Admin Yayasan, Kepala Lembaga,
     // Admin SDM, dan role baru Petugas Presensi.
+    // HR-5a (PRD-001 §16): +1 permission (kelola komponen & rekap gaji) untuk Admin Yayasan & Admin SDM.
     // role_permission: Admin Yayasan 6+6+6, Pimpinan 2+3+2, Kepala Lembaga 3+3+3, Koordinator 3+1+1, Staf 1,
     // Admin SDM 6, Operator Akademik 5.
-    expect(Permission::query()->count())->toBe(19)
+    expect(Permission::query()->count())->toBe(20)
         ->and(Role::query()->count())->toBe(8)
-        ->and(DB::table('role_permission')->count())->toBe(19 + 7 + 10 + 5 + 1 + 7 + 5 + 1);
+        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 

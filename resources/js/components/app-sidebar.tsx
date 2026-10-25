@@ -20,6 +20,7 @@ import {
     Tags,
     UserCheck,
     Users,
+    Wallet,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { ContextSwitcher } from '@/components/context-switcher';
@@ -110,6 +111,12 @@ const expiringDocumentsNavItem: NavItem = {
     title: 'Dokumen akan habis',
     href: '/pegawai/dokumen/akan-habis',
     icon: FileClock,
+};
+
+const payrollSettingsNavItem: NavItem = {
+    title: 'Pengaturan gaji',
+    href: '/pegawai/gaji/pengaturan',
+    icon: Wallet,
 };
 
 const leaveApprovalsNavItem: NavItem = {
@@ -203,6 +210,9 @@ export function AppSidebar() {
             : []),
         ...(atTenantLevel && permissions.includes('hr.leave.manage')
             ? [leaveSettingsNavItem]
+            : []),
+        ...(atTenantLevel && permissions.includes('hr.payroll.manage')
+            ? [payrollSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

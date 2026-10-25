@@ -10,6 +10,7 @@ use Modules\Core\Database\Seeders\DevAccountsSeeder;
 use Modules\Core\Database\Seeders\FirstTenantSeeder;
 use Modules\HR\Database\Seeders\HrCatalogSeeder;
 use Modules\HR\Database\Seeders\HrLeaveTypeSeeder;
+use Modules\HR\Database\Seeders\HrPayComponentSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -32,6 +33,9 @@ class DatabaseSeeder extends Seeder
 
         // Isi awal jenis cuti untuk setiap yayasan (PRD-001 §13.2). Aman diulang.
         $this->call(HrLeaveTypeSeeder::class);
+
+        // Isi awal komponen gaji untuk setiap yayasan (PRD-001 §16.1). Aman diulang.
+        $this->call(HrPayComponentSeeder::class);
 
         // Kalender Yayasan bawaan untuk setiap yayasan (PRD-002 §4.4). Aman diulang.
         $this->call(AcademicCalendarSeeder::class);
