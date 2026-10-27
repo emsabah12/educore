@@ -1,5 +1,5 @@
-import { Form, Head } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -16,18 +16,33 @@ type PayComponent = {
     name: string;
     kind: 'PENDAPATAN' | 'POTONGAN';
     kind_label: string;
-    basis: 'TETAP' | 'PER_HARI_HADIR';
+    basis: 'TETAP' | 'PER_HARI_HADIR' | 'MENURUT_JABATAN';
     basis_label: string;
     is_active: boolean;
-    /** Jumlah pegawai yang punya nominal komponen ini. */
+    /** Jumlah pegawai yang punya nominal komponen ini (komponen per pegawai). */
     employees: number;
+    /** Tarif jabatan (hanya komponen Menurut jabatan). */
+    rates: PositionRate[];
+};
+
+type PositionRate = {
+    id: string;
+    position_id: string;
+    organization_id: string | null;
+    position: string;
+    organization: string | null;
+    amount: number;
 };
 
 type Props = {
     components: PayComponent[];
     kinds: Option[];
     bases: Option[];
+    positions: Option[];
+    organizations: Option[];
 };
+
+const rupiah = new Intl.NumberFormat('id-ID');
 
 const BASE_URL = '/pegawai/gaji/komponen';
 
@@ -38,7 +53,13 @@ const selectClass =
  * Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji yayasan. Nominal per pegawai diisi di detail
  * pegawai. Hanya Admin SDM / Admin Yayasan; server tetap memeriksa ulang.
  */
-export default function PayrollSettings({ components, kinds, bases }: Props) {
+export default function PayrollSettings({
+    components,
+    kinds,
+    bases,
+    positions,
+    organizations,
+}: Props) {
     return (
         <>
             <Head title="Pengaturan gaji" />
@@ -46,8 +67,15 @@ export default function PayrollSettings({ components, kinds, bases }: Props) {
             <div className="flex flex-1 flex-col gap-4 p-4">
                 <Heading
                     title="Pengaturan gaji"
-                    description="Komponen gaji yayasan. Nominal per pegawai diisi di detail pegawai, bagian Komponen gaji. Perhitungan pajak & pembayaran tetap di Keuangan."
+                    description="Komponen gaji yayasan. Komponen Menurut jabatan memakai tarif jabatan di bawah; komponen lain diisi per pegawai di menu Gaji pegawai. Perhitungan pajak & pembayaran tetap di Keuangan."
                 />
+
+                <Link
+                    href="/pegawai/gaji"
+                    className="self-start text-sm font-medium underline underline-offset-4"
+                >
+                    Buka Gaji pegawai →
+                </Link>
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                     <section
@@ -65,6 +93,8 @@ export default function PayrollSettings({ components, kinds, bases }: Props) {
                                     <ComponentRow
                                         key={component.id}
                                         component={component}
+                                        positions={positions}
+                                        organizations={organizations}
                                     />
                                 ))}
                             </ul>
@@ -159,8 +189,11 @@ function CreateForm({ kinds, bases }: { kinds: Option[]; bases: Option[] }) {
                         </select>
                         <p className="text-xs text-muted-foreground">
                             Per hari hadir = nominal × jumlah hari Hadir & Dinas
-                            luar di rekap presensi bulan itu. Jenis & cara
-                            hitung tidak bisa diubah setelah disimpan.
+                            luar di rekap presensi bulan itu. Menurut jabatan =
+                            nominal dari tarif jabatan yang sedang dipegang
+                            pegawai (selain mengajar; honor mengajar diatur
+                            lewat tarif JP). Jenis & cara hitung tidak bisa
+                            diubah setelah disimpan.
                         </p>
                         <InputError message={errors.basis} />
                     </div>
@@ -175,7 +208,15 @@ function CreateForm({ kinds, bases }: { kinds: Option[]; bases: Option[] }) {
     );
 }
 
-function ComponentRow({ component }: { component: PayComponent }) {
+function ComponentRow({
+    component,
+    positions,
+    organizations,
+}: {
+    component: PayComponent;
+    positions: Option[];
+    organizations: Option[];
+}) {
     const [editing, setEditing] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const itemUrl = `${BASE_URL}/${component.id}`;
@@ -207,7 +248,11 @@ function ComponentRow({ component }: { component: PayComponent }) {
                         {!component.is_active && (
                             <Badge variant="outline">Nonaktif</Badge>
                         )}
-                        <span>{component.employees} pegawai</span>
+                        <span>
+                            {component.basis === 'MENURUT_JABATAN'
+                                ? `${component.rates.length} tarif jabatan`
+                                : `${component.employees} pegawai`}
+                        </span>
                     </div>
                 </div>
 
@@ -288,13 +333,20 @@ function ComponentRow({ component }: { component: PayComponent }) {
                 </Form>
             )}
 
+            {component.basis === 'MENURUT_JABATAN' && (
+                <RateEditor
+                    component={component}
+                    positions={positions}
+                    organizations={organizations}
+                />
+            )}
+
             {confirming && (
                 <div className="space-y-2 rounded-md border border-destructive/40 p-3">
                     <p className="text-sm">
                         Nonaktifkan {component.name}? Komponen tidak bisa diisi
-                        dan tidak ikut rekap gaji baru. Nominal yang sudah
-                        tercatat di {component.employees} pegawai tetap
-                        tersimpan.
+                        dan tidak ikut rekap gaji baru. Nominal & tarif yang
+                        sudah tercatat tetap tersimpan.
                     </p>
                     <div className="flex gap-2">
                         <StatusButton
@@ -317,6 +369,171 @@ function ComponentRow({ component }: { component: PayComponent }) {
                 </div>
             )}
         </li>
+    );
+}
+
+/**
+ * Tarif komponen Menurut jabatan (HR-5a-2). Tarif lembaga tertentu didahulukan daripada tarif
+ * "semua lembaga". Menyimpan jabatan × lembaga yang sudah ada = mengubah nominalnya.
+ */
+function RateEditor({
+    component,
+    positions,
+    organizations,
+}: {
+    component: PayComponent;
+    positions: Option[];
+    organizations: Option[];
+}) {
+    const baseUrl = `${BASE_URL}/${component.id}/tarif`;
+
+    return (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+            <p className="text-sm font-medium">Tarif jabatan</p>
+            {component.rates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada tarif. Pegawai belum menerima komponen ini.
+                </p>
+            ) : (
+                <ul className="divide-y rounded-md border bg-background">
+                    {component.rates.map((rate) => (
+                        <li
+                            key={rate.id}
+                            className="flex flex-wrap items-center justify-between gap-2 p-2 text-sm"
+                        >
+                            <span className="min-w-0 break-words">
+                                {rate.position}
+                                <span className="text-muted-foreground">
+                                    {' · '}
+                                    {rate.organization ?? 'Semua lembaga'}
+                                </span>
+                            </span>
+                            <span className="flex items-center gap-2">
+                                <span className="font-medium tabular-nums">
+                                    Rp {rupiah.format(rate.amount)}
+                                </span>
+                                {component.is_active && (
+                                    <Form
+                                        action={`${baseUrl}/${rate.id}`}
+                                        method="delete"
+                                        errorBag={`rate-remove-${rate.id}`}
+                                        options={{ preserveScroll: true }}
+                                    >
+                                        {({ processing }) => (
+                                            <Button
+                                                type="submit"
+                                                variant="ghost"
+                                                size="icon"
+                                                disabled={processing}
+                                                aria-label={`Hapus tarif ${rate.position}`}
+                                            >
+                                                <Trash2 />
+                                            </Button>
+                                        )}
+                                    </Form>
+                                )}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {component.is_active && (
+                <Form
+                    action={baseUrl}
+                    method="post"
+                    errorBag={`rate-${component.id}`}
+                    resetOnSuccess={['amount']}
+                    options={{ preserveScroll: true }}
+                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_auto] sm:items-start"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-1">
+                                <Label
+                                    htmlFor={`rate-position-${component.id}`}
+                                    className="text-xs"
+                                >
+                                    Jabatan
+                                </Label>
+                                <select
+                                    id={`rate-position-${component.id}`}
+                                    name="position_id"
+                                    className={selectClass}
+                                    defaultValue=""
+                                    required
+                                >
+                                    <option value="" disabled>
+                                        Pilih jabatan
+                                    </option>
+                                    {positions.map((position) => (
+                                        <option
+                                            key={position.value}
+                                            value={position.value}
+                                        >
+                                            {position.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.position_id} />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label
+                                    htmlFor={`rate-org-${component.id}`}
+                                    className="text-xs"
+                                >
+                                    Lembaga
+                                </Label>
+                                <select
+                                    id={`rate-org-${component.id}`}
+                                    name="organization_id"
+                                    className={selectClass}
+                                    defaultValue=""
+                                >
+                                    <option value="">Semua lembaga</option>
+                                    {organizations.map((organization) => (
+                                        <option
+                                            key={organization.value}
+                                            value={organization.value}
+                                        >
+                                            {organization.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.organization_id} />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label
+                                    htmlFor={`rate-amount-${component.id}`}
+                                    className="text-xs"
+                                >
+                                    Nominal / bulan
+                                </Label>
+                                <Input
+                                    id={`rate-amount-${component.id}`}
+                                    name="amount"
+                                    inputMode="numeric"
+                                    placeholder="1.000.000"
+                                    maxLength={20}
+                                    required
+                                />
+                                <InputError message={errors.amount} />
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="sm:mt-5"
+                            >
+                                Simpan tarif
+                            </Button>
+                            <div className="sm:col-span-4">
+                                <InputError message={errors.form} />
+                            </div>
+                        </>
+                    )}
+                </Form>
+            )}
+        </div>
     );
 }
 

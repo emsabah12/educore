@@ -35,7 +35,6 @@ use Modules\HR\Application\Employee\EmployeeVisibility;
 use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
-use Modules\HR\Application\Payroll\EmployeePay;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Employee\EducationLevel;
@@ -105,7 +104,6 @@ final class EmployeeController
         EmployeeLeaveSummary $leaveSummary,
         AttendanceRecap $attendanceRecap,
         EmployeeDocuments $employeeDocuments,
-        EmployeePay $employeePay,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -137,10 +135,6 @@ final class EmployeeController
             'attendance' => $withPersonal ? $attendanceRecap->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
             // Dokumen & SK (HR-2a): hanya bagi yang boleh melihat data pribadi pegawai ini.
             'documents' => $withPersonal ? $employeeDocuments->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
-            // Komponen gaji (HR-5a): hanya Admin SDM / Admin Yayasan (`hr.payroll.manage`).
-            'pay' => $this->authorization->inspectTarget(HrAccess::PAYROLL_MANAGE, null, null)->allowed()
-                ? $employeePay->forEmployee($this->tenantContext->require()->tenantId, $employee)
-                : null,
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()

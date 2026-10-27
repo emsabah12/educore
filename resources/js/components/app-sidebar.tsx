@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Banknote,
     BookOpen,
     CalendarCog,
     CalendarDays,
@@ -113,6 +114,12 @@ const expiringDocumentsNavItem: NavItem = {
     icon: FileClock,
 };
 
+const payrollEmployeesNavItem: NavItem = {
+    title: 'Gaji pegawai',
+    href: '/pegawai/gaji',
+    icon: Banknote,
+};
+
 const payrollSettingsNavItem: NavItem = {
     title: 'Pengaturan gaji',
     href: '/pegawai/gaji/pengaturan',
@@ -212,7 +219,7 @@ export function AppSidebar() {
             ? [leaveSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.payroll.manage')
-            ? [payrollSettingsNavItem]
+            ? [payrollEmployeesNavItem, payrollSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

@@ -10,16 +10,20 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Domain\Organization\Organization;
+use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Payroll\ManagePayComponents;
+use Modules\HR\Application\Payroll\ManagePositionRates;
+use Modules\HR\Domain\Catalog\Position;
 use Modules\HR\Domain\Payroll\Exceptions\PayrollException;
 use Modules\HR\Domain\Payroll\PayComponent;
 use Modules\HR\Domain\Payroll\PayComponentBasis;
 use Modules\HR\Domain\Payroll\PayComponentKind;
 
 /**
- * Pengaturan gaji (PRD-001 §16, HR-5): komponen gaji (HR-5a). Hanya pemilik `hr.payroll.manage` di
+ * Pengaturan gaji (PRD-001 §16, HR-5): komponen gaji (HR-5a) dan tarif jabatan (HR-5a-2). Hanya pemilik `hr.payroll.manage` di
  * tingkat Yayasan (Admin SDM, Admin Yayasan); selain itu 403.
  */
 final class PayrollSettingsController
@@ -48,25 +52,51 @@ final class PayrollSettingsController
                 'basis_label' => $component->basis->label(),
                 'is_active' => $component->is_active,
                 'employees' => 0,
+                'rates' => [],
             ])
             ->values()
             ->all();
 
+        $tenantId = $this->tenantContext->require()->tenantId;
         $used = DB::table('hr_employee_pay_components')
-            ->where('tenant_id', $this->tenantContext->require()->tenantId)
+            ->where('tenant_id', $tenantId)
             ->selectRaw('pay_component_id, COUNT(*) AS total')
             ->groupBy('pay_component_id')
             ->pluck('total', 'pay_component_id')
             ->all();
 
-        foreach ($components as $index => $component) {
-            $components[$index]['employees'] = (int) ($used[$component['id']] ?? 0);
+        $rates = [];
+
+        foreach (DB::table('hr_pay_position_rates as r')
+            ->join('hr_positions as po', 'po.id', '=', 'r.position_id')
+            ->leftJoin('organizations as o', 'o.id', '=', 'r.organization_id')
+            ->where('r.tenant_id', $tenantId)
+            ->orderBy('po.name')
+            ->orderByRaw('o.name NULLS FIRST')
+            ->get(['r.id', 'r.pay_component_id', 'r.position_id', 'r.organization_id', 'r.amount', 'po.name as position', 'o.name as organization']) as $rate) {
+            $rates[(string) $rate->pay_component_id][] = [
+                'id' => (string) $rate->id,
+                'position_id' => (string) $rate->position_id,
+                'organization_id' => $rate->organization_id === null ? null : (string) $rate->organization_id,
+                'position' => (string) $rate->position,
+                'organization' => $rate->organization === null ? null : (string) $rate->organization,
+                'amount' => (int) $rate->amount,
+            ];
         }
 
-        return Inertia::render('hr/payroll-settings', [
+        foreach ($components as $index => $component) {
+            $components[$index]['employees'] = (int) ($used[$component['id']] ?? 0);
+            $components[$index]['rates'] = $rates[$component['id']] ?? [];
+        }
+
+        return Inertia::render('hr/payroll/settings', [
             'components' => $components,
             'kinds' => array_map(fn (PayComponentKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()], PayComponentKind::cases()),
             'bases' => array_map(fn (PayComponentBasis $basis): array => ['value' => $basis->value, 'label' => $basis->label()], PayComponentBasis::cases()),
+            'positions' => Position::query()->where('is_active', true)->orderBy('name')->get()
+                ->map(fn (Position $position): array => ['value' => $position->id, 'label' => $position->name])->values()->all(),
+            'organizations' => Organization::query()->where('status', OrganizationStatus::Active->value)->orderBy('code')->get()
+                ->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => "{$organization->name} ({$organization->code})"])->values()->all(),
         ]);
     }
 
@@ -119,6 +149,47 @@ final class PayrollSettingsController
         $item = $this->attempt(fn (): PayComponent => $components->setActive($this->tenantContext->require()->tenantId, $component, true));
 
         return $this->done("{$item->name} diaktifkan kembali.");
+    }
+
+    /**
+     * Simpan tarif jabatan (tambah, atau ubah bila jabatan × lembaga sudah ada) — HR-5a-2.
+     */
+    public function setRate(Request $request, string $component, ManagePositionRates $rates): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'position_id' => ['required', 'uuid'],
+            'organization_id' => ['nullable', 'uuid'],
+            'amount' => ['required', 'string', 'max:30'],
+        ], ['position_id.required' => 'Pilih jabatan.'], ['amount' => 'nominal']);
+
+        try {
+            $created = $rates->set(
+                $this->tenantContext->require()->tenantId,
+                $component,
+                $request->string('position_id')->value(),
+                $request->filled('organization_id') ? $request->string('organization_id')->value() : null,
+                $request->input('amount'),
+            );
+        } catch (PayrollException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+
+        return $this->done($created ? 'Tarif jabatan ditambahkan.' : 'Tarif jabatan disimpan.');
+    }
+
+    public function removeRate(string $component, string $rate, ManagePositionRates $rates): RedirectResponse
+    {
+        $this->authorize();
+
+        try {
+            $rates->remove($this->tenantContext->require()->tenantId, $component, $rate);
+        } catch (PayrollException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+
+        return $this->done('Tarif jabatan dihapus.');
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────

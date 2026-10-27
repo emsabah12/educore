@@ -8,7 +8,6 @@ use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeDocumentController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
-use Modules\HR\Http\Controllers\EmployeePayController;
 use Modules\HR\Http\Controllers\ExpiringDocumentController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
@@ -17,6 +16,7 @@ use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
+use Modules\HR\Http\Controllers\PayrollEmployeeController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 
 /*
@@ -90,6 +90,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('pegawai/gaji/komponen/{component}', [PayrollSettingsController::class, 'update'])->whereUuid('component')->name('hr.pay-components.update');
     Route::post('pegawai/gaji/komponen/{component}/nonaktifkan', [PayrollSettingsController::class, 'deactivate'])->whereUuid('component')->name('hr.pay-components.deactivate');
     Route::post('pegawai/gaji/komponen/{component}/aktifkan', [PayrollSettingsController::class, 'activate'])->whereUuid('component')->name('hr.pay-components.activate');
+    // Tarif komponen Menurut jabatan (HR-5a-2).
+    Route::post('pegawai/gaji/komponen/{component}/tarif', [PayrollSettingsController::class, 'setRate'])->whereUuid('component')->name('hr.pay-rates.set');
+    Route::delete('pegawai/gaji/komponen/{component}/tarif/{rate}', [PayrollSettingsController::class, 'removeRate'])->whereUuid(['component', 'rate'])->name('hr.pay-rates.remove');
+    // Menu Gaji pegawai: daftar & setup per pegawai (HR-5a-2), terpisah dari detail pegawai.
+    Route::get('pegawai/gaji', [PayrollEmployeeController::class, 'index'])->name('hr.payroll-employees.index');
+    Route::get('pegawai/gaji/{employee}', [PayrollEmployeeController::class, 'show'])->whereUuid('employee')->name('hr.payroll-employees.show');
+    Route::patch('pegawai/gaji/{employee}', [PayrollEmployeeController::class, 'update'])->whereUuid('employee')->name('hr.payroll-employees.update');
 
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');
@@ -113,9 +120,6 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/{employee}/penempatan/{placement}/utama', [EmployeeActionController::class, 'makePrimary'])->whereUuid(['employee', 'placement'])->name('hr.employees.placements.primary');
     Route::post('pegawai/{employee}/berhenti', [EmployeeActionController::class, 'end'])->whereUuid('employee')->name('hr.employees.end');
     Route::post('pegawai/{employee}/aktifkan', [EmployeeActionController::class, 'rehire'])->whereUuid('employee')->name('hr.employees.rehire');
-
-    // Nominal komponen gaji pegawai (PRD-001 §16.1, HR-5a). Hanya hr.payroll.manage.
-    Route::patch('pegawai/{employee}/gaji', [EmployeePayController::class, 'update'])->whereUuid('employee')->name('hr.employees.pay.update');
 
     // Dokumen & SK pegawai (PRD-001 §15, HR-2a). Kelola: Admin SDM / Admin Yayasan; unduh: lihat data pribadi.
     Route::post('pegawai/{employee}/dokumen', [EmployeeDocumentController::class, 'store'])->whereUuid('employee')->name('hr.employees.documents.store');

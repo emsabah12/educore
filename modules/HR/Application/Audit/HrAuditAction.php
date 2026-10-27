@@ -104,6 +104,11 @@ final class HrAuditAction
 
     public const SUBJECT_PAY_COMPONENT = 'hr_pay_component';
 
+    /** Tarif komponen Menurut jabatan disimpan/dihapus (HR-5a-2). */
+    public const PAY_RATE_SET = 'hr.pay_rate_set';
+
+    public const PAY_RATE_REMOVED = 'hr.pay_rate_removed';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -158,6 +163,8 @@ final class HrAuditAction
             self::PAY_COMPONENT_DEACTIVATED => 'Komponen gaji dinonaktifkan',
             self::PAY_COMPONENT_REACTIVATED => 'Komponen gaji diaktifkan kembali',
             self::EMPLOYEE_PAY_UPDATED => 'Nominal komponen gaji pegawai diubah',
+            self::PAY_RATE_SET => 'Tarif jabatan komponen gaji disimpan',
+            self::PAY_RATE_REMOVED => 'Tarif jabatan komponen gaji dihapus',
         ];
     }
 }
