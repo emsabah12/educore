@@ -93,6 +93,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Tarif komponen Menurut jabatan (HR-5a-2).
     Route::post('pegawai/gaji/komponen/{component}/tarif', [PayrollSettingsController::class, 'setRate'])->whereUuid('component')->name('hr.pay-rates.set');
     Route::delete('pegawai/gaji/komponen/{component}/tarif/{rate}', [PayrollSettingsController::class, 'removeRate'])->whereUuid(['component', 'rate'])->name('hr.pay-rates.remove');
+    // Honor mengajar & potongan presensi per jenjang/lembaga (HR-5b).
+    Route::post('pegawai/gaji/honor-jp', [PayrollSettingsController::class, 'setTeachingPay'])->name('hr.payroll.teaching-pay');
+    Route::post('pegawai/gaji/potongan-presensi', [PayrollSettingsController::class, 'setDeduction'])->name('hr.payroll.deduction');
     // Menu Gaji pegawai: daftar & setup per pegawai (HR-5a-2), terpisah dari detail pegawai.
     Route::get('pegawai/gaji', [PayrollEmployeeController::class, 'index'])->name('hr.payroll-employees.index');
     Route::get('pegawai/gaji/{employee}', [PayrollEmployeeController::class, 'show'])->whereUuid('employee')->name('hr.payroll-employees.show');

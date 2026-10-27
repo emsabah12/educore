@@ -14,8 +14,11 @@ use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Attendance\AttendanceRecap;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Payroll\EmployeePay;
+use Modules\HR\Application\Payroll\VariablePay;
 use Modules\HR\Domain\Employee\EmployeeStatus;
 use Modules\HR\Domain\Payroll\Exceptions\PayrollException;
 use stdClass;
@@ -113,11 +116,18 @@ final class PayrollEmployeeController
         ]);
     }
 
-    public function show(string $employee, EmployeePay $pay): Response
+    public function show(Request $request, string $employee, EmployeePay $pay, VariablePay $variable): Response
     {
         $this->authorize();
         $tenantId = $this->tenantContext->require()->tenantId;
         $target = $this->employee($tenantId, $employee);
+        $employeeId = (string) $target->id;
+        $month = AttendanceRecap::month($request->query('bulan'));
+        [, $until] = AttendanceRecap::range($month);
+        $summary = $pay->forEmployee($tenantId, $employeeId);
+        $teaching = $variable->teaching($tenantId, [$employeeId], $month)[$employeeId];
+        $attendance = $variable->attendance($tenantId, $employeeId, $month);
+        $presentDayPay = $summary['per_present_day'] * ($attendance['present_days'] ?? 0);
 
         return Inertia::render('hr/payroll/employee', [
             'employee' => [
@@ -126,7 +136,19 @@ final class PayrollEmployeeController
                 'employee_number' => $target->employee_number === null ? null : (string) $target->employee_number,
                 'status' => (string) $target->status,
             ],
-            'pay' => $pay->forEmployee($tenantId, (string) $target->id),
+            'pay' => $summary,
+            // Perkiraan bulan (HR-5b): angka akhir & kunci bulan di rekap gaji (HR-5c).
+            'preview' => [
+                'month' => $month,
+                'maxMonth' => BusinessClock::today()->format('Y-m'),
+                'label' => AttendanceRecap::monthLabel($month),
+                'until' => $until,
+                'teaching' => $teaching,
+                'attendance' => $attendance,
+                'present_day_pay' => $presentDayPay,
+                'earning' => $summary['monthly_earning'] + $teaching['total'] + max(0, $presentDayPay),
+                'deduction' => $summary['monthly_deduction'] + ($attendance['deduction'] ?? 0) + max(0, -$presentDayPay),
+            ],
         ]);
     }
 

@@ -13,6 +13,14 @@ final class DefaultCatalog
     /** Kode jenis dokumen awal yang punya masa berlaku. */
     public const DOCUMENT_TYPES_WITH_EXPIRY = ['KONTRAK'];
 
+    /** Kode awal yang pilihan ya/tidak-nya (CatalogKind::flag) dicentang, per katalog. */
+    public const FLAGGED = [
+        'jenis-dokumen' => self::DOCUMENT_TYPES_WITH_EXPIRY,
+        // HR-5b [ASUMSI, OWNER 2026-10-25: penerima honor JP = GTT/honorer].
+        'jenis-pegawai' => ['HONORER'],
+        'status-kepegawaian' => ['GTT'],
+    ];
+
     /**
      * @return array<string, array<string, string>> nilai CatalogKind => [kode => nama]
      */

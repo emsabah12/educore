@@ -162,10 +162,12 @@ final class LeaveSettingsOverview
     }
 
     /**
+     * Aturan tersimpan untuk sebuah key (dipakai juga Pengaturan gaji, HR-5b).
+     *
      * @param  callable(mixed): string  $label
      * @return list<RuleRow>
      */
-    private function rules(string $tenantId, string $key, callable $label): array
+    public function rules(string $tenantId, string $key, callable $label): array
     {
         $settings = ScopedSetting::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->where('key', $key)->get();
 
@@ -234,7 +236,7 @@ final class LeaveSettingsOverview
      * @param  callable(mixed): string  $label
      * @return list<UsageRow>
      */
-    private function usage(string $tenantId, string $key, callable $label): array
+    public function usage(string $tenantId, string $key, callable $label): array
     {
         $lembaga = Organization::query()
             ->withoutGlobalScope('tenant')
@@ -262,6 +264,22 @@ final class LeaveSettingsOverview
         }
 
         return $rows;
+    }
+
+    /**
+     * Pilihan target aturan: jenjang & lembaga/unit aktif (dipakai juga Pengaturan gaji, HR-5b).
+     *
+     * @return array{jenjang: list<OptionRow>, organizations: list<OptionRow>}
+     */
+    public function targetOptions(string $tenantId): array
+    {
+        $jenjang = [];
+
+        foreach (Jenjang::cases() as $case) {
+            $jenjang[] = ['value' => $case->value, 'label' => $case->label()];
+        }
+
+        return ['jenjang' => $jenjang, 'organizations' => $this->organizationOptions($tenantId)];
     }
 
     /**

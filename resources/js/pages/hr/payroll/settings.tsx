@@ -2,6 +2,12 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import type { RulesData, TargetOptions } from '@/components/hr/scoped-rules';
+import {
+    EnforcedCheckbox,
+    RulesPanel,
+    TargetFields,
+} from '@/components/hr/scoped-rules';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +46,9 @@ type Props = {
     bases: Option[];
     positions: Option[];
     organizations: Option[];
+    teachingPay: RulesData;
+    deduction: RulesData;
+    targets: TargetOptions;
 };
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -59,6 +68,9 @@ export default function PayrollSettings({
     bases,
     positions,
     organizations,
+    teachingPay,
+    deduction,
+    targets,
 }: Props) {
     return (
         <>
@@ -108,6 +120,9 @@ export default function PayrollSettings({
                         <CreateForm kinds={kinds} bases={bases} />
                     </section>
                 </div>
+
+                <TeachingPaySection data={teachingPay} targets={targets} />
+                <DeductionSection data={deduction} targets={targets} />
             </div>
         </>
     );
@@ -534,6 +549,184 @@ function RateEditor({
                 </Form>
             )}
         </div>
+    );
+}
+
+/**
+ * Honor mengajar per JP (HR-5b, OD-HR-11): jam mati / jam hidup, menit per JP, tarif — se-yayasan lalu
+ * bisa ditimpa per jenjang atau lembaga.
+ */
+function TeachingPaySection({
+    data,
+    targets,
+}: {
+    data: RulesData;
+    targets: TargetOptions;
+}) {
+    return (
+        <section aria-label="Honor mengajar" className="space-y-3">
+            <Heading
+                variant="small"
+                title="Honor mengajar (JP)"
+                description="Untuk pegawai yang jenis pegawai atau status kepegawaiannya dicentang “Menerima honor per JP” di Katalog SDM. Jam mati = JP per minggu dari jadwal × tarif. Jam hidup = JP yang terlaksana sebulan penuh (mengajar + menggantikan) × tarif. JP = durasi pelajaran ÷ menit per JP."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action="/pegawai/gaji/honor-jp"
+                    method="post"
+                    errorBag="teachingPay"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="tp"
+                                options={targets}
+                                errors={errors}
+                            />
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="tp-mode">Cara hitung</Label>
+                                    <select
+                                        id="tp-mode"
+                                        name="mode"
+                                        className={selectClass}
+                                        defaultValue="JAM_MATI"
+                                    >
+                                        <option value="JAM_MATI">
+                                            Jam mati
+                                        </option>
+                                        <option value="JAM_HIDUP">
+                                            Jam hidup
+                                        </option>
+                                    </select>
+                                    <InputError message={errors.mode} />
+                                </div>
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="tp-minutes">
+                                        Menit per JP
+                                    </Label>
+                                    <Input
+                                        id="tp-minutes"
+                                        name="minutes"
+                                        type="number"
+                                        min={10}
+                                        max={120}
+                                        defaultValue={45}
+                                        required
+                                    />
+                                    <InputError message={errors.minutes} />
+                                </div>
+                                <div className="grid content-start gap-1.5">
+                                    <Label htmlFor="tp-rate">
+                                        Tarif per JP
+                                    </Label>
+                                    <Input
+                                        id="tp-rate"
+                                        name="rate"
+                                        inputMode="numeric"
+                                        placeholder="30.000"
+                                        maxLength={20}
+                                        required
+                                    />
+                                    <InputError message={errors.rate} />
+                                </div>
+                            </div>
+                            <InputError message={errors.form} />
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan honor mengajar
+                            </Button>
+                        </>
+                    )}
+                </Form>
+                <RulesPanel
+                    data={data}
+                    emptyText="Belum ada pengaturan. Semua lembaga: jam mati, 45 menit per JP, tarif Rp 0 (honor JP belum dihitung)."
+                    usageTitle="Honor mengajar yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
+    );
+}
+
+/**
+ * Potongan presensi (HR-5b): per hari Alpa, per kali Terlambat, per kali Pulang cepat — menurut lembaga
+ * penempatan utama.
+ */
+function DeductionSection({
+    data,
+    targets,
+}: {
+    data: RulesData;
+    targets: TargetOptions;
+}) {
+    return (
+        <section aria-label="Potongan presensi" className="space-y-3">
+            <Heading
+                variant="small"
+                title="Potongan presensi"
+                description="Dihitung dari rekap presensi pegawai bulan itu, menurut lembaga penempatan utama. Sakit, Izin, Dinas luar, dan Cuti tidak dipotong. Hari yang belum diisi tidak dipotong, tetapi diperingatkan."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action="/pegawai/gaji/potongan-presensi"
+                    method="post"
+                    errorBag="deduction"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="dd"
+                                options={targets}
+                                errors={errors}
+                            />
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                                {(
+                                    [
+                                        ['absent', 'Per hari Alpa'],
+                                        ['late', 'Per kali Terlambat'],
+                                        ['early', 'Per kali Pulang cepat'],
+                                    ] as const
+                                ).map(([name, label]) => (
+                                    <div
+                                        key={name}
+                                        className="grid content-start gap-1.5"
+                                    >
+                                        <Label htmlFor={`dd-${name}`}>
+                                            {label}
+                                        </Label>
+                                        <Input
+                                            id={`dd-${name}`}
+                                            name={name}
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            defaultValue="0"
+                                            maxLength={20}
+                                            required
+                                        />
+                                        <InputError message={errors[name]} />
+                                    </div>
+                                ))}
+                            </div>
+                            <InputError message={errors.form} />
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan potongan presensi
+                            </Button>
+                        </>
+                    )}
+                </Form>
+                <RulesPanel
+                    data={data}
+                    emptyText="Belum ada pengaturan. Semua lembaga tanpa potongan presensi."
+                    usageTitle="Potongan presensi yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
     );
 }
 

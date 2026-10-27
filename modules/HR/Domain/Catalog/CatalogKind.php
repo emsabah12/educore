@@ -80,10 +80,26 @@ enum CatalogKind: string
     }
 
     /**
-     * Katalog ini punya pilihan "punya masa berlaku" (hanya jenis dokumen).
+     * Pilihan ya/tidak tambahan di katalog ini, atau null:
+     * - jenis dokumen: "punya masa berlaku" (HR-2a, `has_expiry`);
+     * - jenis pegawai & status kepegawaian: "menerima honor per JP" (HR-5b, `receives_teaching_pay`).
+     *
+     * @return array{column: string, label: string, badge: string}|null
      */
-    public function hasExpiryFlag(): bool
+    public function flag(): ?array
     {
-        return $this === self::DocumentType;
+        return match ($this) {
+            self::DocumentType => [
+                'column' => 'has_expiry',
+                'label' => 'Punya masa berlaku (tanggal "berlaku sampai" wajib diisi; masuk pengingat dokumen akan habis).',
+                'badge' => 'Punya masa berlaku',
+            ],
+            self::EmploymentType, self::Classification => [
+                'column' => 'receives_teaching_pay',
+                'label' => 'Menerima honor per JP (honor mengajar dihitung di rekap gaji).',
+                'badge' => 'Honor per JP',
+            ],
+            self::Position => null,
+        };
     }
 }

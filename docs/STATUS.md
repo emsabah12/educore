@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-5a-2 — Gaji menurut jabatan & menu Gaji pegawai (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `0fc5661` — feat(hr): HR-5a komponen gaji & nominal per pegawai
+- **Tahap aktif:** HR-5b — Honor mengajar (jam mati/jam hidup) & potongan presensi (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `b8a7184` — feat(hr): HR-5a-2 gaji menurut jabatan & menu Gaji pegawai
 
 ## Keputusan penting
 
@@ -599,7 +599,7 @@
 - Test: `PayComponentTest` (3 test, awalan `gji`).
 - Bukti: 634 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 
-**HR-5a-2 — Gaji menurut jabatan & menu Gaji pegawai: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.1, OD-HR-12
+**HR-5a-2 — Gaji menurut jabatan & menu Gaji pegawai: SELESAI (2026-10-27, commit `b8a7184`)** — PRD-001 §16.1, OD-HR-12
 
 - Owner 2026-10-27: tunjangan/gaji boleh mengikuti jabatan (selain mengajar); setup gaji di menu sendiri; slip gaji (jabatan + nominal) masuk HR-5c; jam mati **dan** jam hidup untuk honor JP.
 - Migrasi `2026_10_27_100013_create_hr_pay_position_rates_table` (cara hitung `MENURUT_JABATAN`, tabel `hr_pay_position_rates` dengan unique parsial semua-lembaga/per-lembaga).
@@ -607,7 +607,19 @@
 - `PayrollEmployeeController` (`/pegawai/gaji` daftar, `/pegawai/gaji/{id}` setup, PATCH simpan); `PayrollSettingsController::setRate/removeRate`; `EmployeePayController` & bagian gaji di detail pegawai **dihapus**.
 - Frontend: `pages/hr/payroll/{settings, employees, employee}.tsx` (settings dipindah dari `hr/payroll-settings`), `components/hr/pay-format.ts` (mengganti `employee-pay.tsx`), menu **Gaji pegawai**.
 - Test: `PositionPayTest` (3 test, awalan `jbt`); `PayComponentTest` disesuaikan.
-- Bukti (salinan kerja Claude): 637 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 637 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+
+**HR-5b — Honor mengajar & potongan presensi: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.2, OD-HR-11
+
+- Owner 2026-10-27: cara hitung honor (jam mati/jam hidup) dipilih per jenjang/lembaga (opsi A).
+- Migrasi `2026_10_27_100014_add_teaching_pay_flag_to_hr_catalogs` (`receives_teaching_pay` di jenis pegawai & status kepegawaian; HONORER & GTT dicentang).
+- Katalog: pilihan ya/tidak dibuat umum — `CatalogKind::flag()` (jenis dokumen: masa berlaku; jenis pegawai & status kepegawaian: honor per JP), `UpdateCatalogItem::setFlag`, field form/prop `flag` (menggantikan `has_expiry`/`hasExpiryFlag`).
+- Aturan berjenjang `hr.teaching_pay` (`TeachingPaySetting`) & `hr.attendance_deduction` (`AttendanceDeductionSetting`); kontrak `Contracts/TeachingLoad` (`NoTeachingLoad`; Academic `AcademicTeachingLoad`); `Application/Payroll/VariablePay` (honor JP per lembaga, presensi & potongan).
+- `PayrollSettingsController::setTeachingPay/setDeduction` (`hr.payroll.teaching-pay|deduction`); `PayrollEmployeeController::show` prop `preview` (?bulan=); `LeaveSettingsOverview::rules/usage/targetOptions` kini publik untuk dipakai ulang.
+- Frontend: `components/hr/scoped-rules.tsx`, bagian Honor mengajar & Potongan presensi di Pengaturan gaji, **Perkiraan bulan** di setup gaji pegawai, `pages/hr/catalog.tsx` (pilihan umum).
+- Test: `TeachingPayTest` (3 test, awalan `hjp`); `EmployeeDocumentTest` disesuaikan.
+- Bukti (salinan kerja Claude): 640 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Catatan: menyimpan aturan berjenjang butuh `core.settings.manage` (Admin Yayasan); Admin SDM belum punya — putuskan bersama owner bila Admin SDM perlu mengatur tarif sendiri.
 
 ## Struktur file utama
 
@@ -646,7 +658,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-5a-2 (PANDUAN-HR-5A-2.md): migrate (hapus file lama yang tercantum), commit & push.
-2. HR-5b honor JP (jam mati & jam hidup — konfirmasi cara memilihnya) & potongan presensi.
-3. HR-5c rekap input gaji + kunci bulan + .xlsx + slip gaji (Gaji saya, `hr.payroll.view`); lalu HR-6a.
-4. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).
+1. Verifikasi HR-5b (PANDUAN-HR-5B.md), commit & push.
+2. HR-5c rekap input gaji + kunci bulan + .xlsx + slip gaji (Gaji saya, `hr.payroll.view`); lalu HR-6a.
+3. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).

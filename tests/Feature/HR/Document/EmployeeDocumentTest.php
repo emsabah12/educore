@@ -80,21 +80,21 @@ test('isi awal jenis dokumen: Kontrak Kerja punya masa berlaku; jenis dokumen bi
 
     $this->actingAs($this->admin)
         ->get(route('hr.catalog.index', ['jenis' => 'jenis-dokumen']))
-        ->assertInertia(fn (Assert $page) => $page->where('hasExpiryFlag', true)->has('items', 7));
+        ->assertInertia(fn (Assert $page) => $page->where('flag.badge', 'Punya masa berlaku')->has('items', 7));
 
-    $this->post(route('hr.catalog.store', ['kind' => 'jenis-dokumen']), ['code' => 'str', 'name' => 'Surat Tanda Registrasi', 'has_expiry' => '1'])
+    $this->post(route('hr.catalog.store', ['kind' => 'jenis-dokumen']), ['code' => 'str', 'name' => 'Surat Tanda Registrasi', 'flag' => '1'])
         ->assertSessionHasNoErrors();
     $str = DocumentType::query()->where('code', 'STR')->sole();
     expect($str->has_expiry)->toBeTrue();
 
-    $this->patch(route('hr.catalog.update', ['kind' => 'jenis-dokumen', 'item' => $str->id]), ['name' => 'Surat Tanda Registrasi', 'has_expiry' => '0'])
+    $this->patch(route('hr.catalog.update', ['kind' => 'jenis-dokumen', 'item' => $str->id]), ['name' => 'Surat Tanda Registrasi', 'flag' => '0'])
         ->assertSessionHasNoErrors();
     expect($str->refresh()->has_expiry)->toBeFalse()
         ->and(DB::table('audit_logs')->where('action', HrAuditAction::CATALOG_UPDATED)->count())->toBe(1);
 
     // Katalog lain tidak punya pilihan masa berlaku.
     $this->get(route('hr.catalog.index', ['jenis' => 'jabatan']))
-        ->assertInertia(fn (Assert $page) => $page->where('hasExpiryFlag', false)->where('items.0.has_expiry', null));
+        ->assertInertia(fn (Assert $page) => $page->where('flag', null)->where('items.0.flag', null));
 });
 
 test('Admin mengunggah dokumen: file di disk privat, checksum, audit tanpa isi; tampil di detail pegawai dengan status masa berlaku', function () {

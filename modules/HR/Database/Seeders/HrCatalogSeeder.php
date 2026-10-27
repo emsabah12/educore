@@ -36,8 +36,8 @@ class HrCatalogSeeder extends Seeder
 
                 foreach ($items as $code => $name) {
                     if (! in_array($code, $existing, true)) {
-                        $hasExpiry = $kind->hasExpiryFlag() && in_array($code, DefaultCatalog::DOCUMENT_TYPES_WITH_EXPIRY, true);
-                        $this->createCatalogItem->handle((string) $tenantId, $kind, $code, $name, $hasExpiry);
+                        $flag = in_array($code, DefaultCatalog::FLAGGED[$kind->value] ?? [], true);
+                        $this->createCatalogItem->handle((string) $tenantId, $kind, $code, $name, $flag);
                     }
                 }
             }

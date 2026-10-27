@@ -10,12 +10,19 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Settings\SetScopedSetting;
+use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
+use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Leave\LeaveSettingsOverview;
+use Modules\HR\Application\Payroll\AttendanceDeductionSetting;
+use Modules\HR\Application\Payroll\EmployeePay;
 use Modules\HR\Application\Payroll\ManagePayComponents;
 use Modules\HR\Application\Payroll\ManagePositionRates;
+use Modules\HR\Application\Payroll\TeachingPaySetting;
 use Modules\HR\Domain\Catalog\Position;
 use Modules\HR\Domain\Payroll\Exceptions\PayrollException;
 use Modules\HR\Domain\Payroll\PayComponent;
@@ -23,7 +30,8 @@ use Modules\HR\Domain\Payroll\PayComponentBasis;
 use Modules\HR\Domain\Payroll\PayComponentKind;
 
 /**
- * Pengaturan gaji (PRD-001 §16, HR-5): komponen gaji (HR-5a) dan tarif jabatan (HR-5a-2). Hanya pemilik `hr.payroll.manage` di
+ * Pengaturan gaji (PRD-001 §16, HR-5): komponen gaji (HR-5a), tarif jabatan (HR-5a-2), honor mengajar
+ * & potongan presensi per jenjang/lembaga (HR-5b). Hanya pemilik `hr.payroll.manage` di
  * tingkat Yayasan (Admin SDM, Admin Yayasan); selain itu 403.
  */
 final class PayrollSettingsController
@@ -33,7 +41,7 @@ final class PayrollSettingsController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(): Response
+    public function index(LeaveSettingsOverview $overview): Response
     {
         $this->authorize();
 
@@ -97,7 +105,70 @@ final class PayrollSettingsController
                 ->map(fn (Position $position): array => ['value' => $position->id, 'label' => $position->name])->values()->all(),
             'organizations' => Organization::query()->where('status', OrganizationStatus::Active->value)->orderBy('code')->get()
                 ->map(fn (Organization $organization): array => ['value' => $organization->id, 'label' => "{$organization->name} ({$organization->code})"])->values()->all(),
+            // HR-5b: honor mengajar & potongan presensi per jenjang/lembaga (aturan berjenjang).
+            'teachingPay' => [
+                'rules' => $overview->rules($tenantId, TeachingPaySetting::KEY, fn (mixed $value): string => TeachingPaySetting::label(TeachingPaySetting::normalize($value))),
+                'usage' => $overview->usage($tenantId, TeachingPaySetting::KEY, fn (mixed $value): string => TeachingPaySetting::label(TeachingPaySetting::normalize($value))),
+            ],
+            'deduction' => [
+                'rules' => $overview->rules($tenantId, AttendanceDeductionSetting::KEY, fn (mixed $value): string => AttendanceDeductionSetting::label(AttendanceDeductionSetting::normalize($value))),
+                'usage' => $overview->usage($tenantId, AttendanceDeductionSetting::KEY, fn (mixed $value): string => AttendanceDeductionSetting::label(AttendanceDeductionSetting::normalize($value))),
+            ],
+            'targets' => $overview->targetOptions($tenantId),
         ]);
+    }
+
+    /**
+     * Honor mengajar (HR-5b): cara hitung, menit per JP, tarif per JP — se-yayasan, per jenjang, atau per
+     * lembaga/unit. Menyimpan aturan berjenjang butuh `core.settings.manage` (PRD-000 §8.3).
+     */
+    public function setTeachingPay(Request $request, SetScopedSetting $settings): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            ...$this->targetRules(),
+            'mode' => ['required', Rule::in([TeachingPaySetting::MODE_FIXED, TeachingPaySetting::MODE_ACTUAL])],
+            'minutes' => ['required', 'integer', 'between:10,120'],
+            'rate' => ['required', 'string', 'max:30'],
+        ], $this->targetMessages(), ['mode' => 'cara hitung', 'minutes' => 'menit per JP', 'rate' => 'tarif per JP']);
+
+        $rate = $this->amount($request->input('rate'), 'rate', 'tarif per JP');
+        [$organizationId, $jenjang] = $this->target($request);
+
+        $this->saveSetting(fn () => $settings->handle(TeachingPaySetting::KEY, $organizationId, $jenjang, [
+            'mode' => $request->string('mode')->value(),
+            'minutes' => $request->integer('minutes'),
+            'rate' => $rate,
+        ], $request->boolean('enforced')), 'rate');
+
+        return $this->done('Honor mengajar disimpan. Rekap bulan yang sudah dikunci tidak berubah.');
+    }
+
+    /**
+     * Potongan presensi (HR-5b): rupiah per hari Alpa, per kali Terlambat, per kali Pulang cepat.
+     */
+    public function setDeduction(Request $request, SetScopedSetting $settings): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            ...$this->targetRules(),
+            'absent' => ['required', 'string', 'max:30'],
+            'late' => ['required', 'string', 'max:30'],
+            'early' => ['required', 'string', 'max:30'],
+        ], $this->targetMessages(), ['absent' => 'potongan alpa', 'late' => 'potongan terlambat', 'early' => 'potongan pulang cepat']);
+
+        $value = [
+            'absent' => $this->amount($request->input('absent'), 'absent', 'potongan alpa'),
+            'late' => $this->amount($request->input('late'), 'late', 'potongan terlambat'),
+            'early' => $this->amount($request->input('early'), 'early', 'potongan pulang cepat'),
+        ];
+        [$organizationId, $jenjang] = $this->target($request);
+
+        $this->saveSetting(fn () => $settings->handle(AttendanceDeductionSetting::KEY, $organizationId, $jenjang, $value, $request->boolean('enforced')), 'early');
+
+        return $this->done('Potongan presensi disimpan. Rekap bulan yang sudah dikunci tidak berubah.');
     }
 
     public function store(Request $request, ManagePayComponents $components): RedirectResponse
@@ -193,6 +264,63 @@ final class PayrollSettingsController
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function targetRules(): array
+    {
+        return [
+            'target' => ['required', Rule::in(['yayasan', 'jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'enforced' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function targetMessages(): array
+    {
+        return [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+        ];
+    }
+
+    /**
+     * @return array{0: string|null, 1: Jenjang|null}
+     */
+    private function target(Request $request): array
+    {
+        return match ($request->string('target')->value()) {
+            'jenjang' => [null, Jenjang::from($request->string('jenjang')->value())],
+            'lembaga' => [$request->string('organization_id')->value(), null],
+            default => [null, null],
+        };
+    }
+
+    private function amount(mixed $value, string $field, string $label): int
+    {
+        try {
+            return EmployeePay::parseAmount($value, $field, $label) ?? 0;
+        } catch (PayrollException $exception) {
+            throw ValidationException::withMessages([$field => $exception->getMessage()]);
+        }
+    }
+
+    /**
+     * @param  callable(): mixed  $save
+     */
+    private function saveSetting(callable $save, string $field): void
+    {
+        try {
+            $save();
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages([$field => $exception->getMessage()]);
+        }
+    }
 
     private function authorize(): void
     {

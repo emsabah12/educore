@@ -23,11 +23,15 @@ use Modules\HR\Application\Leave\EloquentApprovedLeaves;
 use Modules\HR\Application\Leave\LeaveApprovalSetting;
 use Modules\HR\Application\Leave\NoSchoolWeeklyOff;
 use Modules\HR\Application\Leave\WeeklyOffSetting;
+use Modules\HR\Application\Payroll\AttendanceDeductionSetting;
+use Modules\HR\Application\Payroll\NoTeachingLoad;
+use Modules\HR\Application\Payroll\TeachingPaySetting;
 use Modules\HR\Console\PruneImportsCommand;
 use Modules\HR\Contracts\ActiveEmployees;
 use Modules\HR\Contracts\ApprovedLeaves;
 use Modules\HR\Contracts\EmployeeLookup;
 use Modules\HR\Contracts\SchoolWeeklyOff;
+use Modules\HR\Contracts\TeachingLoad;
 use Modules\HR\Contracts\TeachingSchedule;
 
 /**
@@ -52,6 +56,7 @@ class HRServiceProvider extends ModuleServiceProvider
 
         // Jadwal mengajar untuk presensi (PRD-001 §14.1): bawaan kosong; modul Academic menggantinya.
         $this->app->singletonIf(TeachingSchedule::class, NoTeachingSchedule::class);
+        $this->app->singletonIf(TeachingLoad::class, NoTeachingLoad::class);
         // Libur mingguan kalender akademik, hanya untuk perbandingan (OD-HR-07): bawaan kosong.
         $this->app->singletonIf(SchoolWeeklyOff::class, NoSchoolWeeklyOff::class);
     }
@@ -69,7 +74,10 @@ class HRServiceProvider extends ModuleServiceProvider
             // Alur persetujuan cuti per jenjang/lembaga (PRD-001 §13.4).
             ->define(LeaveApprovalSetting::definition())
             // Jam kerja staf per jenjang/lembaga (PRD-001 §14.1).
-            ->define(WorkHoursSetting::definition());
+            ->define(WorkHoursSetting::definition())
+            // Honor mengajar & potongan presensi per jenjang/lembaga (PRD-001 §16.2).
+            ->define(TeachingPaySetting::definition())
+            ->define(AttendanceDeductionSetting::definition());
 
         // Kartu Beranda "Dokumen akan habis" (PRD-001 §15.2, HR-2b): hanya Admin SDM / Admin Yayasan.
         $this->app->make(DashboardCards::class)->register('hr.expiring_documents', fn (): ?array => $this->expiringDocumentsCard());

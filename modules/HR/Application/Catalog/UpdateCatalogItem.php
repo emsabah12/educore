@@ -8,7 +8,6 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Catalog\CatalogItem;
 use Modules\HR\Domain\Catalog\CatalogKind;
-use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Catalog\Exceptions\CatalogException;
 
 /**
@@ -85,28 +84,30 @@ final class UpdateCatalogItem
     }
 
     /**
-     * Ubah pilihan "punya masa berlaku" jenis dokumen (HR-2a). Dokumen lama tidak diubah; aturan baru
-     * berlaku saat dokumen ditambah/diubah.
+     * Ubah pilihan ya/tidak katalog (CatalogKind::flag): "punya masa berlaku" jenis dokumen (HR-2a) atau
+     * "menerima honor per JP" (HR-5b). Data lama tidak diubah; rekap bulan terkunci tidak berubah.
      *
      * @throws CatalogException
      */
-    public function setHasExpiry(string $tenantId, string $itemId, bool $hasExpiry): CatalogItem
+    public function setFlag(string $tenantId, CatalogKind $kind, string $itemId, bool $value): CatalogItem
     {
-        return DB::transaction(function () use ($tenantId, $itemId, $hasExpiry): CatalogItem {
-            $item = $this->lockItem($tenantId, CatalogKind::DocumentType, $itemId);
+        $column = $kind->flag()['column'] ?? null;
 
-            if (! $item instanceof DocumentType || $item->has_expiry === $hasExpiry) {
+        return DB::transaction(function () use ($tenantId, $kind, $itemId, $value, $column): CatalogItem {
+            $item = $this->lockItem($tenantId, $kind, $itemId);
+
+            if ($column === null || (bool) $item->getAttribute($column) === $value) {
                 return $item;
             }
 
-            $item->has_expiry = $hasExpiry;
+            $item->setAttribute($column, $value);
             $item->save();
 
             $this->audit->record(
                 HrAuditAction::CATALOG_UPDATED,
-                CatalogKind::DocumentType->auditSubject(),
+                $kind->auditSubject(),
                 $item->id,
-                ['katalog' => CatalogKind::DocumentType->label(), 'code' => $item->code, 'has_expiry' => [! $hasExpiry, $hasExpiry]],
+                ['katalog' => $kind->label(), 'code' => $item->code, $column => [! $value, $value]],
                 tenantId: $tenantId,
             );
 

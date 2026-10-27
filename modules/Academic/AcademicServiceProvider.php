@@ -12,6 +12,7 @@ use Modules\Academic\Application\Calendar\CalendarSetting;
 use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\GradingSetting;
+use Modules\Academic\Application\Teaching\AcademicTeachingLoad;
 use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Console\PruneStudentImportsCommand;
@@ -22,6 +23,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\HR\Contracts\SchoolWeeklyOff;
+use Modules\HR\Contracts\TeachingLoad;
 use Modules\HR\Contracts\TeachingSchedule;
 
 /**
@@ -43,6 +45,8 @@ class AcademicServiceProvider extends ModuleServiceProvider
         // Jam mengajar guru untuk presensi pegawai HR (PRD-001 §14.1): HR memakai kontraknya,
         // Academic mengisinya (menggantikan implementasi kosong bawaan HR).
         $this->app->singleton(TeachingSchedule::class, AcademicTeachingSchedule::class);
+        // Beban mengajar untuk honor JP (PRD-001 §16.2).
+        $this->app->singleton(TeachingLoad::class, AcademicTeachingLoad::class);
         // Libur mingguan kalender akademik untuk perbandingan di Pengaturan cuti & presensi (OD-HR-07).
         $this->app->singleton(SchoolWeeklyOff::class, AcademicSchoolWeeklyOff::class);
     }

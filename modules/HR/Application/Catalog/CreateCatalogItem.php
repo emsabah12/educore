@@ -9,7 +9,6 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Catalog\CatalogItem;
 use Modules\HR\Domain\Catalog\CatalogKind;
-use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Catalog\Exceptions\CatalogException;
 
 /**
@@ -29,7 +28,7 @@ final class CreateCatalogItem
     /**
      * @throws CatalogException
      */
-    public function handle(string $tenantId, CatalogKind $kind, string $code, string $name, bool $hasExpiry = false): CatalogItem
+    public function handle(string $tenantId, CatalogKind $kind, string $code, string $name, bool $flag = false): CatalogItem
     {
         $code = Str::upper(trim($code));
         $name = trim($name);
@@ -43,7 +42,7 @@ final class CreateCatalogItem
         }
 
         try {
-            return DB::transaction(function () use ($tenantId, $kind, $code, $name, $hasExpiry): CatalogItem {
+            return DB::transaction(function () use ($tenantId, $kind, $code, $name, $flag): CatalogItem {
                 $exists = $kind->query()
                     ->withoutGlobalScope('tenant')
                     ->where('tenant_id', $tenantId)
@@ -60,10 +59,12 @@ final class CreateCatalogItem
                 $item->name = $name;
                 $changes = ['katalog' => $kind->label(), 'code' => $code, 'name' => $name];
 
-                // Hanya jenis dokumen (HR-2a) yang punya pilihan masa berlaku.
-                if ($item instanceof DocumentType) {
-                    $item->has_expiry = $hasExpiry;
-                    $changes['has_expiry'] = $hasExpiry;
+                // Pilihan ya/tidak katalog (masa berlaku jenis dokumen, honor per JP), bila ada.
+                $column = $kind->flag()['column'] ?? null;
+
+                if ($column !== null) {
+                    $item->setAttribute($column, $flag);
+                    $changes[$column] = $flag;
                 }
 
                 $item->save();

@@ -47,8 +47,8 @@ final class CatalogController
                 'code' => $item->code,
                 'name' => $item->name,
                 'is_active' => $item->is_active,
-                // Hanya jenis dokumen (HR-2a); katalog lain null.
-                'has_expiry' => $kind->hasExpiryFlag() ? (bool) $item->getAttribute('has_expiry') : null,
+                // Pilihan ya/tidak katalog (CatalogKind::flag); null bila katalog ini tidak punya.
+                'flag' => $kind->flag() === null ? null : (bool) $item->getAttribute($kind->flag()['column']),
             ])
             ->values()
             ->all();
@@ -63,7 +63,7 @@ final class CatalogController
         return Inertia::render('hr/catalog', [
             'kinds' => $kinds,
             'activeKind' => $kind->value,
-            'hasExpiryFlag' => $kind->hasExpiryFlag(),
+            'flag' => $kind->flag() === null ? null : ['label' => $kind->flag()['label'], 'badge' => $kind->flag()['badge']],
             'items' => $items,
         ]);
     }
@@ -76,7 +76,7 @@ final class CatalogController
         $request->validate([
             'code' => ['required', 'string', self::CODE_RULE],
             'name' => ['required', 'string', 'max:'.CreateCatalogItem::NAME_MAX_LENGTH],
-            'has_expiry' => ['nullable', 'boolean'],
+            'flag' => ['nullable', 'boolean'],
         ], [
             'code.regex' => 'Kode hanya boleh berisi huruf, angka, dan tanda "-", panjang 2–30 karakter.',
         ], $this->attributes());
@@ -86,7 +86,7 @@ final class CatalogController
             $catalogKind,
             $request->string('code')->value(),
             $request->string('name')->value(),
-            $catalogKind->hasExpiryFlag() && $request->boolean('has_expiry'),
+            $catalogKind->flag() !== null && $request->boolean('flag'),
         ));
 
         return $this->done("{$item->name} berhasil ditambahkan.");
@@ -99,7 +99,7 @@ final class CatalogController
 
         $request->validate([
             'name' => ['required', 'string', 'max:'.CreateCatalogItem::NAME_MAX_LENGTH],
-            'has_expiry' => ['nullable', 'boolean'],
+            'flag' => ['nullable', 'boolean'],
         ], [], $this->attributes());
 
         $renamed = $this->attempt('name', fn (): CatalogItem => $updateCatalogItem->rename(
@@ -109,9 +109,9 @@ final class CatalogController
             $request->string('name')->value(),
         ));
 
-        // Jenis dokumen: pilihan "punya masa berlaku" ikut disimpan (HR-2a).
-        if ($catalogItem->kind()->hasExpiryFlag() && $request->has('has_expiry')) {
-            $this->attempt('has_expiry', fn (): CatalogItem => $updateCatalogItem->setHasExpiry($this->tenantId(), $catalogItem->id, $request->boolean('has_expiry')));
+        // Pilihan ya/tidak katalog (masa berlaku jenis dokumen, honor per JP) ikut disimpan.
+        if ($catalogItem->kind()->flag() !== null && $request->has('flag')) {
+            $this->attempt('flag', fn (): CatalogItem => $updateCatalogItem->setFlag($this->tenantId(), $catalogItem->kind(), $catalogItem->id, $request->boolean('flag')));
         }
 
         return $this->done("{$renamed->name} disimpan.");

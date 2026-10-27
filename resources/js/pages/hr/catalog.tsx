@@ -20,15 +20,17 @@ type CatalogItem = {
     code: string;
     name: string;
     is_active: boolean;
-    /** Hanya jenis dokumen (HR-2a); katalog lain null. */
-    has_expiry: boolean | null;
+    /** Pilihan ya/tidak katalog (masa berlaku / honor per JP); null bila katalog tidak punya. */
+    flag: boolean | null;
 };
+
+/** Pilihan ya/tidak katalog aktif: jenis dokumen (HR-2a), jenis pegawai & status kepegawaian (HR-5b). */
+type CatalogFlag = { label: string; badge: string } | null;
 
 type Props = {
     kinds: CatalogKind[];
     activeKind: string;
-    /** Katalog aktif punya pilihan "punya masa berlaku" (jenis dokumen). */
-    hasExpiryFlag: boolean;
+    flag: CatalogFlag;
     items: CatalogItem[];
 };
 
@@ -38,12 +40,7 @@ const BASE_URL = '/pegawai/katalog';
  * Halaman Katalog SDM (PRD-001 §6): jenis pegawai, status kepegawaian, jabatan, jenis dokumen (§15).
  * Hak akses sudah dicek server; item tidak pernah dihapus, hanya dinonaktifkan.
  */
-export default function HrCatalog({
-    kinds,
-    activeKind,
-    hasExpiryFlag,
-    items,
-}: Props) {
+export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
     const kind = kinds.find((candidate) => candidate.value === activeKind);
     const label = kind?.label ?? 'Katalog';
 
@@ -117,7 +114,7 @@ export default function HrCatalog({
                                         key={item.id}
                                         item={item}
                                         kind={activeKind}
-                                        hasExpiryFlag={hasExpiryFlag}
+                                        flag={flag}
                                     />
                                 ))}
                             </ul>
@@ -131,7 +128,7 @@ export default function HrCatalog({
                         <CreateForm
                             kind={activeKind}
                             label={label}
-                            hasExpiryFlag={hasExpiryFlag}
+                            flag={flag}
                         />
                     </section>
                 </div>
@@ -143,11 +140,11 @@ export default function HrCatalog({
 function CreateForm({
     kind,
     label,
-    hasExpiryFlag,
+    flag,
 }: {
     kind: string;
     label: string;
-    hasExpiryFlag: boolean;
+    flag: CatalogFlag;
 }) {
     return (
         <Form
@@ -194,9 +191,10 @@ function CreateForm({
                         <InputError message={errors.name} />
                     </div>
 
-                    {hasExpiryFlag && (
-                        <ExpiryCheckbox
-                            id="catalog-expiry"
+                    {flag && (
+                        <FlagCheckbox
+                            id="catalog-flag"
+                            label={flag.label}
                             defaultChecked={false}
                         />
                     )}
@@ -214,11 +212,11 @@ function CreateForm({
 function CatalogRow({
     item,
     kind,
-    hasExpiryFlag,
+    flag,
 }: {
     item: CatalogItem;
     kind: string;
-    hasExpiryFlag: boolean;
+    flag: CatalogFlag;
 }) {
     const [editing, setEditing] = useState(false);
     const [confirming, setConfirming] = useState(false);
@@ -240,10 +238,8 @@ function CatalogRow({
                         <span className="font-mono text-xs text-muted-foreground">
                             {item.code}
                         </span>
-                        {item.has_expiry && (
-                            <Badge variant="secondary">
-                                Punya masa berlaku
-                            </Badge>
+                        {flag && item.flag && (
+                            <Badge variant="secondary">{flag.badge}</Badge>
                         )}
                         {!item.is_active && (
                             <Badge variant="outline">Nonaktif</Badge>
@@ -260,7 +256,7 @@ function CatalogRow({
                             onClick={() => setEditing(true)}
                         >
                             <Pencil />
-                            {hasExpiryFlag ? 'Ubah' : 'Ubah nama'}
+                            {flag ? 'Ubah' : 'Ubah nama'}
                         </Button>
 
                         {item.is_active ? (
@@ -323,14 +319,15 @@ function CatalogRow({
                                     </Button>
                                 </div>
                             </div>
-                            {hasExpiryFlag && (
-                                <ExpiryCheckbox
-                                    id={`expiry-${item.id}`}
-                                    defaultChecked={item.has_expiry ?? false}
+                            {flag && (
+                                <FlagCheckbox
+                                    id={`flag-${item.id}`}
+                                    label={flag.label}
+                                    defaultChecked={item.flag ?? false}
                                 />
                             )}
                             <InputError message={errors.name} />
-                            <InputError message={errors.has_expiry} />
+                            <InputError message={errors.flag} />
                         </>
                     )}
                 </Form>
@@ -368,25 +365,23 @@ function CatalogRow({
 }
 
 /**
- * Pilihan "punya masa berlaku" jenis dokumen. Nilai dikirim lewat input tersembunyi agar "tidak
- * dicentang" juga terkirim (checkbox kosong tidak ikut terkirim).
+ * Pilihan ya/tidak katalog. Nilai dikirim lewat input tersembunyi agar "tidak dicentang" juga
+ * terkirim (checkbox kosong tidak ikut terkirim).
  */
-function ExpiryCheckbox({
+function FlagCheckbox({
     id,
+    label,
     defaultChecked,
 }: {
     id: string;
+    label: string;
     defaultChecked: boolean;
 }) {
     const [checked, setChecked] = useState(defaultChecked);
 
     return (
         <div className="space-y-1">
-            <input
-                type="hidden"
-                name="has_expiry"
-                value={checked ? '1' : '0'}
-            />
+            <input type="hidden" name="flag" value={checked ? '1' : '0'} />
             <label
                 htmlFor={id}
                 className="flex cursor-pointer items-start gap-2 text-sm"
@@ -398,8 +393,7 @@ function ExpiryCheckbox({
                     onChange={(event) => setChecked(event.target.checked)}
                     className="mt-0.5 size-4 accent-primary"
                 />
-                Punya masa berlaku (tanggal &quot;berlaku sampai&quot; wajib
-                diisi; masuk pengingat dokumen akan habis).
+                {label}
             </label>
         </div>
     );

@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -7,6 +7,40 @@ import { formatNumber, formatRupiah } from '@/components/hr/pay-format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+type TeachingLine = {
+    organization_id: string;
+    organization: string;
+    mode: 'JAM_MATI' | 'JAM_HIDUP';
+    mode_label: string;
+    minutes_per_jp: number;
+    sessions: number;
+    jp: number;
+    rate: number;
+    amount: number;
+    irregular: number;
+};
+
+type Preview = {
+    month: string;
+    maxMonth: string;
+    label: string;
+    until: string;
+    teaching: { eligible: boolean; lines: TeachingLine[]; total: number };
+    attendance: {
+        present_days: number;
+        absent: number;
+        late: number;
+        early: number;
+        empty: number;
+        rates: { absent: number; late: number; early: number };
+        deduction: number;
+    } | null;
+    present_day_pay: number;
+    earning: number;
+    deduction: number;
+};
 
 type Props = {
     employee: {
@@ -16,13 +50,14 @@ type Props = {
         status: string;
     };
     pay: PaySummary;
+    preview: Preview;
 };
 
 /**
  * Setup gaji satu pegawai (PRD-001 §16.1, HR-5a-2): rincian dari tarif jabatan (hanya baca) dan
  * nominal komponen per pegawai. Hanya Admin SDM / Admin Yayasan.
  */
-export default function PayrollEmployee({ employee, pay }: Props) {
+export default function PayrollEmployee({ employee, pay, preview }: Props) {
     const active = pay.rows.filter((row) => row.is_active);
     const inactive = pay.rows.filter(
         (row) => !row.is_active && row.amount !== null,
@@ -239,6 +274,8 @@ export default function PayrollEmployee({ employee, pay }: Props) {
                     )}
                 </Form>
 
+                <PreviewSection employeeId={employee.id} preview={preview} />
+
                 <section
                     aria-label="Ringkasan"
                     className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3 rounded-xl bg-muted/40 p-4 text-sm"
@@ -259,6 +296,156 @@ export default function PayrollEmployee({ employee, pay }: Props) {
                 </section>
             </div>
         </>
+    );
+}
+
+/**
+ * Perkiraan gaji bulan terpilih (HR-5b): honor JP per lembaga, uang per hari hadir, potongan presensi.
+ * Angka akhir dikunci di rekap gaji bulanan (HR-5c).
+ */
+function PreviewSection({
+    employeeId,
+    preview,
+}: {
+    employeeId: string;
+    preview: Preview;
+}) {
+    const attendance = preview.attendance;
+
+    return (
+        <section
+            aria-label="Perkiraan bulan"
+            className="space-y-3 rounded-xl border p-4"
+        >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div className="space-y-1">
+                    <h2 className="text-base font-medium">
+                        Perkiraan {preview.label}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        {preview.month === preview.maxMonth
+                            ? `Dihitung sampai ${preview.until}. `
+                            : ''}
+                        Angka akhir dikunci di rekap gaji bulanan.
+                    </p>
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="preview-month">Bulan</Label>
+                    <Input
+                        id="preview-month"
+                        type="month"
+                        value={preview.month}
+                        max={preview.maxMonth}
+                        onChange={(event) =>
+                            event.target.value &&
+                            router.get(
+                                `/pegawai/gaji/${employeeId}`,
+                                { bulan: event.target.value },
+                                { preserveScroll: true, replace: true },
+                            )
+                        }
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <p className="text-sm font-medium">Honor mengajar</p>
+                {preview.teaching.lines.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        Tidak ada jadwal/pertemuan mengajar.
+                    </p>
+                ) : (
+                    <>
+                        {!preview.teaching.eligible && (
+                            <p className="rounded-md border border-amber-400/60 bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                                Pegawai ini mengajar, tetapi jenis pegawai &
+                                status kepegawaiannya tidak dicentang “Menerima
+                                honor per JP”, jadi honornya Rp 0.
+                            </p>
+                        )}
+                        <ul className="divide-y rounded-lg border">
+                            {preview.teaching.lines.map((line) => (
+                                <li
+                                    key={line.organization_id}
+                                    className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
+                                >
+                                    <span className="min-w-0 break-words">
+                                        {line.organization}
+                                        <span className="block text-xs text-muted-foreground">
+                                            {line.mode_label}:{' '}
+                                            {line.mode === 'JAM_MATI'
+                                                ? `${line.sessions} jadwal/minggu`
+                                                : `${line.sessions} pertemuan`}{' '}
+                                            = {line.jp} JP ×{' '}
+                                            {formatRupiah(line.rate)} (
+                                            {line.minutes_per_jp} mnt/JP)
+                                            {line.irregular > 0 &&
+                                                ` · ⚠ ${line.irregular} tidak pas kelipatan JP (dibulatkan ke bawah)`}
+                                        </span>
+                                    </span>
+                                    <span className="font-medium tabular-nums">
+                                        {formatRupiah(line.amount)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <p className="text-sm font-medium">Presensi</p>
+                {attendance === null ? (
+                    <p className="text-sm text-muted-foreground">
+                        Pegawai ini tidak punya penempatan utama.
+                    </p>
+                ) : (
+                    <dl className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3 text-sm">
+                        <div>
+                            <dt className="text-xs text-muted-foreground">
+                                Hari hadir (Hadir + Dinas luar)
+                            </dt>
+                            <dd className="font-medium tabular-nums">
+                                {attendance.present_days} hari ·{' '}
+                                {formatRupiah(preview.present_day_pay)}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-muted-foreground">
+                                Alpa / Terlambat / Pulang cepat
+                            </dt>
+                            <dd className="font-medium tabular-nums">
+                                {attendance.absent} / {attendance.late} /{' '}
+                                {attendance.early}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-muted-foreground">
+                                Potongan presensi
+                            </dt>
+                            <dd className="font-medium text-red-700 tabular-nums dark:text-red-400">
+                                − {formatRupiah(attendance.deduction)}
+                            </dd>
+                        </div>
+                        {attendance.empty > 0 && (
+                            <p className="text-xs text-amber-700 sm:col-span-full dark:text-amber-300">
+                                ⚠ {attendance.empty} hari wajib belum diisi
+                                presensinya (tidak dipotong).
+                            </p>
+                        )}
+                    </dl>
+                )}
+            </div>
+
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3 rounded-lg bg-muted/40 p-3 text-sm">
+                <Total label="Total pendapatan" value={preview.earning} />
+                <Total label="Total potongan" value={preview.deduction} />
+                <Total
+                    label="Perkiraan bersih"
+                    value={preview.earning - preview.deduction}
+                />
+            </div>
+        </section>
     );
 }
 
