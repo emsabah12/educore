@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    ChartColumn,
     ChevronLeft,
     ChevronRight,
+    Download,
     FileUp,
     Search,
     UserPlus,
@@ -116,23 +118,40 @@ export default function Employees({
                         description="Pegawai di lembaga yang bisa Anda lihat dari lembaga kerja ini."
                     />
 
-                    {canCreate && (
-                        // Grid otomatis: tombol turun ke baris berikutnya di layar sempit.
-                        <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
-                            <Button variant="outline" asChild>
-                                <Link href={`${BASE_URL}/impor`}>
-                                    <FileUp />
-                                    Impor
-                                </Link>
-                            </Button>
-                            <Button asChild>
-                                <Link href={`${BASE_URL}/tambah`}>
-                                    <UserPlus />
-                                    Tambah pegawai
-                                </Link>
-                            </Button>
-                        </div>
-                    )}
+                    {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                        <Button variant="outline" asChild>
+                            <Link href={`${BASE_URL}/laporan`}>
+                                <ChartColumn />
+                                Laporan
+                            </Link>
+                        </Button>
+                        {/* Unduhan memakai saringan yang sedang dipakai (HR-6a). */}
+                        <Button variant="outline" asChild>
+                            <a
+                                href={`${BASE_URL}/unduh?${new URLSearchParams(filters).toString()}`}
+                            >
+                                <Download />
+                                Unduh .xlsx
+                            </a>
+                        </Button>
+                        {canCreate && (
+                            <>
+                                <Button variant="outline" asChild>
+                                    <Link href={`${BASE_URL}/impor`}>
+                                        <FileUp />
+                                        Impor
+                                    </Link>
+                                </Button>
+                                <Button asChild>
+                                    <Link href={`${BASE_URL}/tambah`}>
+                                        <UserPlus />
+                                        Tambah pegawai
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Grid otomatis: kolom saringan turun ke baris berikutnya di layar sempit. */}

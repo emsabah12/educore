@@ -8,6 +8,7 @@ use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeDocumentController;
 use Modules\HR\Http\Controllers\EmployeeImportController;
+use Modules\HR\Http\Controllers\EmployeeReportController;
 use Modules\HR\Http\Controllers\ExpiringDocumentController;
 use Modules\HR\Http\Controllers\LeaveAdminController;
 use Modules\HR\Http\Controllers\LeaveApprovalController;
@@ -119,6 +120,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Pegawai (PRD-001 §6). `pegawai/tambah`, `pegawai/impor` & `pegawai/katalog` didaftarkan sebelum `pegawai/{employee}`.
     Route::get('pegawai', [EmployeeController::class, 'index'])->name('hr.employees.index');
     Route::get('pegawai/tambah', [EmployeeController::class, 'create'])->name('hr.employees.create');
+    // Laporan pegawai & ekspor daftar (PRD-001 §17, HR-6a). Cakupan sama dengan daftar Pegawai.
+    Route::get('pegawai/unduh', [EmployeeReportController::class, 'exportList'])->name('hr.employees.export');
+    Route::get('pegawai/laporan', [EmployeeReportController::class, 'index'])->name('hr.employees.report');
+    Route::get('pegawai/laporan/unduh', [EmployeeReportController::class, 'exportReport'])->name('hr.employees.report.export');
     Route::post('pegawai', [EmployeeController::class, 'store'])->name('hr.employees.store');
     // Impor pegawai dari Excel/CSV (HR-1e, PRD-001 §6.2). Hanya Admin SDM / Admin Yayasan.
     Route::get('pegawai/impor', [EmployeeImportController::class, 'index'])->name('hr.employees.import');

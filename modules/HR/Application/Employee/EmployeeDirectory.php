@@ -2,10 +2,14 @@
 
 namespace Modules\HR\Application\Employee;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Domain\Person\Gender;
+use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\EmployeeStatus;
 use stdClass;
 
@@ -20,6 +24,9 @@ final class EmployeeDirectory
     /** PRD-000 §9: maksimal 100 baris per halaman. */
     public const MAX_PER_PAGE = 100;
 
+    /** Batas baris ekspor .xlsx (HR-6a). */
+    public const EXPORT_LIMIT = 5000;
+
     public function __construct(
         private readonly EmployeeVisibility $visibility,
     ) {}
@@ -29,6 +36,106 @@ final class EmployeeDirectory
      */
     public function search(EmployeeFilters $filters): LengthAwarePaginator
     {
+        /** @var LengthAwarePaginator<int, stdClass> $page */
+        $page = $this->query($filters)
+            ->orderBy('p.name')
+            ->orderBy('e.id')
+            ->select(['e.id', 'e.employee_number', 'e.status', 'p.name'])
+            ->paginate($filters->perPage);
+
+        return $page->withQueryString();
+    }
+
+    /**
+     * Semua pegawai yang cocok dengan saringan & cakupan lihat (sama dengan daftar di layar), untuk
+     * ekspor .xlsx (PRD-001 §12, HR-6a). Data pribadi hanya diisi untuk pegawai yang juga terlihat
+     * dengan `hr.employees.view_personal`; NIK tidak pernah ikut (§4.5). Paling banyak EXPORT_LIMIT baris.
+     *
+     * @return array{rows: list<array{name: string, employee_number: string|null, nuptk: string|null, status: string, gender: string|null, education: string|null, education_major: string|null, employment_type: string|null, classification: string|null, primary_placement: string|null, other_placements: string, start_date: string|null, service_length: string, personal: array{birth_place: string|null, birth_date: string|null, phone: string|null, address: string|null}|null}>, truncated: bool, personal_count: int}
+     */
+    public function export(EmployeeFilters $filters): array
+    {
+        $records = $this->query($filters)
+            ->orderBy('p.name')
+            ->orderBy('e.id')
+            ->limit(self::EXPORT_LIMIT + 1)
+            ->get(['e.id', 'e.employee_number', 'e.nuptk', 'e.status', 'e.education_level', 'e.education_major', 'p.name', 'p.gender', 'p.birth_place', 'p.birth_date', 'p.phone', 'p.address'])
+            ->all();
+
+        $truncated = count($records) > self::EXPORT_LIMIT;
+        $records = array_slice($records, 0, self::EXPORT_LIMIT);
+        $ids = array_map(fn (stdClass $row): string => (string) $row->id, $records);
+
+        if ($ids === []) {
+            return ['rows' => [], 'truncated' => false, 'personal_count' => 0];
+        }
+
+        $personalQuery = DB::table('hr_employees as e')->whereIn('e.id', $ids);
+        $this->visibility->apply($personalQuery, HrAccess::EMPLOYEES_VIEW_PERSONAL);
+        $personal = array_flip($personalQuery->pluck('e.id')->map(fn (mixed $id): string => (string) $id)->all());
+
+        $latestPeriods = $this->latestPeriods($ids);
+        $placements = $this->currentPlacements($ids, $latestPeriods);
+        $periods = [];
+
+        foreach (DB::table('hr_employment_periods')->whereIn('employee_id', $ids)->get(['employee_id', 'start_date', 'end_date']) as $period) {
+            $periods[(string) $period->employee_id][] = [
+                'start' => CarbonImmutable::parse((string) $period->start_date),
+                'end' => $period->end_date === null ? null : CarbonImmutable::parse((string) $period->end_date),
+            ];
+        }
+
+        $today = BusinessClock::today();
+        $rows = [];
+
+        foreach ($records as $row) {
+            $id = (string) $row->id;
+            $current = $placements[$id] ?? [];
+            $employeePeriods = $periods[$id] ?? [];
+            $starts = array_map(fn (array $period): string => $period['start']->toDateString(), $employeePeriods);
+            $seesPersonal = isset($personal[$id]);
+
+            $rows[] = [
+                'name' => (string) $row->name,
+                'employee_number' => $row->employee_number === null ? null : (string) $row->employee_number,
+                'nuptk' => $row->nuptk === null ? null : (string) $row->nuptk,
+                'status' => EmployeeStatus::from((string) $row->status)->label(),
+                'gender' => $row->gender === null ? null : Gender::from((string) $row->gender)->label(),
+                'education' => $row->education_level === null ? null : EducationLevel::from((string) $row->education_level)->label(),
+                'education_major' => $row->education_major === null ? null : (string) $row->education_major,
+                'employment_type' => $latestPeriods[$id]['type'] ?? null,
+                'classification' => $latestPeriods[$id]['classification'] ?? null,
+                'primary_placement' => $current[0] ?? null,
+                'other_placements' => implode('; ', array_slice($current, 1)),
+                'start_date' => $starts === [] ? null : min($starts),
+                'service_length' => $employeePeriods === [] ? '' : ServiceLength::of($employeePeriods, $today)['label'],
+                'personal' => $seesPersonal ? [
+                    'birth_place' => $row->birth_place === null ? null : (string) $row->birth_place,
+                    'birth_date' => $row->birth_date === null ? null : substr((string) $row->birth_date, 0, 10),
+                    'phone' => $row->phone === null ? null : (string) $row->phone,
+                    'address' => $row->address === null ? null : (string) $row->address,
+                ] : null,
+            ];
+        }
+
+        return ['rows' => $rows, 'truncated' => $truncated, 'personal_count' => count(array_intersect_key($personal, array_flip($ids)))];
+    }
+
+    /**
+     * ID pegawai yang cocok dengan saringan & cakupan lihat (untuk Laporan pegawai, HR-6a).
+     *
+     * @return list<string>
+     */
+    public function ids(EmployeeFilters $filters): array
+    {
+        return array_values($this->query($filters)->pluck('e.id')->map(fn (mixed $id): string => (string) $id)->all());
+    }
+
+    /**
+     * Query pegawai (alias `e`, orang `p`) dengan cakupan lihat & saringan halaman daftar.
+     */
+    private function query(EmployeeFilters $filters): Builder
+    {
         $query = DB::table('hr_employees as e')
             ->join('memberships as m', 'm.id', '=', 'e.membership_id')
             ->join('persons as p', 'p.id', '=', 'm.person_id');
@@ -36,14 +143,7 @@ final class EmployeeDirectory
         $this->visibility->apply($query, HrAccess::EMPLOYEES_VIEW);
         $this->applyFilters($query, $filters);
 
-        /** @var LengthAwarePaginator<int, stdClass> $page */
-        $page = $query
-            ->orderBy('p.name')
-            ->orderBy('e.id')
-            ->select(['e.id', 'e.employee_number', 'e.status', 'p.name'])
-            ->paginate($filters->perPage);
-
-        return $page->withQueryString();
+        return $query;
     }
 
     /**

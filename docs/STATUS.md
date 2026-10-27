@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-5c-2 — Slip gaji & Gaji saya (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `090afbd` — feat(hr): HR-5c-1 rekap gaji bulanan, penyesuaian, kunci bulan, xlsx
+- **Tahap aktif:** HR-6a — Laporan pegawai & ekspor daftar pegawai (kode siap, menunggu verifikasi owner) — penutup cakupan inti HR
+- **Commit terakhir:** `564a061` — feat(hr): HR-5c-2 slip gaji & Gaji saya
 
 ## Keputusan penting
 
@@ -630,13 +630,22 @@
 - Test: `PayrollRecapTest` (5 test, awalan `rkg`); `TeachingPayTest` + 1 (Admin SDM mengubah tarif).
 - Bukti: 646 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 
-**HR-5c-2 — Slip gaji & Gaji saya: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.3, OD-HR-12
+**HR-5c-2 — Slip gaji & Gaji saya: SELESAI (2026-10-27, commit `564a061`)** — PRD-001 §16.3, OD-HR-12
 
 - `ManagePayroll::lockedSlips()` (null bila belum dikunci; saring lembaga/pegawai) & `monthsFor()`; `PayslipController` (`print` → `hr.payroll-recap.payslips`; `myIndex`/`mySlip` → `hr.my-pay.index|payslip`).
 - Frontend: `pages/print/payslips.tsx` (PrintLayout, A4, satu slip per halaman), `pages/hr/my-pay.tsx`, tombol **Cetak slip** & **Slip gaji** di Rekap gaji (bulan terkunci), menu **Gaji saya**.
 - Test: `PayslipTest` (3 test, awalan `slp`).
-- Bukti (salinan kerja Claude): 649 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
-- **HR-5 Komponen gaji SELESAI setelah HR-5c-2 diverifikasi.**
+- Bukti: 649 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+- **HR-5 Komponen gaji SELESAI (2026-10-27).**
+
+**HR-6a — Laporan pegawai & ekspor daftar pegawai: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §17
+
+- `EmployeeDirectory`: `query()` dipakai bersama daftar, `ids()`, `export()` (data pribadi per baris lewat cakupan `view_personal`, tanpa NIK, batas 5.000); `EmployeeReport` (jumlah per lembaga/jenis/status/jabatan/jenis kelamin/pendidikan + berhenti tahun ini); `EmployeeExport` (xlsx daftar & laporan).
+- `EmployeeReportController` + route `hr.employees.export` (`pegawai/unduh`), `hr.employees.report` (`pegawai/laporan`), `hr.employees.report.export`; audit `hr.employees_exported`.
+- Frontend: `pages/hr/employees/report.tsx` (kartu + batang sederhana), tombol **Laporan** & **Unduh .xlsx** di halaman Pegawai.
+- Test: `EmployeeReportTest` (4 test, awalan `lpg`).
+- Bukti (salinan kerja Claude): 653 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- **Cakupan inti HR SELESAI setelah HR-6a diverifikasi** (PRD-001 §3).
 - Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
 
 ## Struktur file utama
@@ -676,6 +685,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-5c-2 (PANDUAN-HR-5C-2.md), commit & push.
-2. HR-6a laporan jumlah pegawai & ekspor daftar pegawai (tahap terakhir cakupan inti HR).
-3. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).
+1. Verifikasi HR-6a (PANDUAN-HR-6A.md), commit & push.
+2. Tentukan modul/tahap berikutnya bersama owner: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama), HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen), atau modul Keuangan.

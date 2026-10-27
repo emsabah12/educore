@@ -118,6 +118,9 @@ final class HrAuditAction
 
     public const SUBJECT_PAYROLL_MONTH = 'hr_payroll_month';
 
+    /** Daftar pegawai diunduh .xlsx (HR-6a): saringan, jumlah baris, jumlah baris berdata pribadi. */
+    public const EMPLOYEES_EXPORTED = 'hr.employees_exported';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -177,6 +180,7 @@ final class HrAuditAction
             self::PAYROLL_LOCKED => 'Rekap gaji bulan dikunci',
             self::PAYROLL_UNLOCKED => 'Kunci rekap gaji dibuka',
             self::PAYROLL_ADJUSTED => 'Penyesuaian gaji ditambah/dihapus',
+            self::EMPLOYEES_EXPORTED => 'Daftar pegawai diunduh',
         ];
     }
 }

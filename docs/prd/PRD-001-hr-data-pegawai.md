@@ -1,8 +1,8 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.22 (2026-10-27: rincian & pembangunan HR-5c-2 slip gaji & Gaji saya — §16.3)
-- **Versi sebelumnya:** 0.21 (tarif gaji oleh Admin Yayasan & Admin SDM; HR-5c-1 rekap gaji — §16.2–16.3), 0.20 (HR-5b honor JP & potongan presensi — §16.2), 0.19 (komponen Menurut jabatan + menu Gaji pegawai — §16.1; jam mati & jam hidup; slip gaji masuk HR-5c; OD-HR-11 direvisi, OD-HR-12), 0.18 (rincian HR-5 — §16, OD-HR-11; HR-5a), 0.17 (HR-2b Dokumen saya, Dokumen akan habis, kartu Beranda — §15.2), 0.16 (cakupan "HR selesai" — §3; HR-2 Dokumen & SK — §15, OD-HR-10; HR-2a), 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
-- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: HR-2a SELESAI (`287f261`), HR-2b SELESAI (`93b8e0c`) — **HR-2 SELESAI (2026-10-24)**; **HR-5 dirinci & disetujui (§16, 2026-10-25)**: HR-5a SELESAI (`0fc5661`), HR-5a-2 SELESAI (`b8a7184`), HR-5b SELESAI (`12956f2`), HR-5c-1 SELESAI (`090afbd`), **HR-5c-2 dibangun 2026-10-27**; HR-6a belum dibangun
+- **Versi:** 0.23 (2026-10-27: rincian & pembangunan HR-6a laporan pegawai & ekspor daftar pegawai — §17)
+- **Versi sebelumnya:** 0.22 (HR-5c-2 slip gaji & Gaji saya — §16.3), 0.21 (tarif gaji oleh Admin Yayasan & Admin SDM; HR-5c-1 rekap gaji — §16.2–16.3), 0.20 (HR-5b honor JP & potongan presensi — §16.2), 0.19 (komponen Menurut jabatan + menu Gaji pegawai — §16.1; jam mati & jam hidup; slip gaji masuk HR-5c; OD-HR-11 direvisi, OD-HR-12), 0.18 (rincian HR-5 — §16, OD-HR-11; HR-5a), 0.17 (HR-2b Dokumen saya, Dokumen akan habis, kartu Beranda — §15.2), 0.16 (cakupan "HR selesai" — §3; HR-2 Dokumen & SK — §15, OD-HR-10; HR-2a), 0.15 (HR-4c Rekap presensi pegawai — §14.4), 0.14 (HR-4b Lembar presensi pegawai — §14.3), 0.13 (NIK sebagai penanda unik orang — OD-HR-01 direvisi, §4.5; impor `nik` & `lembaga_tambahan` — §6.2; HR-1g), 0.12 (rincian HR-4 Presensi pegawai — §14), 0.11 (rincian HR-3 Cuti & Izin — §13), 0.10 (form Tambah pegawai memperingatkan nama sama), 0.9 (impor: peringatan nama sama), 0.8 (HR-1e-b — simpan impor; batas waktu proses simpan), 0.7 (rincian HR-1e — impor pegawai dari Excel/CSV; OD-HR-05)
+- **Status:** HR-1 Data Pegawai SELESAI (2026-10-14, commit `d72eb3d`); HR-1e SELESAI (commit `b5cc66f`, `7902d3a`); **HR-3 dirinci & disetujui (§13, 2026-10-22)**: HR-3a SELESAI (`4cf3e44`), HR-3b SELESAI (`8de802d`), HR-3c SELESAI (`7da5e98`), HR-3d-a SELESAI (`4544d79`), HR-3d-b SELESAI (`451f94d`) — **HR-3 SELESAI (2026-10-22)**; **HR-4 dirinci & disetujui (§14, 2026-10-22)**: HR-4a SELESAI (ikut `a69c50a`), HR-4b SELESAI (`58b83d0`), HR-4c SELESAI (`e3df916`) — **HR-4 SELESAI (2026-10-24)**; **HR-1g SELESAI (`9849873`)**; **HR-2 dirinci & disetujui (§15, 2026-10-24)**: HR-2a SELESAI (`287f261`), HR-2b SELESAI (`93b8e0c`) — **HR-2 SELESAI (2026-10-24)**; **HR-5 dirinci & disetujui (§16, 2026-10-25)**: HR-5a SELESAI (`0fc5661`), HR-5a-2 SELESAI (`b8a7184`), HR-5b SELESAI (`12956f2`), HR-5c-1 SELESAI (`090afbd`), HR-5c-2 SELESAI (`564a061`) — **HR-5 SELESAI (2026-10-27)**; **HR-6a dirinci & disetujui (§17, 2026-10-27), dibangun 2026-10-27** — penutup cakupan inti HR
 - **Bergantung pada:** PRD-000 (pondasi F0–F4 SELESAI), ADR-001
 - **Referensi domain lama:** HR-001 (PRD HR), HR-002 (workforce foundation), HR-013 (otorisasi), HR-014 (klasifikasi data), HR-017 (daftar & tambah pegawai per workspace) di `docs.zip`
 
@@ -350,7 +350,7 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 
 ## 12. Saran tambahan (di luar ruang lingkup)
 
-- **Ekspor daftar pegawai** (CSV) dengan saringan dan izin yang sama seperti halaman daftar [LAMA NFR-009].
+- ~~**Ekspor daftar pegawai** (CSV) dengan saringan dan izin yang sama seperti halaman daftar [LAMA NFR-009].~~ Dikerjakan di HR-6a (§17), format .xlsx.
 
 ## 13. HR-3 Cuti & Izin + layanan mandiri [OWNER, 2026-10-22 — 3 keputusan + usulan rincian disetujui]
 
@@ -559,3 +559,17 @@ HR menyiapkan **data input gaji** yang bisa ditelusuri dan **slip gaji**; pajak/
     - Admin SDM / Admin Yayasan: dari Rekap gaji (bulan terkunci) — **Cetak slip** semua atau lembaga terpilih, dan **Slip gaji** per pegawai (`/pegawai/gaji/rekap/{bulan}/slip?lembaga=&pegawai=`).
     - Pegawai: menu **Gaji saya** (`/gaji-saya`, bagi akun tertaut ke data pegawai) — daftar bulan terkunci (60 terakhir) dengan gaji bersih, dan slip miliknya (`/gaji-saya/{bulan}`). Slip pegawai lain tidak bisa dibuka.
 - Di luar HR-5: pajak/PPh 21, transfer bank, THR, lembur terjadwal, tanda tangan/stempel digital pada slip.
+
+## 17. HR-6a Laporan pegawai & ekspor daftar pegawai [OWNER, 2026-10-27 — usulan rincian disetujui]
+
+Penutup cakupan inti HR (§3). [LAMA] FR-041; saran §12.
+
+- **Laporan pegawai** (`/pegawai/laporan`, tombol **Laporan** di halaman Pegawai): pemilik `hr.employees.view`, angka **mengikuti cakupan lihat** masing-masing (§5.3) — Kepala Lembaga hanya lembaganya. Saringan lembaga (beserta turunannya).
+    - Jumlah **pegawai aktif** dan jumlah pegawai yang **berhenti tahun berjalan**.
+    - Pengelompokan pegawai aktif: **lembaga** (penempatan utama; "Tanpa penempatan utama"), **jenis pegawai** & **status kepegawaian** (periode terakhir; "(kosong)"), **jabatan** (per penempatan berjalan — rangkap jabatan terhitung di tiap jabatan), **jenis kelamin**, **pendidikan terakhir** ("(belum diisi)"). Urut terbanyak.
+    - Unduh `.xlsx`: lembar Ringkasan + satu lembar per pengelompokan. Tidak dicatat di audit (angka agregat).
+- **Ekspor daftar pegawai** (tombol **Unduh .xlsx** di halaman Pegawai): memakai **saringan yang sedang dipakai** (cari, status, lembaga, jenis, status kepegawaian, jabatan) dan cakupan lihat yang sama dengan daftar; paling banyak 5.000 baris (judul diberi tanda bila dipotong) [ASUMSI].
+    - Kolom: nama, nomor induk, NUPTK, status, jenis kelamin, pendidikan, jurusan, jenis pegawai, status kepegawaian, penempatan utama, penempatan lain, mulai kerja, masa kerja, tempat lahir, tanggal lahir, no. HP, alamat.
+    - **Data pribadi** (tempat & tanggal lahir, HP, alamat) **hanya terisi untuk pegawai yang boleh dilihat data pribadinya** (`hr.employees.view_personal` di cakupannya); selain itu kosong. **NIK tidak pernah diekspor** (§4.5).
+    - Format .xlsx (bukan CSV) agar seragam dengan unduhan lain [ASUMSI].
+    - Audit `hr.employees_exported`: saringan, jumlah baris, jumlah baris berdata pribadi — tanpa isi data.
