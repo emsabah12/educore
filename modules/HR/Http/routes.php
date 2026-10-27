@@ -17,6 +17,7 @@ use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
 use Modules\HR\Http\Controllers\PayrollEmployeeController;
+use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 
 /*
@@ -96,6 +97,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Honor mengajar & potongan presensi per jenjang/lembaga (HR-5b).
     Route::post('pegawai/gaji/honor-jp', [PayrollSettingsController::class, 'setTeachingPay'])->name('hr.payroll.teaching-pay');
     Route::post('pegawai/gaji/potongan-presensi', [PayrollSettingsController::class, 'setDeduction'])->name('hr.payroll.deduction');
+    // Rekap gaji bulanan: penyesuaian, kunci/buka kunci, unduh .xlsx (HR-5c-1).
+    Route::get('pegawai/gaji/rekap', [PayrollRecapController::class, 'index'])->name('hr.payroll-recap.index');
+    Route::get('pegawai/gaji/rekap/unduh', [PayrollRecapController::class, 'export'])->name('hr.payroll-recap.export');
+    Route::post('pegawai/gaji/rekap/{month}/kunci', [PayrollRecapController::class, 'lock'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.lock');
+    Route::post('pegawai/gaji/rekap/{month}/buka-kunci', [PayrollRecapController::class, 'unlock'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.unlock');
+    Route::post('pegawai/gaji/rekap/{month}/penyesuaian', [PayrollRecapController::class, 'storeAdjustment'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.adjustments.store');
+    Route::delete('pegawai/gaji/rekap/{month}/penyesuaian/{adjustment}', [PayrollRecapController::class, 'destroyAdjustment'])->where('month', '\d{4}-\d{2}')->whereUuid('adjustment')->name('hr.payroll-recap.adjustments.destroy');
     // Menu Gaji pegawai: daftar & setup per pegawai (HR-5a-2), terpisah dari detail pegawai.
     Route::get('pegawai/gaji', [PayrollEmployeeController::class, 'index'])->name('hr.payroll-employees.index');
     Route::get('pegawai/gaji/{employee}', [PayrollEmployeeController::class, 'show'])->whereUuid('employee')->name('hr.payroll-employees.show');

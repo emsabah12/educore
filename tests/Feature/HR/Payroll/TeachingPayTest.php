@@ -8,9 +8,11 @@ use Modules\Academic\Database\Seeders\AcademicDevSeeder;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Core\Database\Seeders\DevAccountsSeeder;
 use Modules\Core\Database\Seeders\FirstTenantSeeder;
+use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\Tenant;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\CreateEmployee;
 use Modules\HR\Application\Employee\ManagePlacements;
 use Modules\HR\Application\Employee\NewEmployeeData;
@@ -192,4 +194,19 @@ test('aturan honor & potongan: nilai tidak sah ditolak; hanya pemilik izin gaji'
     $this->actingAs(DevAccounts::user('kepala.unit1'))
         ->post(route('hr.payroll.teaching-pay'), ['target' => 'yayasan', 'mode' => 'JAM_MATI', 'minutes' => 45, 'rate' => '1'])
         ->assertForbidden();
+});
+
+test('Admin SDM (Biro SDM dan Keuangan) boleh mengubah tarif tanpa izin pengaturan Core', function () {
+    $user = User::factory()->create();
+    CoreFixtures::tenantRole(CoreFixtures::member($user, $this->tenant), HrAccess::ROLE_ADMIN_SDM);
+
+    $this->actingAs($user)
+        ->post(route('hr.payroll.teaching-pay'), ['target' => 'lembaga', 'organization_id' => $this->smp, 'mode' => 'JAM_HIDUP', 'minutes' => 40, 'rate' => '12.500'])
+        ->assertSessionHasNoErrors();
+    $this->actingAs($user)
+        ->post(route('hr.payroll.deduction'), ['target' => 'yayasan', 'absent' => '25.000', 'late' => '5.000', 'early' => '5.000'])
+        ->assertSessionHasNoErrors();
+
+    expect(DB::table('scoped_settings')->where('key', 'hr.teaching_pay')->value('value'))->toContain('12500')
+        ->and(DB::table('scoped_settings')->where('key', 'hr.attendance_deduction')->count())->toBe(1);
 });

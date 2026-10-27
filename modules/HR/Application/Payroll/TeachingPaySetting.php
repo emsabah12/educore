@@ -5,6 +5,7 @@ namespace Modules\HR\Application\Payroll;
 use Closure;
 use Modules\Core\Application\Settings\ScopedSettingResolver;
 use Modules\Core\Application\Settings\SettingDefinition;
+use Modules\HR\Application\Authorization\HrAccess;
 
 /**
  * Aturan berjenjang `hr.teaching_pay` (PRD-001 §16.2, OD-HR-11): honor mengajar per jenjang/lembaga.
@@ -48,6 +49,8 @@ final class TeachingPaySetting
                     $fail($problem);
                 }
             }],
+            // Diubah Admin Yayasan & Admin SDM (Biro SDM dan Keuangan) [OWNER, 2026-10-27].
+            permission: HrAccess::PAYROLL_MANAGE,
         );
     }
 

@@ -109,6 +109,15 @@ final class HrAuditAction
 
     public const PAY_RATE_REMOVED = 'hr.pay_rate_removed';
 
+    /** Rekap gaji bulanan (HR-5c-1): kunci, buka kunci, penyesuaian manual. Tanpa nominal. */
+    public const PAYROLL_LOCKED = 'hr.payroll_locked';
+
+    public const PAYROLL_UNLOCKED = 'hr.payroll_unlocked';
+
+    public const PAYROLL_ADJUSTED = 'hr.payroll_adjusted';
+
+    public const SUBJECT_PAYROLL_MONTH = 'hr_payroll_month';
+
     public const SUBJECT_LEAVE_TYPE = 'hr_leave_type';
 
     public const SUBJECT_HOLIDAY = 'hr_holiday';
@@ -165,6 +174,9 @@ final class HrAuditAction
             self::EMPLOYEE_PAY_UPDATED => 'Nominal komponen gaji pegawai diubah',
             self::PAY_RATE_SET => 'Tarif jabatan komponen gaji disimpan',
             self::PAY_RATE_REMOVED => 'Tarif jabatan komponen gaji dihapus',
+            self::PAYROLL_LOCKED => 'Rekap gaji bulan dikunci',
+            self::PAYROLL_UNLOCKED => 'Kunci rekap gaji dibuka',
+            self::PAYROLL_ADJUSTED => 'Penyesuaian gaji ditambah/dihapus',
         ];
     }
 }

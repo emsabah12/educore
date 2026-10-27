@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BookOpen,
+    Calculator,
     CalendarCog,
     CalendarDays,
     CalendarRange,
@@ -120,6 +121,12 @@ const payrollEmployeesNavItem: NavItem = {
     icon: Banknote,
 };
 
+const payrollRecapNavItem: NavItem = {
+    title: 'Rekap gaji',
+    href: '/pegawai/gaji/rekap',
+    icon: Calculator,
+};
+
 const payrollSettingsNavItem: NavItem = {
     title: 'Pengaturan gaji',
     href: '/pegawai/gaji/pengaturan',
@@ -219,7 +226,11 @@ export function AppSidebar() {
             ? [leaveSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('hr.payroll.manage')
-            ? [payrollEmployeesNavItem, payrollSettingsNavItem]
+            ? [
+                  payrollEmployeesNavItem,
+                  payrollRecapNavItem,
+                  payrollSettingsNavItem,
+              ]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

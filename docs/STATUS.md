@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-5b — Honor mengajar (jam mati/jam hidup) & potongan presensi (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `b8a7184` — feat(hr): HR-5a-2 gaji menurut jabatan & menu Gaji pegawai
+- **Tahap aktif:** HR-5c-1 — Rekap gaji bulanan, penyesuaian, kunci, .xlsx (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `12956f2` — feat(hr): HR-5b honor mengajar jam mati/jam hidup & potongan presensi
 
 ## Keputusan penting
 
@@ -41,6 +41,7 @@
 | 2026-10-24 | "HR selesai" = inti: HR-2 Dokumen & SK → HR-5 komponen gaji (tetap, honor JP, potongan presensi, tunjangan lain; rekap input .xlsx) → HR-6a laporan; file dokumen di disk server privat, file tidak diganti (batalkan + unggah baru)                                                                            | PRD-001 §3, §15, OD-HR-10                                |
 | 2026-10-25 | Gaji (HR-5): honor mengajar memakai **jam mati** = JP per minggu dari jadwal (durasi ÷ menit per JP per jenjang/lembaga); tarif JP per jenjang/lembaga; penerima GTT/honorer; potongan presensi dalam rupiah; data gaji hanya Admin SDM/Admin Yayasan (`hr.payroll.manage`)                                     | PRD-001 §16, OD-HR-11                                    |
 | 2026-10-27 | Gaji: komponen **Menurut jabatan** (tarif per jabatan, semua lembaga atau lembaga tertentu; rangkap dijumlahkan); setup gaji di menu **Gaji pegawai** terpisah dari detail pegawai; slip gaji (jabatan + nominal) untuk Admin SDM & bagian terkait, pegawai hanya miliknya; honor JP jam mati **dan** jam hidup | PRD-001 §16, OD-HR-11, OD-HR-12                          |
+| 2026-10-27 | Tarif gaji (honor JP, potongan presensi) diubah Admin Yayasan & Admin SDM (termasuk keuangan); slip & rekap gaji untuk pemilik `hr.payroll.manage`, tanpa role Staf Keuangan                                                                                                                                    | PRD-001 §16.2–16.3, OD-HR-12                             |
 
 ## Fitur yang sudah ada
 
@@ -609,7 +610,7 @@
 - Test: `PositionPayTest` (3 test, awalan `jbt`); `PayComponentTest` disesuaikan.
 - Bukti: 637 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 
-**HR-5b — Honor mengajar & potongan presensi: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.2, OD-HR-11
+**HR-5b — Honor mengajar & potongan presensi: SELESAI (2026-10-27, commit `12956f2`)** — PRD-001 §16.2, OD-HR-11
 
 - Owner 2026-10-27: cara hitung honor (jam mati/jam hidup) dipilih per jenjang/lembaga (opsi A).
 - Migrasi `2026_10_27_100014_add_teaching_pay_flag_to_hr_catalogs` (`receives_teaching_pay` di jenis pegawai & status kepegawaian; HONORER & GTT dicentang).
@@ -618,8 +619,17 @@
 - `PayrollSettingsController::setTeachingPay/setDeduction` (`hr.payroll.teaching-pay|deduction`); `PayrollEmployeeController::show` prop `preview` (?bulan=); `LeaveSettingsOverview::rules/usage/targetOptions` kini publik untuk dipakai ulang.
 - Frontend: `components/hr/scoped-rules.tsx`, bagian Honor mengajar & Potongan presensi di Pengaturan gaji, **Perkiraan bulan** di setup gaji pegawai, `pages/hr/catalog.tsx` (pilihan umum).
 - Test: `TeachingPayTest` (3 test, awalan `hjp`); `EmployeeDocumentTest` disesuaikan.
-- Bukti (salinan kerja Claude): 640 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
-- Catatan: menyimpan aturan berjenjang butuh `core.settings.manage` (Admin Yayasan); Admin SDM belum punya — putuskan bersama owner bila Admin SDM perlu mengatur tarif sendiri.
+- Bukti: 640 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+
+**HR-5c-1 — Rekap gaji bulanan, penyesuaian, kunci, .xlsx: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.3
+
+- Owner 2026-10-27: tarif gaji diubah Admin Yayasan & Admin SDM (keuangan bagian dari Biro SDM dan Keuangan) → Core `SettingDefinition` dapat `permission` (bawaan `core.settings.manage`), `SetScopedSetting` memakainya; `hr.teaching_pay` & `hr.attendance_deduction` memakai `hr.payroll.manage`. Tidak ada role Staf Keuangan / `hr.payroll.view`.
+- Migrasi `2026_10_27_100015_create_hr_payroll_tables` (`hr_payroll_adjustments`, `hr_payroll_months`, `hr_payslips` jsonb lines/basis).
+- `Application/Payroll/PayrollCalculator` (baris per kelompok JABATAN/TETAP/HARI_HADIR/HONOR_JP/POTONGAN_PRESENSI/PENYESUAIAN, `columns()`), `ManagePayroll` (rows/payslips/lock/unlock/addAdjustment/removeAdjustment, decode snapshot bertipe), `PayrollRecapExport`.
+- `PayrollRecapController` + route `hr.payroll-recap.{index,export,lock,unlock,adjustments.store,adjustments.destroy}`; halaman `pages/hr/payroll/recap.tsx`; menu **Rekap gaji**.
+- Test: `PayrollRecapTest` (5 test, awalan `rkg`); `TeachingPayTest` + 1 (Admin SDM mengubah tarif).
+- Bukti (salinan kerja Claude): 646 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
 
 ## Struktur file utama
 
@@ -658,6 +668,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-5b (PANDUAN-HR-5B.md), commit & push.
-2. HR-5c rekap input gaji + kunci bulan + .xlsx + slip gaji (Gaji saya, `hr.payroll.view`); lalu HR-6a.
+1. Verifikasi HR-5c-1 (PANDUAN-HR-5C-1.md), commit & push.
+2. HR-5c-2 slip gaji (cetak/PDF) + menu Gaji saya; lalu HR-6a laporan & ekspor daftar pegawai.
 3. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).

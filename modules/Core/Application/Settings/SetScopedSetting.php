@@ -21,7 +21,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
  * Urutan pemeriksaan:
  *   1. aturan dikenal (didefinisikan modul);
  *   2. nilai lolos validasi definisi;
- *   3. pengguna punya `core.settings.manage` yang cakupannya memuat target (§8.3) — 403/404;
+ *   3. pengguna punya `core.settings.manage` (atau permission khusus di definisi aturan) yang
+ *      cakupannya memuat target (§8.3) — 403/404;
  *   4. target belum dikunci oleh tingkat di atasnya.
  *
  * Setiap penyimpanan dicatat di audit log beserta nilai lama & baru (§8.2, F4).
@@ -64,14 +65,16 @@ final class SetScopedSetting
             throw SettingException::invalidValue($validator->errors()->first('value'));
         }
 
-        return DB::transaction(function () use ($context, $key, $organizationId, $jenjang, $value, $enforced): ScopedSetting {
+        $permission = $definition->permission ?? CoreAccess::SETTINGS_MANAGE;
+
+        return DB::transaction(function () use ($context, $key, $organizationId, $jenjang, $value, $enforced, $permission): ScopedSetting {
             // Antrekan penulisan aturan per yayasan (jarang terjadi). Mencegah dua penyimpanan
             // bersamaan menghasilkan baris ganda, dan pohon tidak berubah di tengah pemeriksaan.
             Tenant::query()->whereKey($context->tenantId)->lockForUpdate()->first();
 
             // Dicek setelah kunci: pohon tidak bisa berubah di antara pemeriksaan dan penyimpanan.
             $this->authorization
-                ->inspectTarget(CoreAccess::SETTINGS_MANAGE, $organizationId, $jenjang)
+                ->inspectTarget($permission, $organizationId, $jenjang)
                 ->authorize();
 
             $path = $this->resolver->pathOf($context->tenantId, $organizationId);

@@ -120,7 +120,7 @@ final class PayrollSettingsController
 
     /**
      * Honor mengajar (HR-5b): cara hitung, menit per JP, tarif per JP — se-yayasan, per jenjang, atau per
-     * lembaga/unit. Menyimpan aturan berjenjang butuh `core.settings.manage` (PRD-000 §8.3).
+     * lembaga/unit. Boleh diubah pemilik `hr.payroll.manage` (Admin Yayasan, Admin SDM) — SettingDefinition::permission.
      */
     public function setTeachingPay(Request $request, SetScopedSetting $settings): RedirectResponse
     {

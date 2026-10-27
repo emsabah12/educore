@@ -5,6 +5,7 @@ namespace Modules\HR\Application\Payroll;
 use Closure;
 use Modules\Core\Application\Settings\ScopedSettingResolver;
 use Modules\Core\Application\Settings\SettingDefinition;
+use Modules\HR\Application\Authorization\HrAccess;
 
 /**
  * Aturan berjenjang `hr.attendance_deduction` (PRD-001 §16.2): potongan gaji dari presensi pegawai, per
@@ -38,6 +39,8 @@ final class AttendanceDeductionSetting
                     $fail($problem);
                 }
             }],
+            // Diubah Admin Yayasan & Admin SDM (Biro SDM dan Keuangan) [OWNER, 2026-10-27].
+            permission: HrAccess::PAYROLL_MANAGE,
         );
     }
 
