@@ -1,5 +1,12 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { ChevronDown, Download, Lock, LockOpen, Trash2 } from 'lucide-react';
+import {
+    ChevronDown,
+    Download,
+    Lock,
+    LockOpen,
+    Printer,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { formatRupiah } from '@/components/hr/pay-format';
@@ -259,15 +266,26 @@ function LockPanel(props: Props) {
                         )}
                     </Form>
                 ) : (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setUnlocking(true)}
-                    >
-                        <LockOpen />
-                        Buka kunci
-                    </Button>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                        <Button size="sm" asChild>
+                            <a
+                                href={`${BASE_URL}/${props.month}/slip${props.organization ? `?lembaga=${props.organization}` : ''}`}
+                            >
+                                <Printer />
+                                Cetak slip
+                                {props.organization ? ' lembaga ini' : ' semua'}
+                            </a>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUnlocking(true)}
+                        >
+                            <LockOpen />
+                            Buka kunci
+                        </Button>
+                    </div>
                 )}
             </div>
         );
@@ -454,12 +472,23 @@ function RecapRow({
 
                     <Adjustments row={row} month={month} locked={locked} />
 
-                    <Link
-                        href={`/pegawai/gaji/${row.employee_id}?bulan=${month}`}
-                        className="inline-block text-xs font-medium underline underline-offset-4"
-                    >
-                        Setup gaji pegawai ini →
-                    </Link>
+                    <div className="flex flex-wrap gap-4">
+                        {locked && (
+                            <a
+                                href={`${BASE_URL}/${month}/slip?pegawai=${row.employee_id}`}
+                                className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4"
+                            >
+                                <Printer className="size-3.5" />
+                                Slip gaji
+                            </a>
+                        )}
+                        <Link
+                            href={`/pegawai/gaji/${row.employee_id}?bulan=${month}`}
+                            className="inline-block text-xs font-medium underline underline-offset-4"
+                        >
+                            Setup gaji pegawai ini →
+                        </Link>
+                    </div>
                 </div>
             )}
         </li>

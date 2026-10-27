@@ -117,6 +117,49 @@ final class ManagePayroll
     }
 
     /**
+     * Slip gaji (HR-5c-2): hanya dari bulan yang sudah dikunci; null bila belum dikunci.
+     *
+     * @return list<Payslip>|null
+     */
+    public function lockedSlips(string $tenantId, string $month, ?string $organizationId = null, ?string $employeeId = null): ?array
+    {
+        if ($this->lockInfo($tenantId, $month) === null) {
+            return null;
+        }
+
+        return $this->snapshots($tenantId, $month, $organizationId, $employeeId);
+    }
+
+    /**
+     * Bulan terkunci yang punya slip pegawai ini, terbaru dulu (Gaji saya, HR-5c-2).
+     *
+     * @return list<array{month: string, label: string, net: int, locked_at: string}>
+     */
+    public function monthsFor(string $tenantId, string $employeeId): array
+    {
+        $rows = DB::table('hr_payslips as s')
+            ->join('hr_payroll_months as pm', 'pm.id', '=', 's.payroll_month_id')
+            ->where('pm.tenant_id', $tenantId)
+            ->where('s.employee_id', $employeeId)
+            ->orderByDesc('pm.month')
+            ->limit(60)
+            ->get(['pm.month', 'pm.locked_at', 's.net']);
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $result[] = [
+                'month' => (string) $row->month,
+                'label' => AttendanceRecap::monthLabel((string) $row->month),
+                'net' => (int) $row->net,
+                'locked_at' => CarbonImmutable::parse((string) $row->locked_at)->setTimezone(BusinessClock::timezone())->format('Y-m-d'),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * @throws PayrollException
      */
     public function lock(string $tenantId, string $month, ?string $membershipId): int
@@ -331,12 +374,16 @@ final class ManagePayroll
     /**
      * @return list<Payslip>
      */
-    private function snapshots(string $tenantId, string $month, ?string $organizationId): array
+    private function snapshots(string $tenantId, string $month, ?string $organizationId, ?string $employeeId = null): array
     {
         $query = DB::table('hr_payslips as s')
             ->join('hr_payroll_months as pm', 'pm.id', '=', 's.payroll_month_id')
             ->where('pm.tenant_id', $tenantId)
             ->where('pm.month', $month);
+
+        if ($employeeId !== null) {
+            $query->where('s.employee_id', $employeeId);
+        }
 
         if ($organizationId !== null) {
             $query->whereIn('s.organization_id', fn ($closure) => $closure->select('descendant_id')->from('organization_closure')->where('ancestor_id', $organizationId));

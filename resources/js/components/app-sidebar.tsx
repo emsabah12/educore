@@ -12,6 +12,7 @@ import {
     Clock,
     FileClock,
     FileText,
+    HandCoins,
     GraduationCap,
     LayoutGrid,
     Network,
@@ -109,6 +110,12 @@ const myDocumentsNavItem: NavItem = {
     icon: FileText,
 };
 
+const myPayNavItem: NavItem = {
+    title: 'Gaji saya',
+    href: '/gaji-saya',
+    icon: HandCoins,
+};
+
 const expiringDocumentsNavItem: NavItem = {
     title: 'Dokumen akan habis',
     href: '/pegawai/dokumen/akan-habis',
@@ -204,7 +211,12 @@ export function AppSidebar() {
             ? [teachingNavItem]
             : []),
         ...(hr?.isEmployee
-            ? [myAttendanceNavItem, myLeaveNavItem, myDocumentsNavItem]
+            ? [
+                  myAttendanceNavItem,
+                  myLeaveNavItem,
+                  myDocumentsNavItem,
+                  myPayNavItem,
+              ]
             : []),
         ...(permissions.includes('hr.attendance.manage')
             ? [attendanceSheetNavItem]

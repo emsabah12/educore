@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-5c-1 — Rekap gaji bulanan, penyesuaian, kunci, .xlsx (kode siap, menunggu verifikasi owner)
-- **Commit terakhir:** `12956f2` — feat(hr): HR-5b honor mengajar jam mati/jam hidup & potongan presensi
+- **Tahap aktif:** HR-5c-2 — Slip gaji & Gaji saya (kode siap, menunggu verifikasi owner)
+- **Commit terakhir:** `090afbd` — feat(hr): HR-5c-1 rekap gaji bulanan, penyesuaian, kunci bulan, xlsx
 
 ## Keputusan penting
 
@@ -621,14 +621,22 @@
 - Test: `TeachingPayTest` (3 test, awalan `hjp`); `EmployeeDocumentTest` disesuaikan.
 - Bukti: 640 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 
-**HR-5c-1 — Rekap gaji bulanan, penyesuaian, kunci, .xlsx: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.3
+**HR-5c-1 — Rekap gaji bulanan, penyesuaian, kunci, .xlsx: SELESAI (2026-10-27, commit `090afbd`)** — PRD-001 §16.3
 
 - Owner 2026-10-27: tarif gaji diubah Admin Yayasan & Admin SDM (keuangan bagian dari Biro SDM dan Keuangan) → Core `SettingDefinition` dapat `permission` (bawaan `core.settings.manage`), `SetScopedSetting` memakainya; `hr.teaching_pay` & `hr.attendance_deduction` memakai `hr.payroll.manage`. Tidak ada role Staf Keuangan / `hr.payroll.view`.
 - Migrasi `2026_10_27_100015_create_hr_payroll_tables` (`hr_payroll_adjustments`, `hr_payroll_months`, `hr_payslips` jsonb lines/basis).
 - `Application/Payroll/PayrollCalculator` (baris per kelompok JABATAN/TETAP/HARI_HADIR/HONOR_JP/POTONGAN_PRESENSI/PENYESUAIAN, `columns()`), `ManagePayroll` (rows/payslips/lock/unlock/addAdjustment/removeAdjustment, decode snapshot bertipe), `PayrollRecapExport`.
 - `PayrollRecapController` + route `hr.payroll-recap.{index,export,lock,unlock,adjustments.store,adjustments.destroy}`; halaman `pages/hr/payroll/recap.tsx`; menu **Rekap gaji**.
 - Test: `PayrollRecapTest` (5 test, awalan `rkg`); `TeachingPayTest` + 1 (Admin SDM mengubah tarif).
-- Bukti (salinan kerja Claude): 646 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- Bukti: 646 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+
+**HR-5c-2 — Slip gaji & Gaji saya: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §16.3, OD-HR-12
+
+- `ManagePayroll::lockedSlips()` (null bila belum dikunci; saring lembaga/pegawai) & `monthsFor()`; `PayslipController` (`print` → `hr.payroll-recap.payslips`; `myIndex`/`mySlip` → `hr.my-pay.index|payslip`).
+- Frontend: `pages/print/payslips.tsx` (PrintLayout, A4, satu slip per halaman), `pages/hr/my-pay.tsx`, tombol **Cetak slip** & **Slip gaji** di Rekap gaji (bulan terkunci), menu **Gaji saya**.
+- Test: `PayslipTest` (3 test, awalan `slp`).
+- Bukti (salinan kerja Claude): 649 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
+- **HR-5 Komponen gaji SELESAI setelah HR-5c-2 diverifikasi.**
 - Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
 
 ## Struktur file utama
@@ -668,6 +676,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-5c-1 (PANDUAN-HR-5C-1.md), commit & push.
-2. HR-5c-2 slip gaji (cetak/PDF) + menu Gaji saya; lalu HR-6a laporan & ekspor daftar pegawai.
+1. Verifikasi HR-5c-2 (PANDUAN-HR-5C-2.md), commit & push.
+2. HR-6a laporan jumlah pegawai & ekspor daftar pegawai (tahap terakhir cakupan inti HR).
 3. Sesudah HR: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama) atau impor mesin absen (menunggu contoh file).

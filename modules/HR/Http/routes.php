@@ -19,6 +19,7 @@ use Modules\HR\Http\Controllers\MyLeaveController;
 use Modules\HR\Http\Controllers\PayrollEmployeeController;
 use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
+use Modules\HR\Http\Controllers\PayslipController;
 
 /*
  * Route web modul HR (PRD-001 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -50,6 +51,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('cuti-saya/hitung', [MyLeaveController::class, 'preview'])->name('hr.my-leave.preview');
     Route::post('cuti-saya', [MyLeaveController::class, 'store'])->name('hr.my-leave.store');
     Route::post('cuti-saya/{leave}/tarik', [MyLeaveController::class, 'withdraw'])->whereUuid('leave')->name('hr.my-leave.withdraw');
+
+    // Gaji saya — slip gaji milik sendiri dari bulan terkunci (PRD-001 §16.3, HR-5c-2).
+    Route::get('gaji-saya', [PayslipController::class, 'myIndex'])->name('hr.my-pay.index');
+    Route::get('gaji-saya/{month}', [PayslipController::class, 'mySlip'])->where('month', '\d{4}-\d{2}')->name('hr.my-pay.payslip');
 
     // Presensi saya — absen mandiri (PRD-001 §14.2, HR-4a). Tanpa permission: akun tertaut ke data pegawai.
     // Lembar presensi pegawai oleh petugas (PRD-001 §14.3, HR-4b).
@@ -102,6 +107,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/gaji/rekap/unduh', [PayrollRecapController::class, 'export'])->name('hr.payroll-recap.export');
     Route::post('pegawai/gaji/rekap/{month}/kunci', [PayrollRecapController::class, 'lock'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.lock');
     Route::post('pegawai/gaji/rekap/{month}/buka-kunci', [PayrollRecapController::class, 'unlock'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.unlock');
+    // Slip gaji dari bulan terkunci (HR-5c-2): cetak semua / per lembaga / per pegawai.
+    Route::get('pegawai/gaji/rekap/{month}/slip', [PayslipController::class, 'print'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.payslips');
     Route::post('pegawai/gaji/rekap/{month}/penyesuaian', [PayrollRecapController::class, 'storeAdjustment'])->where('month', '\d{4}-\d{2}')->name('hr.payroll-recap.adjustments.store');
     Route::delete('pegawai/gaji/rekap/{month}/penyesuaian/{adjustment}', [PayrollRecapController::class, 'destroyAdjustment'])->where('month', '\d{4}-\d{2}')->whereUuid('adjustment')->name('hr.payroll-recap.adjustments.destroy');
     // Menu Gaji pegawai: daftar & setup per pegawai (HR-5a-2), terpisah dari detail pegawai.
