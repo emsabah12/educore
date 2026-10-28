@@ -11,6 +11,7 @@ use Modules\Academic\Http\Controllers\DutyRosterController;
 use Modules\Academic\Http\Controllers\GradeController;
 use Modules\Academic\Http\Controllers\GradeLedgerController;
 use Modules\Academic\Http\Controllers\GuardianAccountController;
+use Modules\Academic\Http\Controllers\GuardianLookupController;
 use Modules\Academic\Http\Controllers\MyChildrenController;
 use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ReportCardController;
@@ -69,7 +70,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('siswa/{student}/pendaftaran/{enrollment}/buka-kembali', [StudentActionController::class, 'reopenEnrollment'])
         ->whereUuid(['student', 'enrollment'])->name('academic.enrollments.reopen');
 
-    // Orang tua/wali di detail siswa (AC-1c-b2). Pencarian HP dibatasi 30 kali/menit agar tidak dipakai menebak nomor.
+    // Cari orang tua/wali tercatat dari form Tambah siswa (revisi 2026-10-28). Dibatasi 30 kali/menit.
+    Route::get('orang-tua/cari', GuardianLookupController::class)->middleware('throttle:30,1')->name('academic.guardians.lookup');
+
+    // Orang tua/wali di detail siswa (AC-1c-b2). Pencarian (nama/HP) dibatasi 30 kali/menit.
     Route::get('siswa/{student}/orang-tua/cari', [StudentGuardianController::class, 'search'])
         ->whereUuid('student')->middleware('throttle:30,1')->name('academic.guardians.search');
     Route::post('siswa/{student}/orang-tua', [StudentGuardianController::class, 'store'])->whereUuid('student')->name('academic.guardians.store');

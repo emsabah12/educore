@@ -232,3 +232,15 @@ test('bukan orang tua/wali: menu tidak muncul, daftar kosong', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('academic.isGuardian', false)->where('children', []));
 });
+
+test('data lama dengan HP dobel antar-orang tua/wali: akun belum bisa dibuat sampai dibereskan', function () {
+    // Sebelum HP dibuat unik (2026-10-28): Joko tercatat dengan HP yang sama dengan Siti.
+    DB::table('persons')->where('id', aotMembership($this->tenant, 'Joko')->person_id)->update(['phone' => '+6281311112222']);
+    DB::table('persons')->where('id', aotMembership($this->tenant, 'Siti Aminah')->person_id)->update(['phone' => '6281311112222']);
+
+    $this->actingAs($this->operator)
+        ->post(route('academic.guardian-accounts.store', aotParams($this->tenant, $this->ahmad, 'Siti Aminah')))
+        ->assertSessionHasErrors(['account' => 'Nomor HP 6281311112222 juga tercatat untuk orang tua/wali lain (Joko). Perbaiki salah satunya dulu (tombol Ubah), lalu buat akun.']);
+
+    expect(User::query()->where('username', '6281311112222')->exists())->toBeFalse();
+});

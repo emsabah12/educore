@@ -42,6 +42,7 @@
 | 2026-10-25 | Gaji (HR-5): honor mengajar memakai **jam mati** = JP per minggu dari jadwal (durasi ÷ menit per JP per jenjang/lembaga); tarif JP per jenjang/lembaga; penerima GTT/honorer; potongan presensi dalam rupiah; data gaji hanya Admin SDM/Admin Yayasan (`hr.payroll.manage`)                                     | PRD-001 §16, OD-HR-11                                    |
 | 2026-10-27 | Gaji: komponen **Menurut jabatan** (tarif per jabatan, semua lembaga atau lembaga tertentu; rangkap dijumlahkan); setup gaji di menu **Gaji pegawai** terpisah dari detail pegawai; slip gaji (jabatan + nominal) untuk Admin SDM & bagian terkait, pegawai hanya miliknya; honor JP jam mati **dan** jam hidup | PRD-001 §16, OD-HR-11, OD-HR-12                          |
 | 2026-10-27 | Tarif gaji (honor JP, potongan presensi) diubah Admin Yayasan & Admin SDM (termasuk keuangan); slip & rekap gaji untuk pemilik `hr.payroll.manage`, tanpa role Staf Keuangan                                                                                                                                    | PRD-001 §16.2–16.3, OD-HR-12                             |
+| 2026-10-28 | Nomor HP orang tua/wali **unik** (satu HP = satu orang tua/wali); pencarian orang tua/wali tercatat lewat sebagian nama/HP dengan nama anak + lembaga, untuk Admin Yayasan & Operator Akademik                                                                                                                  | PRD-002 §21.5, OD-AC-19, OD-AC-20                        |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -656,6 +657,13 @@
 - Frontend: `components/core/issued-password.tsx` (dialog sandi sementara dipindah dari `login-access.tsx`, + **Cetak kartu akun** berbasis DOM), `components/academic/guardian-account.tsx`, `pages/academic/my-children/{index,show}.tsx`.
 - Test: `GuardianPortalTest` (5 test, awalan `aot`).
 - Bukti: 658 test lulus, Pint PASS, Larastan `[OK]`, tsc tanpa error baru.
+
+**AC-7a-fix1 — HP orang tua/wali unik & pencarian nama/HP: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.5, OD-AC-19, OD-AC-20
+
+- Dari uji manual owner: HP yang sama bisa dipakai dua orang tua/wali berbeda. Sekarang `ManageGuardians::assertPhoneFree` (kunci advisory per HP) menolaknya di tambah baru/impor/form Tambah siswa/ubah HP; `GuardianAccounts` menolak membuat akun bila HP data lama masih dobel.
+- `GuardianDirectory` (cari sebagian nama/HP, HP tersamar, nama anak + lembaga), `GuardianLookupController` (`orang-tua/cari`), pencarian detail siswa memakai `q`; `addExisting` tanpa HP; `GuardianData::membershipId` untuk baris form Tambah siswa yang dipilih dari pencarian.
+- Frontend: `components/academic/guardian-search.tsx`; detail siswa "Orang yang sudah ada"; form Tambah siswa tombol "Cari yang sudah ada" per baris.
+- Test: `StudentGuardiansTest` (pencarian, lookup, HP unik), `StudentNikTest` (NIK lain + HP sama ditolak), `GuardianPortalTest` (HP dobel data lama). 661 test lulus, Pint PASS, Larastan `[OK]`.
 
 ## Struktur file utama
 

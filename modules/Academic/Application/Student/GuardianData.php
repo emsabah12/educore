@@ -8,6 +8,7 @@ use Modules\Core\Domain\Person\Gender;
 /**
  * Satu baris orang tua/wali di form tambah siswa (PRD-002 §4.5). Isian sudah dirapikan.
  * $nik opsional; NIK yang sudah tercatat di yayasan ini = orang yang sama (dipakai ulang).
+ * $membershipId diisi bila orang tua/wali dipilih dari pencarian (data diri lain diabaikan).
  */
 final readonly class GuardianData
 {
@@ -17,5 +18,6 @@ final readonly class GuardianData
         public ?Gender $gender,
         public ?string $phone,
         public ?string $nik = null,
+        public ?string $membershipId = null,
     ) {}
 }

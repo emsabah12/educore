@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Guardian\GuardianDirectory;
 use Modules\Academic\Application\Student\GuardianData;
 use Modules\Academic\Application\Student\ManageGuardians;
 use Modules\Academic\Application\Student\StudentInput;
@@ -22,7 +23,7 @@ use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\TenantContext;
 
 /**
- * Orang tua/wali di detail siswa (PRD-002 §4.5, §6; AC-1c-b2): cari lewat HP, tambah, ubah, lepas,
+ * Orang tua/wali di detail siswa (PRD-002 §4.5, §6; AC-1c-b2): cari (nama/HP), tambah, ubah, lepas,
  * ganti kontak utama.
  *
  * Siswa tidak terlihat → 404; terlihat tetapi tidak boleh mengelola orang tua/wali → 403
@@ -37,26 +38,20 @@ final class StudentGuardianController
     ) {}
 
     /**
-     * Pencarian orang tua/wali yang sudah tercatat lewat nomor HP yang cocok persis (JSON).
-     * Hanya nama, tanpa nama anak-anaknya [OWNER, 2026-10-19]. Dibatasi throttle di route.
+     * Pencarian orang tua/wali yang sudah tercatat lewat sebagian nama atau HP (JSON), menandai yang
+     * sudah tertaut ke siswa ini (PRD-002 §4.5, revisi [OWNER, 2026-10-28]). Dibatasi throttle di route.
      */
-    public function search(Request $request, string $student, ManageGuardians $guardians): JsonResponse
+    public function search(Request $request, string $student, GuardianDirectory $directory): JsonResponse
     {
         $this->authorize($student);
 
-        $phone = StudentInput::phone($request->query('hp'));
+        $query = GuardianDirectory::parse($request->query('q'));
 
-        if ($phone === null || preg_match(StudentInput::PHONE_PATTERN, $phone) !== 1) {
-            return response()->json([
-                'message' => 'Ketik nomor HP lengkap: hanya angka (boleh diawali +), 8–19 digit.',
-                'results' => [],
-            ], 422);
+        if ($query === null) {
+            return response()->json(['message' => GuardianLookupController::TOO_SHORT, 'results' => []], 422);
         }
 
-        return response()->json([
-            'phone' => $phone,
-            'results' => $guardians->search($this->tenantId(), $student, $phone),
-        ]);
+        return response()->json(['results' => $directory->search($this->tenantId(), $query, $student)]);
     }
 
     public function store(Request $request, string $student, ManageGuardians $guardians): RedirectResponse
@@ -72,14 +67,13 @@ final class StudentGuardianController
             'make_primary' => ['nullable', 'boolean'],
             'name' => ['exclude_unless:mode,baru', 'required', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
             'gender' => ['exclude_unless:mode,baru', 'nullable', Rule::enum(Gender::class)],
-            'phone' => ['nullable', 'string', 'regex:'.StudentInput::PHONE_PATTERN, 'required_if:mode,ada'],
+            'phone' => ['exclude_unless:mode,baru', 'nullable', 'string', 'regex:'.StudentInput::PHONE_PATTERN],
             'membership_id' => ['exclude_unless:mode,ada', 'required', 'uuid'],
         ], [
             'relation.required' => 'Pilih hubungan.',
             'name.required' => 'Nama orang tua/wali wajib diisi.',
             'phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
-            'phone.required_if' => 'Cari dulu lewat nomor HP.',
-            'membership_id.required' => 'Pilih salah satu orang dari hasil pencarian.',
+            'membership_id.required' => 'Cari lalu pilih salah satu orang dari hasilnya.',
             'nik.regex' => 'NIK harus 16 angka.',
         ], $this->attributes());
 
@@ -92,7 +86,6 @@ final class StudentGuardianController
                 $this->tenantId(),
                 $student,
                 $request->string('membership_id')->value(),
-                (string) StudentInput::text($request->input('phone')),
                 $relation,
                 $makePrimary,
             ));

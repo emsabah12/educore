@@ -25,17 +25,21 @@ use Modules\HR\Contracts\EmployeeLookup;
 /**
  * Orang tua/wali di detail siswa (PRD-002 §4.5, §6; AC-1c-b2):
  *
- * - search()       cari orang tua/wali yang SUDAH tercatat lewat nomor HP yang cocok persis;
- *                  hasilnya hanya nama, tanpa nama anak-anaknya [OWNER, 2026-10-18/19];
+ * - pencarian      lihat GuardianDirectory (nama atau HP, PRD-002 §4.5, revisi 2026-10-28);
  * - addNew()       orang baru (atau dipakai ulang bila nama + HP sama, aturan B AC-1b);
- * - addExisting()  orang dari hasil pencarian (ID dari browser diperiksa ulang dengan HP-nya);
+ * - addExisting()  orang dari hasil pencarian (ID dari browser diperiksa ulang: wajib orang tua/wali
+ *                  aktif yang sudah tercatat di yayasan ini);
  * - update()       hubungan + data diri; orang yang juga pegawai/siswa hanya boleh diubah hubungannya;
  * - unlink()       lepas tautan (orangnya tetap ada); kontak utama yang dilepas wajib diganti bila
  *                  masih ada orang tua/wali lain;
  * - makePrimary()  ganti kontak utama.
  *
  * Hak akses (StudentManageAccess::canManageGuardians) dicek pemanggil. Membuat orang tua/wali tidak
- * membuat akun login dan tidak memberi hak akses apa pun. Audit tanpa nilai data pribadi.
+ * membuat akun login (akun dibuat terpisah, AC-7a) dan tidak memberi hak akses. Audit tanpa nilai data pribadi.
+ *
+ * Nomor HP UNIK di antara orang tua/wali yayasan [OWNER, 2026-10-28] karena dipakai sebagai username
+ * login (AC-7a): satu HP = satu orang tua/wali. HP yang sudah dipakai orang tua/wali lain ditolak
+ * dengan menyebut nama pemiliknya, agar operator memilih orang itu lewat pencarian.
  *
  * NIK orang tua/wali (opsional, OD-AC-02 revisi 2026-10-23): NIK yang sudah tercatat di yayasan ini
  * = orang yang sama (dipakai ulang, mis. kakak-adik), lebih pasti daripada nama + HP. NIK milik orang
@@ -43,8 +47,6 @@ use Modules\HR\Contracts\EmployeeLookup;
  */
 final class ManageGuardians
 {
-    public const SEARCH_LIMIT = 5;
-
     public function __construct(
         private readonly GrantMembership $grantMembership,
         private readonly EmployeeLookup $employees,
@@ -52,33 +54,6 @@ final class ManageGuardians
         private readonly PersonNik $personNik,
         private readonly StudentNik $studentNik,
     ) {}
-
-    // ── Pencarian ────────────────────────────────────────────────────────────
-
-    /**
-     * @return list<array{membership_id: string, name: string, already_linked: bool}>
-     */
-    public function search(string $tenantId, string $studentId, string $phone): array
-    {
-        $rows = $this->guardiansWithPhone($tenantId, $phone)
-            ->orderBy('p.name')
-            ->orderBy('m.id')
-            ->limit(self::SEARCH_LIMIT)
-            ->get(['m.id', 'p.name']);
-
-        $linked = $this->linkedMembershipIds($studentId);
-        $results = [];
-
-        foreach ($rows as $row) {
-            $results[] = [
-                'membership_id' => (string) $row->id,
-                'name' => (string) $row->name,
-                'already_linked' => in_array((string) $row->id, $linked, true),
-            ];
-        }
-
-        return $results;
-    }
 
     // ── Tambah ───────────────────────────────────────────────────────────────
 
@@ -103,41 +78,107 @@ final class ManageGuardians
     /**
      * @throws StudentException
      */
-    public function addExisting(string $tenantId, string $studentId, string $membershipId, string $phone, GuardianRelation $relation, bool $makePrimary): StudentGuardian
+    public function addExisting(string $tenantId, string $studentId, string $membershipId, GuardianRelation $relation, bool $makePrimary): StudentGuardian
     {
-        return $this->transaction(function () use ($tenantId, $studentId, $membershipId, $phone, $relation, $makePrimary): StudentGuardian {
+        return $this->transaction(function () use ($tenantId, $studentId, $membershipId, $relation, $makePrimary): StudentGuardian {
             $student = $this->lockStudent($tenantId, $studentId);
-
-            // ID dari browser tidak dipercaya: wajib orang tua/wali yang tercatat dengan HP itu.
-            $valid = Str::isUuid($membershipId)
-                && $this->guardiansWithPhone($tenantId, $phone)->where('m.id', $membershipId)->exists();
-
-            if (! $valid) {
-                throw StudentException::make('membership_id', 'Pilihan orang tidak cocok dengan nomor HP yang dicari. Cari ulang lalu pilih dari hasilnya.');
-            }
-
-            $membership = Membership::query()->withoutGlobalScope('tenant')->whereKey($membershipId)->firstOrFail();
+            $membership = $this->existingGuardian($tenantId, $membershipId, 'membership_id');
 
             return $this->link($student, $membership, $relation, $makePrimary, true);
         });
     }
 
     /**
+     * Orang tua/wali yang dipilih dari hasil pencarian. ID dari browser tidak dipercaya: wajib anggota
+     * aktif yayasan ini yang SUDAH tercatat sebagai orang tua/wali siswa mana pun.
+     *
+     * @throws StudentException
+     */
+    public function existingGuardian(string $tenantId, string $membershipId, string $field): Membership
+    {
+        $membership = Str::isUuid($membershipId)
+            ? Membership::query()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->where('status', MembershipStatus::Active->value)
+                ->whereKey($membershipId)
+                ->whereExists(fn (Builder $links) => $links->select(DB::raw(1))
+                    ->from('ac_student_guardians as g')
+                    ->whereColumn('g.guardian_membership_id', 'memberships.id'))
+                ->first()
+            : null;
+
+        if (! $membership instanceof Membership) {
+            throw StudentException::make($field, 'Orang yang dipilih tidak ditemukan sebagai orang tua/wali. Cari ulang lalu pilih dari hasilnya.');
+        }
+
+        return $membership;
+    }
+
+    /**
+     * Tolak nomor HP yang sudah dipakai orang tua/wali LAIN di yayasan ini [OWNER, 2026-10-28].
+     * Pembanding mengabaikan tanda "+" di depan (username login juga tanpa "+"). Dipanggil di dalam
+     * transaksi; kunci advisory per HP mencegah dua penyimpanan bersamaan lolos.
+     *
+     * @throws StudentException
+     */
+    public function assertPhoneFree(string $tenantId, ?string $phone, ?string $exceptPersonId, string $field): void
+    {
+        if ($phone === null) {
+            return;
+        }
+
+        $digits = ltrim($phone, '+');
+        DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ["guardian-phone:{$tenantId}:{$digits}"]);
+
+        $owner = $this->guardiansByPhone($tenantId, $digits)
+            ->when($exceptPersonId !== null, fn (Builder $query) => $query->where('p.id', '!=', $exceptPersonId))
+            ->orderBy('p.name')
+            ->value('p.name');
+
+        if (is_string($owner)) {
+            throw StudentException::make($field, "Nomor HP {$phone} sudah dipakai orang tua/wali lain ({$owner}). Satu nomor HP hanya untuk satu orang tua/wali: pilih orang itu lewat pencarian, atau pakai nomor lain.");
+        }
+    }
+
+    /**
+     * Orang tua/wali (sudah tertaut ke siswa mana pun) di yayasan ini yang HP-nya sama, tanpa melihat "+".
+     */
+    public function guardiansByPhone(string $tenantId, string $digits): Builder
+    {
+        return DB::table('persons as p')
+            ->join('memberships as m', 'm.person_id', '=', 'p.id')
+            ->where('m.tenant_id', $tenantId)
+            ->whereRaw("ltrim(p.phone, '+') = ?", [$digits])
+            ->whereExists(fn (Builder $links) => $links->select(DB::raw(1))
+                ->from('ac_student_guardians as g')
+                ->whereColumn('g.guardian_membership_id', 'm.id'));
+    }
+
+    /**
      * Orang tua/wali untuk isian "orang baru". Urutan pencocokan:
      *
+     * 0. Dipilih dari pencarian ($guardian->membershipId) → orang tua/wali itu, data dirinya tidak diubah.
      * 1. NIK diisi dan sudah tercatat untuk anggota yayasan ini → orang itu (OD-AC-02 revisi);
      *    NIK milik orang di luar yayasan → ditolak (pesan umum, $nikField).
      * 2. NAMA dan NOMOR HP sama persis dengan anggota yayasan (kakak-adik berbagi orang tua)
      *    [usulan B AC-1b] — bila NIK diisi, orang lama yang sudah ber-NIK (pasti beda) dilewati,
      *    dan NIK melengkapi orang yang dipakai ulang.
-     * 3. Selain itu orang baru.
+     * 3. Selain itu orang baru — HP-nya wajib belum dipakai orang tua/wali lain [OWNER, 2026-10-28].
      *
+     * $fieldPrefix menamai isian pesan error, mis. "guardians.0." di form tambah siswa.
      * Pemanggil wajib di dalam transaksi.
      *
      * @return array{0: Membership, 1: bool} membership orang tua/wali, dan apakah orangnya sudah ada
      */
-    public function membershipFor(string $tenantId, GuardianData $guardian, string $nikField = 'nik'): array
+    public function membershipFor(string $tenantId, GuardianData $guardian, string $fieldPrefix = ''): array
     {
+        $nikField = $fieldPrefix.'nik';
+
+        if ($guardian->membershipId !== null) {
+            return [$this->existingGuardian($tenantId, $guardian->membershipId, $fieldPrefix.'membership_id'), true];
+        }
+
         if ($guardian->nik !== null) {
             $ownerPersonId = null;
             $owner = $this->studentNik->memberOwning($tenantId, $guardian->nik, $ownerPersonId);
@@ -171,6 +212,8 @@ final class ManageGuardians
                 return [$membership, true];
             }
         }
+
+        $this->assertPhoneFree($tenantId, $guardian->phone, null, $fieldPrefix.'phone');
 
         $person = Person::query()->create([
             'name' => $guardian->name,
@@ -238,6 +281,11 @@ final class ManageGuardians
                 $membership = Membership::query()->withoutGlobalScope('tenant')->whereKey($link->guardian_membership_id)->firstOrFail();
                 $person = Person::query()->whereKey($membership->person_id)->lockForUpdate()->firstOrFail();
                 $person->fill(['name' => $name, 'gender' => $gender, 'phone' => $phone]);
+
+                if ($person->isDirty('phone')) {
+                    $this->assertPhoneFree($tenantId, $phone, $person->id, 'phone');
+                }
+
                 $changed = array_merge($changed, array_keys($person->getDirty()));
                 $person->save();
 
@@ -374,23 +422,6 @@ final class ManageGuardians
         return $this->lockedMembershipIds($tenantId, [$membershipId]) !== [];
     }
 
-    /**
-     * Anggota aktif yayasan yang SUDAH tercatat sebagai orang tua/wali siswa mana pun, dengan HP itu.
-     */
-    private function guardiansWithPhone(string $tenantId, string $phone): Builder
-    {
-        return DB::table('memberships as m')
-            ->join('persons as p', 'p.id', '=', 'm.person_id')
-            ->where('m.tenant_id', $tenantId)
-            ->where('m.status', MembershipStatus::Active->value)
-            ->where('p.phone', $phone)
-            ->whereExists(function (Builder $links): void {
-                $links->select(DB::raw(1))
-                    ->from('ac_student_guardians as g')
-                    ->whereColumn('g.guardian_membership_id', 'm.id');
-            });
-    }
-
     private function link(Student $student, Membership $membership, GuardianRelation $relation, bool $makePrimary, bool $reused): StudentGuardian
     {
         if ($membership->id === $student->membership_id) {
@@ -450,20 +481,6 @@ final class ManageGuardians
             ->where('student_id', $studentId)
             ->where('is_primary_contact', true)
             ->update(['is_primary_contact' => false, 'updated_at' => now()]);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function linkedMembershipIds(string $studentId): array
-    {
-        $ids = [];
-
-        foreach (DB::table('ac_student_guardians')->where('student_id', $studentId)->pluck('guardian_membership_id') as $id) {
-            $ids[] = (string) $id;
-        }
-
-        return $ids;
     }
 
     private function lockStudent(string $tenantId, string $studentId): Student

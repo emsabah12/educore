@@ -128,30 +128,44 @@ test('detail memuat tautan orang tua/wali untuk form; jumlah siswa lain tanpa na
         );
 });
 
-test('cari lewat HP: hanya orang tua/wali yang sudah tercatat, nomor harus cocok persis, tanpa nama anak', function () {
-    $url = fn (Student $student, string $hp) => route('academic.guardians.search', ['student' => $student->id, 'hp' => $hp]);
+test('cari nama atau HP: hanya orang tua/wali yang sudah tercatat; HP tersamar, nama anak & lembaga tampil', function () {
+    $url = fn (Student $student, string $q) => route('academic.guardians.search', ['student' => $student->id, 'q' => $q]);
+    $siti = walMembership($this->tenant, 'Siti Aminah')->id;
 
-    $this->actingAs($this->operator)->getJson($url($this->citra, '0813-1111-2222'))
+    $this->actingAs($this->operator)->getJson($url($this->citra, '0813-1111'))
         ->assertOk()
-        ->assertExactJson([
-            'phone' => '081311112222',
-            'results' => [[
-                'membership_id' => walMembership($this->tenant, 'Siti Aminah')->id,
-                'name' => 'Siti Aminah',
-                'already_linked' => false,
-            ]],
-        ]);
+        ->assertExactJson(['results' => [[
+            'membership_id' => $siti,
+            'name' => 'Siti Aminah',
+            'phone' => '0813••••2222',
+            'children' => [['name' => 'Ahmad Fauzi', 'organization' => 'SMP Unit 3'], ['name' => 'Aisyah Fauzi', 'organization' => 'SMP Unit 3']],
+            'more_children' => 0,
+            'already_linked' => false,
+        ]]]);
 
-    $this->actingAs($this->operator)->getJson($url($this->ahmad, '081311112222'))
-        ->assertJsonPath('results.0.already_linked', true);
+    $this->actingAs($this->operator)->getJson($url($this->citra, 'aminah'))->assertJsonPath('results.0.membership_id', $siti);
+    $this->actingAs($this->operator)->getJson($url($this->ahmad, 'siti'))->assertJsonPath('results.0.already_linked', true);
 
-    // Sebagian nomor, atau nomor siswa (bukan orang tua/wali): tidak ada hasil.
-    $this->actingAs($this->operator)->getJson($url($this->citra, '08131111'))->assertJsonPath('results', []);
+    // Siswa (bukan orang tua/wali) tidak ikut dicari, walau nama/HP cocok.
     $this->actingAs($this->operator)->getJson($url($this->citra, '081200001111'))->assertJsonPath('results', []);
+    $this->actingAs($this->operator)->getJson($url($this->citra, 'Ahmad'))->assertJsonPath('results', []);
+    // Karakter LIKE diperlakukan sebagai teks biasa.
+    $this->actingAs($this->operator)->getJson($url($this->citra, '%%%'))->assertJsonPath('results', []);
 
-    $this->actingAs($this->operator)->getJson($url($this->citra, 'abc'))
+    $this->actingAs($this->operator)->getJson($url($this->citra, 'ab'))
         ->assertStatus(422)
         ->assertJsonPath('results', []);
+});
+
+test('cari dari form Tambah siswa: Admin Yayasan & Operator Akademik; lainnya 403', function () {
+    $this->actingAs($this->operator)->getJson(route('academic.guardians.lookup', ['q' => 'siti']))
+        ->assertOk()
+        ->assertJsonPath('results.0.name', 'Siti Aminah')
+        ->assertJsonPath('results.0.already_linked', false);
+    $this->actingAs($this->admin)->getJson(route('academic.guardians.lookup', ['q' => '2222']))->assertJsonPath('results.0.name', 'Siti Aminah');
+
+    $this->flushSession();
+    $this->actingAs(DevAccounts::user('kepala.unit1'))->getJson(route('academic.guardians.lookup', ['q' => 'siti']))->assertForbidden();
 });
 
 // ── Tambah ────────────────────────────────────────────────────────────────────
@@ -163,7 +177,6 @@ test('tambah dari pencarian: orang yang sama tertaut, otomatis kontak utama bila
         ->post(route('academic.guardians.store', ['student' => $this->citra->id]), [
             'mode' => 'ada',
             'membership_id' => walMembership($this->tenant, 'Siti Aminah')->id,
-            'phone' => '081311112222',
             'relation' => 'WALI',
         ])->assertSessionHasNoErrors();
 
@@ -176,27 +189,60 @@ test('tambah dari pencarian: orang yang sama tertaut, otomatis kontak utama bila
         ->post(route('academic.guardians.store', ['student' => $this->citra->id]), [
             'mode' => 'ada',
             'membership_id' => walMembership($this->tenant, 'Siti Aminah')->id,
-            'phone' => '081311112222',
             'relation' => 'IBU',
         ])->assertSessionHasErrors(['form' => 'Orang ini sudah tercatat sebagai orang tua/wali siswa ini.']);
 });
 
-test('tambah dari pencarian: ID orang yang diubah di browser atau HP yang tidak cocok ditolak', function () {
+test('tambah dari pencarian: ID orang yang bukan orang tua/wali atau asal-asalan ditolak', function () {
     $store = route('academic.guardians.store', ['student' => $this->citra->id]);
 
     // Ahmad anggota yayasan, tetapi bukan orang tua/wali.
     $this->actingAs($this->operator)->post($store, [
-        'mode' => 'ada', 'membership_id' => walMembership($this->tenant, 'Ahmad Fauzi')->id, 'phone' => '081200001111', 'relation' => 'WALI',
+        'mode' => 'ada', 'membership_id' => walMembership($this->tenant, 'Ahmad Fauzi')->id, 'relation' => 'WALI',
     ])->assertSessionHasErrors(['membership_id']);
 
     $this->actingAs($this->operator)->post($store, [
-        'mode' => 'ada', 'membership_id' => walMembership($this->tenant, 'Siti Aminah')->id, 'phone' => '081399998888', 'relation' => 'IBU',
+        'mode' => 'ada', 'membership_id' => (string) Str::uuid7(), 'relation' => 'IBU',
     ])->assertSessionHasErrors(['membership_id']);
 
     $this->actingAs($this->operator)->post($store, ['mode' => 'ada', 'relation' => 'IBU'])
-        ->assertSessionHasErrors(['membership_id', 'phone']);
+        ->assertSessionHasErrors(['membership_id']);
 
     expect(walNames($this->citra))->toBe([]);
+});
+
+test('nomor HP unik antar-orang tua/wali: tambah baru, ubah, dan form Tambah siswa menolak HP milik orang tua lain', function () {
+    $store = route('academic.guardians.store', ['student' => $this->citra->id]);
+    $message = 'Nomor HP 081311112222 sudah dipakai orang tua/wali lain (Siti Aminah). Satu nomor HP hanya untuk satu orang tua/wali: pilih orang itu lewat pencarian, atau pakai nomor lain.';
+
+    // Nama lain, HP Siti (juga dengan "+" berbeda): ditolak.
+    $this->actingAs($this->operator)->post($store, walBaru('Hasan Lestari', ['phone' => '081311112222']))
+        ->assertSessionHasErrors(['phone' => $message]);
+    expect(Person::query()->where('name', 'Hasan Lestari')->exists())->toBeFalse();
+
+    // HP siswa (bukan orang tua/wali) boleh dipakai orang tua/wali.
+    $this->actingAs($this->operator)->post($store, walBaru('Hasan Lestari', ['phone' => '081200001111']))->assertSessionHasNoErrors();
+
+    // Ubah HP Hasan ke HP Siti: ditolak; ubah tanpa mengganti HP tetap boleh.
+    $hasan = walLink($this->tenant, $this->citra, 'Hasan Lestari');
+    $update = route('academic.guardians.update', ['student' => $this->citra->id, 'guardian' => $hasan->id]);
+    $this->actingAs($this->operator)->patch($update, ['relation' => 'AYAH', 'name' => 'Hasan Lestari', 'phone' => '0813 1111 2222'])
+        ->assertSessionHasErrors(['phone' => $message]);
+    $this->actingAs($this->operator)->patch($update, ['relation' => 'AYAH', 'name' => 'Hasan L.', 'phone' => '081200001111'])
+        ->assertSessionHasNoErrors();
+
+    // Form Tambah siswa: nama lain dengan HP Siti ditolak di isiannya; memilih Siti dari pencarian boleh.
+    $smp = CoreFixtures::node($this->tenant, 'U3-SMP')->id;
+    $this->actingAs($this->admin)->post(route('academic.students.store'), walIsian('Dewi Fauzi', $smp, [
+        'guardians' => [['relation' => 'AYAH', 'name' => 'Fauzi', 'phone' => '081311112222']], 'primary_guardian' => 0,
+    ]))->assertSessionHasErrors(['guardians.0.phone' => $message]);
+
+    $this->actingAs($this->admin)->post(route('academic.students.store'), walIsian('Dewi Fauzi', $smp, [
+        'guardians' => [['relation' => 'IBU', 'membership_id' => walMembership($this->tenant, 'Siti Aminah')->id]], 'primary_guardian' => 0,
+    ]))->assertSessionHasNoErrors();
+
+    expect(walNames(walStudent($this->tenant, 'Dewi Fauzi')))->toBe(['Siti Aminah*'])
+        ->and(Person::query()->where('name', 'Siti Aminah')->count())->toBe(1);
 });
 
 test('tambah orang baru: nama + HP sama dipakai ulang, kontak utama bisa dipindah, maksimal 4', function () {
@@ -347,14 +393,14 @@ test('ganti kontak utama memindah tanda; tautan milik siswa lain ditolak', funct
 
 // ── Hak akses ─────────────────────────────────────────────────────────────────
 
-test('tanpa izin kelola 403, siswa di luar cakupan 404, termasuk pencarian HP', function () {
+test('tanpa izin kelola 403, siswa di luar cakupan 404, termasuk pencarian', function () {
     $budi = walStudent($this->tenant, 'Budi Santoso');
     $kepala = DevAccounts::user('kepala.unit1');
     $koordinator = DevAccounts::user('koordinator.mda');
 
-    $this->actingAs($kepala)->getJson(route('academic.guardians.search', ['student' => $budi->id, 'hp' => '081311112222']))->assertForbidden();
+    $this->actingAs($kepala)->getJson(route('academic.guardians.search', ['student' => $budi->id, 'q' => 'siti']))->assertForbidden();
     $this->actingAs($kepala)->post(route('academic.guardians.store', ['student' => $budi->id]), walBaru('Ayah Budi'))->assertForbidden();
-    $this->actingAs($this->operator)->getJson(route('academic.guardians.search', ['student' => $budi->id, 'hp' => '081311112222']))->assertNotFound();
+    $this->actingAs($this->operator)->getJson(route('academic.guardians.search', ['student' => $budi->id, 'q' => 'siti']))->assertNotFound();
     $this->actingAs($this->operator)->post(route('academic.guardians.store', ['student' => $budi->id]), walBaru('Ayah Budi'))->assertNotFound();
     $this->actingAs($this->admin)->post(route('academic.guardians.store', ['student' => (string) Str::uuid7()]), walBaru('Ayah'))->assertNotFound();
 

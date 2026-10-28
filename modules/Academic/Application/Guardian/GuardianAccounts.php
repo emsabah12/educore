@@ -110,6 +110,14 @@ final class GuardianAccounts
 
         $username = ltrim($phone, '+');
 
+        // Data lama sebelum HP dibuat unik [OWNER, 2026-10-28]: HP yang sama dengan orang tua/wali lain
+        // harus dibereskan dulu, agar username tidak menunjuk orang yang salah.
+        $other = $this->guardians->guardiansByPhone($tenantId, $username)->where('m.id', '!=', $membershipId)->orderBy('p.name')->value('p.name');
+
+        if (is_string($other)) {
+            throw StudentException::make('form', "Nomor HP {$phone} juga tercatat untuk orang tua/wali lain ({$other}). Perbaiki salah satunya dulu (tombol Ubah), lalu buat akun.");
+        }
+
         try {
             return $this->accounts->provision($tenantId, $membershipId, $username, null);
         } catch (AccountException $exception) {

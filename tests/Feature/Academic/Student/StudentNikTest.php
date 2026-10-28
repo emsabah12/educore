@@ -216,7 +216,7 @@ test('orang tua dengan NIK yang sudah tercatat dipakai ulang walau nama/HP berbe
         ->and(Person::query()->whereKey($ibu->person_id)->value('phone'))->toBe('081311112222');
 });
 
-test('orang tua dengan nama & HP sama: tanpa NIK dipakai ulang dan NIK dilengkapi; sudah ber-NIK lain menjadi orang baru', function () {
+test('orang tua dengan nama & HP sama: tanpa NIK dipakai ulang dan NIK dilengkapi; ber-NIK lain dengan HP yang sama ditolak (HP unik)', function () {
     $this->actingAs($this->admin)->post(route('academic.students.store'), snkIsian($this->smp->id, [
         'guardians' => [['relation' => 'IBU', 'name' => 'Siti Aminah', 'phone' => '081311112222']],
         'primary_guardian' => 0,
@@ -235,6 +235,13 @@ test('orang tua dengan nama & HP sama: tanpa NIK dipakai ulang dan NIK dilengkap
     $this->actingAs($this->admin)->post(route('academic.students.store'), snkIsian($this->mda->id, [
         'name' => 'Umar Fauzi',
         'guardians' => [['relation' => 'IBU', 'name' => 'Siti Aminah', 'phone' => '081311112222', 'nik' => '3201015505800004']],
+        'primary_guardian' => 0,
+    ]))->assertSessionHasErrors('guardians.0.phone');
+
+    // Orang lain bernama sama (NIK lain) dengan HP sendiri: orang baru.
+    $this->actingAs($this->admin)->post(route('academic.students.store'), snkIsian($this->mda->id, [
+        'name' => 'Umar Fauzi',
+        'guardians' => [['relation' => 'IBU', 'name' => 'Siti Aminah', 'phone' => '081311119999', 'nik' => '3201015505800004']],
         'primary_guardian' => 0,
     ]))->assertSessionHasNoErrors();
 

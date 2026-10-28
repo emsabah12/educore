@@ -242,7 +242,9 @@ final class StudentController
             'entry_type' => ['required', Rule::enum(EntryType::class)],
             'guardians' => ['array', 'max:'.StudentInput::MAX_GUARDIANS],
             'guardians.*.relation' => ['required', Rule::enum(GuardianRelation::class)],
-            'guardians.*.name' => ['required', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
+            // Dipilih dari pencarian (membership_id): nama dll. tidak diisi.
+            'guardians.*.membership_id' => ['nullable', 'uuid'],
+            'guardians.*.name' => ['required_without:guardians.*.membership_id', 'nullable', 'string', 'max:'.StudentInput::NAME_MAX_LENGTH],
             'guardians.*.gender' => ['nullable', Rule::enum(Gender::class)],
             'guardians.*.phone' => ['nullable', 'string', 'regex:'.StudentInput::PHONE_PATTERN],
             'guardians.*.nik' => ['nullable', 'string', 'regex:'.PersonNik::PATTERN],
@@ -262,7 +264,7 @@ final class StudentController
             'organization_id.required' => 'Pilih lembaga.',
             'guardians.max' => 'Paling banyak '.StudentInput::MAX_GUARDIANS.' orang tua/wali.',
             'guardians.*.relation.required' => 'Pilih hubungan.',
-            'guardians.*.name.required' => 'Nama orang tua/wali wajib diisi.',
+            'guardians.*.name.required_without' => 'Nama orang tua/wali wajib diisi.',
             'guardians.*.phone.regex' => 'Nomor HP hanya angka (boleh diawali +), 8–19 digit.',
         ], $this->attributes());
 
@@ -297,6 +299,7 @@ final class StudentController
                 gender: isset($row['gender']) && $row['gender'] !== '' ? Gender::tryFrom((string) $row['gender']) : null,
                 phone: StudentInput::text($row['phone'] ?? null),
                 nik: StudentInput::text($row['nik'] ?? null),
+                membershipId: StudentInput::text($row['membership_id'] ?? null),
             );
         }
 

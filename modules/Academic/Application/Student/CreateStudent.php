@@ -406,7 +406,7 @@ final class CreateStudent
         $reused = 0;
 
         foreach ($data->guardians as $index => $guardian) {
-            [$membership, $isReused] = $this->guardians->membershipFor($data->tenantId, $guardian, "guardians.{$index}.nik");
+            [$membership, $isReused] = $this->guardians->membershipFor($data->tenantId, $guardian, "guardians.{$index}.");
 
             if ($membership->id === $studentMembership->id) {
                 throw StudentException::guardianIsStudent($index);
@@ -525,6 +525,11 @@ final class CreateStudent
         }
 
         foreach ($data->guardians as $index => $guardian) {
+            // Dipilih dari pencarian: data dirinya tidak diisi di form.
+            if ($guardian->membershipId !== null) {
+                continue;
+            }
+
             if ($guardian->name === '' || mb_strlen($guardian->name) > StudentInput::NAME_MAX_LENGTH) {
                 throw StudentException::make("guardians.{$index}.name", 'Nama orang tua/wali wajib diisi, maksimal 200 karakter.');
             }

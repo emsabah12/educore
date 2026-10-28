@@ -7,6 +7,8 @@ import {
     Field,
     SelectOptions,
 } from '@/components/academic/student-actions';
+import type { GuardianHit } from '@/components/academic/guardian-search';
+import { GuardianSearch } from '@/components/academic/guardian-search';
 import InputError from '@/components/input-error';
 import { NikField } from '@/components/nik-field';
 import { Button } from '@/components/ui/button';
@@ -14,7 +16,7 @@ import { Input } from '@/components/ui/input';
 
 /*
  * Form orang tua/wali di detail siswa (AC-1c-b2, PRD-002 §4.5). Semua aturan & hak akses tetap
- * dicek server; pencarian HP hanya menampilkan nama orang tua/wali yang sudah tercatat.
+ * dicek server; pencarian (nama/HP) hanya mencari orang tua/wali yang sudah tercatat.
  */
 
 export type GuardianRow = {
@@ -30,12 +32,6 @@ export type GuardianRow = {
     is_primary: boolean;
     locked: boolean;
     other_students: number;
-};
-
-type SearchResult = {
-    membership_id: string;
-    name: string;
-    already_linked: boolean;
 };
 
 const checkboxClass = 'size-4 rounded border-input accent-primary';
@@ -60,7 +56,7 @@ export function AddGuardianForm({
             errorBag="addGuardian"
             submitLabel="Simpan orang tua/wali"
             onDone={onDone}
-            note="Orang tua/wali tidak mendapat akun login maupun hak akses apa pun."
+            note="Orang tua/wali yang sudah tercatat (mis. orang tua kakaknya) cukup dicari, tidak perlu diinput ulang. Satu nomor HP hanya untuk satu orang tua/wali."
         >
             {(errors) => (
                 <>
@@ -81,7 +77,7 @@ export function AddGuardianForm({
                             aria-pressed={mode === 'ada'}
                         >
                             <Search />
-                            Cari lewat nomor HP
+                            Orang yang sudah ada
                         </Button>
                     </div>
 
@@ -135,7 +131,10 @@ export function AddGuardianForm({
                             />
                         </>
                     ) : (
-                        <PhoneSearch studentId={studentId} errors={errors} />
+                        <ExistingGuardianPicker
+                            studentId={studentId}
+                            errors={errors}
+                        />
                     )}
 
                     <Field
@@ -169,153 +168,32 @@ export function AddGuardianForm({
 }
 
 /**
- * Cari orang tua/wali yang sudah tercatat. Nomor HP yang dicari ikut dikirim agar server bisa
- * memeriksa ulang pilihan orangnya.
+ * Pilih orang tua/wali yang sudah tercatat (nama atau HP). Hanya ID orangnya yang dikirim; server
+ * memeriksa ulang bahwa ia orang tua/wali aktif di yayasan ini.
  */
-function PhoneSearch({
+function ExistingGuardianPicker({
     studentId,
     errors,
 }: {
     studentId: string;
     errors: Record<string, string | undefined>;
 }) {
-    const [phone, setPhone] = useState('');
-    const [searchedPhone, setSearchedPhone] = useState('');
-    const [results, setResults] = useState<SearchResult[] | null>(null);
-    const [selected, setSelected] = useState('');
-    const [searching, setSearching] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const search = async () => {
-        setSearching(true);
-        setMessage(null);
-        setSelected('');
-
-        try {
-            const response = await fetch(
-                `/siswa/${studentId}/orang-tua/cari?hp=${encodeURIComponent(phone)}`,
-                {
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                },
-            );
-
-            if (response.status === 429) {
-                setResults(null);
-                setMessage(
-                    'Terlalu banyak pencarian. Tunggu sebentar lalu coba lagi.',
-                );
-
-                return;
-            }
-
-            const data = (await response.json()) as {
-                message?: string;
-                phone?: string;
-                results: SearchResult[];
-            };
-
-            if (!response.ok) {
-                setResults(null);
-                setMessage(data.message ?? 'Pencarian gagal. Coba lagi.');
-
-                return;
-            }
-
-            setSearchedPhone(data.phone ?? '');
-            setResults(data.results);
-        } catch {
-            setResults(null);
-            setMessage(
-                'Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.',
-            );
-        } finally {
-            setSearching(false);
-        }
-    };
+    const [selected, setSelected] = useState<GuardianHit | null>(null);
 
     return (
-        <div className="grid gap-3 sm:col-span-2">
-            <Field
+        <div className="sm:col-span-2">
+            <input
+                type="hidden"
+                name="membership_id"
+                value={selected?.membership_id ?? ''}
+            />
+            <GuardianSearch
                 id="ag-search"
-                label="Nomor HP orang tua/wali (harus lengkap)"
-                error={message ?? errors.phone}
-            >
-                <div className="grid grid-cols-[1fr_auto] gap-2">
-                    <Input
-                        id="ag-search"
-                        type="tel"
-                        inputMode="tel"
-                        value={phone}
-                        maxLength={25}
-                        onChange={(event) => setPhone(event.target.value)}
-                        onKeyDown={(event) => {
-                            // Enter mencari, bukan menyimpan form.
-                            if (event.key === 'Enter') {
-                                event.preventDefault();
-                                void search();
-                            }
-                        }}
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        disabled={searching || phone.trim() === ''}
-                        onClick={() => void search()}
-                    >
-                        {searching ? 'Mencari…' : 'Cari'}
-                    </Button>
-                </div>
-            </Field>
-
-            <input type="hidden" name="phone" value={searchedPhone} />
-            <input type="hidden" name="membership_id" value={selected} />
-
-            {results !== null &&
-                (results.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        Tidak ada orang tua/wali tercatat dengan nomor ini.
-                        Pilih <span className="font-medium">Orang baru</span>{' '}
-                        untuk menambahkannya.
-                    </p>
-                ) : (
-                    <fieldset className="space-y-2">
-                        <legend className="text-sm font-medium">
-                            Pilih orangnya
-                        </legend>
-                        {results.map((result) => (
-                            <label
-                                key={result.membership_id}
-                                className="flex items-start gap-2 rounded-md border p-3 text-sm has-[:disabled]:opacity-60"
-                            >
-                                <input
-                                    type="radio"
-                                    name="guardian_choice"
-                                    value={result.membership_id}
-                                    checked={selected === result.membership_id}
-                                    disabled={result.already_linked}
-                                    onChange={() =>
-                                        setSelected(result.membership_id)
-                                    }
-                                    className="mt-0.5"
-                                />
-                                <span>
-                                    <span className="font-medium">
-                                        {result.name}
-                                    </span>
-                                    <span className="block text-muted-foreground">
-                                        {result.already_linked
-                                            ? 'Sudah tertaut ke siswa ini'
-                                            : 'Sudah tercatat sebagai orang tua/wali'}
-                                    </span>
-                                </span>
-                            </label>
-                        ))}
-                    </fieldset>
-                ))}
-            <InputError message={errors.membership_id} />
+                url={`/siswa/${studentId}/orang-tua/cari`}
+                selected={selected}
+                onSelect={setSelected}
+                error={errors.membership_id}
+            />
         </div>
     );
 }

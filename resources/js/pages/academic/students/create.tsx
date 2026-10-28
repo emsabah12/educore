@@ -3,11 +3,17 @@ import {
     ArrowLeft,
     CircleAlert,
     Plus,
+    Search,
     Trash2,
     TriangleAlert,
     UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
+import type { GuardianHit } from '@/components/academic/guardian-search';
+import {
+    GuardianHitText,
+    GuardianSearch,
+} from '@/components/academic/guardian-search';
 import { NikField } from '@/components/nik-field';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -60,6 +66,7 @@ const GUARDIAN_FIELD_LABELS: Record<string, string> = {
     gender: 'jenis kelamin',
     phone: 'nomor HP',
     nik: 'NIK',
+    membership_id: 'orang yang dipilih',
 };
 
 /** "guardians.1.phone" → "Orang tua/wali ke-2 — nomor HP". */
@@ -387,9 +394,10 @@ export default function CreateStudent({
                                     </h2>
                                     <p className="text-sm text-muted-foreground">
                                         Opsional, paling banyak {maxGuardians}.
-                                        Bila nama dan nomor HP sama persis
-                                        dengan data yang sudah ada (mis. orang
-                                        tua kakaknya), data itu dipakai ulang.
+                                        Orang tua yang sudah tercatat (mis.
+                                        orang tua kakaknya) cukup dicari lewat
+                                        “Cari yang sudah ada”. Satu nomor HP
+                                        hanya untuk satu orang tua/wali.
                                     </p>
                                 </div>
 
@@ -498,6 +506,9 @@ function GuardianRow({
     onPrimary: () => void;
     onRemove: () => void;
 }) {
+    // Orang tua/wali yang sudah tercatat (dipilih dari pencarian), agar tidak diinput ulang.
+    const [picked, setPicked] = useState<GuardianHit | null>(null);
+    const [searching, setSearching] = useState(false);
     const id = (field: string) => `guardian-${rowKey}-${field}`;
     const name = (field: string) => `guardians[${index}][${field}]`;
     const error = (field: string) => errors[`guardians.${index}.${field}`];
@@ -519,50 +530,91 @@ function GuardianRow({
                         required
                     />
                 </Field>
-                <Field
-                    id={id('name')}
-                    label="Nama"
-                    required
-                    error={error('name')}
-                >
-                    <Input
-                        id={id('name')}
-                        name={name('name')}
-                        maxLength={200}
-                        autoComplete="off"
-                        required
-                    />
-                </Field>
-                <Field
-                    id={id('gender')}
-                    label="Jenis kelamin"
-                    error={error('gender')}
-                >
-                    <SelectOptions
-                        id={id('gender')}
-                        name={name('gender')}
-                        options={options.genders}
-                        placeholder="Tidak diisi"
-                    />
-                </Field>
-                <Field id={id('phone')} label="Nomor HP" error={error('phone')}>
-                    <Input
-                        id={id('phone')}
-                        name={name('phone')}
-                        inputMode="tel"
-                        placeholder="mis. 081234567890"
-                        maxLength={25}
-                    />
-                </Field>
-                <NikField
-                    id={id('nik')}
-                    name={name('nik')}
-                    required={false}
-                    birthDate=""
-                    gender=""
-                    error={error('nik')}
-                    hint="Opsional. NIK yang sudah tercatat = orang yang sama (dipakai ulang)."
-                />
+                {picked ? (
+                    <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm sm:col-span-2">
+                        <input
+                            type="hidden"
+                            name={name('membership_id')}
+                            value={picked.membership_id}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Memakai orang tua/wali yang sudah tercatat
+                        </p>
+                        <GuardianHitText hit={picked} />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPicked(null)}
+                        >
+                            Ganti
+                        </Button>
+                        <InputError message={error('membership_id')} />
+                    </div>
+                ) : searching ? (
+                    <div className="sm:col-span-2">
+                        <GuardianSearch
+                            id={id('search')}
+                            url="/orang-tua/cari"
+                            selected={null}
+                            onSelect={(hit) => {
+                                setPicked(hit);
+                                setSearching(false);
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <Field
+                            id={id('name')}
+                            label="Nama"
+                            required
+                            error={error('name')}
+                        >
+                            <Input
+                                id={id('name')}
+                                name={name('name')}
+                                maxLength={200}
+                                autoComplete="off"
+                                required
+                            />
+                        </Field>
+                        <Field
+                            id={id('gender')}
+                            label="Jenis kelamin"
+                            error={error('gender')}
+                        >
+                            <SelectOptions
+                                id={id('gender')}
+                                name={name('gender')}
+                                options={options.genders}
+                                placeholder="Tidak diisi"
+                            />
+                        </Field>
+                        <Field
+                            id={id('phone')}
+                            label="Nomor HP"
+                            error={error('phone')}
+                        >
+                            <Input
+                                id={id('phone')}
+                                name={name('phone')}
+                                inputMode="tel"
+                                placeholder="mis. 081234567890"
+                                maxLength={25}
+                            />
+                        </Field>
+                        <NikField
+                            id={id('nik')}
+                            name={name('nik')}
+                            required={false}
+                            birthDate=""
+                            gender=""
+                            error={error('nik')}
+                            hint="Opsional. NIK yang sudah tercatat = orang yang sama (dipakai ulang)."
+                        />
+                    </>
+                )}
             </div>
 
             {/* Grid otomatis agar tombol turun baris di HP. */}
@@ -576,6 +628,18 @@ function GuardianRow({
                     />
                     Kontak utama
                 </label>
+                {!picked && (
+                    <Button
+                        type="button"
+                        variant={searching ? 'default' : 'outline'}
+                        size="sm"
+                        aria-pressed={searching}
+                        onClick={() => setSearching(!searching)}
+                    >
+                        <Search />
+                        {searching ? 'Isi orang baru' : 'Cari yang sudah ada'}
+                    </Button>
+                )}
                 <Button
                     type="button"
                     variant="ghost"
