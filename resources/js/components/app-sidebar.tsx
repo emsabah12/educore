@@ -13,6 +13,7 @@ import {
     FileClock,
     FileText,
     HandCoins,
+    Heart,
     GraduationCap,
     LayoutGrid,
     Network,
@@ -170,6 +171,12 @@ const myClassesNavItem: NavItem = {
     icon: ClipboardList,
 };
 
+const myChildrenNavItem: NavItem = {
+    title: 'Anak saya',
+    href: '/anak-saya',
+    icon: Heart,
+};
+
 const teachingNavItem: NavItem = {
     title: 'Presensi mengajar',
     href: '/akademik/presensi-mengajar',
@@ -206,6 +213,7 @@ export function AppSidebar() {
             ? [studentsNavItem, classesNavItem, subjectsNavItem]
             : []),
         ...(academic?.myClasses ? [myClassesNavItem] : []),
+        ...(academic?.isGuardian ? [myChildrenNavItem] : []),
         ...(permissions.includes('academic.teaching.manage') ||
         academic?.teachingDuty
             ? [teachingNavItem]

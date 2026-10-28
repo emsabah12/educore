@@ -16,7 +16,11 @@ declare module '@inertiajs/core' {
             /** Petunjuk menu saja; setiap aksi tetap dicek di server. */
             permissions: string[];
             /** Petunjuk menu "Kelas saya" (AC-3d); halaman tetap dicek di server. */
-            academic?: { myClasses: boolean; teachingDuty: boolean };
+            academic?: {
+                myClasses: boolean;
+                teachingDuty: boolean;
+                isGuardian: boolean;
+            };
             hr?: { isEmployee: boolean };
             sidebarOpen: boolean;
             [key: string]: unknown;

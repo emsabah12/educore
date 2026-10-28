@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-23
-- **Tahap aktif:** HR-6a — Laporan pegawai & ekspor daftar pegawai (kode siap, menunggu verifikasi owner) — penutup cakupan inti HR
-- **Commit terakhir:** `564a061` — feat(hr): HR-5c-2 slip gaji & Gaji saya
+- **Diperbarui:** 2026-10-28
+- **Tahap aktif:** AC-7 Akun & portal orang tua/wali (PRD-002 §21) — AC-7a dibangun 2026-10-28, menunggu uji owner
+- **Commit terakhir:** `3c575a4` — feat(hr): HR-6a laporan pegawai & ekspor daftar pegawai
 
 ## Keputusan penting
 
@@ -42,6 +42,7 @@
 | 2026-10-25 | Gaji (HR-5): honor mengajar memakai **jam mati** = JP per minggu dari jadwal (durasi ÷ menit per JP per jenjang/lembaga); tarif JP per jenjang/lembaga; penerima GTT/honorer; potongan presensi dalam rupiah; data gaji hanya Admin SDM/Admin Yayasan (`hr.payroll.manage`)                                     | PRD-001 §16, OD-HR-11                                    |
 | 2026-10-27 | Gaji: komponen **Menurut jabatan** (tarif per jabatan, semua lembaga atau lembaga tertentu; rangkap dijumlahkan); setup gaji di menu **Gaji pegawai** terpisah dari detail pegawai; slip gaji (jabatan + nominal) untuk Admin SDM & bagian terkait, pegawai hanya miliknya; honor JP jam mati **dan** jam hidup | PRD-001 §16, OD-HR-11, OD-HR-12                          |
 | 2026-10-27 | Tarif gaji (honor JP, potongan presensi) diubah Admin Yayasan & Admin SDM (termasuk keuangan); slip & rekap gaji untuk pemilik `hr.payroll.manage`, tanpa role Staf Keuangan                                                                                                                                    | PRD-001 §16.2–16.3, OD-HR-12                             |
+| 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
 
@@ -638,15 +639,23 @@
 - Bukti: 649 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
 - **HR-5 Komponen gaji SELESAI (2026-10-27).**
 
-**HR-6a — Laporan pegawai & ekspor daftar pegawai: KODE SIAP (2026-10-27, menunggu verifikasi)** — PRD-001 §17
+**HR-6a — Laporan pegawai & ekspor daftar pegawai: SELESAI (2026-10-28, commit `3c575a4`)** — PRD-001 §17
 
 - `EmployeeDirectory`: `query()` dipakai bersama daftar, `ids()`, `export()` (data pribadi per baris lewat cakupan `view_personal`, tanpa NIK, batas 5.000); `EmployeeReport` (jumlah per lembaga/jenis/status/jabatan/jenis kelamin/pendidikan + berhenti tahun ini); `EmployeeExport` (xlsx daftar & laporan).
 - `EmployeeReportController` + route `hr.employees.export` (`pegawai/unduh`), `hr.employees.report` (`pegawai/laporan`), `hr.employees.report.export`; audit `hr.employees_exported`.
 - Frontend: `pages/hr/employees/report.tsx` (kartu + batang sederhana), tombol **Laporan** & **Unduh .xlsx** di halaman Pegawai.
 - Test: `EmployeeReportTest` (4 test, awalan `lpg`).
-- Bukti (salinan kerja Claude): 653 test lulus, Pint PASS, Larastan `[OK]`, `tsc` tanpa error baru.
-- **Cakupan inti HR SELESAI setelah HR-6a diverifikasi** (PRD-001 §3).
+- Bukti: 653 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+- **Cakupan inti HR SELESAI (2026-10-28)** (PRD-001 §3): HR-1, HR-1e, HR-1g, HR-2, HR-3, HR-4, HR-5, HR-6a.
 - Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
+
+**AC-7a — Akun orang tua/wali & Anak saya: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
+
+- `Academic/Application/Guardian/GuardianAccounts` (status akun per tautan, buat/atur ulang/nonaktif/aktif lewat `ManageLoginAccount` Core; username = HP tanpa `+`; hanya orang yang murni orang tua/wali), `MyChildren` (daftar & detail anak: profil ringkas tanpa NIK/HP/alamat, lembaga + NIS, kelas berjalan + wali kelas, jadwal + pengampu, kalender lembaga).
+- `GuardianAccountController` (`siswa/{student}/orang-tua/{guardian}/akun`, `/atur-ulang`, `/nonaktifkan`, `/aktifkan`), `MyChildrenController` (`anak-saya`, `anak-saya/{student}`); prop `manage.guardianAccounts` di detail siswa; shared prop `academic.isGuardian` → menu **Anak saya**.
+- Frontend: `components/core/issued-password.tsx` (dialog sandi sementara dipindah dari `login-access.tsx`, + **Cetak kartu akun** berbasis DOM), `components/academic/guardian-account.tsx`, `pages/academic/my-children/{index,show}.tsx`.
+- Test: `GuardianPortalTest` (5 test, awalan `aot`).
+- Bukti: 658 test lulus, Pint PASS, Larastan `[OK]`, tsc tanpa error baru.
 
 ## Struktur file utama
 
@@ -685,5 +694,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Verifikasi HR-6a (PANDUAN-HR-6A.md), commit & push.
-2. Tentukan modul/tahap berikutnya bersama owner: AC-7 (akun orang tua, ekspor Dapodik/EMIS, PPDB, asrama), HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen), atau modul Keuangan.
+1. Uji AC-7a oleh owner, lalu AC-7b: presensi anak (rekap bulanan + rincian), nilai final & rapor per semester untuk orang tua/wali (PRD-002 §21.3).
+2. Sesudah AC-7: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama), HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen), atau modul Keuangan.

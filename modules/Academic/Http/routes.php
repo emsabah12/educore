@@ -10,6 +10,8 @@ use Modules\Academic\Http\Controllers\ClassYearEndController;
 use Modules\Academic\Http\Controllers\DutyRosterController;
 use Modules\Academic\Http\Controllers\GradeController;
 use Modules\Academic\Http\Controllers\GradeLedgerController;
+use Modules\Academic\Http\Controllers\GuardianAccountController;
+use Modules\Academic\Http\Controllers\MyChildrenController;
 use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ReportCardController;
 use Modules\Academic\Http\Controllers\ScheduleController;
@@ -77,6 +79,19 @@ Route::middleware(['auth', 'work.context'])->group(function () {
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.destroy');
     Route::post('siswa/{student}/orang-tua/{guardian}/kontak-utama', [StudentGuardianController::class, 'makePrimary'])
         ->whereUuid(['student', 'guardian'])->name('academic.guardians.primary');
+    // Akun login orang tua/wali (AC-7a, PRD-002 §21.1). Hak akses sama dengan kelola orang tua/wali.
+    Route::post('siswa/{student}/orang-tua/{guardian}/akun', [GuardianAccountController::class, 'store'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardian-accounts.store');
+    Route::post('siswa/{student}/orang-tua/{guardian}/akun/atur-ulang', [GuardianAccountController::class, 'resetPassword'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardian-accounts.reset');
+    Route::post('siswa/{student}/orang-tua/{guardian}/akun/nonaktifkan', [GuardianAccountController::class, 'deactivate'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardian-accounts.deactivate');
+    Route::post('siswa/{student}/orang-tua/{guardian}/akun/aktifkan', [GuardianAccountController::class, 'activate'])
+        ->whereUuid(['student', 'guardian'])->name('academic.guardian-accounts.activate');
+
+    // Anak saya (AC-7a, PRD-002 §21.2): orang tua/wali yang login melihat data anaknya (hanya baca).
+    Route::get('anak-saya', [MyChildrenController::class, 'index'])->name('academic.my-children.index');
+    Route::get('anak-saya/{student}', [MyChildrenController::class, 'show'])->whereUuid('student')->name('academic.my-children.show');
 
     // Mata pelajaran (AC-3a, PRD-002 §16). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga mapel.
     Route::get('akademik/mapel', [SubjectController::class, 'index'])->name('academic.subjects.index');

@@ -1,19 +1,15 @@
-import { Form, router } from '@inertiajs/react';
+import { Form } from '@inertiajs/react';
 import { KeyRound, Lock, UserCheck, UserPlus, UserX } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { MemberAccess } from '@/components/core/member-access';
 import { MemberAccessPanel } from '@/components/core/member-access';
+import {
+    IssuedPasswordDialog,
+    useIssuedPassword,
+} from '@/components/core/issued-password';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -37,8 +33,6 @@ export type LoginAccess = {
     /** Role tingkat Yayasan & penugasan (F5b). */
     member: MemberAccess | null;
 };
-
-type IssuedPassword = { login: string; password: string };
 
 type AccessAction = 'create' | 'reset' | 'deactivate' | 'activate';
 
@@ -234,131 +228,6 @@ export function LoginAccessSection({ access }: { access: LoginAccess }) {
                 onClose={issued.clear}
             />
         </section>
-    );
-}
-
-/**
- * Kata sandi sementara datang lewat flash Inertia (sekali kirim, tidak tersimpan di riwayat
- * browser) dan hanya disimpan di memori komponen sampai dialog ditutup.
- */
-function useIssuedPassword(): {
-    value: IssuedPassword | null;
-    clear: () => void;
-} {
-    const [value, setValue] = useState<IssuedPassword | null>(null);
-
-    useEffect(() => {
-        return router.on('flash', (event) => {
-            const flash = (event as CustomEvent).detail?.flash;
-            const data = flash?.issuedPassword as IssuedPassword | undefined;
-
-            if (data?.login && data.password) {
-                setValue(data);
-            }
-        });
-    }, []);
-
-    return { value, clear: () => setValue(null) };
-}
-
-function IssuedPasswordDialog({
-    issued,
-    onClose,
-}: {
-    issued: IssuedPassword | null;
-    onClose: () => void;
-}) {
-    const [copy, setCopy] = useState<'idle' | 'done' | 'failed'>('idle');
-
-    const copyToClipboard = async () => {
-        if (!issued) {
-            return;
-        }
-
-        try {
-            // Clipboard hanya tersedia di HTTPS/localhost; selain itu tampilkan petunjuk salin manual.
-            await navigator.clipboard.writeText(
-                `Username: ${issued.login}\nKata sandi sementara: ${issued.password}`,
-            );
-            setCopy('done');
-        } catch {
-            setCopy('failed');
-        }
-    };
-
-    return (
-        <Dialog
-            open={issued !== null}
-            onOpenChange={(open) => {
-                if (!open) {
-                    setCopy('idle');
-                    onClose();
-                }
-            }}
-        >
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Kata sandi sementara</DialogTitle>
-                    <DialogDescription>
-                        Catat atau salin sekarang, lalu serahkan langsung kepada
-                        pemilik akun. Kata sandi ini hanya tampil satu kali dan
-                        wajib diganti saat pertama masuk.
-                    </DialogDescription>
-                </DialogHeader>
-
-                {issued && (
-                    <dl className="grid gap-3 rounded-lg border bg-muted/30 p-4">
-                        <div className="min-w-0">
-                            <dt className="text-xs text-muted-foreground">
-                                Username
-                            </dt>
-                            <dd className="font-mono break-all select-all">
-                                {issued.login}
-                            </dd>
-                        </div>
-                        <div className="min-w-0">
-                            <dt className="text-xs text-muted-foreground">
-                                Kata sandi sementara
-                            </dt>
-                            <dd className="font-mono text-lg tracking-wider break-all select-all">
-                                {issued.password}
-                            </dd>
-                        </div>
-                    </dl>
-                )}
-
-                {copy === 'done' && (
-                    <p className="text-sm text-muted-foreground">
-                        Tersalin ke clipboard.
-                    </p>
-                )}
-                {copy === 'failed' && (
-                    <p className="text-sm text-muted-foreground">
-                        Tidak bisa menyalin otomatis di sini. Pilih teksnya lalu
-                        salin manual.
-                    </p>
-                )}
-
-                <DialogFooter className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={copyToClipboard}
-                    >
-                        Salin
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={() => {
-                            setCopy('idle');
-                            onClose();
-                        }}
-                    >
-                        Sudah saya catat
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     );
 }
 

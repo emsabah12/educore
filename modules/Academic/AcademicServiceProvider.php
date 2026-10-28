@@ -12,6 +12,7 @@ use Modules\Academic\Application\Calendar\CalendarSetting;
 use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\GradingSetting;
+use Modules\Academic\Application\Guardian\MyChildren;
 use Modules\Academic\Application\Teaching\AcademicTeachingLoad;
 use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Application\Teaching\SubstituteTasks;
@@ -68,7 +69,7 @@ class AcademicServiceProvider extends ModuleServiceProvider
 
         // Petunjuk menu "Kelas saya" (AC-3d): dievaluasi saat halaman dirender, sesudah `work.context`.
         // Petunjuk menu: Kelas saya (AC-3d) & Presensi mengajar bagi guru piket hari ini (AC-6a).
-        Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses(), 'teachingDuty' => $this->isOnDutyToday()]);
+        Inertia::share('academic', fn (): array => ['myClasses' => $this->hasMyClasses(), 'teachingDuty' => $this->isOnDutyToday(), 'isGuardian' => $this->isGuardian()]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([PruneStudentImportsCommand::class]);
@@ -95,6 +96,16 @@ class AcademicServiceProvider extends ModuleServiceProvider
 
         return $employeeId !== null
             && $this->app->make(DutyRoster::class)->dutyOrganizations($context->tenantId, $employeeId, BusinessClock::todayString()) !== [];
+    }
+
+    /**
+     * Pengguna yang sedang login tercatat sebagai orang tua/wali siswa (menu Anak saya, AC-7a).
+     */
+    private function isGuardian(): bool
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        return $context !== null && $this->app->make(MyChildren::class)->isGuardian($context->tenantId, $context->membershipId);
     }
 
     private function hasMyClasses(): bool

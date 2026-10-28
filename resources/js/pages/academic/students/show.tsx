@@ -18,6 +18,7 @@ import {
     MoveMemberForm,
     RemoveMemberForm,
 } from '@/components/academic/class-member-actions';
+import { GuardianAccountPanel } from '@/components/academic/guardian-account';
 import type { GuardianRow } from '@/components/academic/guardian-actions';
 import {
     AddGuardianForm,
@@ -33,6 +34,10 @@ import {
     ProfileForm,
     ReopenEnrollmentForm,
 } from '@/components/academic/student-actions';
+import {
+    IssuedPasswordDialog,
+    useIssuedPassword,
+} from '@/components/core/issued-password';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -312,6 +317,7 @@ export default function StudentDetail({
                         <GuardianList
                             guardians={student.guardians}
                             studentId={student.id}
+                            studentName={student.name}
                             manage={manage?.guardians ? manage : null}
                             action={action}
                             onToggle={toggle}
@@ -622,6 +628,7 @@ function ClassList({
 function GuardianList({
     guardians,
     studentId,
+    studentName,
     manage,
     action,
     onToggle,
@@ -629,6 +636,7 @@ function GuardianList({
 }: {
     guardians: GuardianRow[];
     studentId: string;
+    studentName: string;
     manage: StudentManageData | null;
     action: OpenAction | null;
     onToggle: (next: OpenAction) => void;
@@ -640,6 +648,9 @@ function GuardianList({
         'id' in action &&
         action.id === id;
     const canAdd = manage !== null && guardians.length < manage.maxGuardians;
+    // Kata sandi sementara akun orang tua/wali (AC-7a) + pemiliknya untuk kartu akun.
+    const issued = useIssuedPassword();
+    const [cardOwner, setCardOwner] = useState('');
 
     return (
         <div className="space-y-3">
@@ -729,6 +740,18 @@ function GuardianList({
                                 </div>
                             )}
 
+                            {manage && (
+                                <GuardianAccountPanel
+                                    studentId={studentId}
+                                    linkId={guardian.id}
+                                    hasPhone={guardian.phone !== null}
+                                    account={
+                                        manage.guardianAccounts[guardian.id]
+                                    }
+                                    onIssue={() => setCardOwner(guardian.name)}
+                                />
+                            )}
+
                             {manage && isOpen('editGuardian', guardian.id) && (
                                 <EditGuardianForm
                                     studentId={studentId}
@@ -783,6 +806,16 @@ function GuardianList({
                         maksimal). Lepas salah satu untuk menambah yang lain.
                     </p>
                 ))}
+
+            <IssuedPasswordDialog
+                issued={issued.value}
+                onClose={issued.clear}
+                card={{
+                    title: 'Kartu akun orang tua/wali',
+                    owner: cardOwner,
+                    note: `Orang tua/wali dari ${studentName}`,
+                }}
+            />
         </div>
     );
 }

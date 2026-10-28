@@ -13,6 +13,7 @@ use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\AcademicCalendarResolver;
 use Modules\Academic\Application\Classroom\ClassDirectory;
+use Modules\Academic\Application\Guardian\GuardianAccounts;
 use Modules\Academic\Application\Student\CreateStudent;
 use Modules\Academic\Application\Student\DuplicateCandidates;
 use Modules\Academic\Application\Student\GuardianData;
@@ -89,7 +90,7 @@ final class StudentController
         ]);
     }
 
-    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile, StudentManageAccess $access, ClassDirectory $classDirectory): Response
+    public function show(string $student, StudentVisibility $visibility, StudentProfile $profile, StudentManageAccess $access, ClassDirectory $classDirectory, GuardianAccounts $guardianAccounts): Response
     {
         Gate::authorize(AcademicAccess::STUDENTS_VIEW);
 
@@ -148,6 +149,8 @@ final class StudentController
                 'profile' => $canEditProfile ? $profile->editValues($tenantId, $student) : null,
                 // Orang tua/wali: aturannya sama dengan data diri (AC-1c-b2).
                 'guardians' => $canEditProfile,
+                // Akun login orang tua/wali (AC-7a): id tautan → status akun.
+                'guardianAccounts' => $canEditProfile ? $guardianAccounts->forStudent($tenantId, $student) : (object) [],
                 'maxGuardians' => StudentInput::MAX_GUARDIANS,
                 'enrollTargets' => $access->enrollTargets($student),
                 'options' => [

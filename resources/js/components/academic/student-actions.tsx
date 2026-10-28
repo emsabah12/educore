@@ -14,6 +14,16 @@ import { Label } from '@/components/ui/label';
 
 export type Option = { value: string; label: string };
 
+export type GuardianAccount = {
+    status: 'NONE' | 'ACTIVE' | 'INACTIVE';
+    login: string | null;
+    must_change: boolean;
+    /** Boleh diatur dari halaman siswa (murni orang tua/wali). */
+    manageable: boolean;
+    /** Alasan bila tidak boleh diatur di sini. */
+    reason: string | null;
+};
+
 export type ProfileValues = {
     name: string;
     gender: string | null;
@@ -30,6 +40,8 @@ export type StudentManageData = {
     today: string;
     profile: ProfileValues | null;
     guardians: boolean;
+    /** Akun login orang tua/wali (AC-7a): id tautan → status akun. */
+    guardianAccounts: Record<string, GuardianAccount>;
     maxGuardians: number;
     enrollTargets: Option[];
     options: {
