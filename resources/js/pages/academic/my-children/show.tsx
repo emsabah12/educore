@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BookOpenCheck, CalendarCheck } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 
@@ -126,6 +126,21 @@ export default function MyChild({
                     title={student.name}
                     description={`Anda tercatat sebagai: ${student.relation}`}
                 />
+
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                    <Button asChild variant="outline">
+                        <Link href={`/anak-saya/${student.id}/presensi`}>
+                            <CalendarCheck />
+                            Presensi
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href={`/anak-saya/${student.id}/nilai`}>
+                            <BookOpenCheck />
+                            Nilai & rapor
+                        </Link>
+                    </Button>
+                </div>
 
                 <Section title="Profil">
                     <dl className="grid gap-3 sm:grid-cols-2">

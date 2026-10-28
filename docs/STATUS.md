@@ -1,7 +1,7 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-28
-- **Tahap aktif:** AC-7 Akun & portal orang tua/wali (PRD-002 §21) — AC-7a dibangun 2026-10-28, menunggu uji owner
+- **Tahap aktif:** AC-7 Akun & portal orang tua/wali (PRD-002 §21) — AC-7a SELESAI; AC-7b dibangun 2026-10-28, menunggu uji owner
 - **Commit terakhir:** `3c575a4` — feat(hr): HR-6a laporan pegawai & ekspor daftar pegawai
 
 ## Keputusan penting
@@ -650,7 +650,7 @@
 - **Cakupan inti HR SELESAI (2026-10-28)** (PRD-001 §3): HR-1, HR-1e, HR-1g, HR-2, HR-3, HR-4, HR-5, HR-6a.
 - Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
 
-**AC-7a — Akun orang tua/wali & Anak saya: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
+**AC-7a — Akun orang tua/wali & Anak saya: SELESAI (2026-10-28, commit `db7f755`)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
 
 - `Academic/Application/Guardian/GuardianAccounts` (status akun per tautan, buat/atur ulang/nonaktif/aktif lewat `ManageLoginAccount` Core; username = HP tanpa `+`; hanya orang yang murni orang tua/wali), `MyChildren` (daftar & detail anak: profil ringkas tanpa NIK/HP/alamat, lembaga + NIS, kelas berjalan + wali kelas, jadwal + pengampu, kalender lembaga).
 - `GuardianAccountController` (`siswa/{student}/orang-tua/{guardian}/akun`, `/atur-ulang`, `/nonaktifkan`, `/aktifkan`), `MyChildrenController` (`anak-saya`, `anak-saya/{student}`); prop `manage.guardianAccounts` di detail siswa; shared prop `academic.isGuardian` → menu **Anak saya**.
@@ -658,12 +658,20 @@
 - Test: `GuardianPortalTest` (5 test, awalan `aot`).
 - Bukti: 658 test lulus, Pint PASS, Larastan `[OK]`, tsc tanpa error baru.
 
-**AC-7a-fix1 — HP orang tua/wali unik & pencarian nama/HP: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.5, OD-AC-19, OD-AC-20
+**AC-7a-fix1 — HP orang tua/wali unik & pencarian nama/HP: SELESAI (2026-10-28, commit `1e17de5`)** — PRD-002 §21.5, OD-AC-19, OD-AC-20
 
 - Dari uji manual owner: HP yang sama bisa dipakai dua orang tua/wali berbeda. Sekarang `ManageGuardians::assertPhoneFree` (kunci advisory per HP) menolaknya di tambah baru/impor/form Tambah siswa/ubah HP; `GuardianAccounts` menolak membuat akun bila HP data lama masih dobel.
 - `GuardianDirectory` (cari sebagian nama/HP, HP tersamar, nama anak + lembaga), `GuardianLookupController` (`orang-tua/cari`), pencarian detail siswa memakai `q`; `addExisting` tanpa HP; `GuardianData::membershipId` untuk baris form Tambah siswa yang dipilih dari pencarian.
 - Frontend: `components/academic/guardian-search.tsx`; detail siswa "Orang yang sudah ada"; form Tambah siswa tombol "Cari yang sudah ada" per baris.
 - Test: `StudentGuardiansTest` (pencarian, lookup, HP unik), `StudentNikTest` (NIK lain + HP sama ditolak), `GuardianPortalTest` (HP dobel data lama). 661 test lulus, Pint PASS, Larastan `[OK]`.
+- Uji manual owner lancar (peringatan HP sama muncul, pencarian berhasil).
+
+**AC-7b — Presensi, nilai final & rapor anak: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.3
+
+- `Academic/Application/Guardian/ChildRecords` (kelas yang pernah diikuti anak, pilihan bulan, presensi per bulan mengikuti mode lembaga, tanpa keterangan guru); `MyChildren::name` (cek tautan).
+- `MyChildrenController::attendance|grades|reportCard` + route `anak-saya/{student}/presensi`, `/nilai`, `/rapor` (rapor memakai `ReportCards::build` untuk satu pendaftaran; 404 bila masih ada mapel belum final).
+- Frontend: `pages/academic/my-children/{attendance,grades}.tsx`, tombol Presensi & Nilai di detail anak; cetak memakai `print/report-cards`.
+- Test: `ChildRecordsTest` (3 test, awalan `anr`). 664 test lulus, Pint PASS, Larastan `[OK]`.
 
 ## Struktur file utama
 
@@ -702,5 +710,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji AC-7a oleh owner, lalu AC-7b: presensi anak (rekap bulanan + rincian), nilai final & rapor per semester untuk orang tua/wali (PRD-002 §21.3).
+1. Uji AC-7b oleh owner (PRD-002 §21.3); sesudahnya AC-7 selesai.
 2. Sesudah AC-7: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama), HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen), atau modul Keuangan.

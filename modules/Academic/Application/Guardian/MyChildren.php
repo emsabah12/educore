@@ -44,6 +44,20 @@ final class MyChildren
     }
 
     /**
+     * Nama anak, atau null bila siswa ini bukan anak orang tua/wali yang login (→ 404).
+     */
+    public function name(string $tenantId, string $membershipId, string $studentId): ?string
+    {
+        if (! Str::isUuid($studentId)) {
+            return null;
+        }
+
+        $name = $this->linked($tenantId, $membershipId)->where('s.id', $studentId)->value('p.name');
+
+        return $name === null ? null : (string) $name;
+    }
+
+    /**
      * Anak-anak orang tua/wali ini, urut nama.
      *
      * @return list<ChildRow>
