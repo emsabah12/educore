@@ -75,6 +75,7 @@ final class AcademicEnrolledStudents implements EnrolledStudents
             ->orderBy('p.name')
             ->orderBy('e.id')
             ->select(['e.id as enrollment_id', 'p.name', 'e.start_date', 'e.end_date'])
+            ->selectSub($this->latestClass($academicYearId, 'c.id'), 'class_id')
             ->selectSub($this->latestClass($academicYearId, 'c.name'), 'class_name')
             ->selectSub($this->latestClass($academicYearId, 'c.grade'), 'class_grade')
             ->get();
@@ -87,12 +88,35 @@ final class AcademicEnrolledStudents implements EnrolledStudents
                 'name' => (string) $row->name,
                 'start_date' => substr((string) $row->start_date, 0, 10),
                 'end_date' => $row->end_date === null ? null : substr((string) $row->end_date, 0, 10),
+                'class_id' => $row->class_id === null ? null : (string) $row->class_id,
                 'class' => $row->class_name === null ? null : (string) $row->class_name,
                 'grade' => $row->class_grade === null ? null : (int) $row->class_grade,
             ];
         }
 
         return $result;
+    }
+
+    public function classes(string $tenantId, string $organizationId, string $academicYearId): array
+    {
+        if (! Str::isUuid($organizationId) || ! Str::isUuid($academicYearId)) {
+            return [];
+        }
+
+        $classes = [];
+
+        foreach (DB::table('ac_classes')
+            ->where('tenant_id', $tenantId)
+            ->where('organization_id', $organizationId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_active', true)
+            ->orderBy('grade')
+            ->orderBy('name')
+            ->get(['id', 'name', 'grade']) as $class) {
+            $classes[] = ['id' => (string) $class->id, 'name' => (string) $class->name, 'grade' => (int) $class->grade];
+        }
+
+        return $classes;
     }
 
     /**

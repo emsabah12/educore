@@ -9,6 +9,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
+use Modules\Academic\Contracts\Events\EnrollmentClosed;
 use Modules\Academic\Domain\Student\Enrollment;
 use Modules\Academic\Domain\Student\EnrollmentEndReason;
 use Modules\Academic\Domain\Student\EntryType;
@@ -211,6 +212,9 @@ final class ManageEnrollments
             $enrollment->end_reason = $reason;
             $enrollment->end_note = $note;
             $enrollment->save();
+
+            // Modul lain (Finance: batalkan tagihan bulan sesudahnya, PRD-003 OD-FN-07) ikut di transaksi ini.
+            event(new EnrollmentClosed($tenantId, $enrollment->organization_id, $enrollment->id, $endDate));
 
             // Catatan bisa memuat hal pribadi: audit hanya mencatat ada/tidaknya (PRD-002 §4.5).
             $this->audit->record(

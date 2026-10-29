@@ -5,15 +5,18 @@ namespace Modules\Finance\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Contracts\AcademicYears;
+use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\GenerateMonthlyInvoices;
+use Modules\Finance\Application\Invoice\GenerateOnceInvoices;
 use Modules\Finance\Application\Invoice\InvoiceList;
 use Modules\Finance\Application\Invoice\ManageInvoices;
 use Modules\Finance\Domain\Fee\FeeKind;
@@ -22,8 +25,8 @@ use Modules\Finance\Domain\Invoice\InvoiceStatus;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 
 /**
- * Tagihan siswa (PRD-003 §4, §6, FN-2a): daftar per lembaga × tahun ajaran, buat tagihan bulanan
- * (pratinjau lalu buat), batalkan tagihan.
+ * Tagihan siswa (PRD-003 §4, §6, FN-2a/FN-2b): daftar per lembaga × tahun ajaran, buat tagihan bulanan
+ * dan sekali bayar (pratinjau lalu buat), batalkan tagihan.
  *
  * - Lihat: `finance.billing.view` di lembaga itu.
  * - Buat & batalkan: `finance.invoices.manage` di lembaga itu (Bendahara lembaganya, Admin Keuangan,
@@ -38,7 +41,7 @@ final class InvoiceController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, AcademicYears $years, InvoiceList $list): Response
+    public function index(Request $request, AcademicYears $years, InvoiceList $list, EnrolledStudents $students): Response
     {
         $organizations = $this->organizations();
 
@@ -84,6 +87,13 @@ final class InvoiceController
                 'types' => $types->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name.($type->is_active ? '' : ' (nonaktif)')])->values()->all(),
                 'monthlyTypes' => $types->filter(fn (FeeType $type): bool => $type->is_active && $type->kind === FeeKind::Monthly)
                     ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name])->values()->all(),
+                'onceTypes' => $types->filter(fn (FeeType $type): bool => $type->is_active && $type->kind === FeeKind::Once)
+                    ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name])->values()->all(),
+                // FN-2b: sasaran "satu kelas" tagihan sekali bayar.
+                'classes' => $organizationId === null || $yearId === null ? [] : array_map(
+                    fn (array $class): array => ['value' => $class['id'], 'label' => $class['name']],
+                    $students->classes($this->tenantId(), $organizationId, $yearId),
+                ),
                 'months' => $months,
                 'statuses' => array_map(fn (InvoiceStatus $status): array => ['value' => $status->value, 'label' => $status->label()], InvoiceStatus::cases()),
             ],
@@ -115,6 +125,40 @@ final class InvoiceController
             $input['fee_type_id'],
             $input['from'],
             $input['to'],
+            $this->tenantContext->require()->membershipId,
+        ));
+
+        $message = $summary['created'] === 0
+            ? 'Tidak ada tagihan baru: semua sudah dibuat sebelumnya atau belum ada tarifnya.'
+            : "{$summary['created']} tagihan dibuat, total ".Rupiah::format($summary['total']).'.';
+
+        if ($summary['missing_count'] > 0) {
+            $message .= " {$summary['missing_count']} siswa dilewati karena belum ada tarif untuk tingkatnya.";
+        }
+
+        return $this->done($message);
+    }
+
+    /**
+     * Pratinjau tagihan sekali bayar (JSON, tidak menyimpan apa pun; FN-2b). Dibatasi throttle di route.
+     */
+    public function previewOnce(Request $request, GenerateOnceInvoices $generator): JsonResponse
+    {
+        $input = $this->onceInput($request);
+
+        $summary = $this->attempt(fn (): array => $generator->plan(
+            $this->tenantId(), $input['organization_id'], $input['academic_year_id'], $input['fee_type_id'], $input['target'], $input['target_id'], $input['due_date'],
+        ));
+
+        return response()->json(['summary' => $summary + ['total_label' => Rupiah::format($summary['total'])]]);
+    }
+
+    public function generateOnce(Request $request, GenerateOnceInvoices $generator): RedirectResponse
+    {
+        $input = $this->onceInput($request);
+
+        $summary = $this->attempt(fn (): array => $generator->generate(
+            $this->tenantId(), $input['organization_id'], $input['academic_year_id'], $input['fee_type_id'], $input['target'], $input['target_id'], $input['due_date'],
             $this->tenantContext->require()->membershipId,
         ));
 
@@ -180,6 +224,46 @@ final class InvoiceController
             'fee_type_id' => $request->string('fee_type_id')->value(),
             'from' => $request->string('from')->value(),
             'to' => $request->string('to')->value(),
+        ];
+    }
+
+    /**
+     * @return array{organization_id: string, academic_year_id: string, fee_type_id: string, target: string, target_id: string|null, due_date: string}
+     */
+    private function onceInput(Request $request): array
+    {
+        $request->validate([
+            'organization_id' => ['required', 'uuid'],
+            'academic_year_id' => ['required', 'uuid'],
+            'fee_type_id' => ['required', 'uuid'],
+            'target' => ['required', Rule::in([GenerateOnceInvoices::TARGET_ORGANIZATION, GenerateOnceInvoices::TARGET_CLASS, GenerateOnceInvoices::TARGET_STUDENT])],
+            'class_id' => ['nullable', 'required_if:target,'.GenerateOnceInvoices::TARGET_CLASS, 'uuid'],
+            'enrollment_id' => ['nullable', 'required_if:target,'.GenerateOnceInvoices::TARGET_STUDENT, 'uuid'],
+            'due_date' => ['required', 'date_format:Y-m-d'],
+        ], [
+            'fee_type_id.required' => 'Pilih jenis biaya sekali bayar.',
+            'target.required' => 'Pilih sasaran tagihan.',
+            'class_id.required_if' => 'Pilih kelas.',
+            'enrollment_id.required_if' => 'Cari lalu pilih siswanya.',
+            'due_date.required' => 'Isi tanggal jatuh tempo.',
+            'due_date.date_format' => 'Isi tanggal jatuh tempo yang benar.',
+        ]);
+
+        $organizationId = $request->string('organization_id')->value();
+        $this->authorizeAt($organizationId, FinanceAccess::INVOICES_MANAGE);
+        $target = $request->string('target')->value();
+
+        return [
+            'organization_id' => $organizationId,
+            'academic_year_id' => $request->string('academic_year_id')->value(),
+            'fee_type_id' => $request->string('fee_type_id')->value(),
+            'target' => $target,
+            'target_id' => match ($target) {
+                GenerateOnceInvoices::TARGET_CLASS => $request->string('class_id')->value(),
+                GenerateOnceInvoices::TARGET_STUDENT => $request->string('enrollment_id')->value(),
+                default => null,
+            },
+            'due_date' => $request->string('due_date')->value(),
         ];
     }
 

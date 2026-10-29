@@ -9,7 +9,8 @@ namespace Modules\Academic\Contracts;
  * Hanya data dasar (tanpa data pribadi): nama, NISN, nomor induk, kelas berjalan.
  *
  * @phpstan-type EnrolledStudent array{enrollment_id: string, student_id: string, organization_id: string, name: string, nisn: string|null, student_number: string|null, class: string|null, active: bool}
- * @phpstan-type BillableEnrollment array{enrollment_id: string, name: string, start_date: string, end_date: string|null, class: string|null, grade: int|null}
+ * @phpstan-type BillableEnrollment array{enrollment_id: string, name: string, start_date: string, end_date: string|null, class_id: string|null, class: string|null, grade: int|null}
+ * @phpstan-type SchoolClassOption array{id: string, name: string, grade: int}
  */
 interface EnrolledStudents
 {
@@ -37,4 +38,11 @@ interface EnrolledStudents
      * @return list<BillableEnrollment>
      */
     public function activeBetween(string $tenantId, string $organizationId, string $academicYearId, string $from, string $to): array;
+
+    /**
+     * Kelas aktif lembaga di tahun ajaran itu, urut tingkat lalu nama.
+     *
+     * @return list<SchoolClassOption>
+     */
+    public function classes(string $tenantId, string $organizationId, string $academicYearId): array;
 }

@@ -11,7 +11,6 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
-use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
 use Modules\Finance\Domain\Fee\FeeType;
@@ -26,7 +25,7 @@ use Modules\Finance\Domain\Invoice\InvoiceStatus;
  *   ditagih mulai bulan masuknya; yang sudah keluar tidak ditagih bulan sesudahnya);
  * - tarif = tarif tingkat kelas siswa di tahun ajaran itu, bila tidak ada tarif "semua tingkat"; siswa
  *   tanpa tarif dilewati dan disebut di ringkasan;
- * - potongan siswa (FN-1b) disalin: persen dibulatkan ke bawah ke rupiah, nominal maks. sebesar tarif;
+ * - potongan siswa (FN-1b) disalin (InvoicePricing): persen dibulatkan ke bawah ke rupiah, nominal maks. sebesar tarif;
  *   tagihan yang menjadi Rp 0 langsung Lunas;
  * - jatuh tempo = tanggal aturan `finance.due_day` di bulan itu;
  * - aman diulang: tagihan yang sudah ada (belum batal) untuk siswa × jenis × bulan yang sama dilewati.
@@ -173,8 +172,7 @@ final class GenerateMonthlyInvoices
         }
 
         $months = $this->months($year['start_date'], $year['end_date'], $from, $to);
-        $rates = $this->rates($typeId, $organizationId, $yearId);
-        $discounts = $this->discounts($typeId, $organizationId, $yearId);
+        $pricing = InvoicePricing::load($typeId, $organizationId, $yearId);
         $existing = $this->existing($typeId, $organizationId, $yearId);
         $dueDay = $this->dueDay->for($tenantId, $organizationId);
 
@@ -199,16 +197,15 @@ final class GenerateMonthlyInvoices
                     continue;
                 }
 
-                $base = ($student['grade'] !== null ? ($rates[$student['grade']] ?? null) : null) ?? ($rates['all'] ?? null);
+                $price = $pricing->price($student['enrollment_id'], $student['grade']);
 
-                if ($base === null) {
+                if ($price === null) {
                     $missing[$student['enrollment_id']] = ['name' => $student['name'], 'class' => $student['class']];
 
                     continue;
                 }
 
-                [$discount, $label] = $this->discount($discounts[$student['enrollment_id']] ?? null, $base);
-                $amount = $base - $discount;
+                $amount = $price['amount'];
 
                 if ($amount === 0) {
                     $free++;
@@ -220,9 +217,9 @@ final class GenerateMonthlyInvoices
                     'period' => $period,
                     'description' => "{$type->name} — ".self::monthLabel($month),
                     'grade' => $student['grade'],
-                    'base_amount' => $base,
-                    'discount_amount' => $discount,
-                    'discount_label' => $label,
+                    'base_amount' => $price['base_amount'],
+                    'discount_amount' => $price['discount_amount'],
+                    'discount_label' => $price['discount_label'],
                     'amount' => $amount,
                     'due_date' => $month->setDay($dueDay)->toDateString(),
                     'status' => $amount === 0 ? InvoiceStatus::Paid->value : InvoiceStatus::Open->value,
@@ -280,37 +277,6 @@ final class GenerateMonthlyInvoices
     }
 
     /**
-     * @return array<int|string, int> tingkat → nominal; 'all' = semua tingkat
-     */
-    private function rates(string $typeId, string $organizationId, string $yearId): array
-    {
-        $rates = [];
-
-        foreach (DB::table('fn_fee_rates')->where('fee_type_id', $typeId)->where('organization_id', $organizationId)->where('academic_year_id', $yearId)->get(['grade', 'amount']) as $rate) {
-            $rates[$rate->grade === null ? 'all' : (int) $rate->grade] = (int) $rate->amount;
-        }
-
-        return $rates;
-    }
-
-    /**
-     * @return array<string, array{percent: int|null, amount: int|null}> pendaftaran → potongan
-     */
-    private function discounts(string $typeId, string $organizationId, string $yearId): array
-    {
-        $discounts = [];
-
-        foreach (DB::table('fn_discounts')->where('fee_type_id', $typeId)->where('organization_id', $organizationId)->where('academic_year_id', $yearId)->get(['enrollment_id', 'percent', 'amount']) as $discount) {
-            $discounts[(string) $discount->enrollment_id] = [
-                'percent' => $discount->percent === null ? null : (int) $discount->percent,
-                'amount' => $discount->amount === null ? null : (int) $discount->amount,
-            ];
-        }
-
-        return $discounts;
-    }
-
-    /**
      * Tagihan yang sudah ada (belum batal): pendaftaran → [periode => true].
      *
      * @return array<string, array<string, true>>
@@ -330,24 +296,5 @@ final class GenerateMonthlyInvoices
         }
 
         return $existing;
-    }
-
-    /**
-     * @param  array{percent: int|null, amount: int|null}|null  $discount
-     * @return array{0: int, 1: string|null} besar potongan (rupiah) & labelnya
-     */
-    private function discount(?array $discount, int $base): array
-    {
-        if ($discount === null) {
-            return [0, null];
-        }
-
-        if ($discount['percent'] !== null) {
-            return [intdiv($base * $discount['percent'], 100), "{$discount['percent']}%"];
-        }
-
-        $amount = min((int) $discount['amount'], $base);
-
-        return [$amount, Rupiah::format((int) $discount['amount'])];
     }
 }

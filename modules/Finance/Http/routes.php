@@ -25,6 +25,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('keuangan/tagihan', [InvoiceController::class, 'index'])->name('finance.invoices.index');
     Route::get('keuangan/tagihan/pratinjau', [InvoiceController::class, 'preview'])->middleware('throttle:30,1')->name('finance.invoices.preview');
     Route::post('keuangan/tagihan/bulanan', [InvoiceController::class, 'generate'])->name('finance.invoices.generate');
+    // Tagihan sekali bayar (FN-2b): seluruh lembaga, satu kelas, atau satu siswa.
+    Route::get('keuangan/tagihan/pratinjau-sekali', [InvoiceController::class, 'previewOnce'])->middleware('throttle:30,1')->name('finance.invoices.preview-once');
+    Route::post('keuangan/tagihan/sekali', [InvoiceController::class, 'generateOnce'])->name('finance.invoices.generate-once');
     Route::post('keuangan/tagihan/{invoice}/batalkan', [InvoiceController::class, 'void'])->whereUuid('invoice')->name('finance.invoices.void');
 
     // Potongan/beasiswa siswa (FN-1b). Lihat: finance.billing.view; kelola: finance.invoices.manage di lembaga itu.

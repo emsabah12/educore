@@ -1,6 +1,8 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type { StudentHit } from '@/components/finance/student-search';
+import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -23,14 +25,6 @@ type DiscountRow = {
     value: number;
     label: string;
     reason: string;
-};
-
-type StudentHit = {
-    enrollment_id: string;
-    name: string;
-    nisn: string | null;
-    student_number: string | null;
-    class: string | null;
 };
 
 type Props = {
@@ -458,135 +452,6 @@ function AddForm({
                 </>
             )}
         </Form>
-    );
-}
-
-function StudentSearch({
-    organizationId,
-    onSelect,
-}: {
-    organizationId: string;
-    onSelect: (student: StudentHit) => void;
-}) {
-    const [query, setQuery] = useState('');
-    const [results, setResults] = useState<StudentHit[] | null>(null);
-    const [searching, setSearching] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const search = async () => {
-        setSearching(true);
-        setMessage(null);
-
-        try {
-            const response = await fetch(
-                `/keuangan/siswa/cari?lembaga=${encodeURIComponent(organizationId)}&q=${encodeURIComponent(query)}`,
-                {
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                },
-            );
-
-            if (response.status === 429) {
-                setResults(null);
-                setMessage(
-                    'Terlalu banyak pencarian. Tunggu sebentar lalu coba lagi.',
-                );
-
-                return;
-            }
-
-            const data = (await response.json()) as {
-                message?: string;
-                results?: StudentHit[];
-            };
-
-            if (!response.ok) {
-                setResults(null);
-                setMessage(data.message ?? 'Pencarian gagal. Coba lagi.');
-
-                return;
-            }
-
-            setResults(data.results ?? []);
-        } catch {
-            setResults(null);
-            setMessage(
-                'Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.',
-            );
-        } finally {
-            setSearching(false);
-        }
-    };
-
-    return (
-        <div className="grid gap-2">
-            <Label htmlFor="disc-student">Siswa</Label>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                <Input
-                    id="disc-student"
-                    value={query}
-                    maxLength={100}
-                    autoComplete="off"
-                    placeholder="Nama, NISN, atau nomor induk"
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                        // Enter mencari, bukan menyimpan form.
-                        if (event.key === 'Enter') {
-                            event.preventDefault();
-                            void search();
-                        }
-                    }}
-                />
-                <Button
-                    type="button"
-                    variant="outline"
-                    disabled={searching || query.trim() === ''}
-                    onClick={() => void search()}
-                >
-                    <Search />
-                    {searching ? 'Mencari…' : 'Cari'}
-                </Button>
-            </div>
-            <InputError message={message ?? undefined} />
-
-            {results !== null &&
-                (results.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        Tidak ada siswa aktif yang cocok di lembaga ini.
-                    </p>
-                ) : (
-                    <ul className="divide-y rounded-md border bg-background">
-                        {results.map((hit) => (
-                            <li key={hit.enrollment_id}>
-                                <button
-                                    type="button"
-                                    onClick={() => onSelect(hit)}
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
-                                >
-                                    <span className="font-medium break-words">
-                                        {hit.name}
-                                    </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                        {[
-                                            hit.class ?? 'Belum masuk kelas',
-                                            hit.student_number
-                                                ? `NIS ${hit.student_number}`
-                                                : null,
-                                            hit.nisn
-                                                ? `NISN ${hit.nisn}`
-                                                : null,
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                    </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                ))}
-        </div>
     );
 }
 

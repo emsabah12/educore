@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.4 (2026-10-29: rincian & pembangunan FN-2a tagihan bulanan, jatuh tempo, daftar & batal tagihan, §14)
-- **Versi sebelumnya:** 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a dibangun 2026-10-29, menunggu uji owner
+- **Versi:** 0.5 (2026-10-30: rincian & pembangunan FN-2b tagihan sekali bayar & batal otomatis saat siswa keluar, §15)
+- **Versi sebelumnya:** 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -158,3 +158,14 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
 - **Batalkan tagihan**: alasan wajib 1–200 karakter; hanya bila **belum ada pembayaran** (FN-3: batalkan pembayarannya dulu). Tagihan batal tetap tampil (dicoret) dan tidak menghalangi tagihan baru untuk bulan yang sama.
 - **Hak akses**: lihat `finance.billing.view`; buat & batalkan `finance.invoices.manage` di lembaga itu. Menu **Tagihan** bagi pemilik `finance.billing.view`.
 - **Audit**: `finance.invoices_generated` (jenis biaya, lembaga, tahun ajaran, rentang bulan, jumlah, total), `finance.invoice_voided` (keterangan, nominal, alasan).
+
+## 15. FN-2b Tagihan sekali bayar & batal otomatis saat siswa keluar [ASUMSI — rincian teknis 2026-10-30]
+
+- **Tagihan sekali bayar** (Tagihan → _Buat tagihan sekali bayar_): jenis biaya **sekali bayar aktif**, sasaran **seluruh lembaga / satu kelas / satu siswa**, **jatuh tempo diisi** (tanggal apa pun yang benar) → **Pratinjau** → **Buat**.
+    - Siswa = pendaftaran yang aktif pada **tanggal acuan**: hari ini, atau awal/akhir tahun ajaran bila hari ini di luar tahun itu. Sasaran kelas = siswa yang kelasnya (tahun itu) kelas tersebut; sasaran siswa dicari lewat pencarian siswa aktif lembaga.
+    - Tarif & potongan sama dengan tagihan bulanan (tingkat dulu, lalu semua tingkat; persen dibulatkan ke bawah; Rp 0 langsung Lunas). Keterangan: "Seragam — 2026/2027".
+    - **Satu tagihan sekali bayar yang belum batal per siswa × jenis biaya × tahun ajaran** (dijaga database); yang sudah ada dilewati, sehingga bisa dijalankan per kelas lalu seluruh lembaga tanpa dobel.
+- **Batal otomatis saat siswa keluar** (OD-FN-07): ketika pendaftaran ditutup (keluar, pindah, lulus — termasuk lulus massal akhir tahun), tagihan **bulanan** untuk bulan **sesudah bulan keluarnya** yang **belum ada pembayarannya** dibatalkan dengan alasan "Siswa keluar (dibatalkan otomatis)". Tagihan bulan keluarnya dan tagihan sekali bayar **tidak** disentuh; tagihan yang sudah ada pembayarannya tetap (diselesaikan bendahara).
+    - Mekanisme: Academic mengirim kejadian publik `Modules\Academic\Contracts\Events\EnrollmentClosed` di dalam transaksi penutupan; Finance mendengarkannya (Academic tetap tidak bergantung pada Finance). Bila Finance gagal, penutupan ikut batal.
+    - Pendaftaran yang **dibuka kembali** (PRD-002 §18 P2) tidak memulihkan tagihan yang dibatalkan otomatis; buat ulang lewat _Buat tagihan bulanan_ (yang batal tidak menghalangi).
+- **Audit**: `finance.invoices_generated` (juga untuk sekali bayar, dengan sasaran), `finance.invoices_voided_on_exit` (tanggal keluar, jumlah).

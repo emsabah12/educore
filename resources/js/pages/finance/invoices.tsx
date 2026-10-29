@@ -1,6 +1,8 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { FilePlus2, Search, XCircle } from 'lucide-react';
 import { useState } from 'react';
+import type { StudentHit } from '@/components/finance/student-search';
+import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +70,8 @@ type Props = {
     options: {
         types: Option[];
         monthlyTypes: Option[];
+        onceTypes: Option[];
+        classes: Option[];
         months: Option[];
         statuses: Option[];
     };
@@ -104,7 +108,9 @@ export default function Invoices({
     canManage,
     voidReasonMax,
 }: Props) {
-    const [generating, setGenerating] = useState(false);
+    const [generating, setGenerating] = useState<'bulanan' | 'sekali' | null>(
+        null,
+    );
     const [query, setQuery] = useState(filters.q ?? '');
 
     const params = (overrides: Record<string, string | null>) => {
@@ -176,23 +182,40 @@ export default function Invoices({
                 ) : (
                     <>
                         {canManage &&
-                            (generating ? (
+                            (generating === 'bulanan' ? (
                                 <GenerateForm
                                     organizationId={organizationId ?? ''}
                                     yearId={yearId}
                                     types={options.monthlyTypes}
                                     months={options.months}
-                                    onDone={() => setGenerating(false)}
+                                    onDone={() => setGenerating(null)}
+                                />
+                            ) : generating === 'sekali' ? (
+                                <OnceForm
+                                    organizationId={organizationId ?? ''}
+                                    yearId={yearId}
+                                    types={options.onceTypes}
+                                    classes={options.classes}
+                                    onDone={() => setGenerating(null)}
                                 />
                             ) : (
-                                <Button
-                                    type="button"
-                                    onClick={() => setGenerating(true)}
-                                    className="w-full sm:w-auto sm:self-start"
-                                >
-                                    <FilePlus2 />
-                                    Buat tagihan bulanan
-                                </Button>
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2 sm:flex">
+                                    <Button
+                                        type="button"
+                                        onClick={() => setGenerating('bulanan')}
+                                    >
+                                        <FilePlus2 />
+                                        Buat tagihan bulanan
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setGenerating('sekali')}
+                                    >
+                                        <FilePlus2 />
+                                        Buat tagihan sekali bayar
+                                    </Button>
+                                </div>
                             ))}
 
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
@@ -494,6 +517,53 @@ function InvoiceItem({
 /**
  * Buat tagihan bulanan: pilih jenis biaya & rentang bulan → Pratinjau (tanpa menyimpan) → Buat.
  */
+/**
+ * Minta pratinjau (JSON). Mengembalikan ringkasan, atau pesan yang aman ditampilkan.
+ */
+async function requestPreview(
+    url: string,
+    params: Record<string, string>,
+): Promise<{ summary?: Summary; message?: string }> {
+    try {
+        const response = await fetch(
+            `${url}?${new URLSearchParams(params).toString()}`,
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            },
+        );
+
+        if (response.status === 429) {
+            return {
+                message: 'Terlalu sering. Tunggu sebentar lalu coba lagi.',
+            };
+        }
+
+        const data = (await response.json()) as {
+            summary?: Summary;
+            message?: string;
+            errors?: Record<string, string[]>;
+        };
+
+        if (!response.ok || !data.summary) {
+            const first = data.errors
+                ? Object.values(data.errors)[0]?.[0]
+                : undefined;
+
+            return { message: first ?? data.message ?? 'Pratinjau gagal.' };
+        }
+
+        return { summary: data.summary };
+    } catch {
+        return {
+            message:
+                'Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.',
+        };
+    }
+}
+
 function GenerateForm({
     organizationId,
     yearId,
@@ -523,53 +593,17 @@ function GenerateForm({
         setLoading(true);
         setMessage(null);
 
-        try {
-            const query = new URLSearchParams({
-                organization_id: organizationId,
-                academic_year_id: yearId,
-                fee_type_id: typeId,
-                from,
-                to,
-            });
-            const response = await fetch(
-                `/keuangan/tagihan/pratinjau?${query.toString()}`,
-                {
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                },
-            );
+        const result = await requestPreview('/keuangan/tagihan/pratinjau', {
+            organization_id: organizationId,
+            academic_year_id: yearId,
+            fee_type_id: typeId,
+            from,
+            to,
+        });
 
-            if (response.status === 429) {
-                setMessage('Terlalu sering. Tunggu sebentar lalu coba lagi.');
-
-                return;
-            }
-
-            const data = (await response.json()) as {
-                summary?: Summary;
-                message?: string;
-                errors?: Record<string, string[]>;
-            };
-
-            if (!response.ok || !data.summary) {
-                const first = data.errors
-                    ? Object.values(data.errors)[0]?.[0]
-                    : undefined;
-                setMessage(first ?? data.message ?? 'Pratinjau gagal.');
-
-                return;
-            }
-
-            setSummary(data.summary);
-        } catch {
-            setMessage(
-                'Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.',
-            );
-        } finally {
-            setLoading(false);
-        }
+        setSummary(result.summary ?? null);
+        setMessage(result.message ?? null);
+        setLoading(false);
     };
 
     if (types.length === 0) {
@@ -699,7 +733,293 @@ function GenerateForm({
     );
 }
 
-function SummaryBox({ summary }: { summary: Summary }) {
+/**
+ * Buat tagihan sekali bayar (FN-2b): jenis biaya sekali bayar, sasaran (seluruh lembaga / satu kelas /
+ * satu siswa), jatuh tempo → Pratinjau → Buat.
+ */
+function OnceForm({
+    organizationId,
+    yearId,
+    types,
+    classes,
+    onDone,
+}: {
+    organizationId: string;
+    yearId: string;
+    types: Option[];
+    classes: Option[];
+    onDone: () => void;
+}) {
+    const [typeId, setTypeId] = useState(types[0]?.value ?? '');
+    const [target, setTarget] = useState<'lembaga' | 'kelas' | 'siswa'>(
+        'lembaga',
+    );
+    const [classId, setClassId] = useState(classes[0]?.value ?? '');
+    const [student, setStudent] = useState<StudentHit | null>(null);
+    const [dueDate, setDueDate] = useState('');
+    const [summary, setSummary] = useState<Summary | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+
+    const reset = () => {
+        setSummary(null);
+        setMessage(null);
+    };
+
+    const preview = async () => {
+        setLoading(true);
+        setMessage(null);
+
+        const result = await requestPreview(
+            '/keuangan/tagihan/pratinjau-sekali',
+            {
+                organization_id: organizationId,
+                academic_year_id: yearId,
+                fee_type_id: typeId,
+                target,
+                class_id: target === 'kelas' ? classId : '',
+                enrollment_id:
+                    target === 'siswa' ? (student?.enrollment_id ?? '') : '',
+                due_date: dueDate,
+            },
+        );
+
+        setSummary(result.summary ?? null);
+        setMessage(result.message ?? null);
+        setLoading(false);
+    };
+
+    if (types.length === 0) {
+        return (
+            <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                Belum ada jenis biaya sekali bayar yang aktif. Minta Admin
+                Keuangan menambahkannya di Pengaturan keuangan.
+                <Button type="button" variant="link" size="sm" onClick={onDone}>
+                    Tutup
+                </Button>
+            </p>
+        );
+    }
+
+    return (
+        <Form
+            action="/keuangan/tagihan/sekali"
+            method="post"
+            errorBag="generateOnce"
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <div className="space-y-1">
+                        <h2 className="text-base font-medium">
+                            Buat tagihan sekali bayar
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            Mis. daftar ulang atau seragam. Satu tagihan per
+                            siswa per jenis biaya dalam tahun ajaran ini; yang
+                            sudah ada dilewati.
+                        </p>
+                    </div>
+
+                    <input
+                        type="hidden"
+                        name="organization_id"
+                        value={organizationId}
+                    />
+                    <input
+                        type="hidden"
+                        name="academic_year_id"
+                        value={yearId}
+                    />
+                    <input type="hidden" name="target" value={target} />
+                    {target === 'kelas' && (
+                        <input type="hidden" name="class_id" value={classId} />
+                    )}
+                    {target === 'siswa' && (
+                        <input
+                            type="hidden"
+                            name="enrollment_id"
+                            value={student?.enrollment_id ?? ''}
+                        />
+                    )}
+
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+                        <SelectField
+                            id="once-type"
+                            name="fee_type_id"
+                            label="Jenis biaya"
+                            value={typeId}
+                            options={types}
+                            onChange={(value) => {
+                                setTypeId(value);
+                                reset();
+                            }}
+                        />
+                        <div className="grid min-w-0 gap-1.5">
+                            <Label htmlFor="once-due">Jatuh tempo</Label>
+                            <Input
+                                id="once-due"
+                                name="due_date"
+                                type="date"
+                                value={dueDate}
+                                onChange={(event) => {
+                                    setDueDate(event.target.value);
+                                    reset();
+                                }}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        role="radiogroup"
+                        aria-label="Sasaran"
+                        className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2"
+                    >
+                        {(
+                            [
+                                ['lembaga', 'Seluruh lembaga'],
+                                ['kelas', 'Satu kelas'],
+                                ['siswa', 'Satu siswa'],
+                            ] as const
+                        ).map(([value, label]) => (
+                            <label
+                                key={value}
+                                className={
+                                    'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
+                                    (target === value
+                                        ? 'border-primary bg-primary/5'
+                                        : 'hover:bg-muted')
+                                }
+                            >
+                                <input
+                                    type="radio"
+                                    checked={target === value}
+                                    onChange={() => {
+                                        setTarget(value);
+                                        reset();
+                                    }}
+                                    className="size-4 accent-primary"
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
+
+                    {target === 'kelas' &&
+                        (classes.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada kelas aktif di tahun ajaran ini.
+                            </p>
+                        ) : (
+                            <SelectField
+                                id="once-class"
+                                label="Kelas"
+                                value={classId}
+                                options={classes}
+                                onChange={(value) => {
+                                    setClassId(value);
+                                    reset();
+                                }}
+                            />
+                        ))}
+
+                    {target === 'siswa' &&
+                        (student ? (
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3 text-sm">
+                                <span className="min-w-0 font-medium break-words">
+                                    {student.name}
+                                    {student.class && (
+                                        <span className="ml-2 font-normal text-muted-foreground">
+                                            {student.class}
+                                        </span>
+                                    )}
+                                </span>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setStudent(null);
+                                        reset();
+                                    }}
+                                >
+                                    Ganti siswa
+                                </Button>
+                            </div>
+                        ) : (
+                            <StudentSearch
+                                id="once-student"
+                                organizationId={organizationId}
+                                onSelect={(hit) => {
+                                    setStudent(hit);
+                                    reset();
+                                }}
+                            />
+                        ))}
+
+                    <InputError
+                        message={
+                            message ??
+                            errors.fee_type_id ??
+                            errors.due_date ??
+                            errors.class_id ??
+                            errors.enrollment_id ??
+                            errors.target ??
+                            errors.academic_year_id ??
+                            errors.form
+                        }
+                    />
+
+                    {summary && <SummaryBox summary={summary} once />}
+
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                        {summary === null ? (
+                            <Button
+                                type="button"
+                                onClick={() => void preview()}
+                                disabled={
+                                    loading ||
+                                    typeId === '' ||
+                                    dueDate === '' ||
+                                    (target === 'siswa' && student === null)
+                                }
+                            >
+                                {loading ? 'Menghitung…' : 'Pratinjau'}
+                            </Button>
+                        ) : (
+                            <Button
+                                type="submit"
+                                disabled={processing || summary.created === 0}
+                            >
+                                {processing
+                                    ? 'Membuat…'
+                                    : `Buat ${summary.created} tagihan`}
+                            </Button>
+                        )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onDone}
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                </>
+            )}
+        </Form>
+    );
+}
+
+function SummaryBox({
+    summary,
+    once = false,
+}: {
+    summary: Summary;
+    once?: boolean;
+}) {
     const months =
         summary.months.length === 1
             ? summary.months[0]
@@ -708,7 +1028,10 @@ function SummaryBox({ summary }: { summary: Summary }) {
     return (
         <div className="space-y-2 rounded-md border bg-background p-3 text-sm">
             <p className="font-medium">
-                {summary.type}, {months} ({summary.months.length} bulan)
+                {summary.type},{' '}
+                {once
+                    ? `tahun ajaran ${months}`
+                    : `${months} (${summary.months.length} bulan)`}
             </p>
             <ul className="list-disc space-y-0.5 pl-5">
                 <li>{summary.students} siswa terdaftar</li>
