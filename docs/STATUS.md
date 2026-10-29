@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-28
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1a dibangun 2026-10-28, menunggu uji owner
-- **Commit terakhir:** `b51efe5` — feat(academic): AC-7b presensi, nilai final & rapor anak
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1a SELESAI; FN-1b dibangun 2026-10-29, menunggu uji owner
+- **Commit terakhir:** `a51468a` — feat(finance): FN-1a modul Keuangan — hak akses, jenis biaya & tarif
 
 ## Keputusan penting
 
@@ -677,13 +677,21 @@
 
 ## Modul Keuangan (PRD-003)
 
-**FN-1a — Kerangka modul, hak akses, jenis biaya & tarif: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-003 §12
+**FN-1a — Kerangka modul, hak akses, jenis biaya & tarif: SELESAI (2026-10-28, commit `a51468a`)** — PRD-003 §12
 
 - Modul baru `modules/Finance` (`FinanceServiceProvider` sesudah Academic); arch test diperluas (Finance → Core + `Academic\Contracts`).
 - Kontrak Academic `AcademicYears` (+ `CalendarAcademicYears`).
 - `FinanceAccess` (4 permission, role Bendahara & Admin Keuangan), `FinanceAuditAction`, migration `2026_10_28_300001_create_fn_fee_tables` (`fn_fee_types`, `fn_fee_rates`), `FeeType`/`FeeKind`/`FinanceException`, `ManageFeeTypes`, `ManageFeeRates`, `FeeSettingsOverview`, `Rupiah`, `FeeSettingsController` (`/keuangan/pengaturan`, `/keuangan/jenis-biaya…`, `/keuangan/tarif/{id}`).
 - Frontend: `pages/finance/settings.tsx`; menu **Pengaturan keuangan** (tingkat Yayasan, `finance.settings.manage`).
 - Test: `tests/Feature/Finance/FeeSettingsTest.php` (4 test, awalan `fns`); `AccessCatalogTest`, `MemberAccessTest`, `TreeAuthorizationTest` disesuaikan. 670 test lulus, Pint PASS, Larastan `[OK]`.
+- Perbaikan sesudah uji owner: `composer test` memisah test arsitektur ke proses sendiri (kehabisan memori di Windows). Uji manual owner lancar.
+
+**FN-1b — Potongan/beasiswa siswa: DIBANGUN (2026-10-29, menunggu uji owner)** — PRD-003 §13
+
+- Kontrak Academic `EnrolledStudents` (+ `AcademicEnrolledStudents`): cari siswa aktif per lembaga & data dasar pendaftaran.
+- Migration `2026_10_29_300002_create_fn_discounts_table`; `ManageDiscounts`, `DiscountOverview`, `DiscountController` (`/keuangan/potongan`, `/keuangan/siswa/cari`); audit `finance.discount_set|removed` (tanpa alasan).
+- Frontend: `pages/finance/discounts.tsx`; menu **Potongan siswa** (pemilik `finance.billing.view`).
+- Test: `tests/Feature/Finance/DiscountsTest.php` (3 test, awalan `fnd`). 673 test lulus (7 arsitektur + 666), Pint PASS, Larastan `[OK]`.
 
 ## Struktur file utama
 
@@ -723,5 +731,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-1a oleh owner, lalu FN-1b (potongan/beasiswa per siswa) dan FN-2 (buat tagihan + jatuh tempo SPP) — PRD-003 §3.
+1. Uji FN-1b oleh owner, lalu FN-2 (buat tagihan + jatuh tempo SPP) — PRD-003 §3.
 2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

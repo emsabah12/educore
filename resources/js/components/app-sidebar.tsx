@@ -18,6 +18,7 @@ import {
     GraduationCap,
     LayoutGrid,
     Network,
+    Percent,
     Plane,
     School,
     ScrollText,
@@ -190,6 +191,12 @@ const academicCalendarNavItem: NavItem = {
     icon: CalendarDays,
 };
 
+const discountsNavItem: NavItem = {
+    title: 'Potongan siswa',
+    href: '/keuangan/potongan',
+    icon: Percent,
+};
+
 const financeSettingsNavItem: NavItem = {
     title: 'Pengaturan keuangan',
     href: '/keuangan/pengaturan',
@@ -258,6 +265,9 @@ export function AppSidebar() {
                   payrollRecapNavItem,
                   payrollSettingsNavItem,
               ]
+            : []),
+        ...(permissions.includes('finance.billing.view')
+            ? [discountsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem]

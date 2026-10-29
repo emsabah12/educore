@@ -19,7 +19,14 @@ final class FinanceAuditAction
 
     public const FEE_RATE_REMOVED = 'finance.fee_rate_removed';
 
+    public const DISCOUNT_SET = 'finance.discount_set';
+
+    public const DISCOUNT_REMOVED = 'finance.discount_removed';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
+
+    /** Pendaftaran siswa di lembaga (ac_enrollments) — tagihan & potongan melekat di sini. */
+    public const SUBJECT_ENROLLMENT = 'ac_enrollment';
 
     /**
      * @return array<string, string>
@@ -33,6 +40,8 @@ final class FinanceAuditAction
             self::FEE_TYPE_ACTIVATED => 'Jenis biaya diaktifkan kembali',
             self::FEE_RATE_SET => 'Tarif biaya disimpan',
             self::FEE_RATE_REMOVED => 'Tarif biaya dihapus',
+            self::DISCOUNT_SET => 'Potongan siswa disimpan',
+            self::DISCOUNT_REMOVED => 'Potongan siswa dihapus',
         ];
     }
 }

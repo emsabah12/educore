@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.2 (2026-10-28: owner menyetujui draf v0.1 beserta semua asumsi OD-FN-04 s.d. OD-FN-08; rincian & pembangunan FN-1a, §12)
-- **Versi sebelumnya:** 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a dibangun 2026-10-28, menunggu uji owner
+- **Versi:** 0.3 (2026-10-29: rincian & pembangunan FN-1b potongan/beasiswa, §13)
+- **Versi sebelumnya:** 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b dibangun 2026-10-29, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -135,3 +135,12 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
 - **Tarif** (`fn_fee_rates`): jenis × **lembaga aktif (node LEMBAGA)** × **tahun ajaran kalender lembaga itu** × tingkat (kosong = semua tingkat, 1–12 = khusus, didahulukan). Nominal **Rp 1 s.d. Rp 100.000.000** (format "150.000", "Rp 150000" diterima). Simpan kombinasi yang sudah ada = ubah nominal; hapus tarif boleh (tagihan yang sudah dibuat tidak ikut berubah, FN-2).
 - **Halaman** `Keuangan → Pengaturan keuangan` (`/keuangan/pengaturan?lembaga=&tahun=`, menu tingkat Yayasan bagi `finance.settings.manage`): daftar jenis biaya + tambah/ubah nama/nonaktif; bagian **Tarif** dengan pilihan lembaga & tahun ajaran (bawaan tahun berjalan), baris "Semua tingkat" dan "Tarif khusus tingkat" per jenis biaya.
 - **Audit**: `finance.fee_type_created|updated|deactivated|activated` (kode, nama, sifat), `finance.fee_rate_set|removed` (kode, lembaga, tahun ajaran, tingkat).
+
+## 13. FN-1b Potongan/beasiswa siswa [ASUMSI — rincian teknis 2026-10-29]
+
+- **Data** (`fn_discounts`): pendaftaran × jenis biaya × tahun ajaran, **satu potongan** per kombinasi (simpan ulang = ubah). Isinya **persen** (bulat 1–100) **atau** **nominal** (Rp 1 s.d. Rp 100.000.000 per tagihan), alasan wajib maks. 100 karakter. Database menjamin pendaftaran di lembaga yang sama dengan potongan.
+- **Syarat**: pendaftaran masih aktif di lembaga itu; tahun ajaran dari kalender lembaga; jenis biaya aktif. Hapus boleh. Potongan hanya berlaku untuk tagihan yang dibuat **sesudahnya** (FN-2); tagihan lama tidak berubah.
+- **Halaman** `Keuangan → Potongan siswa` (`/keuangan/potongan?lembaga=&tahun=`): pilih lembaga (yang terlihat dengan `finance.billing.view`) dan tahun ajaran (bawaan: berjalan); daftar potongan (siswa, kelas, NIS/NISN, jenis biaya, besar, alasan). **Tambah/ubah** & **hapus** hanya bagi `finance.invoices.manage` di lembaga itu (Bendahara lembaganya, Admin Keuangan, Admin Yayasan); Pimpinan & Kepala Lembaga hanya melihat. Lembaga di luar cakupan → 404; tanpa izin kelola → 403.
+- **Cari siswa** (`/keuangan/siswa/cari?lembaga=&q=`, JSON, 30/menit): siswa **aktif** di lembaga itu, sebagian nama atau awal NISN / nomor induk, min. 2 huruf, maks. 10 hasil; data dasar saja (nama, NISN, nomor induk, kelas).
+- **Kontrak Academic baru** `EnrolledStudents` (`search`, `describe`) diisi `AcademicEnrolledStudents` — Finance tidak membaca tabel siswa langsung.
+- **Audit** `finance.discount_set|removed` pada pendaftaran (jenis biaya, tahun ajaran, besar potongan, baru/ubah). **Alasan tidak dicatat** di audit karena bisa memuat keadaan pribadi siswa (mis. yatim).

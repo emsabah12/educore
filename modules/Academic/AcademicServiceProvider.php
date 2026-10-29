@@ -14,11 +14,13 @@ use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Application\Guardian\MyChildren;
+use Modules\Academic\Application\Student\AcademicEnrolledStudents;
 use Modules\Academic\Application\Teaching\AcademicTeachingLoad;
 use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Console\PruneStudentImportsCommand;
 use Modules\Academic\Contracts\AcademicYears;
+use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Settings\SettingRegistry;
@@ -54,6 +56,7 @@ class AcademicServiceProvider extends ModuleServiceProvider
         $this->app->singleton(SchoolWeeklyOff::class, AcademicSchoolWeeklyOff::class);
         // Kontrak publik Academic untuk modul lain (Modules\Academic\Contracts), mis. Finance (PRD-003 §7).
         $this->app->singleton(AcademicYears::class, CalendarAcademicYears::class);
+        $this->app->singleton(EnrolledStudents::class, AcademicEnrolledStudents::class);
     }
 
     public function boot(): void
