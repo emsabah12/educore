@@ -13,6 +13,7 @@ use Modules\Core\Domain\Authorization\Permission;
 use Modules\Core\Domain\Authorization\Role;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Tenancy\MembershipStatus;
+use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\HR\Application\Authorization\HrAccess;
 use Tests\Support\CoreFixtures;
 
@@ -32,9 +33,11 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     // HR-5a (PRD-001 §16): +1 permission (kelola komponen & rekap gaji) untuk Admin Yayasan & Admin SDM.
     // role_permission: Admin Yayasan 6+6+6, Pimpinan 2+3+2, Kepala Lembaga 3+3+3, Koordinator 3+1+1, Staf 1,
     // Admin SDM 6, Operator Akademik 5.
-    expect(Permission::query()->count())->toBe(20)
-        ->and(Role::query()->count())->toBe(8)
-        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1);
+    // Finance (PRD-003 §5, FN-1a): 4 permission, role Bendahara (3) & Admin Keuangan (4), Admin Yayasan +4,
+    // Pimpinan & Kepala Lembaga +1 (lihat tagihan).
+    expect(Permission::query()->count())->toBe(24)
+        ->and(Role::query()->count())->toBe(10)
+        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
@@ -46,6 +49,7 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,
+            FinanceAccess::BILLING_VIEW,
             HrAccess::ATTENDANCE_MANAGE,
             HrAccess::EMPLOYEES_VIEW,
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
@@ -66,6 +70,7 @@ test('permission yang dihapus dari kode ikut hilang dari database dan dari role'
     CoreAccess::register($catalogBaru);
     HrAccess::register($catalogBaru);
     AcademicAccess::register($catalogBaru);
+    FinanceAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();
@@ -155,6 +160,7 @@ test('role yang dihapus dari kode dikosongkan sehingga tidak memberi hak apa pun
     CoreAccess::register($catalogBaru);
     HrAccess::register($catalogBaru);
     AcademicAccess::register($catalogBaru);
+    FinanceAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();

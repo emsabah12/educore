@@ -4,6 +4,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\FortifyServiceProvider;
 use Modules\Academic\AcademicServiceProvider;
 use Modules\Core\CoreServiceProvider;
+use Modules\Finance\FinanceServiceProvider;
 use Modules\HR\HRServiceProvider;
 
 return [
@@ -11,8 +12,9 @@ return [
     FortifyServiceProvider::class,
 
     // Modul EduCore — urutan mengikuti arah dependency (ADR-001 §2.2):
-    // Core → HR → Academic
+    // Core → HR → Academic → Finance
     CoreServiceProvider::class,
     HRServiceProvider::class,
     AcademicServiceProvider::class,
+    FinanceServiceProvider::class,
 ];

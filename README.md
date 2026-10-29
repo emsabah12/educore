@@ -90,7 +90,7 @@ npm run types:check
 npm run check:fix
 ```
 
-`composer test` menjalankan Pint, Larastan level 7, dan seluruh test Pest di PostgreSQL.
+`composer test` menjalankan Pint, Larastan level 7, dan seluruh test Pest di PostgreSQL. Test arsitektur (batas modul) dijalankan di proses terpisah karena memakai banyak memori (±400 MB) yang tidak dilepas sampai proses selesai.
 
 ## 5. Struktur proyek
 

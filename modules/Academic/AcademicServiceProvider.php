@@ -8,6 +8,7 @@ use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Calendar\AcademicSchoolWeeklyOff;
+use Modules\Academic\Application\Calendar\CalendarAcademicYears;
 use Modules\Academic\Application\Calendar\CalendarSetting;
 use Modules\Academic\Application\Classroom\AcademicTeachingSchedule;
 use Modules\Academic\Application\Classroom\MyClasses;
@@ -17,6 +18,7 @@ use Modules\Academic\Application\Teaching\AcademicTeachingLoad;
 use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Application\Teaching\SubstituteTasks;
 use Modules\Academic\Console\PruneStudentImportsCommand;
+use Modules\Academic\Contracts\AcademicYears;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Settings\SettingRegistry;
@@ -50,6 +52,8 @@ class AcademicServiceProvider extends ModuleServiceProvider
         $this->app->singleton(TeachingLoad::class, AcademicTeachingLoad::class);
         // Libur mingguan kalender akademik untuk perbandingan di Pengaturan cuti & presensi (OD-HR-07).
         $this->app->singleton(SchoolWeeklyOff::class, AcademicSchoolWeeklyOff::class);
+        // Kontrak publik Academic untuk modul lain (Modules\Academic\Contracts), mis. Finance (PRD-003 §7).
+        $this->app->singleton(AcademicYears::class, CalendarAcademicYears::class);
     }
 
     public function boot(): void

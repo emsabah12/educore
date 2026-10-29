@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-28
-- **Tahap aktif:** AC-7 Akun & portal orang tua/wali (PRD-002 §21) — AC-7a SELESAI; AC-7b dibangun 2026-10-28, menunggu uji owner
-- **Commit terakhir:** `3c575a4` — feat(hr): HR-6a laporan pegawai & ekspor daftar pegawai
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1a dibangun 2026-10-28, menunggu uji owner
+- **Commit terakhir:** `b51efe5` — feat(academic): AC-7b presensi, nilai final & rapor anak
 
 ## Keputusan penting
 
@@ -43,6 +43,7 @@
 | 2026-10-27 | Gaji: komponen **Menurut jabatan** (tarif per jabatan, semua lembaga atau lembaga tertentu; rangkap dijumlahkan); setup gaji di menu **Gaji pegawai** terpisah dari detail pegawai; slip gaji (jabatan + nominal) untuk Admin SDM & bagian terkait, pegawai hanya miliknya; honor JP jam mati **dan** jam hidup | PRD-001 §16, OD-HR-11, OD-HR-12                          |
 | 2026-10-27 | Tarif gaji (honor JP, potongan presensi) diubah Admin Yayasan & Admin SDM (termasuk keuangan); slip & rekap gaji untuk pemilik `hr.payroll.manage`, tanpa role Staf Keuangan                                                                                                                                    | PRD-001 §16.2–16.3, OD-HR-12                             |
 | 2026-10-28 | Nomor HP orang tua/wali **unik** (satu HP = satu orang tua/wali); pencarian orang tua/wali tercatat lewat sebagian nama/HP dengan nama anak + lembaga, untuk Admin Yayasan & Operator Akademik                                                                                                                  | PRD-002 §21.5, OD-AC-19, OD-AC-20                        |
+| 2026-10-28 | Modul **Keuangan** (`modules/Finance`): tagihan & pembayaran siswa; Bendahara per lembaga (role baru) + Admin Keuangan tingkat Yayasan (role baru, terpisah dari Admin SDM); pembayaran dicatat petugas; tarif per lembaga/tahun ajaran/tingkat; kelebihan bayar ditolak; tanpa denda                           | PRD-003, OD-FN-01 s.d. OD-FN-08                          |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -666,12 +667,23 @@
 - Test: `StudentGuardiansTest` (pencarian, lookup, HP unik), `StudentNikTest` (NIK lain + HP sama ditolak), `GuardianPortalTest` (HP dobel data lama). 661 test lulus, Pint PASS, Larastan `[OK]`.
 - Uji manual owner lancar (peringatan HP sama muncul, pencarian berhasil).
 
-**AC-7b — Presensi, nilai final & rapor anak: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-002 §21.3
+**AC-7b — Presensi, nilai final & rapor anak: SELESAI (2026-10-28, commit `b51efe5`)** — PRD-002 §21.3
 
 - `Academic/Application/Guardian/ChildRecords` (kelas yang pernah diikuti anak, pilihan bulan, presensi per bulan mengikuti mode lembaga, tanpa keterangan guru); `MyChildren::name` (cek tautan).
 - `MyChildrenController::attendance|grades|reportCard` + route `anak-saya/{student}/presensi`, `/nilai`, `/rapor` (rapor memakai `ReportCards::build` untuk satu pendaftaran; 404 bila masih ada mapel belum final).
 - Frontend: `pages/academic/my-children/{attendance,grades}.tsx`, tombol Presensi & Nilai di detail anak; cetak memakai `print/report-cards`.
-- Test: `ChildRecordsTest` (3 test, awalan `anr`). 664 test lulus, Pint PASS, Larastan `[OK]`.
+- Test: `ChildRecordsTest` (3 test, awalan `anr`). 664 test lulus, Pint PASS, Larastan `[OK]`; uji manual owner lancar.
+- **AC-7 Akun & portal orang tua/wali SELESAI (2026-10-28).**
+
+## Modul Keuangan (PRD-003)
+
+**FN-1a — Kerangka modul, hak akses, jenis biaya & tarif: DIBANGUN (2026-10-28, menunggu uji owner)** — PRD-003 §12
+
+- Modul baru `modules/Finance` (`FinanceServiceProvider` sesudah Academic); arch test diperluas (Finance → Core + `Academic\Contracts`).
+- Kontrak Academic `AcademicYears` (+ `CalendarAcademicYears`).
+- `FinanceAccess` (4 permission, role Bendahara & Admin Keuangan), `FinanceAuditAction`, migration `2026_10_28_300001_create_fn_fee_tables` (`fn_fee_types`, `fn_fee_rates`), `FeeType`/`FeeKind`/`FinanceException`, `ManageFeeTypes`, `ManageFeeRates`, `FeeSettingsOverview`, `Rupiah`, `FeeSettingsController` (`/keuangan/pengaturan`, `/keuangan/jenis-biaya…`, `/keuangan/tarif/{id}`).
+- Frontend: `pages/finance/settings.tsx`; menu **Pengaturan keuangan** (tingkat Yayasan, `finance.settings.manage`).
+- Test: `tests/Feature/Finance/FeeSettingsTest.php` (4 test, awalan `fns`); `AccessCatalogTest`, `MemberAccessTest`, `TreeAuthorizationTest` disesuaikan. 670 test lulus, Pint PASS, Larastan `[OK]`.
 
 ## Struktur file utama
 
@@ -706,9 +718,10 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Sebelum mulai tahap baru di salinan kerja: `git fetch` lalu pastikan berbasis commit terakhir di origin (AC-5b sempat dimulai di atas commit lama; diselamatkan dengan stash → reset → pop).
 - Pegawai yang ditautkan ke akun yang sudah ada memakai nama orang akun itu (bukan nama di `NewEmployeeData`); ekspektasi test harus memakai nama tersebut (AC-5d-fix1).
 - Permission baru untuk role yang sudah ada: perbarui juga test yang mencocokkan daftar permission role (mis. `TreeAuthorizationTest`, `AccessCatalogTest`). Seeder yang mencatat audit: saring audit di test per subjek (HR-3a-fix1).
+- `composer test` menjalankan test arsitektur (`--testsuite=Architecture`) dan test lain (`--testsuite=Unit,Feature`) di **dua proses terpisah**: Pest arch mem-parse seluruh kode dan menahan ±400 MB sampai proses selesai, sehingga di Windows/Laragon (`memory_limit` 512M) test berikutnya kehabisan memori sesudah FN-1a menambah aturan batas modul (2026-10-28). Saat menjalankan satu file test, cukup `php artisan test tests/Feature/...`.
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Uji AC-7b oleh owner (PRD-002 §21.3); sesudahnya AC-7 selesai.
-2. Sesudah AC-7: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama), HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen), atau modul Keuangan.
+1. Uji FN-1a oleh owner, lalu FN-1b (potongan/beasiswa per siswa) dan FN-2 (buat tagihan + jatuh tempo SPP) — PRD-003 §3.
+2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

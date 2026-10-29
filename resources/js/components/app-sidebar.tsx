@@ -9,6 +9,7 @@ import {
     ClipboardCheck,
     ClipboardList,
     ClipboardPen,
+    Coins,
     Clock,
     FileClock,
     FileText,
@@ -189,6 +190,12 @@ const academicCalendarNavItem: NavItem = {
     icon: CalendarDays,
 };
 
+const financeSettingsNavItem: NavItem = {
+    title: 'Pengaturan keuangan',
+    href: '/keuangan/pengaturan',
+    icon: Coins,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -251,6 +258,9 @@ export function AppSidebar() {
                   payrollRecapNavItem,
                   payrollSettingsNavItem,
               ]
+            : []),
+        ...(atTenantLevel && permissions.includes('finance.settings.manage')
+            ? [financeSettingsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

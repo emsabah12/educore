@@ -23,6 +23,7 @@ use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Domain\Tenancy\Tenant;
+use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\CreateEmployee;
 use Modules\HR\Application\Employee\NewEmployeeData;
@@ -109,6 +110,7 @@ test('katalog menawarkan role tingkat Yayasan dan role penugasan sesuai PRD', fu
         CoreAccess::ROLE_ADMIN_YAYASAN,
         CoreAccess::ROLE_PIMPINAN,
         HrAccess::ROLE_ADMIN_SDM,
+        FinanceAccess::ROLE_ADMIN_KEUANGAN,
     ])->and(array_keys($catalog->assignmentRoleOptions()))->toBe([
         CoreAccess::ROLE_PIMPINAN,
         CoreAccess::ROLE_KEPALA_LEMBAGA,
@@ -116,6 +118,7 @@ test('katalog menawarkan role tingkat Yayasan dan role penugasan sesuai PRD', fu
         CoreAccess::ROLE_STAF,
         HrAccess::ROLE_PETUGAS_PRESENSI,
         AcademicAccess::ROLE_OPERATOR_AKADEMIK,
+        FinanceAccess::ROLE_BENDAHARA,
     ]);
 
     expect(fn () => (new AccessCatalog)->offerAsTenantRole('tidak-ada'))->toThrow(AccessException::class);
@@ -379,12 +382,12 @@ test('ringkasan akses memuat role tingkat Yayasan, penugasan aktif, dan pilihan 
 
     expect($summary)->not->toBeNull()
         ->and($summary['membershipActive'])->toBeTrue()
-        ->and(array_column($summary['tenantRoles'], 'key'))->toBe([CoreAccess::ROLE_ADMIN_YAYASAN, CoreAccess::ROLE_PIMPINAN, HrAccess::ROLE_ADMIN_SDM])
-        ->and(array_column($summary['tenantRoles'], 'granted'))->toBe([false, false, false])
+        ->and(array_column($summary['tenantRoles'], 'key'))->toBe([CoreAccess::ROLE_ADMIN_YAYASAN, CoreAccess::ROLE_PIMPINAN, HrAccess::ROLE_ADMIN_SDM, FinanceAccess::ROLE_ADMIN_KEUANGAN])
+        ->and(array_column($summary['tenantRoles'], 'granted'))->toBe([false, false, false, false])
         ->and(array_column($summary['assignments'], 'label'))->toBe(['Biro Pendidikan dan Koordinator Antar Lembaga', 'Semua MDA (Seluruh Yayasan)'])
         ->and(array_column($summary['assignments'], 'functional'))->toBe([false, true])
         ->and($summary['assignments'][1]['roles'])->toBe(['Koordinator'])
-        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF, HrAccess::ROLE_PETUGAS_PRESENSI, AcademicAccess::ROLE_OPERATOR_AKADEMIK]);
+        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF, HrAccess::ROLE_PETUGAS_PRESENSI, AcademicAccess::ROLE_OPERATOR_AKADEMIK, FinanceAccess::ROLE_BENDAHARA]);
 
     $diriSendiri = app(MemberAccessSummary::class)->forMembership($this->tenant->id, $adminMembership->id, $adminMembership->id);
 
@@ -423,7 +426,7 @@ test('detail pegawai mengirim data penugasan & role hanya untuk admin yayasan', 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('access.member.membershipActive', true)
-            ->has('access.member.tenantRoles', 3)
+            ->has('access.member.tenantRoles', 4)
             ->where('access.member.assignments', [])
             ->has('access.member.options.organizations')
             ->has('access.member.options.jenjang'));

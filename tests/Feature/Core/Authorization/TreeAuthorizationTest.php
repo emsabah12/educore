@@ -11,6 +11,7 @@ use Modules\Core\Domain\Organization\AssignmentStatus;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Organization\OrganizationalAssignment;
 use Modules\Core\Domain\Tenancy\Tenant;
+use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\HR\Application\Authorization\HrAccess;
 use Tests\Support\AuthorizationProbe;
 use Tests\Support\CoreFixtures;
@@ -219,6 +220,7 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,
+            FinanceAccess::BILLING_VIEW,
             HrAccess::ATTENDANCE_MANAGE,
             HrAccess::EMPLOYEES_VIEW,
             HrAccess::EMPLOYEES_VIEW_PERSONAL,

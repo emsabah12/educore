@@ -1,0 +1,198 @@
+<?php
+
+namespace Modules\Finance\Http\Controllers;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Fee\FeeSettingsOverview;
+use Modules\Finance\Application\Fee\ManageFeeRates;
+use Modules\Finance\Application\Fee\ManageFeeTypes;
+use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
+use Modules\Finance\Domain\Fee\FeeKind;
+use Modules\Finance\Domain\Fee\FeeType;
+
+/**
+ * Pengaturan keuangan (PRD-003 §6, FN-1a): jenis biaya dan tarif per lembaga × tahun ajaran (opsional
+ * per tingkat). Hanya pemilik `finance.settings.manage` di tingkat Yayasan (Admin Keuangan, Admin
+ * Yayasan); selain itu 403.
+ */
+final class FeeSettingsController
+{
+    public function __construct(
+        private readonly AuthorizationService $authorization,
+        private readonly TenantContext $tenantContext,
+    ) {}
+
+    public function index(Request $request, FeeSettingsOverview $overview): Response
+    {
+        $this->authorize();
+        $tenantId = $this->tenantId();
+
+        $organizations = $overview->organizations($tenantId);
+        $organizationId = $this->pick(array_column($organizations, 'value'), $request->query('lembaga'));
+        $years = $organizationId === null ? [] : $overview->years($tenantId, $organizationId);
+        $current = null;
+
+        foreach ($years as $year) {
+            if ($year['is_current']) {
+                $current = $year['value'];
+            }
+        }
+
+        $yearId = $this->pick(array_column($years, 'value'), $request->query('tahun'), $current);
+
+        return Inertia::render('finance/settings', [
+            'types' => $overview->types($tenantId),
+            'kinds' => array_map(fn (FeeKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()], FeeKind::cases()),
+            'organizations' => $organizations,
+            'organizationId' => $organizationId,
+            'years' => array_map(fn (array $year): array => ['value' => $year['value'], 'label' => $year['label']], $years),
+            'yearId' => $yearId,
+            'rates' => $organizationId === null || $yearId === null ? [] : $overview->rates($tenantId, $organizationId, $yearId),
+        ]);
+    }
+
+    public function store(Request $request, ManageFeeTypes $types): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'code' => ['required', 'string', 'max:30'],
+            'name' => ['required', 'string', 'max:'.ManageFeeTypes::NAME_MAX_LENGTH],
+            'kind' => ['required', Rule::enum(FeeKind::class)],
+        ], ['kind.required' => 'Pilih sifat biaya.'], ['code' => 'kode', 'name' => 'nama', 'kind' => 'sifat']);
+
+        $type = $this->attempt(fn (): FeeType => $types->create(
+            $this->tenantId(),
+            $request->string('code')->value(),
+            $request->string('name')->value(),
+            FeeKind::from($request->string('kind')->value()),
+        ));
+
+        return $this->done("{$type->name} ditambahkan.");
+    }
+
+    public function update(Request $request, string $type, ManageFeeTypes $types): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate(['name' => ['required', 'string', 'max:'.ManageFeeTypes::NAME_MAX_LENGTH]], [], ['name' => 'nama']);
+
+        $renamed = $this->attempt(fn (): FeeType => $types->rename($this->tenantId(), $type, $request->string('name')->value()));
+
+        return $this->done("{$renamed->name} disimpan.");
+    }
+
+    public function deactivate(string $type, ManageFeeTypes $types): RedirectResponse
+    {
+        $this->authorize();
+        $item = $this->attempt(fn (): FeeType => $types->setActive($this->tenantId(), $type, false));
+
+        return $this->done("{$item->name} dinonaktifkan. Tarif yang ada tetap tersimpan, tetapi tidak ditagihkan lagi.");
+    }
+
+    public function activate(string $type, ManageFeeTypes $types): RedirectResponse
+    {
+        $this->authorize();
+        $item = $this->attempt(fn (): FeeType => $types->setActive($this->tenantId(), $type, true));
+
+        return $this->done("{$item->name} diaktifkan kembali.");
+    }
+
+    /**
+     * Simpan tarif (tambah, atau ubah nominal bila kombinasi jenis × lembaga × tahun × tingkat sudah ada).
+     */
+    public function setRate(Request $request, string $type, ManageFeeRates $rates): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'organization_id' => ['required', 'uuid'],
+            'academic_year_id' => ['required', 'uuid'],
+            'grade' => ['nullable', 'integer', 'between:1,12'],
+            'amount' => ['required', 'string', 'max:30'],
+        ], [
+            'organization_id.required' => 'Pilih lembaga.',
+            'academic_year_id.required' => 'Pilih tahun ajaran.',
+            'grade.between' => 'Tingkat harus angka 1–12, atau kosong untuk semua tingkat.',
+            'grade.integer' => 'Tingkat harus angka 1–12, atau kosong untuk semua tingkat.',
+        ], ['amount' => 'nominal']);
+
+        $created = $this->attempt(fn (): bool => $rates->set(
+            $this->tenantId(),
+            $type,
+            $request->string('organization_id')->value(),
+            $request->string('academic_year_id')->value(),
+            $request->filled('grade') ? $request->integer('grade') : null,
+            $request->input('amount'),
+            $this->tenantContext->require()->membershipId,
+        ));
+
+        return $this->done($created ? 'Tarif ditambahkan.' : 'Tarif disimpan.');
+    }
+
+    public function removeRate(string $rate, ManageFeeRates $rates): RedirectResponse
+    {
+        $this->authorize();
+        $this->attempt(function () use ($rates, $rate): bool {
+            $rates->remove($this->tenantId(), $rate);
+
+            return true;
+        });
+
+        return $this->done('Tarif dihapus.');
+    }
+
+    // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * @param  list<string>  $allowed
+     */
+    private function pick(array $allowed, mixed $requested, ?string $fallback = null): ?string
+    {
+        if (is_string($requested) && in_array($requested, $allowed, true)) {
+            return $requested;
+        }
+
+        return $fallback ?? ($allowed[0] ?? null);
+    }
+
+    private function authorize(): void
+    {
+        $this->authorization->inspectTarget(FinanceAccess::SETTINGS_MANAGE, null, null)->authorize();
+    }
+
+    private function tenantId(): string
+    {
+        return $this->tenantContext->require()->tenantId;
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $action
+     * @return T
+     */
+    private function attempt(callable $action): mixed
+    {
+        try {
+            return $action();
+        } catch (FinanceException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+    }
+
+    private function done(string $message): RedirectResponse
+    {
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+        return back();
+    }
+}
