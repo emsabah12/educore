@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.5 (2026-10-30: rincian & pembangunan FN-2b tagihan sekali bayar & batal otomatis saat siswa keluar, §15)
-- **Versi sebelumnya:** 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.6 (2026-10-30: rincian & pembangunan FN-3 kasir, pembayaran, kuitansi, §16)
+- **Versi sebelumnya:** 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -169,3 +169,15 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
     - Mekanisme: Academic mengirim kejadian publik `Modules\Academic\Contracts\Events\EnrollmentClosed` di dalam transaksi penutupan; Finance mendengarkannya (Academic tetap tidak bergantung pada Finance). Bila Finance gagal, penutupan ikut batal.
     - Pendaftaran yang **dibuka kembali** (PRD-002 §18 P2) tidak memulihkan tagihan yang dibatalkan otomatis; buat ulang lewat _Buat tagihan bulanan_ (yang batal tidak menghalangi).
 - **Audit**: `finance.invoices_generated` (juga untuk sekali bayar, dengan sasaran), `finance.invoices_voided_on_exit` (tanggal keluar, jumlah).
+
+## 16. FN-3 Kasir, pembayaran, kuitansi [ASUMSI — rincian teknis 2026-10-30]
+
+- **Halaman Kasir** (`/keuangan/kasir`, menu Keuangan → _Kasir_, untuk pemilik `finance.billing.view`): pilih lembaga → cari siswa (nama/NIS/NISN; **termasuk siswa yang sudah keluar**, ditandai "Sudah keluar", agar tunggakannya tetap bisa dibayar) → tampil tagihan belum lunas (jatuh tempo, nominal, sudah dibayar, sisa, tanda lewat jatuh tempo), total sisa, dan 30 pembayaran terakhir. Pemilik `finance.billing.view` tanpa `finance.payments.manage` (Pimpinan, Kepala Lembaga) hanya melihat.
+- **Catat pembayaran** (`finance.payments.manage` di lembaga siswa): jumlah Rp 1–1.000.000.000, **tanggal bayar** (bawaan hari ini; tidak boleh di masa depan dan tidak lebih dari 1 tahun ke belakang), **cara bayar Tunai / Transfer bank**, catatan opsional (≤ 200 karakter, mis. nomor referensi transfer).
+    - Tagihan yang dibayar: **dipilih** (centang), atau bila tidak dipilih = **semua tagihan belum lunas**. Uang dibagikan ke tagihan itu **mulai jatuh tempo terlama**; boleh **cicil** (tagihan terakhir yang tersentuh tetap Belum lunas dengan sisa berkurang).
+    - **Kelebihan bayar ditolak** (OD-FN-06): jumlah tidak boleh melebihi sisa tagihan yang dipilih.
+    - Tagihan yang menjadi lunas berstatus **Lunas**; tagihan yang sudah ada pembayarannya tidak bisa dibatalkan sebelum pembayarannya dibatalkan (§14).
+- **Kuitansi** (`/keuangan/kuitansi/{id}`): nomor **`KODE-LEMBAGA/TAHUN/000001`** (urut per lembaga per tahun tanggal bayar, tidak dipakai ulang walau dibatalkan, unik), tanggal, nama siswa + kelas + NIS, cara bayar, rincian tagihan yang dibayar, total, **terbilang**, nama petugas. Cetak / simpan PDF lewat dialog cetak browser. Kuitansi pembayaran yang dibatalkan tetap bisa dibuka dengan tanda **BATAL** dan alasannya.
+- **Batalkan pembayaran** (`finance.payments.manage`): alasan wajib 1–200 karakter; semua alokasinya dikembalikan sehingga tagihan terkait kembali **Belum lunas**. Pembayaran tidak bisa diubah; koreksi = batalkan lalu catat ulang.
+- **Data**: `fn_payments` (siswa/pendaftaran, nomor kuitansi, tanggal, cara bayar, jumlah, catatan, status Sah/Batal, alasan & waktu & petugas pembatal, petugas pencatat) dan `fn_payment_allocations` (pembayaran × tagihan × jumlah). `fn_invoices.paid_amount` = jumlah alokasi pembayaran sah.
+- **Audit**: `finance.payment_recorded` (kuitansi, jumlah, cara bayar, tanggal), `finance.payment_voided` (kuitansi, jumlah, alasan).

@@ -15,12 +15,12 @@ namespace Modules\Academic\Contracts;
 interface EnrolledStudents
 {
     /**
-     * Pendaftaran TERBUKA di lembaga yang cocok dengan sebagian nama, atau awal NISN / nomor induk.
-     * Urut nama, paling banyak $limit.
+     * Pendaftaran TERBUKA di lembaga (atau juga yang sudah ditutup bila $includeClosed) yang cocok dengan
+     * sebagian nama, atau awal NISN / nomor induk. Urut nama, paling banyak $limit.
      *
      * @return list<EnrolledStudent>
      */
-    public function search(string $tenantId, string $organizationId, string $query, int $limit): array;
+    public function search(string $tenantId, string $organizationId, string $query, int $limit, bool $includeClosed = false): array;
 
     /**
      * Data pendaftaran (terbuka maupun sudah ditutup) milik yayasan ini; id lain diabaikan.

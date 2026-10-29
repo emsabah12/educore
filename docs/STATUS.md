@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-28
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 & FN-2a SELESAI; FN-2b dibangun 2026-10-30, menunggu uji owner
-- **Commit terakhir:** `e2b07b6` — feat(finance): FN-2a tagihan bulanan, jatuh tempo, daftar & batal tagihan
+- **Diperbarui:** 2026-10-30
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 & FN-2 SELESAI; FN-3 dibangun 2026-10-30, menunggu uji owner
+- **Commit terakhir:** `d4a46cb` — feat(finance): FN-2b tagihan sekali bayar & batal otomatis saat siswa keluar
 
 ## Keputusan penting
 
@@ -703,12 +703,20 @@
 - Test: `tests/Feature/Finance/InvoicesTest.php` (4 test, awalan `fnv`). 677 test lulus (7 arsitektur + 670), Pint PASS, Larastan `[OK]`.
 - Uji manual owner lancar.
 
-**FN-2b — Tagihan sekali bayar & batal otomatis saat siswa keluar: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §15
+**FN-2b — Tagihan sekali bayar & batal otomatis saat siswa keluar: SELESAI (`d4a46cb`)** — PRD-003 §15
 
 - Academic: kejadian publik `Contracts\Events\EnrollmentClosed` (dikirim `ManageEnrollments::close`, juga dipakai lulus massal); kontrak `EnrolledStudents::classes()` + `class_id` di `activeBetween()`.
 - Finance: `InvoicePricing` (tarif & potongan bersama, dipakai juga `GenerateMonthlyInvoices`), `GenerateOnceInvoices`, `VoidInvoicesAfterExit` (pendengar `EnrollmentClosed`), migration `2026_10_30_300004_add_once_unique_to_fn_invoices`; `InvoiceController::previewOnce|generateOnce` (`/keuangan/tagihan/pratinjau-sekali`, `/keuangan/tagihan/sekali`).
 - Frontend: form **Buat tagihan sekali bayar** di `pages/finance/invoices.tsx`; komponen bersama `components/finance/student-search.tsx` (dipakai juga Potongan siswa).
 - Test: `tests/Feature/Finance/OnceInvoicesTest.php` (4 test, awalan `fno`). 681 test lulus (7 arsitektur + 674), Pint PASS, Larastan `[OK]`.
+- Uji manual owner lancar.
+
+**FN-3 — Kasir, pembayaran, kuitansi: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §16
+
+- Academic: kontrak `EnrolledStudents::search()` dapat parameter `includeClosed` (kasir juga mencari siswa yang sudah keluar; yang aktif diurutkan dulu, hasil memuat `active`).
+- Finance: migration `2026_10_30_300005_create_fn_payments_tables` (`fn_payments`, `fn_payment_allocations`), `PaymentMethod`, `PaymentStatus`, `ManagePayments` (catat dengan alokasi terlama dulu + nomor kuitansi di bawah advisory lock; batal), `CashierOverview`, `Receipts`, `Terbilang`; `CashierController` (`/keuangan/kasir`, `/keuangan/kasir/cari`, `POST /keuangan/pembayaran`, `POST /keuangan/pembayaran/{id}/batalkan`, `/keuangan/kuitansi/{id}`).
+- Frontend: `pages/finance/cashier.tsx`, `pages/print/receipt.tsx`; menu Keuangan → **Kasir**; `components/finance/student-search.tsx` dapat prop `url` dan tanda "Sudah keluar".
+- Test: `tests/Feature/Finance/PaymentsTest.php` (5 test, awalan `fnp`). 686 test lulus (7 arsitektur + 679), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -748,5 +756,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-2b oleh owner, lalu FN-3 (layar kasir: catat pembayaran, kuitansi bernomor, batal pembayaran) — PRD-003 §3.
+1. Uji FN-3 oleh owner, lalu FN-4 (daftar tunggakan, rekap penerimaan harian/bulanan, ekspor Excel, kartu Beranda) dan FN-5 (menu Tagihan di portal orang tua) — PRD-003 §3.
 2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

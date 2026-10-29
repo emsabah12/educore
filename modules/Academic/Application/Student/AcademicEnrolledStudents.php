@@ -14,7 +14,7 @@ use stdClass;
  */
 final class AcademicEnrolledStudents implements EnrolledStudents
 {
-    public function search(string $tenantId, string $organizationId, string $query, int $limit): array
+    public function search(string $tenantId, string $organizationId, string $query, int $limit, bool $includeClosed = false): array
     {
         $text = trim((string) preg_replace('/\s+/u', ' ', $query));
 
@@ -26,12 +26,14 @@ final class AcademicEnrolledStudents implements EnrolledStudents
 
         $rows = $this->base($tenantId)
             ->where('e.organization_id', $organizationId)
-            ->whereNull('e.end_date')
+            ->when(! $includeClosed, fn (Builder $open) => $open->whereNull('e.end_date'))
             ->where(fn (Builder $where) => $where
                 ->where('p.name', 'ilike', "%{$like}%")
                 ->orWhere('s.nisn', 'like', "{$like}%")
                 ->orWhere('e.student_number', 'ilike', "{$like}%"))
             ->orderBy('p.name')
+            ->orderByRaw('e.end_date IS NOT NULL')
+            ->orderByDesc('e.start_date')
             ->orderBy('e.id')
             ->limit(max(1, min($limit, 50)))
             ->get($this->columns());

@@ -10,6 +10,7 @@ import {
     ClipboardList,
     ClipboardPen,
     Coins,
+    CreditCard,
     Clock,
     FileClock,
     FileText,
@@ -192,6 +193,12 @@ const academicCalendarNavItem: NavItem = {
     icon: CalendarDays,
 };
 
+const cashierNavItem: NavItem = {
+    title: 'Kasir',
+    href: '/keuangan/kasir',
+    icon: CreditCard,
+};
+
 const invoicesNavItem: NavItem = {
     title: 'Tagihan',
     href: '/keuangan/tagihan',
@@ -274,7 +281,7 @@ export function AppSidebar() {
               ]
             : []),
         ...(permissions.includes('finance.billing.view')
-            ? [invoicesNavItem, discountsNavItem]
+            ? [cashierNavItem, invoicesNavItem, discountsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem]

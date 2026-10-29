@@ -16,14 +16,19 @@ export type StudentHit = {
     nisn: string | null;
     student_number: string | null;
     class: string | null;
+    /** Pendaftaran masih terbuka (kasir juga menampilkan yang sudah keluar). */
+    active?: boolean;
 };
 
 export function StudentSearch({
     id = 'student-search',
+    url = '/keuangan/siswa/cari',
     organizationId,
     onSelect,
 }: {
     id?: string;
+    /** Endpoint JSON; kasir memakai `/keuangan/kasir/cari` (termasuk siswa yang sudah keluar). */
+    url?: string;
     organizationId: string;
     onSelect: (student: StudentHit) => void;
 }) {
@@ -38,7 +43,7 @@ export function StudentSearch({
 
         try {
             const response = await fetch(
-                `/keuangan/siswa/cari?lembaga=${encodeURIComponent(organizationId)}&q=${encodeURIComponent(query)}`,
+                `${url}?lembaga=${encodeURIComponent(organizationId)}&q=${encodeURIComponent(query)}`,
                 {
                     headers: {
                         Accept: 'application/json',
@@ -113,7 +118,7 @@ export function StudentSearch({
             {results !== null &&
                 (results.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                        Tidak ada siswa aktif yang cocok di lembaga ini.
+                        Tidak ada siswa yang cocok di lembaga ini.
                     </p>
                 ) : (
                     <ul className="divide-y rounded-md border bg-background">
@@ -129,7 +134,10 @@ export function StudentSearch({
                                     </span>
                                     <span className="block text-xs text-muted-foreground">
                                         {[
-                                            hit.class ?? 'Belum masuk kelas',
+                                            hit.active === false
+                                                ? 'Sudah keluar'
+                                                : (hit.class ??
+                                                  'Belum masuk kelas'),
                                             hit.student_number
                                                 ? `NIS ${hit.student_number}`
                                                 : null,

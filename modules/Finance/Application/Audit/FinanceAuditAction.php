@@ -30,7 +30,13 @@ final class FinanceAuditAction
     /** Tagihan bulan sesudah siswa keluar dibatalkan otomatis (OD-FN-07, FN-2b). */
     public const INVOICES_VOIDED_ON_EXIT = 'finance.invoices_voided_on_exit';
 
+    public const PAYMENT_RECORDED = 'finance.payment_recorded';
+
+    public const PAYMENT_VOIDED = 'finance.payment_voided';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
+
+    public const SUBJECT_PAYMENT = 'fn_payment';
 
     public const SUBJECT_INVOICE = 'fn_invoice';
 
@@ -54,6 +60,8 @@ final class FinanceAuditAction
             self::INVOICES_GENERATED => 'Tagihan dibuat',
             self::INVOICE_VOIDED => 'Tagihan dibatalkan',
             self::INVOICES_VOIDED_ON_EXIT => 'Tagihan dibatalkan otomatis (siswa keluar)',
+            self::PAYMENT_RECORDED => 'Pembayaran dicatat',
+            self::PAYMENT_VOIDED => 'Pembayaran dibatalkan',
         ];
     }
 }
