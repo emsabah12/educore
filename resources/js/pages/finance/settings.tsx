@@ -1,6 +1,12 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
+import {
+    EnforcedCheckbox,
+    RulesPanel,
+    TargetFields,
+} from '@/components/core/scoped-rules';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +45,8 @@ type Props = {
     years: Option[];
     yearId: string | null;
     rates: RateRow[];
+    dueDay: RulesData;
+    targets: TargetOptions;
 };
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -60,6 +68,8 @@ export default function FinanceSettings({
     years,
     yearId,
     rates,
+    dueDay,
+    targets,
 }: Props) {
     return (
         <>
@@ -109,8 +119,74 @@ export default function FinanceSettings({
                     yearId={yearId}
                     rates={rates}
                 />
+
+                <DueDaySection data={dueDay} targets={targets} />
             </div>
         </>
+    );
+}
+
+/**
+ * Jatuh tempo tagihan bulanan (FN-2a): tanggal 1–28 di bulan tagihan, se-yayasan, per jenjang, atau per
+ * lembaga/unit (aturan berjenjang). Berlaku untuk tagihan yang dibuat sesudahnya.
+ */
+function DueDaySection({
+    data,
+    targets,
+}: {
+    data: RulesData;
+    targets: TargetOptions;
+}) {
+    return (
+        <section aria-label="Jatuh tempo" className="space-y-3">
+            <Heading
+                variant="small"
+                title="Jatuh tempo tagihan bulanan"
+                description="Tanggal jatuh tempo SPP dan tagihan bulanan lain di bulan tagihannya. Bawaan tanggal 10. Tagihan yang sudah dibuat tidak berubah."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action="/keuangan/jatuh-tempo"
+                    method="post"
+                    errorBag="dueDay"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="due"
+                                options={targets}
+                                errors={errors}
+                            />
+                            <div className="grid gap-1.5 sm:max-w-48">
+                                <Label htmlFor="due-day">Tanggal (1–28)</Label>
+                                <Input
+                                    id="due-day"
+                                    name="day"
+                                    type="number"
+                                    min={1}
+                                    max={28}
+                                    defaultValue={10}
+                                    required
+                                />
+                                <InputError message={errors.day} />
+                            </div>
+                            <InputError message={errors.form} />
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai tanggal lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan jatuh tempo
+                            </Button>
+                        </>
+                    )}
+                </Form>
+                <RulesPanel
+                    data={data}
+                    emptyText="Belum ada pengaturan. Semua lembaga: tanggal 10 setiap bulan."
+                    usageTitle="Jatuh tempo yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
     );
 }
 

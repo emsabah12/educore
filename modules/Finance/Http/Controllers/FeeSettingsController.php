@@ -9,11 +9,16 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Application\Settings\ScopedSettingOverview;
+use Modules\Core\Application\Settings\SetScopedSetting;
+use Modules\Core\Domain\Organization\Jenjang;
+use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Fee\FeeSettingsOverview;
 use Modules\Finance\Application\Fee\ManageFeeRates;
 use Modules\Finance\Application\Fee\ManageFeeTypes;
+use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
 use Modules\Finance\Domain\Fee\FeeType;
@@ -30,7 +35,7 @@ final class FeeSettingsController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, FeeSettingsOverview $overview): Response
+    public function index(Request $request, FeeSettingsOverview $overview, ScopedSettingOverview $settings): Response
     {
         $this->authorize();
         $tenantId = $this->tenantId();
@@ -56,6 +61,12 @@ final class FeeSettingsController
             'years' => array_map(fn (array $year): array => ['value' => $year['value'], 'label' => $year['label']], $years),
             'yearId' => $yearId,
             'rates' => $organizationId === null || $yearId === null ? [] : $overview->rates($tenantId, $organizationId, $yearId),
+            // FN-2a: jatuh tempo tagihan bulanan per jenjang/lembaga (aturan berjenjang).
+            'dueDay' => [
+                'rules' => $settings->rules($tenantId, DueDaySetting::KEY, fn (mixed $value): string => DueDaySetting::label(DueDaySetting::normalize($value))),
+                'usage' => $settings->usage($tenantId, DueDaySetting::KEY, fn (mixed $value): string => DueDaySetting::label(DueDaySetting::normalize($value))),
+            ],
+            'targets' => $settings->targetOptions($tenantId),
         ]);
     }
 
@@ -148,6 +159,40 @@ final class FeeSettingsController
         });
 
         return $this->done('Tarif dihapus.');
+    }
+
+    /**
+     * Jatuh tempo tagihan bulanan (FN-2a): tanggal 1–28, se-yayasan, per jenjang, atau per lembaga/unit.
+     */
+    public function setDueDay(Request $request, SetScopedSetting $settings): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'target' => ['required', Rule::in(['yayasan', 'jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'enforced' => ['nullable', 'boolean'],
+            'day' => ['required', 'integer', 'between:1,28'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'day.between' => 'Tanggal jatuh tempo 1–28 (selalu ada di semua bulan).',
+        ], ['day' => 'tanggal jatuh tempo']);
+
+        [$organizationId, $jenjang] = match ($request->string('target')->value()) {
+            'jenjang' => [null, Jenjang::from($request->string('jenjang')->value())],
+            'lembaga' => [$request->string('organization_id')->value(), null],
+            default => [null, null],
+        };
+
+        try {
+            $settings->handle(DueDaySetting::KEY, $organizationId, $jenjang, $request->integer('day'), $request->boolean('enforced'));
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['day' => $exception->getMessage()]);
+        }
+
+        return $this->done('Jatuh tempo disimpan. Berlaku untuk tagihan yang dibuat sesudah ini.');
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────

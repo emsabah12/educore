@@ -4,9 +4,11 @@ namespace Modules\Finance;
 
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
+use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Invoice\DueDaySetting;
 
 /**
  * Modul Finance (Keuangan: tagihan & pembayaran siswa), spesifikasi: PRD-003.
@@ -28,5 +30,8 @@ class FinanceServiceProvider extends ModuleServiceProvider
 
         FinanceAccess::register($this->app->make(AccessCatalog::class));
         AuditAction::registerLabels(FinanceAuditAction::labels());
+
+        // Jatuh tempo tagihan bulanan per jenjang/lembaga (PRD-003 §4, FN-2a).
+        $this->app->make(SettingRegistry::class)->define(DueDaySetting::definition());
     }
 }

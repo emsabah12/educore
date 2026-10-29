@@ -20,6 +20,7 @@ import {
     Network,
     Percent,
     Plane,
+    Receipt,
     School,
     ScrollText,
     ShieldCheck,
@@ -191,6 +192,12 @@ const academicCalendarNavItem: NavItem = {
     icon: CalendarDays,
 };
 
+const invoicesNavItem: NavItem = {
+    title: 'Tagihan',
+    href: '/keuangan/tagihan',
+    icon: Receipt,
+};
+
 const discountsNavItem: NavItem = {
     title: 'Potongan siswa',
     href: '/keuangan/potongan',
@@ -267,7 +274,7 @@ export function AppSidebar() {
               ]
             : []),
         ...(permissions.includes('finance.billing.view')
-            ? [discountsNavItem]
+            ? [invoicesNavItem, discountsNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem]

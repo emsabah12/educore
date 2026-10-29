@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 
 /*
- * Bagian form & daftar aturan berjenjang (PRD-000 §8) untuk Pengaturan gaji (HR-5b): target
+ * Bagian form & daftar aturan berjenjang (PRD-000 §8) — Pengaturan gaji (HR-5b), Pengaturan keuangan (FN-2a): target
  * se-yayasan, satu jenjang, atau lembaga/unit; daftar aturan tersimpan & nilai yang berlaku per lembaga.
  */
 

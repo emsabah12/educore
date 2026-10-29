@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-28
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1a SELESAI; FN-1b dibangun 2026-10-29, menunggu uji owner
-- **Commit terakhir:** `a51468a` — feat(finance): FN-1a modul Keuangan — hak akses, jenis biaya & tarif
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 SELESAI; FN-2a dibangun 2026-10-29, menunggu uji owner
+- **Commit terakhir:** `518d374` — feat(finance): FN-1b potongan/beasiswa siswa
 
 ## Keputusan penting
 
@@ -686,12 +686,21 @@
 - Test: `tests/Feature/Finance/FeeSettingsTest.php` (4 test, awalan `fns`); `AccessCatalogTest`, `MemberAccessTest`, `TreeAuthorizationTest` disesuaikan. 670 test lulus, Pint PASS, Larastan `[OK]`.
 - Perbaikan sesudah uji owner: `composer test` memisah test arsitektur ke proses sendiri (kehabisan memori di Windows). Uji manual owner lancar.
 
-**FN-1b — Potongan/beasiswa siswa: DIBANGUN (2026-10-29, menunggu uji owner)** — PRD-003 §13
+**FN-1b — Potongan/beasiswa siswa: SELESAI (2026-10-29, commit `518d374`)** — PRD-003 §13
 
 - Kontrak Academic `EnrolledStudents` (+ `AcademicEnrolledStudents`): cari siswa aktif per lembaga & data dasar pendaftaran.
 - Migration `2026_10_29_300002_create_fn_discounts_table`; `ManageDiscounts`, `DiscountOverview`, `DiscountController` (`/keuangan/potongan`, `/keuangan/siswa/cari`); audit `finance.discount_set|removed` (tanpa alasan).
 - Frontend: `pages/finance/discounts.tsx`; menu **Potongan siswa** (pemilik `finance.billing.view`).
 - Test: `tests/Feature/Finance/DiscountsTest.php` (3 test, awalan `fnd`). 673 test lulus (7 arsitektur + 666), Pint PASS, Larastan `[OK]`.
+- Uji manual owner lancar. **FN-1 SELESAI (2026-10-29).**
+
+**FN-2a — Jatuh tempo, tagihan bulanan, daftar & batal tagihan: DIBANGUN (2026-10-29, menunggu uji owner)** — PRD-003 §14
+
+- Core `ScopedSettingOverview` (rules/usage/targetOptions, dipindah dari HR `LeaveSettingsOverview` yang kini mendelegasikan); komponen `components/hr/scoped-rules` → `components/core/scoped-rules`.
+- Kontrak Academic `EnrolledStudents::activeBetween()` (pendaftaran aktif dalam rentang + kelas & tingkat di tahun ajaran).
+- Finance: `DueDaySetting` (`finance.due_day`), migration `2026_10_29_300003_create_fn_invoices_table`, `InvoiceStatus`, `GenerateMonthlyInvoices` (pratinjau/buat), `InvoiceList`, `ManageInvoices` (batal), `InvoiceController` (`/keuangan/tagihan`, `/pratinjau`, `/bulanan`, `/{id}/batalkan`), `FeeSettingsController::setDueDay` (`/keuangan/jatuh-tempo`), trait `Http/Controllers/Concerns/WorksPerOrganization` (dipakai juga `DiscountController`).
+- Frontend: `pages/finance/invoices.tsx`, bagian Jatuh tempo di `pages/finance/settings.tsx`; menu **Tagihan**.
+- Test: `tests/Feature/Finance/InvoicesTest.php` (4 test, awalan `fnv`). 677 test lulus (7 arsitektur + 670), Pint PASS, Larastan `[OK]`.
 
 ## Struktur file utama
 
@@ -731,5 +740,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-1b oleh owner, lalu FN-2 (buat tagihan + jatuh tempo SPP) — PRD-003 §3.
+1. Uji FN-2a oleh owner, lalu FN-2b (tagihan sekali bayar, batal otomatis saat siswa keluar) dan FN-3 (catat pembayaran & kuitansi) — PRD-003 §3.
 2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

@@ -62,6 +62,53 @@ final class AcademicEnrolledStudents implements EnrolledStudents
         return $result;
     }
 
+    public function activeBetween(string $tenantId, string $organizationId, string $academicYearId, string $from, string $to): array
+    {
+        if (! Str::isUuid($organizationId) || ! Str::isUuid($academicYearId)) {
+            return [];
+        }
+
+        $rows = $this->base($tenantId)
+            ->where('e.organization_id', $organizationId)
+            ->where('e.start_date', '<=', $to)
+            ->where(fn (Builder $where) => $where->whereNull('e.end_date')->orWhere('e.end_date', '>=', $from))
+            ->orderBy('p.name')
+            ->orderBy('e.id')
+            ->select(['e.id as enrollment_id', 'p.name', 'e.start_date', 'e.end_date'])
+            ->selectSub($this->latestClass($academicYearId, 'c.name'), 'class_name')
+            ->selectSub($this->latestClass($academicYearId, 'c.grade'), 'class_grade')
+            ->get();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $result[] = [
+                'enrollment_id' => (string) $row->enrollment_id,
+                'name' => (string) $row->name,
+                'start_date' => substr((string) $row->start_date, 0, 10),
+                'end_date' => $row->end_date === null ? null : substr((string) $row->end_date, 0, 10),
+                'class' => $row->class_name === null ? null : (string) $row->class_name,
+                'grade' => $row->class_grade === null ? null : (int) $row->class_grade,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Subquery kolom kelas dari keanggotaan kelas terbaru pendaftaran `e` di tahun ajaran itu.
+     */
+    private function latestClass(string $academicYearId, string $column): Builder
+    {
+        return DB::table('ac_class_members as cm')
+            ->join('ac_classes as c', 'c.id', '=', 'cm.class_id')
+            ->whereColumn('cm.enrollment_id', 'e.id')
+            ->where('cm.academic_year_id', $academicYearId)
+            ->orderByDesc('cm.start_date')
+            ->limit(1)
+            ->select($column);
+    }
+
     private function base(string $tenantId): Builder
     {
         return DB::table('ac_enrollments as e')

@@ -2,12 +2,12 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
-import type { RulesData, TargetOptions } from '@/components/hr/scoped-rules';
+import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
 import {
     EnforcedCheckbox,
     RulesPanel,
     TargetFields,
-} from '@/components/hr/scoped-rules';
+} from '@/components/core/scoped-rules';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

@@ -9,6 +9,7 @@ namespace Modules\Academic\Contracts;
  * Hanya data dasar (tanpa data pribadi): nama, NISN, nomor induk, kelas berjalan.
  *
  * @phpstan-type EnrolledStudent array{enrollment_id: string, student_id: string, organization_id: string, name: string, nisn: string|null, student_number: string|null, class: string|null, active: bool}
+ * @phpstan-type BillableEnrollment array{enrollment_id: string, name: string, start_date: string, end_date: string|null, class: string|null, grade: int|null}
  */
 interface EnrolledStudents
 {
@@ -27,4 +28,13 @@ interface EnrolledStudents
      * @return array<string, EnrolledStudent> id pendaftaran → data
      */
     public function describe(string $tenantId, array $enrollmentIds): array;
+
+    /**
+     * Pendaftaran di lembaga yang aktif pada sebagian rentang [$from, $to] (tanggal Y-m-d, inklusif),
+     * beserta kelas & tingkatnya di tahun ajaran $academicYearId (keanggotaan kelas terbaru di tahun itu;
+     * null bila belum masuk kelas). Dipakai Finance untuk membuat tagihan (PRD-003 §4). Urut nama.
+     *
+     * @return list<BillableEnrollment>
+     */
+    public function activeBetween(string $tenantId, string $organizationId, string $academicYearId, string $from, string $to): array;
 }

@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.3 (2026-10-29: rincian & pembangunan FN-1b potongan/beasiswa, §13)
-- **Versi sebelumnya:** 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b dibangun 2026-10-29, menunggu uji owner
+- **Versi:** 0.4 (2026-10-29: rincian & pembangunan FN-2a tagihan bulanan, jatuh tempo, daftar & batal tagihan, §14)
+- **Versi sebelumnya:** 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a dibangun 2026-10-29, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -31,14 +31,14 @@ Prinsip:
 
 ## 3. Tahapan [ASUMSI — urutan usulan]
 
-| Tahap    | Isi                                                                                                                                                                                                             |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **FN-1** | Jenis biaya & tarif (per lembaga, tingkat, tahun ajaran) + potongan/beasiswa per siswa — dipecah **FN-1a** (kerangka modul, hak akses, jenis biaya, tarif) dan **FN-1b** (potongan/beasiswa)                    |
-| **FN-2** | Buat tagihan: SPP bulanan otomatis per tahun ajaran, biaya sekali bayar per lembaga/kelas/siswa; batalkan tagihan; **jatuh tempo SPP** (aturan berjenjang, dipindah dari FN-1 karena baru dipakai saat menagih) |
-| **FN-3** | Catat pembayaran (cicil boleh), kuitansi bernomor + cetak, batalkan pembayaran; halaman tagihan per siswa                                                                                                       |
-| **FN-4** | Tunggakan per kelas/lembaga, rekap penerimaan harian/bulanan, unduh .xlsx, kartu Beranda                                                                                                                        |
-| **FN-5** | Portal orang tua: menu **Tagihan** di Anak saya (sisa tagihan, riwayat bayar, kuitansi)                                                                                                                         |
-| Menyusul | Payment gateway (VA/QRIS), kas umum & pengeluaran, pembukuan (COA, jurnal), tabungan siswa, notifikasi WA                                                                                                       |
+| Tahap    | Isi                                                                                                                                                                                                                                                                                                                                                               |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **FN-1** | Jenis biaya & tarif (per lembaga, tingkat, tahun ajaran) + potongan/beasiswa per siswa — dipecah **FN-1a** (kerangka modul, hak akses, jenis biaya, tarif) dan **FN-1b** (potongan/beasiswa)                                                                                                                                                                      |
+| **FN-2** | Buat tagihan: SPP bulanan otomatis per tahun ajaran, biaya sekali bayar per lembaga/kelas/siswa; batalkan tagihan; **jatuh tempo SPP** (aturan berjenjang, dipindah dari FN-1 karena baru dipakai saat menagih) — dipecah **FN-2a** (jatuh tempo, tagihan bulanan, daftar & batal tagihan) dan **FN-2b** (tagihan sekali bayar, batal otomatis saat siswa keluar) |
+| **FN-3** | Catat pembayaran (cicil boleh), kuitansi bernomor + cetak, batalkan pembayaran; halaman tagihan per siswa                                                                                                                                                                                                                                                         |
+| **FN-4** | Tunggakan per kelas/lembaga, rekap penerimaan harian/bulanan, unduh .xlsx, kartu Beranda                                                                                                                                                                                                                                                                          |
+| **FN-5** | Portal orang tua: menu **Tagihan** di Anak saya (sisa tagihan, riwayat bayar, kuitansi)                                                                                                                                                                                                                                                                           |
+| Menyusul | Payment gateway (VA/QRIS), kas umum & pengeluaran, pembukuan (COA, jurnal), tabungan siswa, notifikasi WA                                                                                                                                                                                                                                                         |
 
 Setiap tahap dirinci teknis sebelum dibangun, lalu dipecah lagi (a/b) bila besar — sama dengan HR & Akademik.
 
@@ -144,3 +144,17 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
 - **Cari siswa** (`/keuangan/siswa/cari?lembaga=&q=`, JSON, 30/menit): siswa **aktif** di lembaga itu, sebagian nama atau awal NISN / nomor induk, min. 2 huruf, maks. 10 hasil; data dasar saja (nama, NISN, nomor induk, kelas).
 - **Kontrak Academic baru** `EnrolledStudents` (`search`, `describe`) diisi `AcademicEnrolledStudents` — Finance tidak membaca tabel siswa langsung.
 - **Audit** `finance.discount_set|removed` pada pendaftaran (jenis biaya, tahun ajaran, besar potongan, baru/ubah). **Alasan tidak dicatat** di audit karena bisa memuat keadaan pribadi siswa (mis. yatim).
+
+## 14. FN-2a Jatuh tempo, tagihan bulanan, daftar & batal tagihan [ASUMSI — rincian teknis 2026-10-29]
+
+- **Jatuh tempo** tagihan bulanan: aturan berjenjang `finance.due_day` (tanggal **1–28** di bulan tagihan; bawaan **10**), se-yayasan / per jenjang / per lembaga-unit, bisa dikunci; diatur di Pengaturan keuangan oleh `finance.settings.manage`. Tampilan aturan berjenjang kini dari Core (`ScopedSettingOverview`, dipindah dari HR; komponen `components/core/scoped-rules`).
+- **Tagihan** (`fn_invoices`): pendaftaran × jenis biaya × bulan (`period` = tanggal 1), keterangan "SPP — Oktober 2026", tingkat, **tarif, potongan (+ label), nominal akhir disalin saat dibuat**, jatuh tempo, status **Belum lunas / Lunas / Batal**, `paid_amount` (diisi FN-3). Database menjamin: nominal = tarif − potongan, satu tagihan bulanan yang belum batal per siswa × jenis × bulan, batal wajib beralasan.
+- **Buat tagihan bulanan** (Keuangan → Tagihan → _Buat tagihan bulanan_): pilih jenis biaya **bulanan aktif** dan rentang bulan di dalam tahun ajaran → **Pratinjau** (jumlah siswa, tagihan baru, yang sudah ada, total, siswa tanpa tarif — tidak menyimpan) → **Buat**.
+    - Siswa = pendaftaran di lembaga yang **aktif pada sebagian bulan itu** (masuk tengah tahun → mulai bulan masuknya; sudah keluar → tidak ditagih bulan sesudahnya).
+    - Tarif = tarif **tingkat kelas** siswa di tahun ajaran itu; bila tidak ada, tarif **semua tingkat**; siswa tanpa tarif dilewati dan disebut namanya.
+    - Potongan FN-1b disalin: persen **dibulatkan ke bawah** ke rupiah; nominal maks. sebesar tarif. Tagihan Rp 0 (potongan penuh) langsung **Lunas**.
+    - **Aman diulang**: tagihan yang sudah ada (belum batal) dilewati — dipakai juga untuk menagih siswa baru. Dua petugas bersamaan tidak membuat tagihan ganda (kunci per lembaga × tahun × jenis).
+- **Daftar tagihan** (`/keuangan/tagihan?lembaga=&tahun=&jenis=&bulan=&status=&q=`): urut nama siswa lalu bulan, 50 per halaman; ringkasan jumlah, total (tanpa yang batal), sudah dibayar, sisa; tanda **Lewat jatuh tempo** untuk yang belum lunas. Cari nama/NIS hanya siswa yang masih aktif di lembaga.
+- **Batalkan tagihan**: alasan wajib 1–200 karakter; hanya bila **belum ada pembayaran** (FN-3: batalkan pembayarannya dulu). Tagihan batal tetap tampil (dicoret) dan tidak menghalangi tagihan baru untuk bulan yang sama.
+- **Hak akses**: lihat `finance.billing.view`; buat & batalkan `finance.invoices.manage` di lembaga itu. Menu **Tagihan** bagi pemilik `finance.billing.view`.
+- **Audit**: `finance.invoices_generated` (jenis biaya, lembaga, tahun ajaran, rentang bulan, jumlah, total), `finance.invoice_voided` (keterangan, nominal, alasan).
