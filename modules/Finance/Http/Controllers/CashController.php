@@ -4,13 +4,9 @@ namespace Modules\Finance\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
-use Modules\Core\Domain\Organization\Organization;
-use Modules\Core\Domain\Organization\OrganizationStatus;
-use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Authorization\FinanceAccess;
@@ -21,6 +17,7 @@ use Modules\Finance\Application\Cash\ManageCashEntries;
 use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Report\ReceiptRecap;
 use Modules\Finance\Domain\Cash\CashDirection;
+use Modules\Finance\Http\Controllers\Concerns\WorksPerCashBook;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 
 /**
@@ -32,10 +29,8 @@ use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
  */
 final class CashController
 {
+    use WorksPerCashBook;
     use WorksPerOrganization;
-
-    /** Nilai pilihan kas untuk kas Yayasan (organization_id kosong). */
-    public const YAYASAN = 'yayasan';
 
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -51,7 +46,7 @@ final class CashController
         }
 
         $key = $this->pick(array_column($books, 'value'), $request->query('kas')) ?? $books[0]['value'];
-        $organizationId = $key === self::YAYASAN ? null : $key;
+        $organizationId = $key === self::YAYASAN_KEY ? null : $key;
         $tenantId = $this->tenantId();
 
         $categories->ensureDefaults($tenantId);
@@ -197,79 +192,5 @@ final class CashController
         $this->attempt(fn () => $entries->void($this->tenantId(), $entry, $request->string('reason')->toString(), $this->tenantContext->require()->membershipId));
 
         return $this->done('Transaksi dibatalkan.');
-    }
-
-    // ── Bantuan ───────────────────────────────────────────────────────────────
-
-    /**
-     * Pilihan kas yang boleh dilihat: kas Yayasan (izin lihat kas tingkat Yayasan) lalu lembaga urut nama.
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    private function books(): array
-    {
-        $books = [];
-
-        if ($this->allowsAt(null, FinanceAccess::CASH_VIEW)) {
-            $books[] = ['value' => self::YAYASAN, 'label' => 'Kas Yayasan'];
-        }
-
-        foreach (Organization::query()
-            ->whereIn('id', $this->authorization->visibleNodeIds(FinanceAccess::CASH_VIEW))
-            ->where('type', OrganizationType::Lembaga->value)
-            ->where('status', OrganizationStatus::Active->value)
-            ->orderBy('name')
-            ->get() as $organization) {
-            $books[] = ['value' => $organization->id, 'label' => $organization->name];
-        }
-
-        return $books;
-    }
-
-    /**
-     * Kas dari isian `kas` (id lembaga atau "yayasan"), sesudah cek hak akses.
-     */
-    private function bookFromRequest(Request $request, string $permission): ?string
-    {
-        $key = $request->input('kas');
-
-        if (! is_string($key) || $key === '') {
-            abort(404);
-        }
-
-        if ($key === self::YAYASAN) {
-            $this->authorizeBook(null, $permission);
-
-            return null;
-        }
-
-        if (! Str::isUuid($key) || ! Organization::query()->whereKey($key)->where('type', OrganizationType::Lembaga->value)->exists()) {
-            abort(404);
-        }
-
-        $this->authorizeBook($key, $permission);
-
-        return $key;
-    }
-
-    /**
-     * Kas di luar cakupan lihat → 404; terlihat tetapi tanpa $permission → 403.
-     */
-    private function authorizeBook(?string $organizationId, string $permission): void
-    {
-        if (! $this->allowsAt($organizationId, FinanceAccess::CASH_VIEW)) {
-            abort(404);
-        }
-
-        if (! $this->allowsAt($organizationId, $permission)) {
-            abort(403);
-        }
-    }
-
-    private function allowsAt(?string $organizationId, string $permission): bool
-    {
-        return $organizationId === null
-            ? $this->authorization->inspectTarget($permission, null, null)->allowed()
-            : $this->authorization->allows($permission, $organizationId);
     }
 }

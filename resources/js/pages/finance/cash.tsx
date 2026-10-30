@@ -1,5 +1,5 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Landmark, Plus, Wallet } from 'lucide-react';
+import { Landmark, Plus, ReceiptText, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -213,6 +213,14 @@ export default function Cash({
                                 >
                                     <Plus />
                                     Catat pemasukan
+                                </Button>
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={`/keuangan/pengeluaran?${new URLSearchParams({ kas: bookKey, ajukan: bookKey })}`}
+                                    >
+                                        <ReceiptText />
+                                        Ajukan pengeluaran
+                                    </Link>
                                 </Button>
                                 <Button
                                     type="button"

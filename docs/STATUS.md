@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 SELESAI; KS-2 dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
-- **Commit terakhir:** `fbcfef6` — feat(finance): KS-1 kas umum — rekening, kategori, pemasukan, buku kas
+- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 & KS-2 SELESAI; KS-3 dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
+- **Commit terakhir:** `68a18cb` — feat(finance): KS-2 pembayaran siswa masuk buku kas
 
 ## Keputusan penting
 
@@ -753,11 +753,19 @@
 - Test: `tests/Feature/Finance/CashTest.php` (5 test, awalan `fnk`); `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan. 700 test lulus (7 arsitektur + 693), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**KS-2 — Pembayaran siswa masuk buku kas: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §13
+**KS-2 — Pembayaran siswa masuk buku kas: SELESAI (`68a18cb`)** — PRD-004 §13
 
 - Finance: migration `2026_10_30_300008_add_payment_mirror_to_fn_cash` (`receives_transfers` + indeks unik); `Application/Cash/PaymentCashSync` (cerminan kuitansi per lembaga / per kuitansi, kunci advisory); `ManagePayments::record|void` memanggilnya di dalam transaksi kasir (batal ditolak bila saldo minus); `ManageCashAccounts::setTransferReceiver`; saldo awal hanya dikunci transaksi non-cerminan; `CashController::setTransferReceiver` (`POST /keuangan/kas/rekening/{id}/penerima-transfer`), `index` menyinkronkan kas lembaga.
 - Frontend: `pages/finance/cash.tsx` — tanda **Otomatis** + tautan kuitansi, tombol **Jadikan penerima transfer siswa**, peringatan bila belum ada penerima.
 - Test: `tests/Feature/Finance/CashPaymentsTest.php` (3 test, awalan `fnm`). 703 test lulus (7 arsitektur + 696), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar.
+
+**KS-3 — Pengajuan → persetujuan → realisasi pengeluaran: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §14
+
+- Akses: `FinanceAccess::EXPENSES_APPROVE` (Kepala Lembaga, Pimpinan, Admin Keuangan, Admin Yayasan) → **wajib `php artisan educore:sync-access`**.
+- Finance: migration `2026_10_30_300009_create_fn_expense_requests_table`; `Domain/Cash/ExpenseStatus`; `Application/Cash` (`ManageExpenses`, `ExpenseList`, `ExpenseFileStore`); `ExpenseController` (`/keuangan/pengeluaran`, `/{id}/batalkan|setujui|tolak|realisasi|batalkan-realisasi`, `/{id}/lampiran|bukti`); trait `Http/Controllers/Concerns/WorksPerCashBook` (pilihan kas & cek izin kas, dipakai juga `CashController`); kartu Beranda `finance.expenses_pending` & `finance.expenses_approved`.
+- Frontend: `pages/finance/expenses.tsx`; menu Keuangan → **Pengeluaran**; tombol **Ajukan pengeluaran** di `pages/finance/cash.tsx`.
+- Test: `tests/Feature/Finance/ExpensesTest.php` (4 test, awalan `fne`); `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan. 707 test lulus (7 arsitektur + 700), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -797,6 +805,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji KS-2 oleh owner, lalu KS-3 (pengajuan → persetujuan → realisasi pengeluaran), KS-4 (mutasi & setoran ke Yayasan, laporan arus kas) — PRD-004 §7.
+1. Uji KS-3 oleh owner, lalu KS-4 (mutasi antar-rekening & setoran lembaga ke Yayasan, laporan arus kas + .xlsx) — PRD-004 §7.
 2. Keuangan lanjutan berikutnya (PRD-004 §11): tabungan siswa, payment gateway, pembukuan.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

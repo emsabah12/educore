@@ -7,6 +7,7 @@ use Modules\Finance\Http\Controllers\CashController;
 use Modules\Finance\Http\Controllers\CashierController;
 use Modules\Finance\Http\Controllers\ChildBillingController;
 use Modules\Finance\Http\Controllers\DiscountController;
+use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
@@ -62,6 +63,16 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/kas/rekening/{account}/penerima-transfer', [CashController::class, 'setTransferReceiver'])->whereUuid('account')->name('finance.cash-accounts.transfer-receiver');
     Route::post('keuangan/kas/pemasukan', [CashController::class, 'storeIncome'])->name('finance.cash-income.store');
     Route::post('keuangan/kas/transaksi/{entry}/batalkan', [CashController::class, 'voidEntry'])->whereUuid('entry')->name('finance.cash-entries.void');
+    // Pengeluaran (PRD-004 KS-3): ajukan → setujui/tolak → realisasi. Lihat: cash.view; ajukan/realisasi: cash.manage;
+    // setujui/tolak: expenses.approve (bukan pengajuan sendiri).
+    Route::get('keuangan/pengeluaran', [ExpenseController::class, 'index'])->name('finance.expenses.index');
+    Route::post('keuangan/pengeluaran', [ExpenseController::class, 'store'])->name('finance.expenses.store');
+    Route::post('keuangan/pengeluaran/{expense}/batalkan', [ExpenseController::class, 'cancel'])->whereUuid('expense')->name('finance.expenses.cancel');
+    Route::post('keuangan/pengeluaran/{expense}/setujui', [ExpenseController::class, 'approve'])->whereUuid('expense')->name('finance.expenses.approve');
+    Route::post('keuangan/pengeluaran/{expense}/tolak', [ExpenseController::class, 'reject'])->whereUuid('expense')->name('finance.expenses.reject');
+    Route::post('keuangan/pengeluaran/{expense}/realisasi', [ExpenseController::class, 'realize'])->whereUuid('expense')->name('finance.expenses.realize');
+    Route::post('keuangan/pengeluaran/{expense}/batalkan-realisasi', [ExpenseController::class, 'voidRealization'])->whereUuid('expense')->name('finance.expenses.void-realization');
+    Route::get('keuangan/pengeluaran/{expense}/{kind}', [ExpenseController::class, 'file'])->whereUuid('expense')->whereIn('kind', ['lampiran', 'bukti'])->name('finance.expenses.file');
     // Kategori kas: finance.settings.manage tingkat Yayasan.
     Route::get('keuangan/kategori-kas', [CashCategoryController::class, 'index'])->name('finance.cash-categories.index');
     Route::post('keuangan/kategori-kas', [CashCategoryController::class, 'store'])->name('finance.cash-categories.store');

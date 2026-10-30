@@ -1,8 +1,8 @@
 # PRD-004 — Modul Finance (Keuangan): Kas Umum & Pengeluaran
 
-- **Versi:** 0.3 (2026-10-30: rincian & pembangunan KS-2 pembayaran siswa masuk buku kas, §13)
-- **Versi sebelumnya:** 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.4 (2026-10-30: rincian & pembangunan KS-3 pengajuan → persetujuan → realisasi pengeluaran, §14)
+- **Versi sebelumnya:** 0.3 (KS-2, §13), 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 SELESAI (`68a18cb`); KS-3 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, aturan berjenjang), PRD-003 (tagihan & pembayaran siswa — penerimaan dari kasir), PRD-001 (HR: gaji tetap di HR), ADR-001
 - **Lanjutan dari:** PRD-003 §11 "Di luar tahap awal" — kas umum & pengeluaran
 
@@ -147,3 +147,16 @@ Anggaran (RAPBS) & realisasi anggaran, persetujuan berjenjang per nominal, pembu
 - **Kuitansi dibatalkan** di Kasir → barisnya ikut **Batal** ("Pembayaran dibatalkan: <alasan>"). Pembatalan kuitansi **ditolak** bila saldo rekening tujuan menjadi minus (OD-KS-08), dengan pesan agar menghubungi bendahara.
 - **Data**: `fn_cash_accounts.receives_transfers` (+ indeks unik per lembaga); satu cerminan per kuitansi (`fn_cash_entries.source = PEMBAYARAN`, indeks unik `source_id`).
 - **Audit**: penandaan penerima transfer dicatat sebagai `finance.cash_account_updated` (`penerima_transfer_siswa`). Cerminan tidak diaudit tersendiri (kuitansinya sudah diaudit, PRD-003 §8).
+
+## 14. KS-3 Pengajuan → persetujuan → realisasi pengeluaran [ASUMSI — rincian teknis 2026-10-30]
+
+- **Hak akses**: permission baru `finance.expenses.approve` — Kepala Lembaga, Pimpinan, Admin Keuangan, Admin Yayasan (§5). Kas lembaga: izin di lembaga itu; kas Yayasan: izin tingkat Yayasan (OD-KS-04). **Tidak boleh menyetujui/menolak pengajuan sendiri**, walau punya izin.
+- **Halaman Pengeluaran** (`/keuangan/pengeluaran`, menu Keuangan → _Pengeluaran_; tombol "Ajukan pengeluaran" juga di halaman Kas): saring kas (semua / satu) & status; urut menunggu persetujuan, siap direalisasi, lalu lainnya (terbaru dulu); 30 per halaman.
+- **Ajukan** (`finance.cash.manage` di kas itu): kas, kategori **pengeluaran** aktif, uraian 3–200, jumlah Rp 1–999.999.999.999, rencana tanggal opsional (±1 tahun), lampiran opsional (PDF/JPG/PNG ≤ 2 MB). Status **Menunggu persetujuan**. **Batalkan** hanya selama menunggu.
+- **Setujui**: jumlah disetujui Rp 1 s.d. jumlah diajukan (boleh dikurangi), catatan opsional → **Disetujui, belum direalisasi**. **Tolak**: alasan wajib 1–200 → **Ditolak**. Satu tingkat penyetuju (OD-KS-06).
+- **Realisasi** (`finance.cash.manage`): rekening aktif kas itu, tanggal keluar (tidak di masa depan, tidak sebelum tanggal pengajuan & tanggal saldo awal rekening), jumlah Rp 1 s.d. jumlah disetujui, bukti/nota opsional (disarankan). Ditolak bila saldo rekening kurang (OD-KS-08). Membuat transaksi kas **KELUAR** (kategori pengajuan, uraian "Pengeluaran — …", `source = PENGELUARAN`) → **Selesai (direalisasi)**; saldo berkurang dan saldo awal rekening terkunci.
+- **Batalkan realisasi** (`finance.cash.manage`): alasan wajib → transaksi kas **Batal**, pengajuan kembali **Disetujui** (bisa direalisasi ulang), bukti lama dihapus. Transaksi realisasi tidak bisa dibatalkan dari buku kas.
+- **Lampiran & bukti**: disimpan privat (`storage/app/private/tenants/{yayasan}/finance/expenses/…`), jenis dicek dari isi file, diunduh lewat `/keuangan/pengeluaran/{id}/lampiran|bukti` hanya oleh pemilik izin lihat kas itu.
+- **Beranda**: "Pengajuan menunggu persetujuan" (pemilik `expenses.approve`; tidak menghitung pengajuan sendiri) dan "Pengeluaran siap direalisasi" (pemilik `cash.manage`), sesuai cakupan kas.
+- **Data**: `fn_expense_requests` (status DIAJUKAN/DISETUJUI/DITOLAK/DIBATALKAN/DIREALISASI, jumlah diajukan & disetujui, pengaju, pemutus, catatan, lampiran, bukti, transaksi realisasi); paling banyak satu realisasi sah per pengajuan.
+- **Audit**: `finance.expense_requested|cancelled|approved|rejected|realized|realization_voided`.

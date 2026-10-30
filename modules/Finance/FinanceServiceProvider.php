@@ -17,10 +17,12 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
 use Modules\Finance\Application\Report\Arrears;
+use Modules\Finance\Domain\Cash\ExpenseStatus;
 
 /**
  * Modul Finance (Keuangan: tagihan & pembayaran siswa), spesifikasi: PRD-003.
@@ -52,8 +54,54 @@ class FinanceServiceProvider extends ModuleServiceProvider
         // Kartu Beranda "Tunggakan siswa" (PRD-003 FN-4a §17): pemilik finance.billing.view, sesuai cakupannya.
         $this->app->make(DashboardCards::class)->register('finance.arrears', fn (): ?array => $this->arrearsCard());
 
+        // Kartu Beranda pengeluaran (PRD-004 §6, KS-3): menunggu persetujuan (penyetuju) & siap direalisasi (bendahara).
+        $this->app->make(DashboardCards::class)
+            ->register('finance.expenses_pending', fn (): ?array => $this->expenseCard(FinanceAccess::EXPENSES_APPROVE))
+            ->register('finance.expenses_approved', fn (): ?array => $this->expenseCard(FinanceAccess::CASH_MANAGE));
+
         // Tombol "Tagihan" di halaman anak pada portal orang tua/wali (FN-5).
         $this->app->make(GuardianPortalLinks::class)->register('finance.billing', 'Tagihan', 'tagihan', 'receipt');
+    }
+
+    /**
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function expenseCard(string $permission): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        if ($context === null) {
+            return null;
+        }
+
+        $authorization = $this->app->make(AuthorizationService::class);
+        $yayasan = $authorization->inspectTarget($permission, null, null)->allowed();
+        $organizationIds = $authorization->visibleNodeIds($permission);
+
+        if (! $yayasan && $organizationIds === []) {
+            return null;
+        }
+
+        $approving = $permission === FinanceAccess::EXPENSES_APPROVE;
+        $count = $this->app->make(ExpenseList::class)->count(
+            $context->tenantId,
+            $organizationIds,
+            $yayasan,
+            $approving ? ExpenseStatus::Requested : ExpenseStatus::Approved,
+            // Pengajuan sendiri tidak bisa disetujui sendiri, jadi tidak dihitung.
+            $approving ? $context->membershipId : null,
+        );
+
+        return [
+            'key' => $approving ? 'finance.expenses_pending' : 'finance.expenses_approved',
+            'title' => $approving ? 'Pengajuan menunggu persetujuan' : 'Pengeluaran siap direalisasi',
+            'value' => $count,
+            'description' => $count === 0
+                ? ($approving ? 'Tidak ada pengajuan pengeluaran yang menunggu.' : 'Tidak ada pengeluaran disetujui yang belum direalisasi.')
+                : ($approving ? "{$count} pengajuan pengeluaran perlu disetujui atau ditolak." : "{$count} pengeluaran disetujui menunggu dicatat keluar."),
+            'href' => '/keuangan/pengeluaran?status='.($approving ? ExpenseStatus::Requested->value : ExpenseStatus::Approved->value),
+            'tone' => $count > 0 ? 'warning' : 'default',
+        ];
     }
 
     /**

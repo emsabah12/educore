@@ -29,6 +29,9 @@ final class FinanceAccess
     /** Kelola kas: rekening & saldo awal, catat pemasukan, batalkan transaksi (PRD-004 §5). */
     public const CASH_MANAGE = 'finance.cash.manage';
 
+    /** Setujui / tolak pengajuan pengeluaran kas (PRD-004 §4–§5, KS-3); tidak berlaku untuk pengajuan sendiri. */
+    public const EXPENSES_APPROVE = 'finance.expenses.approve';
+
     /** Bendahara lembaga (OD-FN-02): dipasang pada penugasan di lembaga lewat Kelola akses. */
     public const ROLE_BENDAHARA = 'bendahara';
 
@@ -37,7 +40,7 @@ final class FinanceAccess
 
     public static function register(AccessCatalog $catalog): void
     {
-        $all = [self::BILLING_VIEW, self::PAYMENTS_MANAGE, self::INVOICES_MANAGE, self::SETTINGS_MANAGE, self::CASH_VIEW, self::CASH_MANAGE];
+        $all = [self::BILLING_VIEW, self::PAYMENTS_MANAGE, self::INVOICES_MANAGE, self::SETTINGS_MANAGE, self::CASH_VIEW, self::CASH_MANAGE, self::EXPENSES_APPROVE];
 
         $catalog
             ->permission(self::BILLING_VIEW, 'Lihat tagihan & pembayaran siswa')
@@ -45,14 +48,15 @@ final class FinanceAccess
             ->permission(self::INVOICES_MANAGE, 'Kelola tagihan & potongan siswa')
             ->permission(self::SETTINGS_MANAGE, 'Kelola jenis biaya, tarif & kategori kas')
             ->permission(self::CASH_VIEW, 'Lihat kas & saldo')
-            ->permission(self::CASH_MANAGE, 'Kelola kas (rekening, pemasukan)');
+            ->permission(self::CASH_MANAGE, 'Kelola kas (rekening, pemasukan, pengajuan & realisasi pengeluaran)')
+            ->permission(self::EXPENSES_APPROVE, 'Setujui pengajuan pengeluaran');
 
         $catalog
             ->role(self::ROLE_BENDAHARA, 'Bendahara', [self::BILLING_VIEW, self::PAYMENTS_MANAGE, self::INVOICES_MANAGE, self::CASH_VIEW, self::CASH_MANAGE])
             ->role(self::ROLE_ADMIN_KEUANGAN, 'Admin Keuangan', $all)
             ->grant(CoreAccess::ROLE_ADMIN_YAYASAN, $all)
-            ->grant(CoreAccess::ROLE_PIMPINAN, [self::BILLING_VIEW, self::CASH_VIEW])
-            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::BILLING_VIEW, self::CASH_VIEW])
+            ->grant(CoreAccess::ROLE_PIMPINAN, [self::BILLING_VIEW, self::CASH_VIEW, self::EXPENSES_APPROVE])
+            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::BILLING_VIEW, self::CASH_VIEW, self::EXPENSES_APPROVE])
             ->offerAsTenantRole(self::ROLE_ADMIN_KEUANGAN)
             ->offerAsAssignmentRole(self::ROLE_BENDAHARA);
     }

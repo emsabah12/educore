@@ -50,7 +50,21 @@ final class FinanceAuditAction
 
     public const CASH_ENTRY_VOIDED = 'finance.cash_entry_voided';
 
+    public const EXPENSE_REQUESTED = 'finance.expense_requested';
+
+    public const EXPENSE_CANCELLED = 'finance.expense_cancelled';
+
+    public const EXPENSE_APPROVED = 'finance.expense_approved';
+
+    public const EXPENSE_REJECTED = 'finance.expense_rejected';
+
+    public const EXPENSE_REALIZED = 'finance.expense_realized';
+
+    public const EXPENSE_REALIZATION_VOIDED = 'finance.expense_realization_voided';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
+
+    public const SUBJECT_EXPENSE = 'fn_expense_request';
 
     public const SUBJECT_CASH_CATEGORY = 'fn_cash_category';
 
@@ -92,6 +106,12 @@ final class FinanceAuditAction
             self::CASH_ACCOUNT_UPDATED => 'Rekening kas diubah',
             self::CASH_ENTRY_RECORDED => 'Transaksi kas dicatat',
             self::CASH_ENTRY_VOIDED => 'Transaksi kas dibatalkan',
+            self::EXPENSE_REQUESTED => 'Pengeluaran diajukan',
+            self::EXPENSE_CANCELLED => 'Pengajuan pengeluaran dibatalkan',
+            self::EXPENSE_APPROVED => 'Pengeluaran disetujui',
+            self::EXPENSE_REJECTED => 'Pengeluaran ditolak',
+            self::EXPENSE_REALIZED => 'Pengeluaran direalisasi',
+            self::EXPENSE_REALIZATION_VOIDED => 'Realisasi pengeluaran dibatalkan',
         ];
     }
 }

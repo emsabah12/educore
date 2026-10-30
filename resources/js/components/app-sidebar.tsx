@@ -26,6 +26,7 @@ import {
     Percent,
     Plane,
     Receipt,
+    ReceiptText,
     School,
     ScrollText,
     ShieldCheck,
@@ -221,6 +222,12 @@ const cashNavItem: NavItem = {
     icon: Landmark,
 };
 
+const expensesNavItem: NavItem = {
+    title: 'Pengeluaran',
+    href: '/keuangan/pengeluaran',
+    icon: ReceiptText,
+};
+
 const cashCategoriesNavItem: NavItem = {
     title: 'Kategori kas',
     href: '/keuangan/kategori-kas',
@@ -317,7 +324,9 @@ export function AppSidebar() {
                   discountsNavItem,
               ]
             : []),
-        ...(permissions.includes('finance.cash.view') ? [cashNavItem] : []),
+        ...(permissions.includes('finance.cash.view')
+            ? [cashNavItem, expensesNavItem]
+            : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem, cashCategoriesNavItem]
             : []),
