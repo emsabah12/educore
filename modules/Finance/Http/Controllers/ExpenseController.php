@@ -60,6 +60,7 @@ final class ExpenseController
 
         $result = $list->list($tenantId, $organizationIds, in_array(self::YAYASAN_KEY, $selected, true), $status, max(1, $request->integer('halaman', 1)));
         $labels = array_column($books, 'label', 'value');
+        $foundationApprover = $this->allowsAt(null, FinanceAccess::EXPENSES_APPROVE);
         $permissions = [];
         $rows = [];
 
@@ -70,14 +71,26 @@ final class ExpenseController
                 'approve' => $this->allowsAt($row['organization_id'], FinanceAccess::EXPENSES_APPROVE),
             ];
             $own = $row['requested_by_id'] !== null && $row['requested_by_id'] === $membershipId;
+            $firstApprover = $row['first_decision'] !== null && $row['first_decision']['by_id'] === $membershipId;
             unset($row['requested_by_id']);
+
+            if ($row['first_decision'] !== null) {
+                unset($row['first_decision']['by_id']);
+            }
+
+            // KS-5: menunggu Yayasan → hanya penyetuju tingkat Yayasan, bukan penyetuju tahap pertama.
+            $canDecide = ! $own && match ($row['status']) {
+                ExpenseStatus::Requested->value => $permissions[$key]['approve'],
+                ExpenseStatus::AwaitingFoundation->value => $foundationApprover && ! $firstApprover,
+                default => false,
+            };
 
             $rows[] = $row + [
                 'book' => $labels[$key] ?? '',
                 'book_key' => $key,
                 'is_own' => $own,
-                'can_cancel' => $permissions[$key]['manage'] && $row['status'] === ExpenseStatus::Requested->value,
-                'can_decide' => $permissions[$key]['approve'] && ! $own && $row['status'] === ExpenseStatus::Requested->value,
+                'can_cancel' => $permissions[$key]['manage'] && in_array($row['status'], [ExpenseStatus::Requested->value, ExpenseStatus::AwaitingFoundation->value], true),
+                'can_decide' => $canDecide,
                 'can_realize' => $permissions[$key]['manage'] && $row['status'] === ExpenseStatus::Approved->value,
                 'can_void' => $permissions[$key]['manage'] && $row['status'] === ExpenseStatus::Realized->value,
             ];
@@ -156,15 +169,16 @@ final class ExpenseController
             $request->input('approved_amount'),
             $request->string('decision_note')->toString(),
             $this->tenantContext->require()->membershipId,
+            $this->allowsAt(null, FinanceAccess::EXPENSES_APPROVE),
         ));
 
-        return $this->done('Pengeluaran disetujui.');
+        return $this->done('Persetujuan disimpan.');
     }
 
     public function reject(Request $request, string $expense, ManageExpenses $expenses): RedirectResponse
     {
         $this->authorizeExpense($expense, $expenses, FinanceAccess::EXPENSES_APPROVE);
-        $this->attempt(fn () => $expenses->reject($this->tenantId(), $expense, $request->string('decision_note')->toString(), $this->tenantContext->require()->membershipId));
+        $this->attempt(fn () => $expenses->reject($this->tenantId(), $expense, $request->string('decision_note')->toString(), $this->tenantContext->require()->membershipId, $this->allowsAt(null, FinanceAccess::EXPENSES_APPROVE)));
 
         return $this->done('Pengeluaran ditolak.');
     }

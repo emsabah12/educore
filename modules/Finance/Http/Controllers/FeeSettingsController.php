@@ -15,9 +15,12 @@ use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Cash\ExpenseApprovalLimitSetting;
+use Modules\Finance\Application\Cash\ManageCashAccounts;
 use Modules\Finance\Application\Fee\FeeSettingsOverview;
 use Modules\Finance\Application\Fee\ManageFeeRates;
 use Modules\Finance\Application\Fee\ManageFeeTypes;
+use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
@@ -65,6 +68,11 @@ final class FeeSettingsController
             'dueDay' => [
                 'rules' => $settings->rules($tenantId, DueDaySetting::KEY, fn (mixed $value): string => DueDaySetting::label(DueDaySetting::normalize($value))),
                 'usage' => $settings->usage($tenantId, DueDaySetting::KEY, fn (mixed $value): string => DueDaySetting::label(DueDaySetting::normalize($value))),
+            ],
+            // KS-5 (PRD-004 §16): batas persetujuan pengeluaran berjenjang.
+            'approvalLimit' => [
+                'rules' => $settings->rules($tenantId, ExpenseApprovalLimitSetting::KEY, fn (mixed $value): string => ExpenseApprovalLimitSetting::label(ExpenseApprovalLimitSetting::normalize($value))),
+                'usage' => $settings->usage($tenantId, ExpenseApprovalLimitSetting::KEY, fn (mixed $value): string => ExpenseApprovalLimitSetting::label(ExpenseApprovalLimitSetting::normalize($value))),
             ],
             'targets' => $settings->targetOptions($tenantId),
         ]);
@@ -164,6 +172,40 @@ final class FeeSettingsController
     /**
      * Jatuh tempo tagihan bulanan (FN-2a): tanggal 1–28, se-yayasan, per jenjang, atau per lembaga/unit.
      */
+    /**
+     * Batas persetujuan pengeluaran per Yayasan/jenjang/lembaga (KS-5). 0 = tanpa batas.
+     */
+    public function setApprovalLimit(Request $request, SetScopedSetting $settings): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'target' => ['required', Rule::in(['yayasan', 'jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+        ]);
+
+        $limit = $this->attempt(fn (): int => Rupiah::parse($request->input('limit'), 'limit', 'batas', 0, ManageCashAccounts::MAX_AMOUNT));
+
+        [$organizationId, $jenjang] = match ($request->string('target')->value()) {
+            'jenjang' => [null, Jenjang::from($request->string('jenjang')->value())],
+            'lembaga' => [$request->string('organization_id')->value(), null],
+            default => [null, null],
+        };
+
+        try {
+            $settings->handle(ExpenseApprovalLimitSetting::KEY, $organizationId, $jenjang, $limit, $request->boolean('enforced'));
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['limit' => $exception->getMessage()]);
+        }
+
+        return $this->done('Batas persetujuan disimpan. Berlaku untuk persetujuan berikutnya.');
+    }
+
     public function setDueDay(Request $request, SetScopedSetting $settings): RedirectResponse
     {
         $this->authorize();

@@ -46,6 +46,7 @@ type Props = {
     yearId: string | null;
     rates: RateRow[];
     dueDay: RulesData;
+    approvalLimit: RulesData;
     targets: TargetOptions;
 };
 
@@ -69,6 +70,7 @@ export default function FinanceSettings({
     yearId,
     rates,
     dueDay,
+    approvalLimit,
     targets,
 }: Props) {
     return (
@@ -121,6 +123,8 @@ export default function FinanceSettings({
                 />
 
                 <DueDaySection data={dueDay} targets={targets} />
+
+                <ApprovalLimitSection data={approvalLimit} targets={targets} />
             </div>
         </>
     );
@@ -184,6 +188,71 @@ function DueDaySection({
                     data={data}
                     emptyText="Belum ada pengaturan. Semua lembaga: tanggal 10 setiap bulan."
                     usageTitle="Jatuh tempo yang berlaku di tiap lembaga"
+                />
+            </div>
+        </section>
+    );
+}
+
+/**
+ * Batas persetujuan pengeluaran berjenjang (PRD-004 KS-5): jumlah disetujui Kepala Lembaga di atas batas perlu
+ * persetujuan kedua tingkat Yayasan. 0 = tanpa batas. Aturan berjenjang seperti jatuh tempo.
+ */
+function ApprovalLimitSection({
+    data,
+    targets,
+}: {
+    data: RulesData;
+    targets: TargetOptions;
+}) {
+    return (
+        <section
+            aria-label="Batas persetujuan pengeluaran"
+            className="space-y-3"
+        >
+            <Heading
+                variant="small"
+                title="Batas persetujuan pengeluaran"
+                description="Pengeluaran kas lembaga yang disetujui Kepala Lembaga di atas batas ini perlu persetujuan kedua dari Pimpinan/Admin Keuangan Yayasan. Isi 0 untuk tanpa batas (bawaan)."
+            />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Form
+                    action="/keuangan/batas-persetujuan"
+                    method="post"
+                    errorBag="approvalLimit"
+                    options={{ preserveScroll: true }}
+                    className="space-y-3 rounded-xl border p-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <TargetFields
+                                idPrefix="limit"
+                                options={targets}
+                                errors={errors}
+                            />
+                            <div className="grid gap-1.5 sm:max-w-64">
+                                <Label htmlFor="limit-value">Batas (Rp)</Label>
+                                <Input
+                                    id="limit-value"
+                                    name="limit"
+                                    inputMode="numeric"
+                                    placeholder="mis. 5.000.000"
+                                    required
+                                />
+                                <InputError message={errors.limit} />
+                            </div>
+                            <InputError message={errors.form} />
+                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai batas lain." />
+                            <Button type="submit" disabled={processing}>
+                                Simpan batas
+                            </Button>
+                        </>
+                    )}
+                </Form>
+                <RulesPanel
+                    data={data}
+                    emptyText="Belum ada pengaturan. Semua lembaga: tanpa batas (cukup Kepala Lembaga)."
+                    usageTitle="Batas yang berlaku di tiap lembaga"
                 />
             </div>
         </section>

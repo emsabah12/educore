@@ -17,6 +17,7 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Cash\ExpenseApprovalLimitSetting;
 use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
@@ -46,7 +47,10 @@ class FinanceServiceProvider extends ModuleServiceProvider
         AuditAction::registerLabels(FinanceAuditAction::labels());
 
         // Jatuh tempo tagihan bulanan per jenjang/lembaga (PRD-003 §4, FN-2a).
-        $this->app->make(SettingRegistry::class)->define(DueDaySetting::definition());
+        $this->app->make(SettingRegistry::class)
+            ->define(DueDaySetting::definition())
+            // Batas persetujuan pengeluaran berjenjang per jenjang/lembaga (PRD-004 §16, KS-5).
+            ->define(ExpenseApprovalLimitSetting::definition());
 
         // Siswa keluar → tagihan bulan sesudahnya yang belum dibayar dibatalkan (OD-FN-07, FN-2b).
         Event::listen(EnrollmentClosed::class, [VoidInvoicesAfterExit::class, 'handle']);
@@ -83,7 +87,8 @@ class FinanceServiceProvider extends ModuleServiceProvider
         }
 
         $approving = $permission === FinanceAccess::EXPENSES_APPROVE;
-        $count = $this->app->make(ExpenseList::class)->count(
+        $list = $this->app->make(ExpenseList::class);
+        $count = $list->count(
             $context->tenantId,
             $organizationIds,
             $yayasan,
@@ -91,6 +96,11 @@ class FinanceServiceProvider extends ModuleServiceProvider
             // Pengajuan sendiri tidak bisa disetujui sendiri, jadi tidak dihitung.
             $approving ? $context->membershipId : null,
         );
+
+        // KS-5: penyetuju tingkat Yayasan juga melihat pengajuan lembaga yang menunggu persetujuan kedua.
+        if ($approving && $yayasan) {
+            $count += $list->countAwaitingFoundation($context->tenantId, $context->membershipId);
+        }
 
         return [
             'key' => $approving ? 'finance.expenses_pending' : 'finance.expenses_approved',

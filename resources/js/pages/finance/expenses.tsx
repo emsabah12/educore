@@ -14,6 +14,7 @@ type AccountOption = Option & { balance: number };
 
 type Status =
     | 'DIAJUKAN'
+    | 'MENUNGGU_YAYASAN'
     | 'DISETUJUI'
     | 'DITOLAK'
     | 'DIBATALKAN'
@@ -35,6 +36,12 @@ type Expense = {
     decided_by: string | null;
     decided_at: string | null;
     decision_note: string | null;
+    first_decision: {
+        by: string | null;
+        at: string;
+        amount: number;
+        note: string | null;
+    } | null;
     attachment_name: string | null;
     proof_name: string | null;
     realized: { account: string; date: string; amount: number } | null;
@@ -84,6 +91,7 @@ const statusVariant: Record<
     'default' | 'secondary' | 'outline' | 'destructive'
 > = {
     DIAJUKAN: 'default',
+    MENUNGGU_YAYASAN: 'default',
     DISETUJUI: 'secondary',
     DITOLAK: 'destructive',
     DIBATALKAN: 'outline',
@@ -427,6 +435,20 @@ function ExpenseCard({
                 </div>
             </div>
 
+            {expense.first_decision && (
+                <p className="text-muted-foreground">
+                    Tahap 1 disetujui{' '}
+                    {formatRupiah(expense.first_decision.amount)}
+                    {expense.first_decision.by &&
+                        ` oleh ${expense.first_decision.by}`}{' '}
+                    ({formatDate(expense.first_decision.at)})
+                    {expense.first_decision.note &&
+                        `: ${expense.first_decision.note}`}
+                    {expense.status === 'MENUNGGU_YAYASAN' &&
+                        ' — di atas batas, menunggu persetujuan Yayasan.'}
+                </p>
+            )}
+
             {(expense.decided_by || expense.decision_note) && (
                 <p
                     className={
@@ -475,7 +497,8 @@ function ExpenseCard({
             )}
 
             {expense.is_own &&
-                expense.status === 'DIAJUKAN' &&
+                (expense.status === 'DIAJUKAN' ||
+                    expense.status === 'MENUNGGU_YAYASAN') &&
                 !expense.can_decide && (
                     <p className="text-xs text-muted-foreground">
                         Menunggu persetujuan pihak lain (pengaju tidak bisa
@@ -554,13 +577,20 @@ function ExpenseCard({
                             <div className="grid gap-1.5">
                                 <Label htmlFor={`appr-${expense.id}`}>
                                     Jumlah disetujui (Rp, maks.{' '}
-                                    {formatRupiah(expense.amount)})
+                                    {formatRupiah(
+                                        expense.approved_amount ??
+                                            expense.amount,
+                                    )}
+                                    )
                                 </Label>
                                 <Input
                                     id={`appr-${expense.id}`}
                                     name="approved_amount"
                                     inputMode="numeric"
-                                    defaultValue={String(expense.amount)}
+                                    defaultValue={String(
+                                        expense.approved_amount ??
+                                            expense.amount,
+                                    )}
                                     required
                                 />
                                 <InputError message={errors.approved_amount} />

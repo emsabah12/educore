@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-3 SELESAI; KS-4 dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
-- **Commit terakhir:** `1428db8` — feat(finance): KS-3 pengajuan, persetujuan & realisasi pengeluaran
+- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-4 SELESAI; KS-5 (persetujuan berjenjang) dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
+- **Commit terakhir:** `d672621` — feat(finance): KS-4 mutasi kas & laporan arus kas
 
 ## Keputusan penting
 
@@ -45,6 +45,7 @@
 | 2026-10-28 | Nomor HP orang tua/wali **unik** (satu HP = satu orang tua/wali); pencarian orang tua/wali tercatat lewat sebagian nama/HP dengan nama anak + lembaga, untuk Admin Yayasan & Operator Akademik                                                                                                                  | PRD-002 §21.5, OD-AC-19, OD-AC-20                        |
 | 2026-10-28 | Modul **Keuangan** (`modules/Finance`): tagihan & pembayaran siswa; Bendahara per lembaga (role baru) + Admin Keuangan tingkat Yayasan (role baru, terpisah dari Admin SDM); pembayaran dicatat petugas; tarif per lembaga/tahun ajaran/tingkat; kelebihan bayar ditolak; tanpa denda                           | PRD-003, OD-FN-01 s.d. OD-FN-08                          |
 | 2026-10-30 | Keuangan lanjutan pertama = **kas umum & pengeluaran**: kas per lembaga + kas Yayasan; pengeluaran wajib diajukan → disetujui (Kepala Lembaga / Pimpinan Yayasan) → direalisasi; pembayaran siswa otomatis masuk buku kas; saldo tidak boleh minus                                                              | PRD-004, OD-KS-01 s.d. OD-KS-08                          |
+| 2026-10-30 | Urutan keuangan lanjutan: persetujuan berjenjang (batas nominal → naik ke Yayasan) → tabungan siswa → payment gateway **Midtrans** (akun sudah ada) → pembukuan                                                                                                                                                 | PRD-004 §11, §16, OD-KS-06                               |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -768,11 +769,18 @@
 - Test: `tests/Feature/Finance/ExpensesTest.php` (4 test, awalan `fne`); `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan. 707 test lulus (7 arsitektur + 700), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**KS-4 — Mutasi & laporan arus kas: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §15
+**KS-4 — Mutasi & laporan arus kas: SELESAI (`d672621`)** — PRD-004 §15
 
 - Finance: migration `2026_10_30_300010_create_fn_cash_transfers_table`; `Application/Cash/ManageCashTransfers`; kategori sistem `MUTASI-MASUK|KELUAR` (`ManageCashCategories::ensureDefaults` melengkapi kategori sistem, `systemId`); `CashBook::ledger` memisahkan mutasi (`transfer_in|out`); `CashController::storeTransfer|voidTransfer` (`POST /keuangan/kas/mutasi`, `/mutasi/{id}/batalkan`) + `transferTargets`; `Application/Report/CashFlowReport` & `CashFlowExport`; `CashReportController` (`/keuangan/laporan-kas`, `/unduh`). Kategori sistem tidak bisa dipilih untuk pengajuan pengeluaran.
 - Frontend: `pages/finance/cash.tsx` (form **Mutasi / setoran**, tanda Mutasi, batal mutasi, ringkasan mutasi), `pages/finance/cash-report.tsx`; menu Keuangan → **Laporan kas**.
 - Test: `tests/Feature/Finance/CashTransfersTest.php` (4 test, awalan `fnt`); `CashTest` disesuaikan (12 kategori bawaan). 711 test lulus (7 arsitektur + 704), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar.
+
+**KS-5 — Persetujuan pengeluaran berjenjang: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §16
+
+- Finance: `Application/Cash/ExpenseApprovalLimitSetting` (aturan berjenjang `finance.expense_approval_limit`, didaftarkan di `FinanceServiceProvider`); migration `2026_10_30_300011_add_second_approval_to_fn_expense_requests` (status `MENUNGGU_YAYASAN`, kolom tahap 1, `status` varchar 20); `ManageExpenses::approve|reject` (parameter `$foundationLevel`), `cancel` mengizinkan menunggu Yayasan; `ExpenseList` (`first_decision`, `countAwaitingFoundation`); `ExpenseController` (`can_decide` tahap 2); `FeeSettingsController::setApprovalLimit` (`POST /keuangan/batas-persetujuan`).
+- Frontend: `pages/finance/settings.tsx` (bagian **Batas persetujuan pengeluaran**), `pages/finance/expenses.tsx` (status & jejak tahap 1).
+- Test: `tests/Feature/Finance/ExpenseApprovalLimitTest.php` (2 test, awalan `fnb`). 713 test lulus (7 arsitektur + 706), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -808,10 +816,11 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Pegawai yang ditautkan ke akun yang sudah ada memakai nama orang akun itu (bukan nama di `NewEmployeeData`); ekspektasi test harus memakai nama tersebut (AC-5d-fix1).
 - Permission baru untuk role yang sudah ada: perbarui juga test yang mencocokkan daftar permission role (mis. `TreeAuthorizationTest`, `AccessCatalogTest`). Seeder yang mencatat audit: saring audit di test per subjek (HR-3a-fix1).
 - `composer test` menjalankan test arsitektur (`--testsuite=Architecture`) dan test lain (`--testsuite=Unit,Feature`) di **dua proses terpisah**: Pest arch mem-parse seluruh kode dan menahan ±400 MB sampai proses selesai, sehingga di Windows/Laragon (`memory_limit` 512M) test berikutnya kehabisan memori sesudah FN-1a menambah aturan batas modul (2026-10-28). Saat menjalankan satu file test, cukup `php artisan test tests/Feature/...`.
+- `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Uji KS-4 oleh owner → Kas umum & pengeluaran (PRD-004 KS-1 s.d. KS-4) selesai.
-2. Keuangan lanjutan berikutnya (PRD-004 §11): tabungan siswa, payment gateway, pembukuan.
+1. Uji KS-5 oleh owner.
+2. Keuangan lanjutan berikutnya (urutan owner, PRD-004 §11): tabungan siswa → payment gateway Midtrans → pembukuan; masing-masing dirinci & disetujui dulu.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

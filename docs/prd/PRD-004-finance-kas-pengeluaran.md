@@ -1,8 +1,8 @@
 # PRD-004 — Modul Finance (Keuangan): Kas Umum & Pengeluaran
 
-- **Versi:** 0.5 (2026-10-30: rincian & pembangunan KS-4 mutasi & laporan arus kas, §15)
-- **Versi sebelumnya:** 0.4 (KS-3, §14), 0.3 (KS-2, §13), 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 SELESAI (`68a18cb`); KS-3 SELESAI (`1428db8`); KS-4 dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.6 (2026-10-30: urutan fitur lanjutan; rincian & pembangunan KS-5 persetujuan berjenjang, §16)
+- **Versi sebelumnya:** 0.5 (KS-4, §15), 0.4 (KS-3, §14), 0.3 (KS-2, §13), 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 SELESAI (`68a18cb`); KS-3 SELESAI (`1428db8`); KS-4 SELESAI (`d672621`); KS-5 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, aturan berjenjang), PRD-003 (tagihan & pembayaran siswa — penerimaan dari kasir), PRD-001 (HR: gaji tetap di HR), ADR-001
 - **Lanjutan dari:** PRD-003 §11 "Di luar tahap awal" — kas umum & pengeluaran
 
@@ -111,17 +111,19 @@ Aturan tambahan: tidak boleh menyetujui pengajuan sendiri (walau punya izin).
 
 ## 10. Open decisions
 
-| ID       | Topik                                      | Usulan                                                                                                   |
-| -------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| OD-KS-04 | Penyetuju kas Yayasan                      | **DIPUTUSKAN** — Pimpinan tingkat Yayasan (+ Admin Yayasan) [OWNER, 2026-10-30]                          |
-| OD-KS-05 | Pembayaran siswa otomatis masuk buku kas   | **DIPUTUSKAN** — ya (KS-2), per tanggal bayar; batal ikut batal [OWNER, 2026-10-30]                      |
-| OD-KS-06 | Batas nominal persetujuan berjenjang       | **DIPUTUSKAN** — satu tingkat penyetuju dulu; berjenjang menyusul [OWNER, 2026-10-30]                    |
-| OD-KS-07 | Pemasukan lain & mutasi perlu persetujuan? | **DIPUTUSKAN** — tidak, langsung sah (dibatalkan bila salah) [OWNER, 2026-10-30]                         |
-| OD-KS-08 | Saldo boleh minus?                         | **DIPUTUSKAN** — tidak; keluar/mutasi/pembatalan pemasukan ditolak bila saldo kurang [OWNER, 2026-10-30] |
+| ID       | Topik                                      | Usulan                                                                                                              |
+| -------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| OD-KS-04 | Penyetuju kas Yayasan                      | **DIPUTUSKAN** — Pimpinan tingkat Yayasan (+ Admin Yayasan) [OWNER, 2026-10-30]                                     |
+| OD-KS-05 | Pembayaran siswa otomatis masuk buku kas   | **DIPUTUSKAN** — ya (KS-2), per tanggal bayar; batal ikut batal [OWNER, 2026-10-30]                                 |
+| OD-KS-06 | Batas nominal persetujuan berjenjang       | **DIPUTUSKAN** — satu tingkat dulu (KS-3); lalu **batas nominal → naik ke Yayasan** (KS-5, §16) [OWNER, 2026-10-30] |
+| OD-KS-07 | Pemasukan lain & mutasi perlu persetujuan? | **DIPUTUSKAN** — tidak, langsung sah (dibatalkan bila salah) [OWNER, 2026-10-30]                                    |
+| OD-KS-08 | Saldo boleh minus?                         | **DIPUTUSKAN** — tidak; keluar/mutasi/pembatalan pemasukan ditolak bila saldo kurang [OWNER, 2026-10-30]            |
 
 ## 11. Di luar tahap ini
 
-Anggaran (RAPBS) & realisasi anggaran, persetujuan berjenjang per nominal, pembukuan (COA, jurnal, neraca), rekonsiliasi mutasi bank otomatis, tabungan siswa, payment gateway, integrasi gaji HR ke kas.
+Anggaran (RAPBS) & realisasi anggaran, pembukuan (COA, jurnal, neraca), rekonsiliasi mutasi bank otomatis, tabungan siswa, payment gateway, integrasi gaji HR ke kas.
+
+**Urutan fitur lanjutan [OWNER, 2026-10-30]**: (1) persetujuan berjenjang per nominal — KS-5, §16; (2) tabungan siswa; (3) payment gateway **Midtrans** (yayasan sudah punya akun); (4) pembukuan. Masing-masing dirinci & disetujui sebelum dibangun.
 
 ## 12. KS-1 Kas, rekening, kategori, pemasukan, buku kas [ASUMSI — rincian teknis 2026-10-30]
 
@@ -175,3 +177,15 @@ Anggaran (RAPBS) & realisasi anggaran, persetujuan berjenjang per nominal, pembu
     - **Unduh .xlsx** (`/keuangan/laporan-kas/unduh`): lembar Ringkasan, Per bulan (tahunan), Per kas (lebih dari satu kas), Transaksi (semua transaksi sah periode itu). Nama file `laporan-kas-<kode lembaga | yayasan | semua-kas>-<periode>.xlsx`.
 - **Data**: `fn_cash_transfers` (rekening asal & tujuan, tanggal, jumlah, uraian, status SAH/BATAL + alasan); baris kas `source = MUTASI`, `source_id` = id mutasi.
 - **Audit**: `finance.cash_transfer_recorded|voided`.
+
+## 16. KS-5 Persetujuan pengeluaran berjenjang per nominal [OWNER bentuk aturan, 2026-10-30; rincian ASUMSI]
+
+- **Aturan berjenjang** `finance.expense_approval_limit` (Keuangan → Pengaturan → _Batas persetujuan pengeluaran_; `finance.settings.manage` tingkat Yayasan): batas rupiah se-Yayasan / per jenjang / per lembaga, bisa dikunci (seperti jatuh tempo). **Bawaan 0 = tanpa batas** (satu tingkat seperti KS-3). Berlaku untuk persetujuan berikutnya.
+- **Kas lembaga**: bila **jumlah disetujui** tahap 1 **melebihi batas** lembaga itu dan penyetujunya **bukan** penyetuju tingkat Yayasan → status **Menunggu persetujuan Yayasan** (`MENUNGGU_YAYASAN`); jejak tahap 1 disimpan (penyetuju, tanggal, jumlah, catatan).
+    - **Tahap 2**: penyetuju dengan `finance.expenses.approve` **tingkat Yayasan** (Pimpinan Yayasan, Admin Keuangan, Admin Yayasan) yang **bukan pengaju dan bukan penyetuju tahap 1**; boleh menurunkan jumlah lagi (maks. jumlah tahap 1) atau menolak (alasan wajib).
+    - Penyetuju tahap 1 yang sudah tingkat Yayasan → persetujuannya langsung final.
+    - Selama menunggu Yayasan: belum bisa direalisasi; bendahara masih bisa membatalkan pengajuan.
+- **Kas Yayasan**: tetap satu tingkat (OD-KS-04).
+- **Beranda**: kartu "Pengajuan menunggu persetujuan" penyetuju tingkat Yayasan ikut menghitung pengajuan yang menunggu Yayasan (tanpa pengajuan sendiri / yang tahap 1-nya ia setujui).
+- **Data**: `fn_expense_requests.first_decided_by_membership_id|first_decided_at|first_approved_amount|first_decision_note`, status baru `MENUNGGU_YAYASAN`.
+- **Audit**: `finance.expense_approved` mencatat tingkat (`lembaga` + batas + lanjut ke Yayasan, atau `Yayasan`).

@@ -26,7 +26,8 @@ use Throwable;
  * - ajukan: kategori KELUAR aktif, uraian 3–200, jumlah Rp 1–999.999.999.999, rencana tanggal opsional (±1 tahun),
  *   lampiran opsional (PDF/JPG/PNG ≤ 2 MB);
  * - batalkan: hanya selama Menunggu persetujuan;
- * - setujui: jumlah disetujui Rp 1 s.d. jumlah diajukan, catatan opsional; tolak: catatan wajib 1–200;
+ * - setujui: jumlah disetujui Rp 1 s.d. jumlah diajukan, catatan opsional; tolak: catatan wajib 1–200; kas lembaga
+ *   di atas batas berjenjang → persetujuan kedua tingkat Yayasan (KS-5, lihat approve());
  * - realisasi: rekening aktif kas itu, tanggal tidak di masa depan, tidak sebelum tanggal pengajuan & tanggal saldo
  *   awal rekening, jumlah Rp 1 s.d. jumlah disetujui, bukti opsional; ditolak bila saldo rekening kurang (OD-KS-08);
  * - batalkan realisasi: alasan 1–200 → transaksi kas BATAL, pengajuan kembali Disetujui (bukti lama dihapus).
@@ -41,6 +42,7 @@ final class ManageExpenses
         private readonly AuditLogger $audit,
         private readonly CashBalances $balances,
         private readonly ExpenseFileStore $files,
+        private readonly ExpenseApprovalLimitSetting $limits,
     ) {}
 
     /**
@@ -109,42 +111,68 @@ final class ManageExpenses
         DB::transaction(function () use ($tenantId, $requestId): void {
             $request = $this->lock($tenantId, $requestId);
 
-            if ((string) $request->status !== ExpenseStatus::Requested->value) {
+            if (! in_array((string) $request->status, [ExpenseStatus::Requested->value, ExpenseStatus::AwaitingFoundation->value], true)) {
                 throw FinanceException::make('form', 'Hanya pengajuan yang masih menunggu persetujuan yang bisa dibatalkan.');
             }
 
-            DB::table('fn_expense_requests')->where('id', $requestId)->update(['status' => ExpenseStatus::Cancelled->value, 'updated_at' => now()]);
+            // Dibatalkan saat menunggu Yayasan: jumlah tahap 1 tetap di first_approved_amount.
+            DB::table('fn_expense_requests')->where('id', $requestId)->update(['status' => ExpenseStatus::Cancelled->value, 'approved_amount' => null, 'updated_at' => now()]);
 
             $this->audit->record(FinanceAuditAction::EXPENSE_CANCELLED, FinanceAuditAction::SUBJECT_EXPENSE, $requestId, ['uraian' => (string) $request->description], organizationId: $this->org($request), tenantId: $tenantId);
         });
     }
 
     /**
+     * Setujui. $foundationLevel = penyetuju punya izin setujui tingkat Yayasan (dicek pemanggil).
+     *
+     * Berjenjang (KS-5): kas lembaga, penyetuju bukan tingkat Yayasan, dan jumlah disetujui di atas batas
+     * `finance.expense_approval_limit` → MENUNGGU_YAYASAN; persetujuan kedua oleh penyetuju tingkat Yayasan yang
+     * bukan pengaju dan bukan penyetuju pertama (boleh menurunkan jumlah lagi).
+     *
      * @throws FinanceException
      */
-    public function approve(string $tenantId, string $requestId, mixed $amount, ?string $note, ?string $membershipId): void
+    public function approve(string $tenantId, string $requestId, mixed $amount, ?string $note, ?string $membershipId, bool $foundationLevel = false): void
     {
         $note = $note === null || trim($note) === '' ? null : $this->text($note, 'decision_note', 'Catatan', 1, self::NOTE_MAX_LENGTH);
 
-        DB::transaction(function () use ($tenantId, $requestId, $amount, $note, $membershipId): void {
-            $request = $this->lockForDecision($tenantId, $requestId, $membershipId);
-            $value = Rupiah::parse($amount, 'approved_amount', 'jumlah disetujui', 1, (int) $request->amount);
+        DB::transaction(function () use ($tenantId, $requestId, $amount, $note, $membershipId, $foundationLevel): void {
+            $request = $this->lockForDecision($tenantId, $requestId, $membershipId, $foundationLevel);
+            $second = (string) $request->status === ExpenseStatus::AwaitingFoundation->value;
+            $max = $second ? (int) $request->approved_amount : (int) $request->amount;
+            $value = Rupiah::parse($amount, 'approved_amount', 'jumlah disetujui', 1, $max);
+            $organizationId = $this->org($request);
+            $limit = $organizationId === null ? 0 : $this->limits->for($tenantId, $organizationId);
+            $escalate = ! $second && ! $foundationLevel && $limit > 0 && $value > $limit;
 
-            DB::table('fn_expense_requests')->where('id', $requestId)->update([
-                'status' => ExpenseStatus::Approved->value,
-                'approved_amount' => $value,
-                'decision_note' => $note,
-                'decided_by_membership_id' => $membershipId,
-                'decided_at' => now(),
-                'updated_at' => now(),
-            ]);
+            if ($escalate) {
+                DB::table('fn_expense_requests')->where('id', $requestId)->update([
+                    'status' => ExpenseStatus::AwaitingFoundation->value,
+                    'approved_amount' => $value,
+                    'first_approved_amount' => $value,
+                    'first_decision_note' => $note,
+                    'first_decided_by_membership_id' => $membershipId,
+                    'first_decided_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('fn_expense_requests')->where('id', $requestId)->update([
+                    'status' => ExpenseStatus::Approved->value,
+                    'approved_amount' => $value,
+                    'decision_note' => $note,
+                    'decided_by_membership_id' => $membershipId,
+                    'decided_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             $this->audit->record(
                 FinanceAuditAction::EXPENSE_APPROVED,
                 FinanceAuditAction::SUBJECT_EXPENSE,
                 $requestId,
-                ['uraian' => (string) $request->description, 'diajukan' => (int) $request->amount, 'disetujui' => $value],
-                organizationId: $this->org($request),
+                ['uraian' => (string) $request->description, 'diajukan' => (int) $request->amount, 'disetujui' => $value]
+                    + ($escalate ? ['tingkat' => 'lembaga', 'batas' => $limit, 'lanjut' => 'Yayasan'] : [])
+                    + ($second ? ['tingkat' => 'Yayasan'] : []),
+                organizationId: $organizationId,
                 tenantId: $tenantId,
             );
         });
@@ -153,15 +181,17 @@ final class ManageExpenses
     /**
      * @throws FinanceException
      */
-    public function reject(string $tenantId, string $requestId, string $note, ?string $membershipId): void
+    public function reject(string $tenantId, string $requestId, string $note, ?string $membershipId, bool $foundationLevel = false): void
     {
         $note = $this->text($note, 'decision_note', 'Alasan penolakan', 1, self::NOTE_MAX_LENGTH);
 
-        DB::transaction(function () use ($tenantId, $requestId, $note, $membershipId): void {
-            $request = $this->lockForDecision($tenantId, $requestId, $membershipId);
+        DB::transaction(function () use ($tenantId, $requestId, $note, $membershipId, $foundationLevel): void {
+            $request = $this->lockForDecision($tenantId, $requestId, $membershipId, $foundationLevel);
 
             DB::table('fn_expense_requests')->where('id', $requestId)->update([
                 'status' => ExpenseStatus::Rejected->value,
+                // Ditolak di tahap Yayasan: jumlah tahap 1 tetap di first_approved_amount.
+                'approved_amount' => null,
                 'decision_note' => $note,
                 'decided_by_membership_id' => $membershipId,
                 'decided_at' => now(),
@@ -372,16 +402,27 @@ final class ManageExpenses
     /**
      * @throws FinanceException
      */
-    private function lockForDecision(string $tenantId, string $requestId, ?string $membershipId): stdClass
+    private function lockForDecision(string $tenantId, string $requestId, ?string $membershipId, bool $foundationLevel): stdClass
     {
         $request = $this->lock($tenantId, $requestId);
+        $status = (string) $request->status;
 
-        if ((string) $request->status !== ExpenseStatus::Requested->value) {
+        if ($status !== ExpenseStatus::Requested->value && $status !== ExpenseStatus::AwaitingFoundation->value) {
             throw FinanceException::make('form', 'Pengajuan ini sudah diputus atau dibatalkan.');
         }
 
         if ($membershipId !== null && $request->requested_by_membership_id !== null && (string) $request->requested_by_membership_id === $membershipId) {
             throw FinanceException::make('form', 'Anda tidak bisa menyetujui atau menolak pengajuan Anda sendiri.');
+        }
+
+        if ($status === ExpenseStatus::AwaitingFoundation->value) {
+            if (! $foundationLevel) {
+                throw FinanceException::make('form', 'Pengajuan ini menunggu persetujuan tingkat Yayasan.');
+            }
+
+            if ($membershipId !== null && (string) $request->first_decided_by_membership_id === $membershipId) {
+                throw FinanceException::make('form', 'Persetujuan kedua harus oleh orang lain (Anda sudah menyetujui tahap pertama).');
+            }
         }
 
         return $request;

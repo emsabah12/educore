@@ -28,6 +28,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::delete('keuangan/tarif/{rate}', [FeeSettingsController::class, 'removeRate'])->whereUuid('rate')->name('finance.fee-rates.remove');
     // Jatuh tempo tagihan bulanan per jenjang/lembaga (FN-2a, aturan berjenjang).
     Route::post('keuangan/jatuh-tempo', [FeeSettingsController::class, 'setDueDay'])->name('finance.due-day.set');
+    // Batas persetujuan pengeluaran berjenjang (PRD-004 KS-5).
+    Route::post('keuangan/batas-persetujuan', [FeeSettingsController::class, 'setApprovalLimit'])->name('finance.approval-limit.set');
 
     // Tagihan (FN-2a). Lihat: finance.billing.view; buat & batalkan: finance.invoices.manage di lembaga itu.
     Route::get('keuangan/tagihan', [InvoiceController::class, 'index'])->name('finance.invoices.index');
