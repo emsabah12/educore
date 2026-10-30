@@ -1,4 +1,4 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { Landmark, Plus, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
@@ -19,6 +19,7 @@ type Account = {
     opening_balance: number;
     opening_date: string;
     is_active: boolean;
+    receives_transfers: boolean;
     balance: number;
     has_entries: boolean;
 };
@@ -35,6 +36,7 @@ type LedgerRow = {
     status: 'SAH' | 'BATAL';
     void_reason: string | null;
     source: string | null;
+    source_id: string | null;
     recorded_by: string | null;
     balance: number | null;
 };
@@ -55,6 +57,7 @@ type Props = {
     };
     incomeCategories: Option[];
     canManage: boolean;
+    receivesPayments: boolean;
     today: string;
     limits: { name: number; bank: number; description: number; reason: number };
 };
@@ -80,7 +83,8 @@ const selectClass =
 
 /**
  * Kas umum (PRD-004 §6, KS-1): saldo per rekening & buku kas bulanan per kas (lembaga / Yayasan); bendahara
- * menambah rekening bank, mengisi saldo awal, mencatat pemasukan, dan membatalkan transaksi manual.
+ * menambah rekening bank, mengisi saldo awal, mencatat pemasukan, dan membatalkan transaksi manual. KS-2: kuitansi
+ * kasir masuk otomatis (bertanda "Otomatis", dibatalkan dari Kasir); rekening bank penerima transfer siswa.
  * Pengeluaran dicatat lewat pengajuan & persetujuan (KS-3).
  */
 export default function Cash({
@@ -93,6 +97,7 @@ export default function Cash({
     ledger,
     incomeCategories,
     canManage,
+    receivesPayments,
     today,
     limits,
 }: Props) {
@@ -178,11 +183,24 @@ export default function Cash({
                                 key={account.id}
                                 account={account}
                                 canManage={canManage}
+                                canReceive={receivesPayments}
                                 today={today}
                                 limits={limits}
                             />
                         ))}
                     </div>
+                    {receivesPayments &&
+                        !accounts.some(
+                            (account) => account.receives_transfers,
+                        ) && (
+                            <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                Pembayaran siswa via transfer saat ini dicatat
+                                ke Kas tunai karena belum ada rekening bank
+                                penerima transfer.
+                                {canManage &&
+                                    ' Tambah atau pilih rekening bank, lalu tekan "Jadikan penerima transfer siswa".'}
+                            </p>
+                        )}
                 </section>
 
                 {canManage && (
@@ -275,11 +293,13 @@ export default function Cash({
 function AccountCard({
     account,
     canManage,
+    canReceive,
     today,
     limits,
 }: {
     account: Account;
     canManage: boolean;
+    canReceive: boolean;
     today: string;
     limits: Props['limits'];
 }) {
@@ -322,6 +342,32 @@ function AccountCard({
                 Saldo awal {formatRupiah(account.opening_balance)} per{' '}
                 {formatDate(account.opening_date)}
             </p>
+            {account.receives_transfers && (
+                <Badge variant="secondary">Penerima transfer siswa</Badge>
+            )}
+            {canManage &&
+                canReceive &&
+                account.kind === 'BANK' &&
+                account.is_active &&
+                !editing && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                            router.post(
+                                `/keuangan/kas/rekening/${account.id}/penerima-transfer`,
+                                { receives: !account.receives_transfers },
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        {account.receives_transfers
+                            ? 'Lepas penerima transfer'
+                            : 'Jadikan penerima transfer siswa'}
+                    </Button>
+                )}
 
             {editing && (
                 <Form
@@ -689,6 +735,11 @@ function LedgerItem({
                 <div className="min-w-0 space-y-0.5">
                     <p className={voided ? 'line-through' : 'font-medium'}>
                         {row.description}
+                        {row.source === 'PEMBAYARAN' && (
+                            <Badge variant="secondary" className="ml-2">
+                                Otomatis
+                            </Badge>
+                        )}
                         {voided && (
                             <Badge variant="outline" className="ml-2">
                                 Batal
@@ -722,6 +773,14 @@ function LedgerItem({
                         <p className="text-xs text-muted-foreground tabular-nums">
                             Saldo {formatRupiah(row.balance)}
                         </p>
+                    )}
+                    {row.source === 'PEMBAYARAN' && row.source_id && (
+                        <Link
+                            href={`/keuangan/kuitansi/${row.source_id}`}
+                            className="text-xs underline underline-offset-4"
+                        >
+                            Kuitansi
+                        </Link>
                     )}
                     {canVoid && !voiding && (
                         <Button

@@ -10,6 +10,7 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Domain\Cash\CashAccountKind;
+use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 
 /**
@@ -20,7 +21,9 @@ use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
  * - Kas tunai dibuat otomatis (saldo awal Rp 0 per hari pertama dibuka); namanya tetap "Kas tunai".
  * - Rekening bank: nama tampilan 1–100, nama bank 1–60, nomor rekening opsional (angka, spasi, ".", "-", ≤ 40).
  * - Saldo awal Rp 0 s.d. Rp 999.999.999.999 per tanggal (tidak di masa depan, ≤ 10 tahun lalu). Saldo awal &
- *   tanggalnya hanya bisa diubah selama rekening belum punya transaksi (agar buku kas lama tidak bergeser).
+ *   tanggalnya hanya bisa diubah selama rekening belum punya transaksi (agar buku kas lama tidak bergeser); cerminan
+ *   kuitansi kasir (KS-2) tidak dihitung.
+ * - Rekening penerima transfer siswa (KS-2): rekening bank aktif milik lembaga, paling banyak satu per lembaga.
  */
 final class ManageCashAccounts
 {
@@ -128,7 +131,8 @@ final class ManageCashAccounts
             $openingChanged = (int) $account->opening_balance !== $amount || substr((string) $account->opening_date, 0, 10) !== $date;
 
             if ($openingChanged) {
-                if (DB::table('fn_cash_entries')->where('account_id', $accountId)->exists()) {
+                // Cerminan kuitansi kasir (KS-2) tidak mengunci: disusun ulang sesudah saldo awal berubah.
+                if (DB::table('fn_cash_entries')->where('account_id', $accountId)->where('source', '!=', CashEntrySource::Payment->value)->exists()) {
                     throw FinanceException::make('opening_balance', 'Saldo awal tidak bisa diubah karena rekening ini sudah punya transaksi.');
                 }
 
@@ -156,6 +160,51 @@ final class ManageCashAccounts
                 FinanceAuditAction::SUBJECT_CASH_ACCOUNT,
                 $accountId,
                 ['rekening' => (string) $account->name] + $changes,
+                organizationId: $account->organization_id === null ? null : (string) $account->organization_id,
+                tenantId: $tenantId,
+            );
+        });
+    }
+
+    /**
+     * Tandai (atau lepas) rekening bank lembaga sebagai penerima pembayaran siswa via transfer (KS-2).
+     * Pemanggil menyusun ulang cerminan kuitansi sesudahnya (PaymentCashSync::syncOrganization).
+     *
+     * @throws FinanceException
+     */
+    public function setTransferReceiver(string $tenantId, string $accountId, bool $receives): void
+    {
+        DB::transaction(function () use ($tenantId, $accountId, $receives): void {
+            $account = Str::isUuid($accountId)
+                ? DB::table('fn_cash_accounts')->where('tenant_id', $tenantId)->where('id', $accountId)->lockForUpdate()->first()
+                : null;
+
+            if ($account === null) {
+                throw FinanceException::make('form', 'Rekening tidak ditemukan.');
+            }
+
+            if ((bool) $account->receives_transfers === $receives) {
+                return;
+            }
+
+            if ($receives && ((string) $account->kind !== CashAccountKind::Bank->value || $account->organization_id === null || ! (bool) $account->is_active)) {
+                throw FinanceException::make('form', 'Penerima transfer siswa harus rekening bank aktif milik lembaga.');
+            }
+
+            if ($receives) {
+                DB::table('fn_cash_accounts')
+                    ->where('organization_id', $account->organization_id)
+                    ->where('receives_transfers', true)
+                    ->update(['receives_transfers' => false, 'updated_at' => now()]);
+            }
+
+            DB::table('fn_cash_accounts')->where('id', $accountId)->update(['receives_transfers' => $receives, 'updated_at' => now()]);
+
+            $this->audit->record(
+                FinanceAuditAction::CASH_ACCOUNT_UPDATED,
+                FinanceAuditAction::SUBJECT_CASH_ACCOUNT,
+                $accountId,
+                ['rekening' => (string) $account->name, 'penerima_transfer_siswa' => $receives],
                 organizationId: $account->organization_id === null ? null : (string) $account->organization_id,
                 tenantId: $tenantId,
             );

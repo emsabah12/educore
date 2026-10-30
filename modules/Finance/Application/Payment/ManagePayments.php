@@ -9,6 +9,7 @@ use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
+use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
@@ -38,6 +39,7 @@ final class ManagePayments
     public function __construct(
         private readonly EnrolledStudents $students,
         private readonly AuditLogger $audit,
+        private readonly PaymentCashSync $cashSync,
     ) {}
 
     /**
@@ -156,6 +158,9 @@ final class ManagePayments
                 tenantId: $tenantId,
             );
 
+            // Masuk buku kas lembaga (PRD-004 KS-2).
+            $this->cashSync->syncPayment($tenantId, $organizationId, $paymentId);
+
             return $paymentId;
         });
     }
@@ -223,6 +228,9 @@ final class ManagePayments
                 'voided_by_membership_id' => $membershipId,
                 'updated_at' => $now,
             ]);
+
+            // Baris buku kas ikut batal; ditolak bila saldo rekening menjadi minus (PRD-004 KS-2, OD-KS-08).
+            $this->cashSync->syncPayment($tenantId, (string) $payment->organization_id, (string) $payment->id);
 
             $this->audit->record(
                 FinanceAuditAction::PAYMENT_VOIDED,

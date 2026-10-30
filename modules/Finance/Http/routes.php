@@ -59,6 +59,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('keuangan/kas', [CashController::class, 'index'])->name('finance.cash.index');
     Route::post('keuangan/kas/rekening', [CashController::class, 'storeAccount'])->name('finance.cash-accounts.store');
     Route::patch('keuangan/kas/rekening/{account}', [CashController::class, 'updateAccount'])->whereUuid('account')->name('finance.cash-accounts.update');
+    Route::post('keuangan/kas/rekening/{account}/penerima-transfer', [CashController::class, 'setTransferReceiver'])->whereUuid('account')->name('finance.cash-accounts.transfer-receiver');
     Route::post('keuangan/kas/pemasukan', [CashController::class, 'storeIncome'])->name('finance.cash-income.store');
     Route::post('keuangan/kas/transaksi/{entry}/batalkan', [CashController::class, 'voidEntry'])->whereUuid('entry')->name('finance.cash-entries.void');
     // Kategori kas: finance.settings.manage tingkat Yayasan.

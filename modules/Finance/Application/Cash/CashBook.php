@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Modules\Finance\Domain\Cash\CashDirection;
+use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Payment\PaymentStatus;
 
 /**
@@ -16,8 +17,8 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
  * dilihat tampil sebagai baris "Saldo awal" pada tanggal itu. Transaksi batal tetap tampil (dicoret) tetapi
  * tidak dihitung.
  *
- * @phpstan-type AccountRow array{id: string, kind: string, name: string, bank_name: string|null, account_number: string|null, opening_balance: int, opening_date: string, is_active: bool, balance: int, has_entries: bool}
- * @phpstan-type LedgerRow array{id: string, type: string, date: string, description: string, category: string|null, account: string, direction: string, amount: int, status: string, void_reason: string|null, source: string|null, recorded_by: string|null, balance: int|null}
+ * @phpstan-type AccountRow array{id: string, kind: string, name: string, bank_name: string|null, account_number: string|null, opening_balance: int, opening_date: string, is_active: bool, receives_transfers: bool, balance: int, has_entries: bool}
+ * @phpstan-type LedgerRow array{id: string, type: string, date: string, description: string, category: string|null, account: string, direction: string, amount: int, status: string, void_reason: string|null, source: string|null, source_id: string|null, recorded_by: string|null, balance: int|null}
  */
 final class CashBook
 {
@@ -36,7 +37,7 @@ final class CashBook
             ->orderByRaw("kind <> 'TUNAI'")
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'kind', 'name', 'bank_name', 'account_number', 'opening_balance', 'opening_date', 'is_active']);
+            ->get(['id', 'kind', 'name', 'bank_name', 'account_number', 'opening_balance', 'opening_date', 'is_active', 'receives_transfers']);
 
         $ids = [];
 
@@ -47,7 +48,8 @@ final class CashBook
         $balances = $this->balances->balances($ids);
         $used = [];
 
-        foreach (DB::table('fn_cash_entries')->whereIn('account_id', $ids)->distinct()->pluck('account_id') as $id) {
+        // Cerminan kuitansi kasir (KS-2) tidak mengunci saldo awal.
+        foreach (DB::table('fn_cash_entries')->whereIn('account_id', $ids)->where('source', '!=', CashEntrySource::Payment->value)->distinct()->pluck('account_id') as $id) {
             $used[(string) $id] = true;
         }
 
@@ -64,6 +66,7 @@ final class CashBook
                 'opening_balance' => (int) $row->opening_balance,
                 'opening_date' => substr((string) $row->opening_date, 0, 10),
                 'is_active' => (bool) $row->is_active,
+                'receives_transfers' => (bool) $row->receives_transfers,
                 'balance' => $balances[$id] ?? 0,
                 'has_entries' => isset($used[$id]),
             ];
@@ -113,6 +116,7 @@ final class CashBook
                     'status' => PaymentStatus::Valid->value,
                     'void_reason' => null,
                     'source' => null,
+                    'source_id' => null,
                     'recorded_by' => null,
                     'sort' => $openingDate.' 0',
                 ];
@@ -138,7 +142,7 @@ final class CashBook
                 ->orderBy('e.entry_date')
                 ->orderBy('e.created_at')
                 ->orderBy('e.id')
-                ->get(['e.id', 'e.account_id', 'e.entry_date', 'e.direction', 'e.amount', 'e.description', 'e.source', 'e.status', 'e.void_reason', 'e.created_at', 'c.name as category', 'p.name as recorded_by']) as $entry) {
+                ->get(['e.id', 'e.account_id', 'e.entry_date', 'e.direction', 'e.amount', 'e.description', 'e.source', 'e.source_id', 'e.status', 'e.void_reason', 'e.created_at', 'c.name as category', 'p.name as recorded_by']) as $entry) {
                 $date = substr((string) $entry->entry_date, 0, 10);
                 $rows[] = [
                     'id' => (string) $entry->id,
@@ -152,6 +156,7 @@ final class CashBook
                     'status' => (string) $entry->status,
                     'void_reason' => $entry->void_reason === null ? null : (string) $entry->void_reason,
                     'source' => (string) $entry->source,
+                    'source_id' => $entry->source_id === null ? null : (string) $entry->source_id,
                     'recorded_by' => $entry->recorded_by === null ? null : (string) $entry->recorded_by,
                     'sort' => $date.' 1 '.(string) $entry->created_at.' '.(string) $entry->id,
                 ];

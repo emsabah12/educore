@@ -1,8 +1,8 @@
 # PRD-004 — Modul Finance (Keuangan): Kas Umum & Pengeluaran
 
-- **Versi:** 0.2 (2026-10-30: disetujui owner; rincian & pembangunan KS-1, §12)
-- **Versi sebelumnya:** 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-30)**; KS-1 dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.3 (2026-10-30: rincian & pembangunan KS-2 pembayaran siswa masuk buku kas, §13)
+- **Versi sebelumnya:** 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, aturan berjenjang), PRD-003 (tagihan & pembayaran siswa — penerimaan dari kasir), PRD-001 (HR: gaji tetap di HR), ADR-001
 - **Lanjutan dari:** PRD-003 §11 "Di luar tahap awal" — kas umum & pengeluaran
 
@@ -137,3 +137,13 @@ Anggaran (RAPBS) & realisasi anggaran, persetujuan berjenjang per nominal, pembu
 - **Batalkan transaksi**: hanya transaksi manual; alasan 1–200; ditolak bila saldo rekening menjadi minus (OD-KS-08). Transaksi dari kasir/pengajuan/mutasi dibatalkan dari asalnya.
 - **Data**: `fn_cash_categories`, `fn_cash_accounts` (satu Kas tunai per kas dijaga indeks unik parsial), `fn_cash_entries` (`source` MANUAL/PEMBAYARAN/PENGELUARAN/MUTASI, status SAH/BATAL).
 - **Audit**: `finance.cash_category_*`, `finance.cash_account_created|updated`, `finance.cash_entry_recorded|voided`.
+
+## 13. KS-2 Pembayaran siswa masuk buku kas [ASUMSI — rincian teknis 2026-10-30]
+
+- **Cerminan kuitansi**: setiap kuitansi **Sah** dari Kasir (PRD-003 §16) menjadi satu baris MASUK di buku kas **lembaganya**: kategori sistem "Pembayaran siswa", tanggal = tanggal bayar, uraian "Pembayaran siswa — <nama> (<no. kuitansi>)", dicatat oleh petugas kasir, bertanda **Otomatis** + tautan ke kuitansi. Sumber aslinya tetap kuitansi; baris ini tidak bisa dibatalkan dari buku kas.
+- **Rekening tujuan**: Tunai → **Kas tunai**; Transfer → rekening bank yang ditandai **"Penerima transfer siswa"** (paling banyak satu per lembaga, hanya rekening bank aktif milik lembaga). Belum ada penerima → transfer masuk Kas tunai dan halaman Kas menampilkan peringatan.
+- **Saldo awal mencakup penerimaan sebelumnya**: kuitansi bertanggal **sebelum** tanggal saldo awal rekening tujuan tidak dicerminkan (agar tidak dobel).
+- **Penataan ulang**: cerminan kuitansi **tidak mengunci** saldo awal (§12). Bila saldo awal/tanggalnya atau penerima transfer berubah, cerminan disusun ulang (dipindah/ditambah/dihapus) mengikuti aturan di atas. Riwayat kuitansi sebelum KS-2 ikut masuk saat halaman Kas lembaga dibuka.
+- **Kuitansi dibatalkan** di Kasir → barisnya ikut **Batal** ("Pembayaran dibatalkan: <alasan>"). Pembatalan kuitansi **ditolak** bila saldo rekening tujuan menjadi minus (OD-KS-08), dengan pesan agar menghubungi bendahara.
+- **Data**: `fn_cash_accounts.receives_transfers` (+ indeks unik per lembaga); satu cerminan per kuitansi (`fn_cash_entries.source = PEMBAYARAN`, indeks unik `source_id`).
+- **Audit**: penandaan penerima transfer dicatat sebagai `finance.cash_account_updated` (`penerima_transfer_siswa`). Cerminan tidak diaudit tersendiri (kuitansinya sudah diaudit, PRD-003 §8).

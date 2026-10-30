@@ -18,6 +18,7 @@ use Modules\Finance\Application\Cash\CashBook;
 use Modules\Finance\Application\Cash\ManageCashAccounts;
 use Modules\Finance\Application\Cash\ManageCashCategories;
 use Modules\Finance\Application\Cash\ManageCashEntries;
+use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Report\ReceiptRecap;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
@@ -41,7 +42,7 @@ final class CashController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, CashBook $book, ManageCashAccounts $accounts, ManageCashCategories $categories): Response
+    public function index(Request $request, CashBook $book, ManageCashAccounts $accounts, ManageCashCategories $categories, PaymentCashSync $sync): Response
     {
         $books = $this->books();
 
@@ -55,6 +56,11 @@ final class CashController
 
         $categories->ensureDefaults($tenantId);
         $accounts->ensureCashAccount($tenantId, $organizationId);
+
+        // KS-2: kuitansi kasir lembaga ini (termasuk riwayat sebelum KS-2) masuk buku kas.
+        if ($organizationId !== null) {
+            $sync->syncOrganization($tenantId, $organizationId);
+        }
 
         $accountRows = $book->accounts($tenantId, $organizationId);
         $months = ReceiptRecap::monthOptions(BusinessClock::today());
@@ -79,6 +85,8 @@ final class CashController
             'ledger' => $book->ledger($tenantId, $organizationId, $month, $accountId),
             'incomeCategories' => $incomeCategories,
             'canManage' => $this->allowsAt($organizationId, FinanceAccess::CASH_MANAGE),
+            // KS-2: kas lembaga menerima pembayaran siswa; tanpa rekening penerima transfer → transfer masuk Kas tunai.
+            'receivesPayments' => $organizationId !== null,
             'today' => BusinessClock::todayString(),
             'limits' => [
                 'name' => ManageCashAccounts::NAME_MAX_LENGTH,
@@ -107,7 +115,7 @@ final class CashController
         return $this->done('Rekening ditambahkan.');
     }
 
-    public function updateAccount(Request $request, string $account, ManageCashAccounts $accounts): RedirectResponse
+    public function updateAccount(Request $request, string $account, ManageCashAccounts $accounts, PaymentCashSync $sync): RedirectResponse
     {
         $owner = $accounts->ownerOf($this->tenantId(), $account);
 
@@ -127,7 +135,35 @@ final class CashController
             $request->string('opening_date')->toString(),
         ));
 
+        // Saldo awal berubah → cerminan kuitansi kasir disusun ulang (KS-2).
+        if ($owner['organization_id'] !== null) {
+            $sync->syncOrganization($this->tenantId(), $owner['organization_id']);
+        }
+
         return $this->done('Rekening disimpan.');
+    }
+
+    /**
+     * Tandai / lepas rekening bank lembaga sebagai penerima pembayaran siswa via transfer (KS-2).
+     */
+    public function setTransferReceiver(Request $request, string $account, ManageCashAccounts $accounts, PaymentCashSync $sync): RedirectResponse
+    {
+        $owner = $accounts->ownerOf($this->tenantId(), $account);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+        $receives = $request->boolean('receives');
+
+        $this->attempt(fn () => $accounts->setTransferReceiver($this->tenantId(), $account, $receives));
+
+        if ($owner['organization_id'] !== null) {
+            $sync->syncOrganization($this->tenantId(), $owner['organization_id']);
+        }
+
+        return $this->done($receives ? 'Rekening ini menerima pembayaran transfer siswa.' : 'Pembayaran transfer siswa kembali dicatat ke Kas tunai.');
     }
 
     public function storeIncome(Request $request, ManageCashEntries $entries): RedirectResponse
