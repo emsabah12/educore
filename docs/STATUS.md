@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 s.d. FN-3 SELESAI; FN-4a dibangun 2026-10-30, menunggu uji owner
-- **Commit terakhir:** `d610d32` — feat(finance): FN-3 kasir, pembayaran, kuitansi
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 s.d. FN-3 & FN-4a SELESAI; FN-4b dibangun 2026-10-30, menunggu uji owner
+- **Commit terakhir:** `2fdf51f` — feat(finance): FN-4a tunggakan & kartu Beranda
 
 ## Keputusan penting
 
@@ -719,11 +719,18 @@
 - Test: `tests/Feature/Finance/PaymentsTest.php` (5 test, awalan `fnp`). 686 test lulus (7 arsitektur + 679), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**FN-4a — Tunggakan & kartu Beranda: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §17
+**FN-4a — Tunggakan & kartu Beranda: SELESAI (`2fdf51f`)** — PRD-003 §17
 
 - Finance: `Application/Report/Arrears` (per lembaga, per kelompok kelas, per siswa, rincian), `ArrearsExport` (.xlsx 3 lembar), `ArrearsController` (`/keuangan/tunggakan`, `/keuangan/tunggakan/unduh`), kartu Beranda `finance.arrears` di `FinanceServiceProvider`, migration `2026_10_30_300006_add_open_due_index_to_fn_invoices` (indeks parsial).
 - Frontend: `pages/finance/arrears.tsx`; menu Keuangan → **Tunggakan**.
 - Test: `tests/Feature/Finance/ArrearsTest.php` (3 test, awalan `fna`); `DocumentSelfServiceTest` disesuaikan (Beranda kini bisa memuat kartu Keuangan). 689 test lulus (7 arsitektur + 682), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar.
+
+**FN-4b — Rekap penerimaan: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §18
+
+- Finance: `Application/Report/ReceiptRecap` (ringkasan bulan: total, per hari, per jenis biaya, per lembaga; daftar transaksi), `ReceiptRecapExport` (.xlsx), `ReceiptRecapController` (`/keuangan/rekap-penerimaan`, `/keuangan/rekap-penerimaan/unduh`). Tanpa migrasi (indeks `fn_payments (tenant_id, organization_id, paid_on)` dari FN-3).
+- Frontend: `pages/finance/receipt-recap.tsx`; menu Keuangan → **Rekap penerimaan**.
+- Test: `tests/Feature/Finance/ReceiptRecapTest.php` (3 test, awalan `fnr`). 692 test lulus (7 arsitektur + 685), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -763,5 +770,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-4a oleh owner, lalu FN-4b (rekap penerimaan harian/bulanan + .xlsx) dan FN-5 (menu Tagihan di portal orang tua) — PRD-003 §3.
+1. Uji FN-4b oleh owner, lalu FN-5 (menu Tagihan di portal orang tua: sisa tagihan, riwayat bayar, kuitansi) — PRD-003 §3.
 2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

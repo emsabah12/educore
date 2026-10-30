@@ -6,6 +6,7 @@ import {
     CalendarCog,
     CalendarDays,
     CalendarRange,
+    ChartColumn,
     CircleAlert,
     ClipboardCheck,
     ClipboardList,
@@ -206,6 +207,12 @@ const arrearsNavItem: NavItem = {
     icon: CircleAlert,
 };
 
+const receiptRecapNavItem: NavItem = {
+    title: 'Rekap penerimaan',
+    href: '/keuangan/rekap-penerimaan',
+    icon: ChartColumn,
+};
+
 const invoicesNavItem: NavItem = {
     title: 'Tagihan',
     href: '/keuangan/tagihan',
@@ -292,6 +299,7 @@ export function AppSidebar() {
                   cashierNavItem,
                   invoicesNavItem,
                   arrearsNavItem,
+                  receiptRecapNavItem,
                   discountsNavItem,
               ]
             : []),
