@@ -56,7 +56,7 @@ final class ManageExpenses
             ? DB::table('fn_cash_categories')->where('tenant_id', $tenantId)->where('id', $categoryId)->first()
             : null;
 
-        if ($category === null || (string) $category->direction !== CashDirection::Out->value || ! (bool) $category->is_active) {
+        if ($category === null || (string) $category->direction !== CashDirection::Out->value || ! (bool) $category->is_active || (bool) $category->is_system) {
             throw FinanceException::make('category_id', 'Pilih kategori pengeluaran yang aktif.');
         }
 

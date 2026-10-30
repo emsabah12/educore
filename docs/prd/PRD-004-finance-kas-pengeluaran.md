@@ -1,8 +1,8 @@
 # PRD-004 — Modul Finance (Keuangan): Kas Umum & Pengeluaran
 
-- **Versi:** 0.4 (2026-10-30: rincian & pembangunan KS-3 pengajuan → persetujuan → realisasi pengeluaran, §14)
-- **Versi sebelumnya:** 0.3 (KS-2, §13), 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 SELESAI (`68a18cb`); KS-3 dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.5 (2026-10-30: rincian & pembangunan KS-4 mutasi & laporan arus kas, §15)
+- **Versi sebelumnya:** 0.4 (KS-3, §14), 0.3 (KS-2, §13), 0.2 (disetujui owner; KS-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-30)**; KS-1 SELESAI (`fbcfef6`); KS-2 SELESAI (`68a18cb`); KS-3 SELESAI (`1428db8`); KS-4 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, aturan berjenjang), PRD-003 (tagihan & pembayaran siswa — penerimaan dari kasir), PRD-001 (HR: gaji tetap di HR), ADR-001
 - **Lanjutan dari:** PRD-003 §11 "Di luar tahap awal" — kas umum & pengeluaran
 
@@ -160,3 +160,18 @@ Anggaran (RAPBS) & realisasi anggaran, persetujuan berjenjang per nominal, pembu
 - **Beranda**: "Pengajuan menunggu persetujuan" (pemilik `expenses.approve`; tidak menghitung pengajuan sendiri) dan "Pengeluaran siap direalisasi" (pemilik `cash.manage`), sesuai cakupan kas.
 - **Data**: `fn_expense_requests` (status DIAJUKAN/DISETUJUI/DITOLAK/DIBATALKAN/DIREALISASI, jumlah diajukan & disetujui, pengaju, pemutus, catatan, lampiran, bukti, transaksi realisasi); paling banyak satu realisasi sah per pengajuan.
 - **Audit**: `finance.expense_requested|cancelled|approved|rejected|realized|realization_voided`.
+
+## 15. KS-4 Mutasi & laporan arus kas [ASUMSI — rincian teknis 2026-10-30]
+
+- **Mutasi / setoran** (halaman Kas → _Mutasi / setoran_; `finance.cash.manage` di kas **asal**), langsung sah (OD-KS-07):
+    - arah yang boleh: antar-rekening dalam satu kas (mis. setor tunai ke bank); kas lembaga → kas Yayasan (setoran); kas Yayasan → kas lembaga (subsidi). **Lembaga → lembaga lain tidak boleh** (lewat Yayasan). Bendahara lembaga hanya melihat rekening kasnya sendiri + rekening kas Yayasan sebagai tujuan;
+    - rekening asal & tujuan aktif dan berbeda; tanggal tidak di masa depan dan tidak sebelum tanggal saldo awal kedua rekening; jumlah Rp 1–999.999.999.999 dan **tidak melebihi saldo rekening asal** (OD-KS-08); uraian 3–200;
+    - satu mutasi = dua baris kas bertanda **Mutasi**: KELUAR di rekening asal (kategori sistem "Mutasi keluar", uraian "Mutasi ke <rekening> (<kas>) — …") dan MASUK di rekening tujuan ("Mutasi masuk", "Mutasi dari …").
+    - **Batalkan mutasi** dari baris KELUAR (kas asal): alasan wajib; kedua baris Batal; ditolak bila saldo rekening tujuan menjadi minus.
+- **Mutasi bukan pemasukan/pengeluaran**: buku kas dan laporan menampilkannya terpisah ("Mutasi masuk/keluar"); total pemasukan/pengeluaran tidak termasuk mutasi. Kategori sistem "Mutasi masuk/keluar" dilengkapi otomatis untuk yayasan yang sudah punya kategori.
+- **Laporan kas** (`/keuangan/laporan-kas`, menu Keuangan → _Laporan kas_, `finance.cash.view`): pilih **kas** (Semua kas dalam cakupan — bawaan bila lebih dari satu — atau satu kas) dan **periode** (tahun ini, tahun lalu, atau bulan ini + 24 bulan ke belakang).
+    - Saldo awal periode = saldo awal rekening yang mulai dipakai sampai akhir periode + transaksi sah sebelum periode; pemasukan & pengeluaran **per kategori**; mutasi masuk/keluar; saldo akhir = awal + masuk − keluar + mutasi masuk − mutasi keluar.
+    - Periode tahunan: rincian **per bulan** (pemasukan, pengeluaran, selisih). Semua kas: rincian **per kas** (Kas Yayasan dulu, lalu lembaga urut nama).
+    - **Unduh .xlsx** (`/keuangan/laporan-kas/unduh`): lembar Ringkasan, Per bulan (tahunan), Per kas (lebih dari satu kas), Transaksi (semua transaksi sah periode itu). Nama file `laporan-kas-<kode lembaga | yayasan | semua-kas>-<periode>.xlsx`.
+- **Data**: `fn_cash_transfers` (rekening asal & tujuan, tanggal, jumlah, uraian, status SAH/BATAL + alasan); baris kas `source = MUTASI`, `source_id` = id mutasi.
+- **Audit**: `finance.cash_transfer_recorded|voided`.

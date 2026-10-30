@@ -83,7 +83,7 @@ test('kas: kategori bawaan & Kas tunai otomatis; rekening, saldo awal, pemasukan
                 ['value' => fnkCategory('MASUK-LAIN'), 'label' => 'Pemasukan lain-lain'],
             ]));
 
-    expect(DB::table('fn_cash_categories')->count())->toBe(10)
+    expect(DB::table('fn_cash_categories')->count())->toBe(12)
         ->and(DB::table('fn_cash_accounts')->whereNull('organization_id')->where('kind', 'TUNAI')->count())->toBe(1);
 
     fnkSetup($this);
@@ -197,7 +197,7 @@ test('batal transaksi: tetap tampil dicoret & tidak dihitung; tidak bisa dua kal
 test('kategori kas: tambah, kode unik, ubah nama, nonaktif/aktif; kategori sistem terkunci; hanya tingkat Yayasan', function () {
     $this->get(route('finance.cash-categories.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('finance/cash-categories')->has('categories', 10)->where('categories.0.code', 'PEMBAYARAN-SISWA'));
+        ->assertInertia(fn (Assert $page) => $page->component('finance/cash-categories')->has('categories', 12)->where('categories.0.code', 'MUTASI-MASUK')->where('categories.1.code', 'PEMBAYARAN-SISWA'));
 
     $this->post(route('finance.cash-categories.store'), ['code' => 'sewa', 'name' => 'Sewa gedung', 'direction' => 'KELUAR'])->assertSessionHasNoErrors();
     $this->post(route('finance.cash-categories.store'), ['code' => 'SEWA', 'name' => 'Lagi', 'direction' => 'KELUAR'])

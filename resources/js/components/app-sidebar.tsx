@@ -7,6 +7,7 @@ import {
     CalendarDays,
     CalendarRange,
     ChartColumn,
+    ChartPie,
     CircleAlert,
     ClipboardCheck,
     ClipboardList,
@@ -228,6 +229,12 @@ const expensesNavItem: NavItem = {
     icon: ReceiptText,
 };
 
+const cashReportNavItem: NavItem = {
+    title: 'Laporan kas',
+    href: '/keuangan/laporan-kas',
+    icon: ChartPie,
+};
+
 const cashCategoriesNavItem: NavItem = {
     title: 'Kategori kas',
     href: '/keuangan/kategori-kas',
@@ -325,7 +332,7 @@ export function AppSidebar() {
               ]
             : []),
         ...(permissions.includes('finance.cash.view')
-            ? [cashNavItem, expensesNavItem]
+            ? [cashNavItem, expensesNavItem, cashReportNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem, cashCategoriesNavItem]

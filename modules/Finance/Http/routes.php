@@ -5,6 +5,7 @@ use Modules\Finance\Http\Controllers\ArrearsController;
 use Modules\Finance\Http\Controllers\CashCategoryController;
 use Modules\Finance\Http\Controllers\CashController;
 use Modules\Finance\Http\Controllers\CashierController;
+use Modules\Finance\Http\Controllers\CashReportController;
 use Modules\Finance\Http\Controllers\ChildBillingController;
 use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\ExpenseController;
@@ -62,6 +63,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('keuangan/kas/rekening/{account}', [CashController::class, 'updateAccount'])->whereUuid('account')->name('finance.cash-accounts.update');
     Route::post('keuangan/kas/rekening/{account}/penerima-transfer', [CashController::class, 'setTransferReceiver'])->whereUuid('account')->name('finance.cash-accounts.transfer-receiver');
     Route::post('keuangan/kas/pemasukan', [CashController::class, 'storeIncome'])->name('finance.cash-income.store');
+    // Mutasi antar-rekening / antar-kas (KS-4): finance.cash.manage di kas rekening asal.
+    Route::post('keuangan/kas/mutasi', [CashController::class, 'storeTransfer'])->name('finance.cash-transfers.store');
+    Route::post('keuangan/kas/mutasi/{transfer}/batalkan', [CashController::class, 'voidTransfer'])->whereUuid('transfer')->name('finance.cash-transfers.void');
     Route::post('keuangan/kas/transaksi/{entry}/batalkan', [CashController::class, 'voidEntry'])->whereUuid('entry')->name('finance.cash-entries.void');
     // Pengeluaran (PRD-004 KS-3): ajukan → setujui/tolak → realisasi. Lihat: cash.view; ajukan/realisasi: cash.manage;
     // setujui/tolak: expenses.approve (bukan pengajuan sendiri).
@@ -73,6 +77,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/pengeluaran/{expense}/realisasi', [ExpenseController::class, 'realize'])->whereUuid('expense')->name('finance.expenses.realize');
     Route::post('keuangan/pengeluaran/{expense}/batalkan-realisasi', [ExpenseController::class, 'voidRealization'])->whereUuid('expense')->name('finance.expenses.void-realization');
     Route::get('keuangan/pengeluaran/{expense}/{kind}', [ExpenseController::class, 'file'])->whereUuid('expense')->whereIn('kind', ['lampiran', 'bukti'])->name('finance.expenses.file');
+    // Laporan arus kas (KS-4): finance.cash.view, kas dalam cakupan.
+    Route::get('keuangan/laporan-kas', [CashReportController::class, 'index'])->name('finance.cash-report.index');
+    Route::get('keuangan/laporan-kas/unduh', [CashReportController::class, 'export'])->middleware('throttle:10,1')->name('finance.cash-report.export');
     // Kategori kas: finance.settings.manage tingkat Yayasan.
     Route::get('keuangan/kategori-kas', [CashCategoryController::class, 'index'])->name('finance.cash-categories.index');
     Route::post('keuangan/kategori-kas', [CashCategoryController::class, 'store'])->name('finance.cash-categories.store');

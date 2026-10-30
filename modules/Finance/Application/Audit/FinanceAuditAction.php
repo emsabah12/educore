@@ -62,7 +62,13 @@ final class FinanceAuditAction
 
     public const EXPENSE_REALIZATION_VOIDED = 'finance.expense_realization_voided';
 
+    public const CASH_TRANSFER_RECORDED = 'finance.cash_transfer_recorded';
+
+    public const CASH_TRANSFER_VOIDED = 'finance.cash_transfer_voided';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
+
+    public const SUBJECT_CASH_TRANSFER = 'fn_cash_transfer';
 
     public const SUBJECT_EXPENSE = 'fn_expense_request';
 
@@ -112,6 +118,8 @@ final class FinanceAuditAction
             self::EXPENSE_REJECTED => 'Pengeluaran ditolak',
             self::EXPENSE_REALIZED => 'Pengeluaran direalisasi',
             self::EXPENSE_REALIZATION_VOIDED => 'Realisasi pengeluaran dibatalkan',
+            self::CASH_TRANSFER_RECORDED => 'Mutasi kas dicatat',
+            self::CASH_TRANSFER_VOIDED => 'Mutasi kas dibatalkan',
         ];
     }
 }

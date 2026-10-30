@@ -1,5 +1,11 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Landmark, Plus, ReceiptText, Wallet } from 'lucide-react';
+import {
+    ArrowLeftRight,
+    Landmark,
+    Plus,
+    ReceiptText,
+    Wallet,
+} from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -53,11 +59,14 @@ type Props = {
         rows: LedgerRow[];
         total_in: number;
         total_out: number;
+        transfer_in: number;
+        transfer_out: number;
         closing: number;
     };
     incomeCategories: Option[];
     canManage: boolean;
     receivesPayments: boolean;
+    transferTargets: Option[];
     today: string;
     limits: { name: number; bank: number; description: number; reason: number };
 };
@@ -98,10 +107,13 @@ export default function Cash({
     incomeCategories,
     canManage,
     receivesPayments,
+    transferTargets,
     today,
     limits,
 }: Props) {
-    const [panel, setPanel] = useState<'income' | 'account' | null>(null);
+    const [panel, setPanel] = useState<
+        'income' | 'account' | 'transfer' | null
+    >(null);
     const activeAccounts = accounts.filter((account) => account.is_active);
     const total = accounts.reduce((sum, account) => sum + account.balance, 0);
     const monthLabel =
@@ -225,6 +237,14 @@ export default function Cash({
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    onClick={() => setPanel('transfer')}
+                                >
+                                    <ArrowLeftRight />
+                                    Mutasi / setoran
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
                                     onClick={() => setPanel('account')}
                                 >
                                     <Landmark />
@@ -237,6 +257,15 @@ export default function Cash({
                                 bookKey={bookKey}
                                 accounts={activeAccounts}
                                 categories={incomeCategories}
+                                today={today}
+                                limits={limits}
+                                onDone={() => setPanel(null)}
+                            />
+                        )}
+                        {panel === 'transfer' && (
+                            <TransferForm
+                                accounts={activeAccounts}
+                                targets={transferTargets}
                                 today={today}
                                 limits={limits}
                                 onDone={() => setPanel(null)}
@@ -275,6 +304,14 @@ export default function Cash({
                             value={formatRupiah(ledger.closing)}
                         />
                     </dl>
+                    {(ledger.transfer_in > 0 || ledger.transfer_out > 0) && (
+                        <p className="text-sm text-muted-foreground">
+                            Mutasi (tidak dihitung sebagai
+                            pemasukan/pengeluaran): masuk{' '}
+                            {formatRupiah(ledger.transfer_in)}, keluar{' '}
+                            {formatRupiah(ledger.transfer_out)}.
+                        </p>
+                    )}
 
                     {ledger.rows.length === 0 ? (
                         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -722,6 +759,135 @@ function IncomeForm({
     );
 }
 
+function TransferForm({
+    accounts,
+    targets,
+    today,
+    limits,
+    onDone,
+}: {
+    accounts: Account[];
+    targets: Option[];
+    today: string;
+    limits: Props['limits'];
+    onDone: () => void;
+}) {
+    const [from, setFrom] = useState(accounts[0]?.id ?? '');
+    const destinations = targets.filter((target) => target.value !== from);
+
+    return (
+        <Form
+            action="/keuangan/kas/mutasi"
+            method="post"
+            errorBag="transfer"
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-3 rounded-xl border p-4"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <h3 className="font-medium">Mutasi / setoran</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Pindah uang antar-rekening kas ini (mis. setor tunai ke
+                        bank), setoran lembaga ke kas Yayasan, atau dari kas
+                        Yayasan ke kas lembaga. Mutasi tidak dihitung sebagai
+                        pemasukan/pengeluaran.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="trf-from">Dari rekening</Label>
+                            <select
+                                id="trf-from"
+                                name="account_id"
+                                className={selectClass}
+                                value={from}
+                                onChange={(event) =>
+                                    setFrom(event.target.value)
+                                }
+                                required
+                            >
+                                {accounts.map((account) => (
+                                    <option key={account.id} value={account.id}>
+                                        {account.name} — saldo{' '}
+                                        {formatRupiah(account.balance)}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.account_id} />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="trf-to">Ke rekening</Label>
+                            <select
+                                id="trf-to"
+                                name="to_account_id"
+                                className={selectClass}
+                                required
+                            >
+                                {destinations.map((target) => (
+                                    <option
+                                        key={target.value}
+                                        value={target.value}
+                                    >
+                                        {target.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.to_account_id} />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="trf-date">Tanggal</Label>
+                            <Input
+                                id="trf-date"
+                                name="entry_date"
+                                type="date"
+                                max={today}
+                                defaultValue={today}
+                                required
+                            />
+                            <InputError message={errors.entry_date} />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="trf-amount">Jumlah (Rp)</Label>
+                            <Input
+                                id="trf-amount"
+                                name="amount"
+                                inputMode="numeric"
+                                placeholder="mis. 5.000.000"
+                                required
+                            />
+                            <InputError message={errors.amount} />
+                        </div>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="trf-description">Uraian</Label>
+                        <Input
+                            id="trf-description"
+                            name="description"
+                            placeholder="mis. Setoran SPP Oktober"
+                            maxLength={limits.description}
+                            required
+                        />
+                        <InputError message={errors.description} />
+                    </div>
+                    <InputError message={errors.form} />
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                        <Button type="submit" disabled={processing}>
+                            Simpan mutasi
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onDone}
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                </>
+            )}
+        </Form>
+    );
+}
+
 function LedgerItem({
     row,
     canManage,
@@ -734,8 +900,14 @@ function LedgerItem({
     const [voiding, setVoiding] = useState(false);
     const voided = row.status === 'BATAL';
     const incoming = row.direction === 'MASUK';
+    // Mutasi dibatalkan dari sisi pengirim (baris KELUAR); transaksi lain dari asalnya.
+    const voidsTransfer =
+        row.source === 'MUTASI' && !incoming && row.source_id !== null;
     const canVoid =
-        canManage && row.type === 'entry' && !voided && row.source === 'MANUAL';
+        canManage &&
+        row.type === 'entry' &&
+        !voided &&
+        (row.source === 'MANUAL' || voidsTransfer);
 
     return (
         <li className="space-y-2 p-3 text-sm">
@@ -746,6 +918,11 @@ function LedgerItem({
                         {row.source === 'PEMBAYARAN' && (
                             <Badge variant="secondary" className="ml-2">
                                 Otomatis
+                            </Badge>
+                        )}
+                        {row.source === 'MUTASI' && (
+                            <Badge variant="secondary" className="ml-2">
+                                Mutasi
                             </Badge>
                         )}
                         {voided && (
@@ -804,7 +981,11 @@ function LedgerItem({
             </div>
             {voiding && (
                 <Form
-                    action={`/keuangan/kas/transaksi/${row.id}/batalkan`}
+                    action={
+                        voidsTransfer
+                            ? `/keuangan/kas/mutasi/${row.source_id}/batalkan`
+                            : `/keuangan/kas/transaksi/${row.id}/batalkan`
+                    }
                     method="post"
                     errorBag={`void-${row.id}`}
                     options={{ preserveScroll: true }}

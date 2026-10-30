@@ -98,7 +98,7 @@ final class ExpenseController
         $expenseCategories = [];
 
         foreach ($categories->all($tenantId) as $category) {
-            if ($category['direction'] === CashDirection::Out->value && $category['is_active']) {
+            if ($category['direction'] === CashDirection::Out->value && $category['is_active'] && ! $category['is_system']) {
                 $expenseCategories[] = ['value' => $category['id'], 'label' => $category['name']];
             }
         }

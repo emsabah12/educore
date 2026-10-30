@@ -17,7 +17,7 @@ use stdClass;
  *
  * Aturan [ASUMSI KS-1, mengikuti jenis biaya FN-1a]: kode huruf besar/angka/"-" 2–30 karakter, unik per yayasan,
  * tidak bisa diubah; nama 1–100; jenis (Masuk/Keluar) tetap; tidak dihapus (nonaktif = tidak bisa dipilih lagi).
- * Kategori sistem (mis. "Pembayaran siswa", KS-2) tidak bisa diubah, dinonaktifkan, atau dipilih manual.
+ * Kategori sistem ("Pembayaran siswa" KS-2, "Mutasi masuk/keluar" KS-4) tidak bisa diubah, dinonaktifkan, atau dipilih manual.
  *
  * @phpstan-type CategoryRow array{id: string, code: string, name: string, direction: string, is_system: bool, is_active: bool}
  */
@@ -30,9 +30,16 @@ final class ManageCashCategories
     /** Kategori sistem untuk penerimaan pembayaran siswa dari kasir (KS-2). */
     public const SYSTEM_STUDENT_PAYMENTS = 'PEMBAYARAN-SISWA';
 
+    /** Kategori sistem mutasi antar-rekening / antar-kas (KS-4): tidak dihitung sebagai pemasukan/pengeluaran. */
+    public const SYSTEM_TRANSFER_IN = 'MUTASI-MASUK';
+
+    public const SYSTEM_TRANSFER_OUT = 'MUTASI-KELUAR';
+
     /** Kategori bawaan saat yayasan pertama kali membuka kas: [kode, nama, arah, sistem]. */
     private const DEFAULTS = [
         [self::SYSTEM_STUDENT_PAYMENTS, 'Pembayaran siswa', CashDirection::In, true],
+        [self::SYSTEM_TRANSFER_IN, 'Mutasi masuk', CashDirection::In, true],
+        [self::SYSTEM_TRANSFER_OUT, 'Mutasi keluar', CashDirection::Out, true],
         ['BOS', 'Dana BOS', CashDirection::In, false],
         ['DONASI', 'Donasi / infak', CashDirection::In, false],
         ['MASUK-LAIN', 'Pemasukan lain-lain', CashDirection::In, false],
@@ -49,25 +56,44 @@ final class ManageCashCategories
     ) {}
 
     /**
-     * Isi kategori bawaan bila yayasan belum punya kategori kas sama sekali (aman diulang).
+     * Isi kategori bawaan bila yayasan belum punya kategori kas sama sekali; kategori SISTEM yang belum ada (mis.
+     * mutasi, ditambahkan KS-4) selalu dilengkapi. Aman diulang.
      */
     public function ensureDefaults(string $tenantId): void
     {
-        if (DB::table('fn_cash_categories')->where('tenant_id', $tenantId)->exists()) {
-            return;
+        $existing = [];
+
+        foreach (DB::table('fn_cash_categories')->where('tenant_id', $tenantId)->pluck('code') as $code) {
+            $existing[(string) $code] = true;
         }
 
         $now = now();
         $rows = [];
 
         foreach (self::DEFAULTS as [$code, $name, $direction, $system]) {
+            if (isset($existing[$code]) || ($existing !== [] && ! $system)) {
+                continue;
+            }
+
             $rows[] = [
                 'id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'code' => $code, 'name' => $name,
                 'direction' => $direction->value, 'is_system' => $system, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
             ];
         }
 
-        DB::table('fn_cash_categories')->insertOrIgnore($rows);
+        if ($rows !== []) {
+            DB::table('fn_cash_categories')->insertOrIgnore($rows);
+        }
+    }
+
+    /**
+     * Id kategori sistem (dibuat bila belum ada).
+     */
+    public function systemId(string $tenantId, string $code): string
+    {
+        $this->ensureDefaults($tenantId);
+
+        return (string) DB::table('fn_cash_categories')->where('tenant_id', $tenantId)->where('code', $code)->value('id');
     }
 
     /**

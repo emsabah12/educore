@@ -78,7 +78,7 @@ final class CashBook
     /**
      * Buku kas satu bulan (Y-m), semua rekening kas itu atau satu rekening.
      *
-     * @return array{opening: int, rows: list<LedgerRow>, total_in: int, total_out: int, closing: int}
+     * @return array{opening: int, rows: list<LedgerRow>, total_in: int, total_out: int, transfer_in: int, transfer_out: int, closing: int}
      */
     public function ledger(string $tenantId, ?string $organizationId, string $month, ?string $accountId): array
     {
@@ -168,6 +168,8 @@ final class CashBook
         $balance = $opening;
         $in = 0;
         $out = 0;
+        $transferIn = 0;
+        $transferOut = 0;
         $ledger = [];
 
         foreach ($rows as $row) {
@@ -175,20 +177,33 @@ final class CashBook
             $counted = $row['status'] === PaymentStatus::Valid->value;
 
             if ($counted) {
+                // Mutasi (KS-4) bukan pemasukan/pengeluaran: dihitung terpisah.
+                $transfer = $row['source'] === CashEntrySource::Transfer->value;
+
                 if ($row['direction'] === CashDirection::In->value) {
                     $balance += $row['amount'];
-                    // Saldo awal rekening bukan pemasukan bulan ini.
-                    $in += $row['type'] === 'entry' ? $row['amount'] : 0;
+
+                    if ($transfer) {
+                        $transferIn += $row['amount'];
+                    } elseif ($row['type'] === 'entry') {
+                        // Saldo awal rekening bukan pemasukan bulan ini.
+                        $in += $row['amount'];
+                    }
                 } else {
                     $balance -= $row['amount'];
-                    $out += $row['amount'];
+
+                    if ($transfer) {
+                        $transferOut += $row['amount'];
+                    } else {
+                        $out += $row['amount'];
+                    }
                 }
             }
 
             $ledger[] = $row + ['balance' => $counted ? $balance : null];
         }
 
-        return ['opening' => $opening, 'rows' => $ledger, 'total_in' => $in, 'total_out' => $out, 'closing' => $balance];
+        return ['opening' => $opening, 'rows' => $ledger, 'total_in' => $in, 'total_out' => $out, 'transfer_in' => $transferIn, 'transfer_out' => $transferOut, 'closing' => $balance];
     }
 
     private function accountQuery(string $tenantId, ?string $organizationId): Builder

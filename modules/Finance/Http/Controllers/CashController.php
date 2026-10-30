@@ -4,6 +4,7 @@ namespace Modules\Finance\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
@@ -14,6 +15,7 @@ use Modules\Finance\Application\Cash\CashBook;
 use Modules\Finance\Application\Cash\ManageCashAccounts;
 use Modules\Finance\Application\Cash\ManageCashCategories;
 use Modules\Finance\Application\Cash\ManageCashEntries;
+use Modules\Finance\Application\Cash\ManageCashTransfers;
 use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Report\ReceiptRecap;
 use Modules\Finance\Domain\Cash\CashDirection;
@@ -70,6 +72,8 @@ final class CashController
             }
         }
 
+        $canManage = $this->allowsAt($organizationId, FinanceAccess::CASH_MANAGE);
+
         return Inertia::render('finance/cash', [
             'books' => $books,
             'bookKey' => $key,
@@ -79,7 +83,9 @@ final class CashController
             'accounts' => $accountRows,
             'ledger' => $book->ledger($tenantId, $organizationId, $month, $accountId),
             'incomeCategories' => $incomeCategories,
-            'canManage' => $this->allowsAt($organizationId, FinanceAccess::CASH_MANAGE),
+            'canManage' => $canManage,
+            // KS-4: rekening tujuan mutasi dari kas ini (kas sendiri + kas Yayasan / kas lembaga).
+            'transferTargets' => $canManage ? $this->transferTargets($accounts, $tenantId, $organizationId) : [],
             // KS-2: kas lembaga menerima pembayaran siswa; tanpa rekening penerima transfer → transfer masuk Kas tunai.
             'receivesPayments' => $organizationId !== null,
             'today' => BusinessClock::todayString(),
@@ -177,6 +183,80 @@ final class CashController
         ));
 
         return $this->done('Pemasukan dicatat.');
+    }
+
+    /**
+     * Mutasi antar-rekening / antar-kas (KS-4). Izin: finance.cash.manage di kas rekening ASAL.
+     */
+    public function storeTransfer(Request $request, ManageCashAccounts $accounts, ManageCashTransfers $transfers): RedirectResponse
+    {
+        $from = $request->string('account_id')->toString();
+        $owner = $accounts->ownerOf($this->tenantId(), $from);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+
+        $this->attempt(fn (): string => $transfers->record(
+            $this->tenantId(),
+            $from,
+            $request->string('to_account_id')->toString(),
+            $request->string('entry_date')->toString(),
+            $request->input('amount'),
+            $request->string('description')->toString(),
+            $this->tenantContext->require()->membershipId,
+        ));
+
+        return $this->done('Mutasi dicatat.');
+    }
+
+    public function voidTransfer(Request $request, string $transfer, ManageCashTransfers $transfers): RedirectResponse
+    {
+        $owner = $transfers->ownerOf($this->tenantId(), $transfer);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+        $this->attempt(fn () => $transfers->void($this->tenantId(), $transfer, $request->string('reason')->toString(), $this->tenantContext->require()->membershipId));
+
+        return $this->done('Mutasi dibatalkan.');
+    }
+
+    /**
+     * Rekening aktif yang bisa menjadi tujuan mutasi dari kas ini: rekening kas sendiri, lalu kas Yayasan (dari kas
+     * lembaga) atau semua kas lembaga (dari kas Yayasan).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function transferTargets(ManageCashAccounts $accounts, string $tenantId, ?string $organizationId): array
+    {
+        if ($organizationId !== null) {
+            $accounts->ensureCashAccount($tenantId, null);
+        }
+
+        $targets = [];
+
+        foreach (DB::table('fn_cash_accounts as a')
+            ->leftJoin('organizations as o', 'o.id', '=', 'a.organization_id')
+            ->where('a.tenant_id', $tenantId)
+            ->where('a.is_active', true)
+            // Dari kas Yayasan: semua kas (sendiri + lembaga). Dari kas lembaga: kas sendiri + kas Yayasan.
+            ->when($organizationId !== null, fn ($query) => $query->where(fn ($where) => $where->where('a.organization_id', $organizationId)->orWhereNull('a.organization_id')))
+            ->orderByRaw('CASE WHEN a.organization_id IS NOT DISTINCT FROM CAST(? AS uuid) THEN 0 WHEN a.organization_id IS NULL THEN 1 ELSE 2 END', [$organizationId])
+            ->orderBy('o.name')
+            ->orderByRaw("a.kind <> 'TUNAI'")
+            ->orderBy('a.name')
+            ->get(['a.id', 'a.name', 'a.organization_id', 'o.name as organization']) as $account) {
+            $own = $account->organization_id === $organizationId;
+            $kas = $account->organization_id === null ? 'Kas Yayasan' : (string) $account->organization;
+            $targets[] = ['value' => (string) $account->id, 'label' => $own ? (string) $account->name : ((string) $account->name).' — '.$kas];
+        }
+
+        return $targets;
     }
 
     public function voidEntry(Request $request, string $entry, ManageCashEntries $entries): RedirectResponse
