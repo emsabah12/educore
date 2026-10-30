@@ -2,7 +2,7 @@
 
 - **Versi:** 0.9 (2026-10-30: rincian & pembangunan FN-5 tagihan di portal orang tua, §19)
 - **Versi sebelumnya:** 0.8 (FN-4b, §18), 0.7 (FN-4a, §17), 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b SELESAI (`fc62e5b`); FN-5 dibangun 2026-10-30, menunggu uji owner
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b SELESAI (`fc62e5b`); FN-5 SELESAI (`a167383`) — **tahap awal selesai**; lanjutan kas umum & pengeluaran di PRD-004
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 

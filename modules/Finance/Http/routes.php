@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Finance\Http\Controllers\ArrearsController;
+use Modules\Finance\Http\Controllers\CashCategoryController;
+use Modules\Finance\Http\Controllers\CashController;
 use Modules\Finance\Http\Controllers\CashierController;
 use Modules\Finance\Http\Controllers\ChildBillingController;
 use Modules\Finance\Http\Controllers\DiscountController;
@@ -52,6 +54,19 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Portal orang tua/wali (FN-5): tagihan & kuitansi anak sendiri; akses dari tautan orang tua/wali, tanpa izin.
     Route::get('anak-saya/{student}/tagihan', [ChildBillingController::class, 'index'])->whereUuid('student')->name('finance.child-billing.index');
     Route::get('anak-saya/{student}/kuitansi/{payment}', [ChildBillingController::class, 'receipt'])->whereUuid(['student', 'payment'])->name('finance.child-billing.receipt');
+
+    // Kas umum (PRD-004 KS-1). Lihat: finance.cash.view; kelola: finance.cash.manage di kas itu (lembaga / Yayasan).
+    Route::get('keuangan/kas', [CashController::class, 'index'])->name('finance.cash.index');
+    Route::post('keuangan/kas/rekening', [CashController::class, 'storeAccount'])->name('finance.cash-accounts.store');
+    Route::patch('keuangan/kas/rekening/{account}', [CashController::class, 'updateAccount'])->whereUuid('account')->name('finance.cash-accounts.update');
+    Route::post('keuangan/kas/pemasukan', [CashController::class, 'storeIncome'])->name('finance.cash-income.store');
+    Route::post('keuangan/kas/transaksi/{entry}/batalkan', [CashController::class, 'voidEntry'])->whereUuid('entry')->name('finance.cash-entries.void');
+    // Kategori kas: finance.settings.manage tingkat Yayasan.
+    Route::get('keuangan/kategori-kas', [CashCategoryController::class, 'index'])->name('finance.cash-categories.index');
+    Route::post('keuangan/kategori-kas', [CashCategoryController::class, 'store'])->name('finance.cash-categories.store');
+    Route::patch('keuangan/kategori-kas/{category}', [CashCategoryController::class, 'update'])->whereUuid('category')->name('finance.cash-categories.update');
+    Route::post('keuangan/kategori-kas/{category}/nonaktifkan', [CashCategoryController::class, 'deactivate'])->whereUuid('category')->name('finance.cash-categories.deactivate');
+    Route::post('keuangan/kategori-kas/{category}/aktifkan', [CashCategoryController::class, 'activate'])->whereUuid('category')->name('finance.cash-categories.activate');
 
     // Potongan/beasiswa siswa (FN-1b). Lihat: finance.billing.view; kelola: finance.invoices.manage di lembaga itu.
     Route::get('keuangan/potongan', [DiscountController::class, 'index'])->name('finance.discounts.index');

@@ -3,7 +3,7 @@
 namespace Modules\Finance\Application\Audit;
 
 /**
- * Aksi modul Finance yang dicatat di audit log (PRD-003 §8), dengan label untuk halaman Log audit.
+ * Aksi modul Finance yang dicatat di audit log (PRD-003 §8, PRD-004 §8), dengan label untuk halaman Log audit.
  */
 final class FinanceAuditAction
 {
@@ -34,7 +34,29 @@ final class FinanceAuditAction
 
     public const PAYMENT_VOIDED = 'finance.payment_voided';
 
+    public const CASH_CATEGORY_CREATED = 'finance.cash_category_created';
+
+    public const CASH_CATEGORY_UPDATED = 'finance.cash_category_updated';
+
+    public const CASH_CATEGORY_DEACTIVATED = 'finance.cash_category_deactivated';
+
+    public const CASH_CATEGORY_ACTIVATED = 'finance.cash_category_activated';
+
+    public const CASH_ACCOUNT_CREATED = 'finance.cash_account_created';
+
+    public const CASH_ACCOUNT_UPDATED = 'finance.cash_account_updated';
+
+    public const CASH_ENTRY_RECORDED = 'finance.cash_entry_recorded';
+
+    public const CASH_ENTRY_VOIDED = 'finance.cash_entry_voided';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
+
+    public const SUBJECT_CASH_CATEGORY = 'fn_cash_category';
+
+    public const SUBJECT_CASH_ACCOUNT = 'fn_cash_account';
+
+    public const SUBJECT_CASH_ENTRY = 'fn_cash_entry';
 
     public const SUBJECT_PAYMENT = 'fn_payment';
 
@@ -62,6 +84,14 @@ final class FinanceAuditAction
             self::INVOICES_VOIDED_ON_EXIT => 'Tagihan dibatalkan otomatis (siswa keluar)',
             self::PAYMENT_RECORDED => 'Pembayaran dicatat',
             self::PAYMENT_VOIDED => 'Pembayaran dibatalkan',
+            self::CASH_CATEGORY_CREATED => 'Kategori kas ditambahkan',
+            self::CASH_CATEGORY_UPDATED => 'Kategori kas diubah',
+            self::CASH_CATEGORY_DEACTIVATED => 'Kategori kas dinonaktifkan',
+            self::CASH_CATEGORY_ACTIVATED => 'Kategori kas diaktifkan kembali',
+            self::CASH_ACCOUNT_CREATED => 'Rekening kas ditambahkan',
+            self::CASH_ACCOUNT_UPDATED => 'Rekening kas diubah',
+            self::CASH_ENTRY_RECORDED => 'Transaksi kas dicatat',
+            self::CASH_ENTRY_VOIDED => 'Transaksi kas dibatalkan',
         ];
     }
 }

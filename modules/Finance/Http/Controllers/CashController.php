@@ -1,0 +1,239 @@
+<?php
+
+namespace Modules\Finance\Http\Controllers;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Domain\Organization\Organization;
+use Modules\Core\Domain\Organization\OrganizationStatus;
+use Modules\Core\Domain\Organization\OrganizationType;
+use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
+use Modules\Finance\Application\Authorization\FinanceAccess;
+use Modules\Finance\Application\Cash\CashBook;
+use Modules\Finance\Application\Cash\ManageCashAccounts;
+use Modules\Finance\Application\Cash\ManageCashCategories;
+use Modules\Finance\Application\Cash\ManageCashEntries;
+use Modules\Finance\Application\Report\ReceiptRecap;
+use Modules\Finance\Domain\Cash\CashDirection;
+use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
+
+/**
+ * Kas umum (PRD-004 §3, §5–§6, KS-1): pilih kas (lembaga / Yayasan) → rekening & saldo, buku kas per bulan;
+ * tambah/ubah rekening & saldo awal, catat pemasukan, batalkan transaksi manual.
+ *
+ * - Kas lembaga: `finance.cash.view` / `finance.cash.manage` di lembaga itu (di luar cakupan → 404, tanpa izin → 403).
+ * - Kas Yayasan (`kas=yayasan`): izin yang sama di tingkat Yayasan.
+ */
+final class CashController
+{
+    use WorksPerOrganization;
+
+    /** Nilai pilihan kas untuk kas Yayasan (organization_id kosong). */
+    public const YAYASAN = 'yayasan';
+
+    public function __construct(
+        private readonly AuthorizationService $authorization,
+        private readonly TenantContext $tenantContext,
+    ) {}
+
+    public function index(Request $request, CashBook $book, ManageCashAccounts $accounts, ManageCashCategories $categories): Response
+    {
+        $books = $this->books();
+
+        if ($books === []) {
+            abort(403);
+        }
+
+        $key = $this->pick(array_column($books, 'value'), $request->query('kas')) ?? $books[0]['value'];
+        $organizationId = $key === self::YAYASAN ? null : $key;
+        $tenantId = $this->tenantId();
+
+        $categories->ensureDefaults($tenantId);
+        $accounts->ensureCashAccount($tenantId, $organizationId);
+
+        $accountRows = $book->accounts($tenantId, $organizationId);
+        $months = ReceiptRecap::monthOptions(BusinessClock::today());
+        $month = $this->pick(array_column($months, 'value'), $request->query('bulan')) ?? BusinessClock::today()->format('Y-m');
+        $accountId = $this->pick(array_column($accountRows, 'id'), $request->query('rekening'), '') ?: null;
+
+        $incomeCategories = [];
+
+        foreach ($categories->all($tenantId) as $category) {
+            if ($category['direction'] === CashDirection::In->value && $category['is_active'] && ! $category['is_system']) {
+                $incomeCategories[] = ['value' => $category['id'], 'label' => $category['name']];
+            }
+        }
+
+        return Inertia::render('finance/cash', [
+            'books' => $books,
+            'bookKey' => $key,
+            'months' => $months,
+            'month' => $month,
+            'accountId' => $accountId,
+            'accounts' => $accountRows,
+            'ledger' => $book->ledger($tenantId, $organizationId, $month, $accountId),
+            'incomeCategories' => $incomeCategories,
+            'canManage' => $this->allowsAt($organizationId, FinanceAccess::CASH_MANAGE),
+            'today' => BusinessClock::todayString(),
+            'limits' => [
+                'name' => ManageCashAccounts::NAME_MAX_LENGTH,
+                'bank' => ManageCashAccounts::BANK_MAX_LENGTH,
+                'description' => ManageCashEntries::DESCRIPTION_MAX_LENGTH,
+                'reason' => ManageCashEntries::REASON_MAX_LENGTH,
+            ],
+        ]);
+    }
+
+    public function storeAccount(Request $request, ManageCashAccounts $accounts): RedirectResponse
+    {
+        $organizationId = $this->bookFromRequest($request, FinanceAccess::CASH_MANAGE);
+
+        $this->attempt(fn (): string => $accounts->createBank(
+            $this->tenantId(),
+            $organizationId,
+            $request->string('name')->toString(),
+            $request->string('bank_name')->toString(),
+            $request->string('account_number')->toString(),
+            $request->input('opening_balance'),
+            $request->string('opening_date')->toString(),
+            $this->tenantContext->require()->membershipId,
+        ));
+
+        return $this->done('Rekening ditambahkan.');
+    }
+
+    public function updateAccount(Request $request, string $account, ManageCashAccounts $accounts): RedirectResponse
+    {
+        $owner = $accounts->ownerOf($this->tenantId(), $account);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+
+        $this->attempt(fn () => $accounts->update(
+            $this->tenantId(),
+            $account,
+            $request->string('name')->toString(),
+            $request->string('bank_name')->toString(),
+            $request->string('account_number')->toString(),
+            $request->input('opening_balance'),
+            $request->string('opening_date')->toString(),
+        ));
+
+        return $this->done('Rekening disimpan.');
+    }
+
+    public function storeIncome(Request $request, ManageCashEntries $entries): RedirectResponse
+    {
+        $organizationId = $this->bookFromRequest($request, FinanceAccess::CASH_MANAGE);
+
+        $this->attempt(fn (): string => $entries->recordIncome(
+            $this->tenantId(),
+            $organizationId,
+            $request->string('account_id')->toString(),
+            $request->string('entry_date')->toString(),
+            $request->string('category_id')->toString(),
+            $request->input('amount'),
+            $request->string('description')->toString(),
+            $this->tenantContext->require()->membershipId,
+        ));
+
+        return $this->done('Pemasukan dicatat.');
+    }
+
+    public function voidEntry(Request $request, string $entry, ManageCashEntries $entries): RedirectResponse
+    {
+        $owner = $entries->ownerOf($this->tenantId(), $entry);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+
+        $this->attempt(fn () => $entries->void($this->tenantId(), $entry, $request->string('reason')->toString(), $this->tenantContext->require()->membershipId));
+
+        return $this->done('Transaksi dibatalkan.');
+    }
+
+    // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Pilihan kas yang boleh dilihat: kas Yayasan (izin lihat kas tingkat Yayasan) lalu lembaga urut nama.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function books(): array
+    {
+        $books = [];
+
+        if ($this->allowsAt(null, FinanceAccess::CASH_VIEW)) {
+            $books[] = ['value' => self::YAYASAN, 'label' => 'Kas Yayasan'];
+        }
+
+        foreach (Organization::query()
+            ->whereIn('id', $this->authorization->visibleNodeIds(FinanceAccess::CASH_VIEW))
+            ->where('type', OrganizationType::Lembaga->value)
+            ->where('status', OrganizationStatus::Active->value)
+            ->orderBy('name')
+            ->get() as $organization) {
+            $books[] = ['value' => $organization->id, 'label' => $organization->name];
+        }
+
+        return $books;
+    }
+
+    /**
+     * Kas dari isian `kas` (id lembaga atau "yayasan"), sesudah cek hak akses.
+     */
+    private function bookFromRequest(Request $request, string $permission): ?string
+    {
+        $key = $request->input('kas');
+
+        if (! is_string($key) || $key === '') {
+            abort(404);
+        }
+
+        if ($key === self::YAYASAN) {
+            $this->authorizeBook(null, $permission);
+
+            return null;
+        }
+
+        if (! Str::isUuid($key) || ! Organization::query()->whereKey($key)->where('type', OrganizationType::Lembaga->value)->exists()) {
+            abort(404);
+        }
+
+        $this->authorizeBook($key, $permission);
+
+        return $key;
+    }
+
+    /**
+     * Kas di luar cakupan lihat → 404; terlihat tetapi tanpa $permission → 403.
+     */
+    private function authorizeBook(?string $organizationId, string $permission): void
+    {
+        if (! $this->allowsAt($organizationId, FinanceAccess::CASH_VIEW)) {
+            abort(404);
+        }
+
+        if (! $this->allowsAt($organizationId, $permission)) {
+            abort(403);
+        }
+    }
+
+    private function allowsAt(?string $organizationId, string $permission): bool
+    {
+        return $organizationId === null
+            ? $this->authorization->inspectTarget($permission, null, null)->allowed()
+            : $this->authorization->allows($permission, $organizationId);
+    }
+}

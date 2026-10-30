@@ -19,6 +19,8 @@ import {
     HandCoins,
     Heart,
     GraduationCap,
+    Landmark,
+    FolderTree,
     LayoutGrid,
     Network,
     Percent,
@@ -213,6 +215,18 @@ const receiptRecapNavItem: NavItem = {
     icon: ChartColumn,
 };
 
+const cashNavItem: NavItem = {
+    title: 'Kas',
+    href: '/keuangan/kas',
+    icon: Landmark,
+};
+
+const cashCategoriesNavItem: NavItem = {
+    title: 'Kategori kas',
+    href: '/keuangan/kategori-kas',
+    icon: FolderTree,
+};
+
 const invoicesNavItem: NavItem = {
     title: 'Tagihan',
     href: '/keuangan/tagihan',
@@ -303,8 +317,9 @@ export function AppSidebar() {
                   discountsNavItem,
               ]
             : []),
+        ...(permissions.includes('finance.cash.view') ? [cashNavItem] : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
-            ? [financeSettingsNavItem]
+            ? [financeSettingsNavItem, cashCategoriesNavItem]
             : []),
         ...(atTenantLevel && permissions.includes('academic.calendar.manage')
             ? [academicCalendarNavItem]

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 s.d. FN-4 SELESAI; FN-5 dibangun 2026-10-30, menunggu uji owner
-- **Commit terakhir:** `fc62e5b` — feat(finance): FN-4b rekap penerimaan
+- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
+- **Commit terakhir:** `a167383` — feat(finance): FN-5 tagihan di portal orang tua
 
 ## Keputusan penting
 
@@ -44,6 +44,7 @@
 | 2026-10-27 | Tarif gaji (honor JP, potongan presensi) diubah Admin Yayasan & Admin SDM (termasuk keuangan); slip & rekap gaji untuk pemilik `hr.payroll.manage`, tanpa role Staf Keuangan                                                                                                                                    | PRD-001 §16.2–16.3, OD-HR-12                             |
 | 2026-10-28 | Nomor HP orang tua/wali **unik** (satu HP = satu orang tua/wali); pencarian orang tua/wali tercatat lewat sebagian nama/HP dengan nama anak + lembaga, untuk Admin Yayasan & Operator Akademik                                                                                                                  | PRD-002 §21.5, OD-AC-19, OD-AC-20                        |
 | 2026-10-28 | Modul **Keuangan** (`modules/Finance`): tagihan & pembayaran siswa; Bendahara per lembaga (role baru) + Admin Keuangan tingkat Yayasan (role baru, terpisah dari Admin SDM); pembayaran dicatat petugas; tarif per lembaga/tahun ajaran/tingkat; kelebihan bayar ditolak; tanpa denda                           | PRD-003, OD-FN-01 s.d. OD-FN-08                          |
+| 2026-10-30 | Keuangan lanjutan pertama = **kas umum & pengeluaran**: kas per lembaga + kas Yayasan; pengeluaran wajib diajukan → disetujui (Kepala Lembaga / Pimpinan Yayasan) → direalisasi; pembayaran siswa otomatis masuk buku kas; saldo tidak boleh minus                                                              | PRD-004, OD-KS-01 s.d. OD-KS-08                          |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -733,13 +734,23 @@
 - Test: `tests/Feature/Finance/ReceiptRecapTest.php` (3 test, awalan `fnr`). 692 test lulus (7 arsitektur + 685), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**FN-5 — Tagihan di portal orang tua/wali: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §19, PRD-002 §21.3
+**FN-5 — Tagihan di portal orang tua/wali: SELESAI (`a167383`)** — PRD-003 §19, PRD-002 §21.3
 
 - Core: registri `Application/Portal/GuardianPortalLinks` (tombol modul lain di detail anak).
 - Academic: kontrak `Contracts\GuardianChildren` + `Application/Guardian/AcademicGuardianChildren`; `MyChildrenController::show` mengirim `links`; `pages/academic/my-children/show.tsx` menampilkan tombolnya.
 - Finance: `ChildBillingController` (`/anak-saya/{id}/tagihan`, `/anak-saya/{id}/kuitansi/{pembayaran}`), memakai `CashierOverview` & `Receipts`; tombol **Tagihan** didaftarkan di `FinanceServiceProvider`.
 - Frontend: `pages/finance/child-billing.tsx`; `pages/print/receipt.tsx` dapat prop `backLabel`.
 - Test: `tests/Feature/Finance/ChildBillingTest.php` (3 test, awalan `fnc`). 695 test lulus (7 arsitektur + 688), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar. **Tahap awal Keuangan (PRD-003) selesai.**
+
+## Kas umum & pengeluaran (PRD-004)
+
+**KS-1 — Kas, rekening, kategori, pemasukan, buku kas: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §12
+
+- Akses: `FinanceAccess::CASH_VIEW|CASH_MANAGE` (Bendahara, Admin Keuangan, Admin Yayasan: keduanya; Pimpinan & Kepala Lembaga: lihat) → **wajib `php artisan educore:sync-access`**.
+- Finance: migration `2026_10_30_300007_create_fn_cash_tables`; `Domain/Cash` (`CashDirection`, `CashAccountKind`, `CashEntrySource`); `Application/Cash` (`ManageCashCategories`, `ManageCashAccounts`, `ManageCashEntries`, `CashBalances`, `CashBook`); `CashController` (`/keuangan/kas`, `/kas/rekening`, `/kas/pemasukan`, `/kas/transaksi/{id}/batalkan`), `CashCategoryController` (`/keuangan/kategori-kas`).
+- Frontend: `pages/finance/cash.tsx`, `pages/finance/cash-categories.tsx`; menu Keuangan → **Kas**, **Kategori kas**.
+- Test: `tests/Feature/Finance/CashTest.php` (5 test, awalan `fnk`); `AccessCatalogTest` & `TreeAuthorizationTest` disesuaikan. 700 test lulus (7 arsitektur + 693), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -779,5 +790,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-5 oleh owner → Modul Keuangan tahap awal (PRD-003 FN-1 s.d. FN-5) selesai. Yang menyusul (PRD-003 §11): payment gateway, kas umum & pengeluaran, pembukuan, tabungan siswa, notifikasi WA.
-2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).
+1. Uji KS-1 oleh owner, lalu KS-2 (pembayaran siswa otomatis masuk buku kas), KS-3 (pengajuan → persetujuan → realisasi pengeluaran), KS-4 (mutasi & setoran ke Yayasan, laporan arus kas) — PRD-004 §7.
+2. Keuangan lanjutan berikutnya (PRD-004 §11): tabungan siswa, payment gateway, pembukuan.
+3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).
