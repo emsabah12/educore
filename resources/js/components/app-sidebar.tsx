@@ -6,6 +6,7 @@ import {
     CalendarCog,
     CalendarDays,
     CalendarRange,
+    CircleAlert,
     ClipboardCheck,
     ClipboardList,
     ClipboardPen,
@@ -199,6 +200,12 @@ const cashierNavItem: NavItem = {
     icon: CreditCard,
 };
 
+const arrearsNavItem: NavItem = {
+    title: 'Tunggakan',
+    href: '/keuangan/tunggakan',
+    icon: CircleAlert,
+};
+
 const invoicesNavItem: NavItem = {
     title: 'Tagihan',
     href: '/keuangan/tagihan',
@@ -281,7 +288,12 @@ export function AppSidebar() {
               ]
             : []),
         ...(permissions.includes('finance.billing.view')
-            ? [cashierNavItem, invoicesNavItem, discountsNavItem]
+            ? [
+                  cashierNavItem,
+                  invoicesNavItem,
+                  arrearsNavItem,
+                  discountsNavItem,
+              ]
             : []),
         ...(atTenantLevel && permissions.includes('finance.settings.manage')
             ? [financeSettingsNavItem]

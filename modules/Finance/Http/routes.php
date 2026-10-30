@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Finance\Http\Controllers\ArrearsController;
 use Modules\Finance\Http\Controllers\CashierController;
 use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
@@ -37,6 +38,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/pembayaran', [CashierController::class, 'store'])->name('finance.payments.store');
     Route::post('keuangan/pembayaran/{payment}/batalkan', [CashierController::class, 'void'])->whereUuid('payment')->name('finance.payments.void');
     Route::get('keuangan/kuitansi/{payment}', [CashierController::class, 'receipt'])->whereUuid('payment')->name('finance.receipts.show');
+
+    // Tunggakan (FN-4a): finance.billing.view di lembaga itu.
+    Route::get('keuangan/tunggakan', [ArrearsController::class, 'index'])->name('finance.arrears.index');
+    Route::get('keuangan/tunggakan/unduh', [ArrearsController::class, 'export'])->middleware('throttle:10,1')->name('finance.arrears.export');
 
     // Potongan/beasiswa siswa (FN-1b). Lihat: finance.billing.view; kelola: finance.invoices.manage di lembaga itu.
     Route::get('keuangan/potongan', [DiscountController::class, 'index'])->name('finance.discounts.index');

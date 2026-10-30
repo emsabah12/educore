@@ -138,16 +138,17 @@ test('Dokumen akan habis: habis & ≤ 60 hari milik pegawai aktif, urut tanggal;
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('dashboard')
-            ->has('cards', 1)
+            // Kartu modul lain (mis. Keuangan "Tunggakan siswa", PRD-003 FN-4a) menyusul sesudah kartu HR.
             ->where('cards.0.key', 'hr.expiring_documents')
             ->where('cards.0.value', 2)
             ->where('cards.0.tone', 'danger')
             ->where('cards.0.description', '1 sudah habis, 1 habis dalam 60 hari.'));
 });
 
-test('Dokumen akan habis hanya untuk Admin SDM / Admin Yayasan; Beranda pengguna lain tanpa kartu', function () {
+test('Dokumen akan habis hanya untuk Admin SDM / Admin Yayasan; Beranda pengguna lain tanpa kartu itu', function () {
     $kepala = DevAccounts::user('kepala.unit1');
 
     $this->actingAs($kepala)->get(route('hr.documents.expiring'))->assertForbidden();
-    $this->actingAs($kepala)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('cards', []));
+    $this->actingAs($kepala)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('cards', fn ($cards): bool => ! collect($cards)->contains('key', 'hr.expiring_documents')));
 });

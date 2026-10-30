@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.6 (2026-10-30: rincian & pembangunan FN-3 kasir, pembayaran, kuitansi, §16)
-- **Versi sebelumnya:** 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.7 (2026-10-30: rincian & pembangunan FN-4a tunggakan & kartu Beranda, §17)
+- **Versi sebelumnya:** 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -36,7 +36,7 @@ Prinsip:
 | **FN-1** | Jenis biaya & tarif (per lembaga, tingkat, tahun ajaran) + potongan/beasiswa per siswa — dipecah **FN-1a** (kerangka modul, hak akses, jenis biaya, tarif) dan **FN-1b** (potongan/beasiswa)                                                                                                                                                                      |
 | **FN-2** | Buat tagihan: SPP bulanan otomatis per tahun ajaran, biaya sekali bayar per lembaga/kelas/siswa; batalkan tagihan; **jatuh tempo SPP** (aturan berjenjang, dipindah dari FN-1 karena baru dipakai saat menagih) — dipecah **FN-2a** (jatuh tempo, tagihan bulanan, daftar & batal tagihan) dan **FN-2b** (tagihan sekali bayar, batal otomatis saat siswa keluar) |
 | **FN-3** | Catat pembayaran (cicil boleh), kuitansi bernomor + cetak, batalkan pembayaran; halaman tagihan per siswa                                                                                                                                                                                                                                                         |
-| **FN-4** | Tunggakan per kelas/lembaga, rekap penerimaan harian/bulanan, unduh .xlsx, kartu Beranda                                                                                                                                                                                                                                                                          |
+| **FN-4** | Tunggakan per kelas/lembaga, rekap penerimaan harian/bulanan, unduh .xlsx, kartu Beranda — dipecah **FN-4a** (tunggakan + kartu Beranda) dan **FN-4b** (rekap penerimaan)                                                                                                                                                                                         |
 | **FN-5** | Portal orang tua: menu **Tagihan** di Anak saya (sisa tagihan, riwayat bayar, kuitansi)                                                                                                                                                                                                                                                                           |
 | Menyusul | Payment gateway (VA/QRIS), kas umum & pengeluaran, pembukuan (COA, jurnal), tabungan siswa, notifikasi WA                                                                                                                                                                                                                                                         |
 
@@ -181,3 +181,14 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
 - **Batalkan pembayaran** (`finance.payments.manage`): alasan wajib 1–200 karakter; semua alokasinya dikembalikan sehingga tagihan terkait kembali **Belum lunas**. Pembayaran tidak bisa diubah; koreksi = batalkan lalu catat ulang.
 - **Data**: `fn_payments` (siswa/pendaftaran, nomor kuitansi, tanggal, cara bayar, jumlah, catatan, status Sah/Batal, alasan & waktu & petugas pembatal, petugas pencatat) dan `fn_payment_allocations` (pembayaran × tagihan × jumlah). `fn_invoices.paid_amount` = jumlah alokasi pembayaran sah.
 - **Audit**: `finance.payment_recorded` (kuitansi, jumlah, cara bayar, tanggal), `finance.payment_voided` (kuitansi, jumlah, alasan).
+
+## 17. FN-4a Tunggakan & kartu Beranda [ASUMSI — rincian teknis 2026-10-30]
+
+- **Definisi tunggakan**: sisa (nominal − dibayar) tagihan **Belum lunas** yang **jatuh temponya sebelum hari ini** — sama dengan tanda "Lewat jatuh tempo" di Kasir. Tagihan yang belum jatuh tempo tidak dihitung. Semua tahun ajaran dihitung, termasuk **siswa yang sudah keluar**.
+- **Halaman Tunggakan** (`/keuangan/tunggakan`, menu Keuangan → _Tunggakan_, pemilik `finance.billing.view`):
+    - **Ringkasan per lembaga** (hanya bila cakupan pengguna lebih dari satu lembaga): jumlah siswa menunggak & total, urut terbesar; klik untuk membuka lembaga itu.
+    - Lembaga terpilih: siswa menunggak, jumlah tagihan lewat jatuh tempo, total tunggakan; **per kelas** (kartu yang bisa diklik); **per siswa** (kelas, NIS, jumlah tagihan, jatuh tempo terlama, total, tombol _Buka di kasir_), 50 per halaman.
+    - Kelompok = **kelas berjalan**; siswa aktif tanpa kelas = "Tanpa kelas"; siswa yang sudah keluar = "Sudah keluar". Urutan: kelas (alami: 7A, 7B, 10A), Tanpa kelas, Sudah keluar, lalu nama. Saringan kelas memakai kelompok yang sama.
+- **Unduh .xlsx** (`/keuangan/tunggakan/unduh`, saringan kelas ikut): lembar **Per siswa** (No, Nama, NIS, NISN, Kelas, Status, Tagihan, Tunggakan, Jatuh tempo terlama + Total), **Per kelas**, **Rincian** (setiap tagihan: nominal, dibayar, sisa). Nama file `tunggakan-<kode lembaga>-<tanggal>.xlsx`.
+- **Kartu Beranda "Tunggakan siswa"**: untuk pemilik `finance.billing.view`, dihitung atas lembaga dalam cakupannya — jumlah siswa menunggak + total rupiah ("di N lembaga" bila lebih dari satu); kuning bila ada tunggakan; menuju halaman Tunggakan.
+- Database: indeks parsial tagihan Belum lunas per lembaga × jatuh tempo (`fn_invoices_open_due_index`) agar Beranda tetap cepat.
