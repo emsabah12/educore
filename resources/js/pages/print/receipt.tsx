@@ -27,6 +27,8 @@ type Props = {
     receipt: Receipt;
     amountLabel: string;
     backUrl: string;
+    /** Teks tautan kembali; bawaan untuk petugas (kasir). Portal orang tua: "Kembali ke tagihan". */
+    backLabel?: string;
 };
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -42,7 +44,12 @@ function formatDate(value: string): string {
  * Kuitansi pembayaran (PRD-003 §4, FN-3): satu halaman, cetak / simpan PDF lewat dialog cetak browser.
  * Kuitansi yang dibatalkan tetap bisa dibuka, dengan tanda BATAL.
  */
-export default function PrintReceipt({ receipt, amountLabel, backUrl }: Props) {
+export default function PrintReceipt({
+    receipt,
+    amountLabel,
+    backUrl,
+    backLabel = 'Kembali ke kasir',
+}: Props) {
     const voided = receipt.status === 'BATAL';
 
     return (
@@ -56,7 +63,7 @@ export default function PrintReceipt({ receipt, amountLabel, backUrl }: Props) {
                         className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4"
                     >
                         <ArrowLeft className="size-4" />
-                        Kembali ke kasir
+                        {backLabel}
                     </Link>
                     <button
                         type="button"

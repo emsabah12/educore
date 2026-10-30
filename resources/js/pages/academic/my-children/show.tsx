@@ -1,5 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, BookOpenCheck, CalendarCheck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+    ArrowLeft,
+    BookOpenCheck,
+    CalendarCheck,
+    Link2,
+    Receipt,
+} from 'lucide-react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 
@@ -50,7 +57,13 @@ type Props = {
     siblings: { id: string; name: string }[];
     days: { value: number; label: string }[];
     today: string;
+    links: PortalLink[];
 };
+
+/** Tombol dari modul lain (registri Core GuardianPortalLinks), mis. Keuangan: Tagihan. */
+type PortalLink = { key: string; label: string; suffix: string; icon: string };
+
+const linkIcons: Record<string, LucideIcon> = { receipt: Receipt };
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -83,6 +96,7 @@ export default function MyChild({
     siblings,
     days,
     today,
+    links,
 }: Props) {
     const dayLabel = (value: number) =>
         days.find((day) => day.value === value)?.label ?? String(value);
@@ -140,6 +154,20 @@ export default function MyChild({
                             Nilai & rapor
                         </Link>
                     </Button>
+                    {links.map((link) => {
+                        const Icon = linkIcons[link.icon] ?? Link2;
+
+                        return (
+                            <Button key={link.key} asChild variant="outline">
+                                <Link
+                                    href={`/anak-saya/${student.id}/${link.suffix}`}
+                                >
+                                    <Icon />
+                                    {link.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
                 </div>
 
                 <Section title="Profil">

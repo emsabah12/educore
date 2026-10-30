@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 s.d. FN-3 & FN-4a SELESAI; FN-4b dibangun 2026-10-30, menunggu uji owner
-- **Commit terakhir:** `2fdf51f` — feat(finance): FN-4a tunggakan & kartu Beranda
+- **Tahap aktif:** Modul Keuangan (PRD-003) — FN-1 s.d. FN-4 SELESAI; FN-5 dibangun 2026-10-30, menunggu uji owner
+- **Commit terakhir:** `fc62e5b` — feat(finance): FN-4b rekap penerimaan
 
 ## Keputusan penting
 
@@ -726,11 +726,20 @@
 - Test: `tests/Feature/Finance/ArrearsTest.php` (3 test, awalan `fna`); `DocumentSelfServiceTest` disesuaikan (Beranda kini bisa memuat kartu Keuangan). 689 test lulus (7 arsitektur + 682), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**FN-4b — Rekap penerimaan: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §18
+**FN-4b — Rekap penerimaan: SELESAI (`fc62e5b`)** — PRD-003 §18
 
 - Finance: `Application/Report/ReceiptRecap` (ringkasan bulan: total, per hari, per jenis biaya, per lembaga; daftar transaksi), `ReceiptRecapExport` (.xlsx), `ReceiptRecapController` (`/keuangan/rekap-penerimaan`, `/keuangan/rekap-penerimaan/unduh`). Tanpa migrasi (indeks `fn_payments (tenant_id, organization_id, paid_on)` dari FN-3).
 - Frontend: `pages/finance/receipt-recap.tsx`; menu Keuangan → **Rekap penerimaan**.
 - Test: `tests/Feature/Finance/ReceiptRecapTest.php` (3 test, awalan `fnr`). 692 test lulus (7 arsitektur + 685), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar.
+
+**FN-5 — Tagihan di portal orang tua/wali: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-003 §19, PRD-002 §21.3
+
+- Core: registri `Application/Portal/GuardianPortalLinks` (tombol modul lain di detail anak).
+- Academic: kontrak `Contracts\GuardianChildren` + `Application/Guardian/AcademicGuardianChildren`; `MyChildrenController::show` mengirim `links`; `pages/academic/my-children/show.tsx` menampilkan tombolnya.
+- Finance: `ChildBillingController` (`/anak-saya/{id}/tagihan`, `/anak-saya/{id}/kuitansi/{pembayaran}`), memakai `CashierOverview` & `Receipts`; tombol **Tagihan** didaftarkan di `FinanceServiceProvider`.
+- Frontend: `pages/finance/child-billing.tsx`; `pages/print/receipt.tsx` dapat prop `backLabel`.
+- Test: `tests/Feature/Finance/ChildBillingTest.php` (3 test, awalan `fnc`). 695 test lulus (7 arsitektur + 688), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 
 ## Struktur file utama
 
@@ -770,5 +779,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji FN-4b oleh owner, lalu FN-5 (menu Tagihan di portal orang tua: sisa tagihan, riwayat bayar, kuitansi) — PRD-003 §3.
+1. Uji FN-5 oleh owner → Modul Keuangan tahap awal (PRD-003 FN-1 s.d. FN-5) selesai. Yang menyusul (PRD-003 §11): payment gateway, kas umum & pengeluaran, pembukuan, tabungan siswa, notifikasi WA.
 2. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

@@ -13,6 +13,7 @@ use Modules\Academic\Application\Guardian\ChildRecords;
 use Modules\Academic\Application\Guardian\MyChildren;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Classroom\SchoolClass;
+use Modules\Core\Application\Portal\GuardianPortalLinks;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 
@@ -37,7 +38,7 @@ final class MyChildrenController
         ]);
     }
 
-    public function show(string $student): Response
+    public function show(string $student, GuardianPortalLinks $links): Response
     {
         $context = $this->tenantContext->require();
         $detail = $this->children->detail($context->tenantId, $context->membershipId, $student);
@@ -52,6 +53,8 @@ final class MyChildrenController
             'siblings' => $this->siblings(),
             'days' => MyClasses::days(),
             'today' => BusinessClock::todayString(),
+            // Tombol dari modul lain (mis. Keuangan: Tagihan, PRD-003 FN-5) lewat registri Core.
+            'links' => $links->all(),
         ]);
     }
 

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Finance\Http\Controllers\ArrearsController;
 use Modules\Finance\Http\Controllers\CashierController;
+use Modules\Finance\Http\Controllers\ChildBillingController;
 use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
@@ -47,6 +48,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Rekap penerimaan (FN-4b): finance.billing.view, lembaga dalam cakupan.
     Route::get('keuangan/rekap-penerimaan', [ReceiptRecapController::class, 'index'])->name('finance.receipt-recap.index');
     Route::get('keuangan/rekap-penerimaan/unduh', [ReceiptRecapController::class, 'export'])->middleware('throttle:10,1')->name('finance.receipt-recap.export');
+
+    // Portal orang tua/wali (FN-5): tagihan & kuitansi anak sendiri; akses dari tautan orang tua/wali, tanpa izin.
+    Route::get('anak-saya/{student}/tagihan', [ChildBillingController::class, 'index'])->whereUuid('student')->name('finance.child-billing.index');
+    Route::get('anak-saya/{student}/kuitansi/{payment}', [ChildBillingController::class, 'receipt'])->whereUuid(['student', 'payment'])->name('finance.child-billing.receipt');
 
     // Potongan/beasiswa siswa (FN-1b). Lihat: finance.billing.view; kelola: finance.invoices.manage di lembaga itu.
     Route::get('keuangan/potongan', [DiscountController::class, 'index'])->name('finance.discounts.index');

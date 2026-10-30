@@ -8,6 +8,7 @@ use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Dashboard\DashboardCards;
+use Modules\Core\Application\Portal\GuardianPortalLinks;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationType;
@@ -50,6 +51,9 @@ class FinanceServiceProvider extends ModuleServiceProvider
 
         // Kartu Beranda "Tunggakan siswa" (PRD-003 FN-4a §17): pemilik finance.billing.view, sesuai cakupannya.
         $this->app->make(DashboardCards::class)->register('finance.arrears', fn (): ?array => $this->arrearsCard());
+
+        // Tombol "Tagihan" di halaman anak pada portal orang tua/wali (FN-5).
+        $this->app->make(GuardianPortalLinks::class)->register('finance.billing', 'Tagihan', 'tagihan', 'receipt');
     }
 
     /**

@@ -1,8 +1,8 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.8 (2026-10-30: rincian & pembangunan FN-4b rekap penerimaan, §18)
-- **Versi sebelumnya:** 0.7 (FN-4a, §17), 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b dibangun 2026-10-30, menunggu uji owner
+- **Versi:** 0.9 (2026-10-30: rincian & pembangunan FN-5 tagihan di portal orang tua, §19)
+- **Versi sebelumnya:** 0.8 (FN-4b, §18), 0.7 (FN-4a, §17), 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b SELESAI (`fc62e5b`); FN-5 dibangun 2026-10-30, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
@@ -202,3 +202,14 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
     - **Daftar transaksi** bulan itu atau tanggal terpilih: siswa (+ kelas berjalan), lembaga, cara bayar, petugas, rincian tagihan, nomor kuitansi (tautan ke kuitansi), urut tanggal lalu nomor kuitansi; 50 per halaman.
 - **Unduh .xlsx** (`/keuangan/rekap-penerimaan/unduh`, satu bulan penuh): lembar **Harian** (+ baris Total dan catatan pembayaran batal), **Per jenis biaya**, **Per lembaga** (bila lebih dari satu lembaga), **Transaksi** (semua kuitansi termasuk yang batal + alasan). Nama file `rekap-penerimaan-<kode lembaga | semua-lembaga>-<YYYY-MM>.xlsx`.
 - Lembaga di luar cakupan diabaikan di halaman; unduhan untuk lembaga/bulan yang tidak sah → 404.
+
+## 19. FN-5 Tagihan di portal orang tua/wali [ASUMSI — rincian teknis 2026-10-30]
+
+- **Tombol Tagihan** di detail anak (Anak saya, PRD-002 §21.3), dipasang lewat registri Core `GuardianPortalLinks` (Academic tidak bergantung pada Finance, §7).
+- **Halaman Tagihan** (`/anak-saya/{id}/tagihan`), hanya baca. Akses = tautan orang tua/wali (kontrak Academic `GuardianChildren`), tanpa role/izin; bukan anaknya → 404.
+    - **Total sisa tagihan**, lalu per **lembaga** (pendaftaran; yang masih berjalan dulu): kelas berjalan, NIS, sisa.
+    - **Belum lunas**: semua tagihan Belum lunas (termasuk yang belum jatuh tempo), jatuh tempo, "dibayar X dari Y" bila dicicil, tanda **Lewat jatuh tempo**, sisa.
+    - **Riwayat pembayaran**: hanya pembayaran **Sah** (30 terakhir per lembaga): tanggal, cara bayar, rincian tagihan, jumlah, tautan kuitansi. Pembayaran yang dibatalkan petugas **tidak ditampilkan**.
+    - Lembaga lama (anak sudah keluar) tampil bertanda "Sudah keluar" selama masih ada tagihan atau riwayat bayar di sana.
+- **Kuitansi** (`/anak-saya/{id}/kuitansi/{pembayaran}`): halaman cetak yang sama dengan petugas (§16), tombol kembali "Kembali ke tagihan". Hanya kuitansi **Sah** milik pendaftaran anak itu; lainnya → 404.
+- Pembayaran tetap dicatat petugas (OD-FN-03); portal tidak menerima pembayaran.

@@ -16,6 +16,7 @@ use Modules\Core\Application\Authorization\AccessScope;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Application\Authorization\CoreAccess;
 use Modules\Core\Application\Dashboard\DashboardCards;
+use Modules\Core\Application\Portal\GuardianPortalLinks;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Console\CreateAdminCommand;
 use Modules\Core\Console\CreateSuperadminCommand;
@@ -52,6 +53,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(AccessCatalog::class);
         $this->app->singleton(SettingRegistry::class);
         $this->app->singleton(DashboardCards::class);
+        $this->app->singleton(GuardianPortalLinks::class);
     }
 
     public function boot(): void
