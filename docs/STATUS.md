@@ -805,6 +805,7 @@
 - **Lembaga**: aksi Tambah di bawahnya / Ubah nama / Pindahkan lewat tombol + pop-up (sebelumnya 4 form bertumpuk di panel detail).
 - **Cuti saya**: tombol Ajukan cuti → pop-up; **Saldo cuti**: Unduh rekap .xlsx → pop-up.
 - Tanpa perubahan backend; `tsc`, format (oxfmt) & lint (oxlint) bersih; 706 test Unit/Feature lulus.
+- **UI-2-fix1**: 502 Bad Gateway saat refresh halaman detail → middleware `AddLinkHeadersForPreloadedAssets` dilepas dari `bootstrap/app.php` (lihat Catatan teknis).
 
 ### Pedoman tampilan (berlaku untuk halaman baru) [owner 2026-10-31]
 
@@ -847,6 +848,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Pegawai yang ditautkan ke akun yang sudah ada memakai nama orang akun itu (bukan nama di `NewEmployeeData`); ekspektasi test harus memakai nama tersebut (AC-5d-fix1).
 - Permission baru untuk role yang sudah ada: perbarui juga test yang mencocokkan daftar permission role (mis. `TreeAuthorizationTest`, `AccessCatalogTest`). Seeder yang mencatat audit: saring audit di test per subjek (HR-3a-fix1).
 - `composer test` menjalankan test arsitektur (`--testsuite=Architecture`) dan test lain (`--testsuite=Unit,Feature`) di **dua proses terpisah**: Pest arch mem-parse seluruh kode dan menahan ±400 MB sampai proses selesai, sehingga di Windows/Laragon (`memory_limit` 512M) test berikutnya kehabisan memori sesudah FN-1a menambah aturan batas modul (2026-10-28). Saat menjalankan satu file test, cukup `php artisan test tests/Feature/...`.
+- **502 Bad Gateway saat halaman dimuat ulang** (nginx Laragon): penyebab paling mungkin header `Link` dari `AddLinkHeadersForPreloadedAssets` yang memuat semua chunk JS halaman sehingga melebihi `fastcgi_buffer_size`. Hanya terjadi pada muat penuh (refresh), bukan navigasi Inertia. Middleware itu sudah dilepas (UI-2-fix1); jangan dipasang lagi tanpa batas (`::using(n)`). Cek log nginx: `upstream sent too big header`.
 - `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 

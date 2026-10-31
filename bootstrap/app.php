@@ -5,7 +5,6 @@ use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Modules\Core\Http\Middleware\EnsureAccountUsable;
 
@@ -21,7 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
-            AddLinkHeadersForPreloadedAssets::class,
+            // AddLinkHeadersForPreloadedAssets sengaja TIDAK dipasang: header `Link` berisi semua chunk JS halaman
+            // bisa melebihi buffer header nginx (fastcgi_buffer_size) → 502 saat halaman detail dimuat ulang.
+            // Tag modulepreload sudah ada di HTML dari @vite, jadi header itu hanya duplikat (fix UI-2, 2026-10-31).
             // Keluarkan akun nonaktif & tahan akun bersandi sementara (PRD-000 §4.7).
             EnsureAccountUsable::class,
         ]);
