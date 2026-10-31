@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-5 SELESAI; perapian tampilan UI-1 (menu berkelompok + halaman Keuangan) dibangun 2026-10-31, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
-- **Commit terakhir:** `1693032` — feat(finance): KS-5 persetujuan pengeluaran berjenjang
+- **Diperbarui:** 2026-10-31
+- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-5 SELESAI; perapian tampilan UI-1 SELESAI; UI-2 (halaman Akademik & SDM) dibangun 2026-10-31, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
+- **Commit terakhir:** `671ea1a` — feat(ui): UI-1 menu berkelompok & perapian halaman keuangan
 
 ## Keputusan penting
 
@@ -786,12 +786,25 @@
 
 ## Perapian tampilan
 
-**UI-1 — Menu berkelompok & halaman Keuangan: DIBANGUN (2026-10-31, menunggu uji owner)** — permintaan owner 2026-10-31
+**UI-1 — Menu berkelompok & halaman Keuangan: SELESAI (`671ea1a`, 2026-10-31)** — permintaan owner 2026-10-31
 
 - Menu samping (`components/app-sidebar.tsx`, `components/nav-main.tsx`, tipe `NavGroup`): kelompok **Untuk saya**, **Akademik**, **Kepegawaian**, **Keuangan siswa**, **Kas & pengeluaran**, **Pengaturan** (pengaturan cuti/gaji/keuangan, kategori kas, kalender akademik, katalog SDM, lembaga, log audit dipindah ke sini). Kelompok bisa dibuka/tutup (diingat di browser), kelompok yang memuat halaman aktif selalu terbuka; hanya satu menu aktif (alamat paling cocok, mis. `/pegawai/123` → Pegawai). Hak akses tiap menu tidak berubah.
 - Komponen bersama: `components/page-tabs.tsx` (`PageTabs`, `usePageTab` — tab tercatat di `?tab=`), `components/form-dialog.tsx` (`FormDialog`).
 - Halaman Keuangan: **Pengaturan keuangan** (tab Jenis biaya · Tarif · Jatuh tempo · Batas persetujuan; tambah jenis biaya di pop-up), **Kas** (tab Buku kas · Rekening; catat pemasukan, mutasi, tambah rekening di pop-up), **Tagihan** (buat tagihan bulanan/sekali bayar di pop-up), **Pengeluaran** (ajukan, setujui, tolak, realisasi, batal realisasi di pop-up), **Rekap penerimaan** (tab Ringkasan · Transaksi; klik tanggal → tab Transaksi), **Kasir** (tab Tagihan & bayar · Riwayat pembayaran), **Potongan siswa** (tambah di pop-up), **Kategori kas** (tab Pemasukan · Pengeluaran; tambah di pop-up).
 - Tanpa perubahan backend/test; `tsc` bersih. (`vite build` tidak bisa dijalankan di lingkungan uji Claude — dijalankan owner.)
+
+**UI-2 — Halaman Akademik & SDM: DIBANGUN (2026-10-31, menunggu uji owner)**
+
+- **Kalender akademik**: tab Tahun ajaran · Pemakaian kalender · Mode presensi · Penilaian; tambah kalender & tambah tahun ajaran di pop-up.
+- **Detail siswa**: tab Data pribadi · Pendaftaran (berjalan + riwayat) · Kelas · Orang tua/wali. Tombol Ubah data diri / Daftarkan ke lembaga lain tetap di atas tab.
+- **Detail pegawai**: tab Data diri · Penempatan (berjalan + riwayat) · Cuti & presensi · Dokumen · Akun login · Riwayat; tab hanya muncul bila datanya boleh dilihat.
+- **Detail kelas**: tab Anggota kelas · Mata pelajaran · Jadwal (bila server membuka panel salin mapel, mulai di tab Mata pelajaran).
+- **Kelas saya**: tab Kelas · Jadwal mengajar · Presensi mengajar · Tugas menggantikan.
+- **Pengaturan cuti & presensi**: tab Jenis cuti · Libur mingguan · Tanggal merah · Persetujuan · Jam kerja; tambah jenis cuti & hari libur di pop-up.
+- **Pengaturan gaji**: tab Komponen gaji · Honor mengajar · Potongan presensi; tambah komponen di pop-up.
+- **Lembaga**: aksi Tambah di bawahnya / Ubah nama / Pindahkan lewat tombol + pop-up (sebelumnya 4 form bertumpuk di panel detail).
+- **Cuti saya**: tombol Ajukan cuti → pop-up; **Saldo cuti**: Unduh rekap .xlsx → pop-up.
+- Tanpa perubahan backend; `tsc`, format (oxfmt) & lint (oxlint) bersih; 706 test Unit/Feature lulus.
 
 ### Pedoman tampilan (berlaku untuk halaman baru) [owner 2026-10-31]
 
@@ -839,6 +852,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji UI-1 oleh owner, lalu **UI-2**: pola yang sama untuk halaman Akademik & SDM yang padat (Kalender akademik, Pengaturan cuti & presensi, Pengaturan gaji, detail siswa, detail pegawai, kelas, lembaga, dll.).
+1. Uji UI-2 oleh owner. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 2. Keuangan lanjutan berikutnya (urutan owner, PRD-004 §11): tabungan siswa → payment gateway Midtrans → pembukuan; masing-masing dirinci & disetujui dulu.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

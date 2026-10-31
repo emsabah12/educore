@@ -28,6 +28,7 @@ import {
 } from '@/components/academic/schedule-actions';
 import type { Option } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -102,11 +103,18 @@ function formatDate(value: string): string {
     return dateFormat.format(new Date(year, month - 1, day));
 }
 
+const TABS = ['anggota', 'mapel', 'jadwal'] as const;
+
 /**
  * Detail kelas (PRD-002 §6, AC-1d-b): anggota, masukkan siswa (banyak sekaligus), pindah, keluarkan.
  */
 export default function ClassDetail(props: Props) {
     const { class: item, year, members, former, canManage, today } = props;
+    // Server meminta panel salin mapel terbuka → mulai di tab Mapel.
+    const [tab, setTabState] = usePageTab(
+        TABS,
+        props.openCopy ? 'mapel' : 'anggota',
+    );
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
     const toggle = (next: OpenAction) =>
@@ -123,6 +131,11 @@ export default function ClassDetail(props: Props) {
         action.kind === kind &&
         'id' in action &&
         action.id === id;
+
+    const setTab = (next: (typeof TABS)[number]) => {
+        setTabState(next);
+        setAction(null);
+    };
 
     const male = members.filter((member) => member.gender === 'L').length;
     const female = members.filter((member) => member.gender === 'P').length;
@@ -242,7 +255,18 @@ export default function ClassDetail(props: Props) {
                     )}
                 </div>
 
-                {canManage && item.is_active && (
+                <PageTabs
+                    label="Bagian kelas"
+                    tabs={[
+                        { value: 'anggota', label: 'Anggota kelas' },
+                        { value: 'mapel', label: 'Mata pelajaran' },
+                        { value: 'jadwal', label: 'Jadwal' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
+
+                {tab === 'anggota' && canManage && item.is_active && (
                     <section className="space-y-3">
                         <Button
                             type="button"
@@ -261,114 +285,133 @@ export default function ClassDetail(props: Props) {
                     </section>
                 )}
 
-                <ClassSubjectsSection
-                    classId={item.id}
-                    className={item.name}
-                    subjects={props.subjects}
-                    subjectOptions={props.subjectOptions}
-                    teachers={props.teachers}
-                    copySources={props.copySources}
-                    openCopy={props.openCopy}
-                    canManage={canManage}
-                />
+                {tab === 'mapel' && (
+                    <ClassSubjectsSection
+                        classId={item.id}
+                        className={item.name}
+                        subjects={props.subjects}
+                        subjectOptions={props.subjectOptions}
+                        teachers={props.teachers}
+                        copySources={props.copySources}
+                        openCopy={props.openCopy}
+                        canManage={canManage}
+                    />
+                )}
 
-                <ScheduleSection
-                    classId={item.id}
-                    schedule={props.schedule}
-                    subjects={props.subjects}
-                    canManage={canManage}
-                    lessonAttendance={canManage && props.lessonAttendance}
-                />
+                {tab === 'jadwal' && (
+                    <ScheduleSection
+                        classId={item.id}
+                        schedule={props.schedule}
+                        subjects={props.subjects}
+                        canManage={canManage}
+                        lessonAttendance={canManage && props.lessonAttendance}
+                    />
+                )}
 
-                <section className="space-y-3 rounded-xl border p-4">
-                    <h2 className="text-base font-medium">Anggota kelas</h2>
-                    {members.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            Belum ada siswa di kelas ini.
-                        </p>
-                    ) : (
-                        <ul className="divide-y">
-                            {members.map((member) => (
-                                <li key={member.id} className="space-y-2 py-3">
-                                    <MemberLine member={member} />
-                                    {canManage && (
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:flex-wrap">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={
-                                                    isOpen('move', member.id)
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
-                                                onClick={() =>
-                                                    toggle({
-                                                        kind: 'move',
-                                                        id: member.id,
-                                                    })
-                                                }
-                                            >
-                                                <ArrowRightLeft />
-                                                Pindah kelas
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={
-                                                    isOpen('remove', member.id)
-                                                        ? 'destructive'
-                                                        : 'outline'
-                                                }
-                                                onClick={() =>
-                                                    toggle({
-                                                        kind: 'remove',
-                                                        id: member.id,
-                                                    })
-                                                }
-                                            >
-                                                <LogOut />
-                                                Keluarkan
-                                            </Button>
-                                        </div>
-                                    )}
-                                    {canManage && isOpen('move', member.id) && (
-                                        <MoveMemberForm
-                                            member={{
-                                                id: member.id,
-                                                name: member.name,
-                                                className: item.name,
-                                                startDate: member.start_date,
-                                            }}
-                                            targets={props.moveTargets}
-                                            today={today}
-                                            futureYear={year.starts_in_future}
-                                            onDone={close}
-                                        />
-                                    )}
-                                    {canManage &&
-                                        isOpen('remove', member.id) && (
-                                            <RemoveMemberForm
-                                                member={{
-                                                    id: member.id,
-                                                    name: member.name,
-                                                    className: item.name,
-                                                    startDate:
-                                                        member.start_date,
-                                                }}
-                                                today={today}
-                                                futureYear={
-                                                    year.starts_in_future
-                                                }
-                                                onDone={close}
-                                            />
+                {tab === 'anggota' && (
+                    <section className="space-y-3 rounded-xl border p-4">
+                        <h2 className="text-base font-medium">Anggota kelas</h2>
+                        {members.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada siswa di kelas ini.
+                            </p>
+                        ) : (
+                            <ul className="divide-y">
+                                {members.map((member) => (
+                                    <li
+                                        key={member.id}
+                                        className="space-y-2 py-3"
+                                    >
+                                        <MemberLine member={member} />
+                                        {canManage && (
+                                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:flex-wrap">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant={
+                                                        isOpen(
+                                                            'move',
+                                                            member.id,
+                                                        )
+                                                            ? 'default'
+                                                            : 'outline'
+                                                    }
+                                                    onClick={() =>
+                                                        toggle({
+                                                            kind: 'move',
+                                                            id: member.id,
+                                                        })
+                                                    }
+                                                >
+                                                    <ArrowRightLeft />
+                                                    Pindah kelas
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant={
+                                                        isOpen(
+                                                            'remove',
+                                                            member.id,
+                                                        )
+                                                            ? 'destructive'
+                                                            : 'outline'
+                                                    }
+                                                    onClick={() =>
+                                                        toggle({
+                                                            kind: 'remove',
+                                                            id: member.id,
+                                                        })
+                                                    }
+                                                >
+                                                    <LogOut />
+                                                    Keluarkan
+                                                </Button>
+                                            </div>
                                         )}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </section>
+                                        {canManage &&
+                                            isOpen('move', member.id) && (
+                                                <MoveMemberForm
+                                                    member={{
+                                                        id: member.id,
+                                                        name: member.name,
+                                                        className: item.name,
+                                                        startDate:
+                                                            member.start_date,
+                                                    }}
+                                                    targets={props.moveTargets}
+                                                    today={today}
+                                                    futureYear={
+                                                        year.starts_in_future
+                                                    }
+                                                    onDone={close}
+                                                />
+                                            )}
+                                        {canManage &&
+                                            isOpen('remove', member.id) && (
+                                                <RemoveMemberForm
+                                                    member={{
+                                                        id: member.id,
+                                                        name: member.name,
+                                                        className: item.name,
+                                                        startDate:
+                                                            member.start_date,
+                                                    }}
+                                                    today={today}
+                                                    futureYear={
+                                                        year.starts_in_future
+                                                    }
+                                                    onDone={close}
+                                                />
+                                            )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+                )}
 
-                {former.length > 0 && (
+                {tab === 'anggota' && former.length > 0 && (
                     <section className="space-y-3 rounded-xl border p-4">
                         <h2 className="text-base font-medium">
                             Pernah di kelas ini

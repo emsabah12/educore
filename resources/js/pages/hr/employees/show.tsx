@@ -24,6 +24,7 @@ import {
     TransferForm,
 } from '@/components/hr/employee-actions';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
@@ -135,6 +136,17 @@ function formatDate(value: string | null): string {
     return dateFormat.format(new Date(year, month - 1, day));
 }
 
+const TABS = [
+    'data',
+    'penempatan',
+    'cuti',
+    'dokumen',
+    'akun',
+    'riwayat',
+] as const;
+
+type EmployeeTab = (typeof TABS)[number];
+
 /**
  * Detail pegawai (PRD-001 §6). Aksi (HR-1d) hanya tampil untuk Admin SDM / Admin Yayasan;
  * server tetap memeriksa ulang setiap aksi.
@@ -161,6 +173,26 @@ export default function EmployeeDetail({
 
     const close = () => {
         setAction(null);
+        setPlacementAction(null);
+    };
+
+    // Tab hanya muncul bila datanya boleh dilihat pengguna ini (izin dicek server).
+    const tabs: { value: EmployeeTab; label: string }[] = [
+        { value: 'data', label: 'Data diri' },
+        { value: 'penempatan', label: 'Penempatan' },
+        ...(leave || attendance
+            ? [{ value: 'cuti' as const, label: 'Cuti & presensi' }]
+            : []),
+        ...(documents ? [{ value: 'dokumen' as const, label: 'Dokumen' }] : []),
+        ...(access ? [{ value: 'akun' as const, label: 'Akun login' }] : []),
+        { value: 'riwayat', label: 'Riwayat' },
+    ];
+    const [requestedTab, setTabState] = usePageTab(TABS, 'data');
+    const tab = tabs.some((option) => option.value === requestedTab)
+        ? requestedTab
+        : 'data';
+    const setTab = (next: EmployeeTab) => {
+        setTabState(next);
         setPlacementAction(null);
     };
 
@@ -296,157 +328,212 @@ export default function EmployeeDetail({
                     </section>
                 )}
 
-                <Section title="Data kepegawaian">
-                    <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
-                        <Item
-                            label="Masa kerja"
-                            value={employee.service_length}
-                        />
-                        <Item label="NUPTK" value={employee.nuptk} mono />
-                        <Item
-                            label="Pendidikan terakhir"
-                            value={employee.education}
-                        />
-                        <Item
-                            label="Program studi/jurusan"
-                            value={employee.education_major}
-                        />
-                        <Item label="Jenis kelamin" value={employee.gender} />
-                    </dl>
-                </Section>
+                <PageTabs
+                    label="Bagian data pegawai"
+                    tabs={tabs}
+                    value={tab}
+                    onChange={setTab}
+                />
 
-                <Section title="Data pribadi">
-                    {employee.personal?.nik_warning && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300">
-                            {employee.personal.nik_warning}
-                        </p>
-                    )}
-                    {employee.personal ? (
-                        <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
-                            <Item
-                                label="NIK"
-                                value={employee.personal.nik}
-                                mono
-                            />
-                            <Item
-                                label="Tempat lahir"
-                                value={employee.personal.birth_place}
-                            />
-                            <Item
-                                label="Tanggal lahir"
-                                value={
-                                    employee.personal.birth_date
-                                        ? formatDate(
-                                              employee.personal.birth_date,
-                                          )
-                                        : null
-                                }
-                            />
-                            <Item
-                                label="Nomor HP"
-                                value={employee.personal.phone}
-                                mono
-                            />
-                            <Item
-                                label="Alamat"
-                                value={employee.personal.address}
-                            />
-                        </dl>
-                    ) : (
-                        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Lock className="size-4 shrink-0" />
-                            Data pribadi hanya untuk pemilik izin lihat data
-                            pribadi pegawai.
-                        </p>
-                    )}
-                </Section>
+                {tab === 'data' && (
+                    <>
+                        <Section title="Data kepegawaian">
+                            <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
+                                <Item
+                                    label="Masa kerja"
+                                    value={employee.service_length}
+                                />
+                                <Item
+                                    label="NUPTK"
+                                    value={employee.nuptk}
+                                    mono
+                                />
+                                <Item
+                                    label="Pendidikan terakhir"
+                                    value={employee.education}
+                                />
+                                <Item
+                                    label="Program studi/jurusan"
+                                    value={employee.education_major}
+                                />
+                                <Item
+                                    label="Jenis kelamin"
+                                    value={employee.gender}
+                                />
+                            </dl>
+                        </Section>
 
-                <Section title="Penempatan berjalan">
-                    {employee.placements.current.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            Tidak ada penempatan yang berjalan.
-                        </p>
-                    ) : (
-                        <ul className="divide-y">
-                            {employee.placements.current.map((placement) => (
-                                <li
-                                    key={placement.id}
-                                    className="space-y-3 py-3"
-                                >
-                                    <PlacementRow placement={placement} />
+                        <Section title="Data pribadi">
+                            {employee.personal?.nik_warning && (
+                                <p className="text-xs text-amber-700 dark:text-amber-300">
+                                    {employee.personal.nik_warning}
+                                </p>
+                            )}
+                            {employee.personal ? (
+                                <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4">
+                                    <Item
+                                        label="NIK"
+                                        value={employee.personal.nik}
+                                        mono
+                                    />
+                                    <Item
+                                        label="Tempat lahir"
+                                        value={employee.personal.birth_place}
+                                    />
+                                    <Item
+                                        label="Tanggal lahir"
+                                        value={
+                                            employee.personal.birth_date
+                                                ? formatDate(
+                                                      employee.personal
+                                                          .birth_date,
+                                                  )
+                                                : null
+                                        }
+                                    />
+                                    <Item
+                                        label="Nomor HP"
+                                        value={employee.personal.phone}
+                                        mono
+                                    />
+                                    <Item
+                                        label="Alamat"
+                                        value={employee.personal.address}
+                                    />
+                                </dl>
+                            ) : (
+                                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Lock className="size-4 shrink-0" />
+                                    Data pribadi hanya untuk pemilik izin lihat
+                                    data pribadi pegawai.
+                                </p>
+                            )}
+                        </Section>
+                    </>
+                )}
 
-                                    {manage && isActive && (
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setAction(null);
-                                                    setPlacementAction({
-                                                        id: placement.id,
-                                                        kind: 'transfer',
-                                                    });
-                                                }}
+                {tab === 'penempatan' && (
+                    <>
+                        <Section title="Penempatan berjalan">
+                            {employee.placements.current.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Tidak ada penempatan yang berjalan.
+                                </p>
+                            ) : (
+                                <ul className="divide-y">
+                                    {employee.placements.current.map(
+                                        (placement) => (
+                                            <li
+                                                key={placement.id}
+                                                className="space-y-3 py-3"
                                             >
-                                                <ArrowRightLeft />
-                                                Mutasi
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setAction(null);
-                                                    setPlacementAction({
-                                                        id: placement.id,
-                                                        kind: 'end',
-                                                    });
-                                                }}
-                                            >
-                                                Akhiri
-                                            </Button>
-                                            {!placement.is_primary && (
-                                                <MakePrimaryButton
-                                                    employeeId={employee.id}
-                                                    placementId={placement.id}
+                                                <PlacementRow
+                                                    placement={placement}
                                                 />
-                                            )}
-                                        </div>
-                                    )}
 
-                                    {manage &&
-                                        placementAction?.id === placement.id &&
-                                        placementAction.kind === 'transfer' && (
-                                            <TransferForm
-                                                employeeId={employee.id}
-                                                placement={placement}
-                                                manage={manage}
-                                                onDone={close}
-                                            />
-                                        )}
-                                    {manage &&
-                                        placementAction?.id === placement.id &&
-                                        placementAction.kind === 'end' && (
-                                            <EndPlacementForm
-                                                employeeId={employee.id}
-                                                placement={placement}
-                                                others={employee.placements.current.filter(
-                                                    (other) =>
-                                                        other.id !==
-                                                        placement.id,
+                                                {manage && isActive && (
+                                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setAction(null);
+                                                                setPlacementAction(
+                                                                    {
+                                                                        id: placement.id,
+                                                                        kind: 'transfer',
+                                                                    },
+                                                                );
+                                                            }}
+                                                        >
+                                                            <ArrowRightLeft />
+                                                            Mutasi
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setAction(null);
+                                                                setPlacementAction(
+                                                                    {
+                                                                        id: placement.id,
+                                                                        kind: 'end',
+                                                                    },
+                                                                );
+                                                            }}
+                                                        >
+                                                            Akhiri
+                                                        </Button>
+                                                        {!placement.is_primary && (
+                                                            <MakePrimaryButton
+                                                                employeeId={
+                                                                    employee.id
+                                                                }
+                                                                placementId={
+                                                                    placement.id
+                                                                }
+                                                            />
+                                                        )}
+                                                    </div>
                                                 )}
-                                                manage={manage}
-                                                onDone={close}
-                                            />
-                                        )}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Section>
 
-                {leave && (
+                                                {manage &&
+                                                    placementAction?.id ===
+                                                        placement.id &&
+                                                    placementAction.kind ===
+                                                        'transfer' && (
+                                                        <TransferForm
+                                                            employeeId={
+                                                                employee.id
+                                                            }
+                                                            placement={
+                                                                placement
+                                                            }
+                                                            manage={manage}
+                                                            onDone={close}
+                                                        />
+                                                    )}
+                                                {manage &&
+                                                    placementAction?.id ===
+                                                        placement.id &&
+                                                    placementAction.kind ===
+                                                        'end' && (
+                                                        <EndPlacementForm
+                                                            employeeId={
+                                                                employee.id
+                                                            }
+                                                            placement={
+                                                                placement
+                                                            }
+                                                            others={employee.placements.current.filter(
+                                                                (other) =>
+                                                                    other.id !==
+                                                                    placement.id,
+                                                            )}
+                                                            manage={manage}
+                                                            onDone={close}
+                                                        />
+                                                    )}
+                                            </li>
+                                        ),
+                                    )}
+                                </ul>
+                            )}
+                        </Section>
+
+                        {employee.placements.history.length > 0 && (
+                            <Section title="Riwayat penempatan">
+                                <PlacementList
+                                    items={employee.placements.history}
+                                />
+                            </Section>
+                        )}
+                    </>
+                )}
+
+                {tab === 'cuti' && leave && (
                     <LeaveSection
                         leave={leave}
                         employeeId={employee.id}
@@ -455,7 +542,7 @@ export default function EmployeeDetail({
                     />
                 )}
 
-                {attendance && (
+                {tab === 'cuti' && attendance && (
                     <Section
                         title={`Presensi ${attendance.label} (s.d. ${attendance.until})`}
                     >
@@ -463,7 +550,7 @@ export default function EmployeeDetail({
                     </Section>
                 )}
 
-                {documents && (
+                {tab === 'dokumen' && documents && (
                     <DocumentSection
                         employeeId={employee.id}
                         documents={documents}
@@ -479,54 +566,55 @@ export default function EmployeeDetail({
                     />
                 )}
 
-                {access && <LoginAccessSection access={access} />}
-
-                {employee.placements.history.length > 0 && (
-                    <Section title="Riwayat penempatan">
-                        <PlacementList items={employee.placements.history} />
-                    </Section>
+                {tab === 'akun' && access && (
+                    <LoginAccessSection access={access} />
                 )}
 
-                <Section title="Riwayat kepegawaian">
-                    {employee.periods.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            Belum ada periode kepegawaian.
-                        </p>
-                    ) : (
-                        <ol className="divide-y">
-                            {employee.periods.map((period) => (
-                                <li key={period.id} className="space-y-1 py-3">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="font-medium">
-                                            {period.employment_type}
-                                        </span>
-                                        {period.classification && (
-                                            <Badge variant="secondary">
-                                                {period.classification}
-                                            </Badge>
-                                        )}
-                                        {period.end_date === null && (
-                                            <Badge>Berjalan</Badge>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {formatDate(period.start_date)} –{' '}
-                                        {period.end_date
-                                            ? formatDate(period.end_date)
-                                            : 'sekarang'}
-                                    </p>
-                                    {period.end_reason && (
-                                        <p className="text-sm">
-                                            Ditutup: {period.end_reason}
-                                            {period.end_note &&
-                                                ` — ${period.end_note}`}
+                {tab === 'riwayat' && (
+                    <Section title="Riwayat kepegawaian">
+                        {employee.periods.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada periode kepegawaian.
+                            </p>
+                        ) : (
+                            <ol className="divide-y">
+                                {employee.periods.map((period) => (
+                                    <li
+                                        key={period.id}
+                                        className="space-y-1 py-3"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className="font-medium">
+                                                {period.employment_type}
+                                            </span>
+                                            {period.classification && (
+                                                <Badge variant="secondary">
+                                                    {period.classification}
+                                                </Badge>
+                                            )}
+                                            {period.end_date === null && (
+                                                <Badge>Berjalan</Badge>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {formatDate(period.start_date)} –{' '}
+                                            {period.end_date
+                                                ? formatDate(period.end_date)
+                                                : 'sekarang'}
                                         </p>
-                                    )}
-                                </li>
-                            ))}
-                        </ol>
-                    )}
-                </Section>
+                                        {period.end_reason && (
+                                            <p className="text-sm">
+                                                Ditutup: {period.end_reason}
+                                                {period.end_note &&
+                                                    ` — ${period.end_note}`}
+                                            </p>
+                                        )}
+                                    </li>
+                                ))}
+                            </ol>
+                        )}
+                    </Section>
+                )}
             </div>
         </>
     );

@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
 import {
@@ -9,6 +10,7 @@ import {
     TargetFields,
 } from '@/components/core/scoped-rules';
 import InputError from '@/components/input-error';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +57,8 @@ const rupiah = new Intl.NumberFormat('id-ID');
 
 const BASE_URL = '/pegawai/gaji/komponen';
 
+const TABS = ['komponen', 'honor', 'potongan'] as const;
+
 const selectClass =
     'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
@@ -72,6 +76,9 @@ export default function PayrollSettings({
     deduction,
     targets,
 }: Props) {
+    const [tab, setTab] = usePageTab(TABS, 'komponen');
+    const [creating, setCreating] = useState(false);
+
     return (
         <>
             <Head title="Pengaturan gaji" />
@@ -89,46 +96,85 @@ export default function PayrollSettings({
                     Buka Gaji pegawai →
                 </Link>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <section
-                        aria-label="Daftar komponen gaji"
-                        className="rounded-xl border"
-                    >
-                        {components.length === 0 ? (
-                            <p className="p-4 text-sm text-muted-foreground">
-                                Belum ada komponen gaji. Tambahkan yang pertama
-                                lewat formulir di samping.
-                            </p>
-                        ) : (
-                            <ul className="divide-y">
-                                {components.map((component) => (
-                                    <ComponentRow
-                                        key={component.id}
-                                        component={component}
-                                        positions={positions}
-                                        organizations={organizations}
-                                    />
-                                ))}
-                            </ul>
-                        )}
-                    </section>
+                <PageTabs
+                    label="Bagian pengaturan gaji"
+                    tabs={[
+                        { value: 'komponen', label: 'Komponen gaji' },
+                        { value: 'honor', label: 'Honor mengajar' },
+                        { value: 'potongan', label: 'Potongan presensi' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
 
-                    <section
-                        aria-label="Tambah komponen gaji"
-                        className="h-fit rounded-xl border p-4"
-                    >
-                        <CreateForm kinds={kinds} bases={bases} />
-                    </section>
-                </div>
+                {tab === 'komponen' && (
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="button"
+                                onClick={() => setCreating(true)}
+                            >
+                                <Plus />
+                                Tambah komponen
+                            </Button>
+                        </div>
+                        <section
+                            aria-label="Daftar komponen gaji"
+                            className="rounded-xl border"
+                        >
+                            {components.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">
+                                    Belum ada komponen gaji. Tambahkan yang
+                                    pertama lewat tombol Tambah komponen.
+                                </p>
+                            ) : (
+                                <ul className="divide-y">
+                                    {components.map((component) => (
+                                        <ComponentRow
+                                            key={component.id}
+                                            component={component}
+                                            positions={positions}
+                                            organizations={organizations}
+                                        />
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
 
-                <TeachingPaySection data={teachingPay} targets={targets} />
-                <DeductionSection data={deduction} targets={targets} />
+                        <FormDialog
+                            open={creating}
+                            onOpenChange={setCreating}
+                            title="Tambah komponen gaji"
+                        >
+                            <CreateForm
+                                kinds={kinds}
+                                bases={bases}
+                                onDone={() => setCreating(false)}
+                            />
+                        </FormDialog>
+                    </div>
+                )}
+
+                {tab === 'honor' && (
+                    <TeachingPaySection data={teachingPay} targets={targets} />
+                )}
+                {tab === 'potongan' && (
+                    <DeductionSection data={deduction} targets={targets} />
+                )}
             </div>
         </>
     );
 }
 
-function CreateForm({ kinds, bases }: { kinds: Option[]; bases: Option[] }) {
+function CreateForm({
+    kinds,
+    bases,
+    onDone,
+}: {
+    kinds: Option[];
+    bases: Option[];
+    onDone: () => void;
+}) {
     return (
         <Form
             action={BASE_URL}
@@ -136,12 +182,11 @@ function CreateForm({ kinds, bases }: { kinds: Option[]; bases: Option[] }) {
             errorBag="create"
             resetOnSuccess
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">Tambah komponen</h3>
-
                     <div className="grid gap-1.5">
                         <Label htmlFor="pay-code">Kode</Label>
                         <Input

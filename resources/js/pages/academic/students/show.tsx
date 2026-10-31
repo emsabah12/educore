@@ -39,6 +39,7 @@ import {
     useIssuedPassword,
 } from '@/components/core/issued-password';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -127,6 +128,8 @@ function formatDate(value: string | null): string {
     return dateFormat.format(new Date(year, month - 1, day));
 }
 
+const TABS = ['data', 'pendaftaran', 'kelas', 'wali'] as const;
+
 /**
  * Detail siswa (PRD-002 §6, AC-1c-a). Semua pendaftaran siswa tampil, termasuk di lembaga lain;
  * data pribadi & orang tua/wali hanya untuk pemilik izin lihat data pribadi.
@@ -138,8 +141,17 @@ export default function StudentDetail({
     manage,
     today,
 }: Props) {
+    const [tab, setTabState] = usePageTab(TABS, 'data');
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
+    // Ganti tab menutup formulir baris yang sedang terbuka agar tidak "tertinggal" di tab lain.
+    const setTab = (next: (typeof TABS)[number]) => {
+        setTabState(next);
+
+        if (action && action.kind !== 'profile' && action.kind !== 'enroll') {
+            setAction(null);
+        }
+    };
     const toggle = (next: OpenAction) =>
         setAction((current) =>
             current &&
@@ -240,102 +252,124 @@ export default function StudentDetail({
                     </section>
                 )}
 
-                <Section title="Data pribadi">
-                    {student.personal?.nik_warning && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300">
-                            {student.personal.nik_warning}
-                        </p>
-                    )}
-                    {student.personal ? (
-                        <dl className="grid gap-3 sm:grid-cols-2">
-                            <Item
-                                label="NIK"
-                                value={student.personal.nik}
-                                mono
-                            />
-                            <Item
-                                label="Tempat lahir"
-                                value={student.personal.birth_place}
-                            />
-                            <Item
-                                label="Tanggal lahir"
-                                value={
-                                    student.personal.birth_date
-                                        ? formatDate(
-                                              student.personal.birth_date,
-                                          )
-                                        : null
-                                }
-                            />
-                            <Item
-                                label="Nomor HP"
-                                value={student.personal.phone}
-                                mono
-                            />
-                            <Item
-                                label="Alamat"
-                                value={student.personal.address}
-                            />
-                        </dl>
-                    ) : (
-                        lockedNote
-                    )}
-                </Section>
+                <PageTabs
+                    label="Bagian data siswa"
+                    tabs={[
+                        { value: 'data', label: 'Data pribadi' },
+                        { value: 'pendaftaran', label: 'Pendaftaran' },
+                        { value: 'kelas', label: 'Kelas' },
+                        { value: 'wali', label: 'Orang tua/wali' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
 
-                <Section title="Pendaftaran berjalan">
-                    {student.enrollments.current.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            Tidak ada pendaftaran yang masih berjalan.
-                        </p>
-                    ) : (
-                        <EnrollmentList
-                            items={student.enrollments.current}
-                            studentId={student.id}
-                            manage={manage}
-                            action={action}
-                            onToggle={toggle}
-                            onDone={close}
-                        />
-                    )}
-                </Section>
+                {tab === 'data' && (
+                    <Section title="Data pribadi">
+                        {student.personal?.nik_warning && (
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                                {student.personal.nik_warning}
+                            </p>
+                        )}
+                        {student.personal ? (
+                            <dl className="grid gap-3 sm:grid-cols-2">
+                                <Item
+                                    label="NIK"
+                                    value={student.personal.nik}
+                                    mono
+                                />
+                                <Item
+                                    label="Tempat lahir"
+                                    value={student.personal.birth_place}
+                                />
+                                <Item
+                                    label="Tanggal lahir"
+                                    value={
+                                        student.personal.birth_date
+                                            ? formatDate(
+                                                  student.personal.birth_date,
+                                              )
+                                            : null
+                                    }
+                                />
+                                <Item
+                                    label="Nomor HP"
+                                    value={student.personal.phone}
+                                    mono
+                                />
+                                <Item
+                                    label="Alamat"
+                                    value={student.personal.address}
+                                />
+                            </dl>
+                        ) : (
+                            lockedNote
+                        )}
+                    </Section>
+                )}
 
-                <Section title="Kelas">
-                    <ClassList
-                        classes={student.classes}
-                        studentName={student.name}
-                        today={today}
-                        action={action}
-                        onToggle={toggle}
-                        onDone={close}
-                    />
-                </Section>
+                {tab === 'pendaftaran' && (
+                    <>
+                        <Section title="Pendaftaran berjalan">
+                            {student.enrollments.current.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Tidak ada pendaftaran yang masih berjalan.
+                                </p>
+                            ) : (
+                                <EnrollmentList
+                                    items={student.enrollments.current}
+                                    studentId={student.id}
+                                    manage={manage}
+                                    action={action}
+                                    onToggle={toggle}
+                                    onDone={close}
+                                />
+                            )}
+                        </Section>
 
-                <Section title="Orang tua/wali">
-                    {student.guardians === null ? (
-                        lockedNote
-                    ) : (
-                        <GuardianList
-                            guardians={student.guardians}
-                            studentId={student.id}
+                        {student.enrollments.history.length > 0 && (
+                            <Section title="Riwayat pendaftaran">
+                                <EnrollmentList
+                                    items={student.enrollments.history}
+                                    studentId={student.id}
+                                    manage={manage}
+                                    action={action}
+                                    onToggle={toggle}
+                                    onDone={close}
+                                />
+                            </Section>
+                        )}
+                    </>
+                )}
+
+                {tab === 'kelas' && (
+                    <Section title="Kelas">
+                        <ClassList
+                            classes={student.classes}
                             studentName={student.name}
-                            manage={manage?.guardians ? manage : null}
+                            today={today}
                             action={action}
                             onToggle={toggle}
                             onDone={close}
                         />
-                    )}
-                </Section>
+                    </Section>
+                )}
 
-                {student.enrollments.history.length > 0 && (
-                    <Section title="Riwayat pendaftaran">
-                        <EnrollmentList
-                            items={student.enrollments.history}
-                            studentId={student.id}
-                            manage={manage}
-                            action={action}
-                            onToggle={toggle}
-                            onDone={close}
-                        />
+                {tab === 'wali' && (
+                    <Section title="Orang tua/wali">
+                        {student.guardians === null ? (
+                            lockedNote
+                        ) : (
+                            <GuardianList
+                                guardians={student.guardians}
+                                studentId={student.id}
+                                studentName={student.name}
+                                manage={manage?.guardians ? manage : null}
+                                action={action}
+                                onToggle={toggle}
+                                onDone={close}
+                            />
+                        )}
                     </Section>
                 )}
             </div>

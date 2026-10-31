@@ -1,14 +1,24 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 type Option = { value: string; label: string };
+
+const TABS = [
+    'jenis',
+    'libur-mingguan',
+    'tanggal-merah',
+    'persetujuan',
+    'jam-kerja',
+] as const;
 
 type LeaveType = {
     id: string;
@@ -97,6 +107,8 @@ function formatDate(value: string): string {
  * jenjang/lembaga, dan hari libur yayasan. Hanya Admin SDM / Admin Yayasan; semua aturan dicek server.
  */
 export default function LeaveSettings(props: Props) {
+    const [tab, setTab] = usePageTab(TABS, 'jenis');
+
     return (
         <>
             <Head title="Pengaturan cuti & presensi" />
@@ -107,14 +119,34 @@ export default function LeaveSettings(props: Props) {
                     description="Jenis cuti & jatahnya, kalender kerja (libur mingguan dan tanggal merah, terpisah dari kalender akademik), alur persetujuan cuti, dan jam kerja untuk presensi pegawai."
                 />
 
-                <TypesSection
-                    types={props.types}
-                    maxDays={props.limits.maxDays}
+                <PageTabs
+                    label="Bagian pengaturan cuti & presensi"
+                    tabs={[
+                        { value: 'jenis', label: 'Jenis cuti' },
+                        { value: 'libur-mingguan', label: 'Libur mingguan' },
+                        { value: 'tanggal-merah', label: 'Tanggal merah' },
+                        { value: 'persetujuan', label: 'Alur persetujuan' },
+                        { value: 'jam-kerja', label: 'Jam kerja' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
                 />
-                <WeeklyOffSection {...props} />
-                <ApprovalSection {...props} />
-                <WorkHoursSection {...props} />
-                <HolidaysSection holidays={props.holidays} year={props.year} />
+
+                {tab === 'jenis' && (
+                    <TypesSection
+                        types={props.types}
+                        maxDays={props.limits.maxDays}
+                    />
+                )}
+                {tab === 'libur-mingguan' && <WeeklyOffSection {...props} />}
+                {tab === 'tanggal-merah' && (
+                    <HolidaysSection
+                        holidays={props.holidays}
+                        year={props.year}
+                    />
+                )}
+                {tab === 'persetujuan' && <ApprovalSection {...props} />}
+                {tab === 'jam-kerja' && <WorkHoursSection {...props} />}
             </div>
         </>
     );
@@ -142,8 +174,7 @@ function TypesSection({
                 />
                 <Button
                     type="button"
-                    variant={adding ? 'default' : 'outline'}
-                    onClick={() => setAdding((current) => !current)}
+                    onClick={() => setAdding(true)}
                     className="w-full sm:w-auto"
                 >
                     <Plus />
@@ -151,9 +182,13 @@ function TypesSection({
                 </Button>
             </div>
 
-            {adding && (
+            <FormDialog
+                open={adding}
+                onOpenChange={setAdding}
+                title="Tambah jenis cuti"
+            >
                 <TypeForm maxDays={maxDays} onDone={() => setAdding(false)} />
-            )}
+            </FormDialog>
 
             <ul className="divide-y rounded-xl border">
                 {types.length === 0 && (
@@ -741,7 +776,10 @@ function HolidaysSection({
                         onChange={(event) =>
                             router.get(
                                 `${BASE_URL}/pengaturan`,
-                                { tahun: event.target.value },
+                                {
+                                    tahun: event.target.value,
+                                    tab: 'tanggal-merah',
+                                },
                                 { preserveScroll: true },
                             )
                         }
@@ -752,20 +790,20 @@ function HolidaysSection({
                             </option>
                         ))}
                     </select>
-                    <Button
-                        type="button"
-                        variant={adding ? 'default' : 'outline'}
-                        onClick={() => setAdding((current) => !current)}
-                    >
+                    <Button type="button" onClick={() => setAdding(true)}>
                         <Plus />
                         Tambah hari libur
                     </Button>
                 </div>
             </div>
 
-            {adding && (
+            <FormDialog
+                open={adding}
+                onOpenChange={setAdding}
+                title="Tambah hari libur"
+            >
                 <HolidayForm year={year} onDone={() => setAdding(false)} />
-            )}
+            </FormDialog>
 
             <ul className="divide-y rounded-xl border">
                 {holidays.length === 0 && (

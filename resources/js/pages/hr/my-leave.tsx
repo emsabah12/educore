@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { CircleAlert, Plane, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +91,8 @@ const STATUS_CLASS: Record<LeaveRow['status'], string> = {
  * dihitung server), dan riwayat pengajuan. Semua aturan dicek server.
  */
 export default function MyLeave(props: Props) {
+    const [requesting, setRequesting] = useState(false);
+
     return (
         <>
             <Head title="Cuti saya" />
@@ -108,8 +111,27 @@ export default function MyLeave(props: Props) {
                     </p>
                 ) : (
                     <>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="button"
+                                onClick={() => setRequesting(true)}
+                            >
+                                <Plane />
+                                Ajukan cuti
+                            </Button>
+                        </div>
+                        <FormDialog
+                            open={requesting}
+                            onOpenChange={setRequesting}
+                            title="Ajukan cuti"
+                            wide
+                        >
+                            <RequestForm
+                                {...props}
+                                onDone={() => setRequesting(false)}
+                            />
+                        </FormDialog>
                         <Balances year={props.year} balances={props.balances} />
-                        <RequestForm {...props} />
                         <History requests={props.requests} />
                     </>
                 )}
@@ -161,7 +183,10 @@ type Preview =
     | { state: 'ok'; days: number; organization: string }
     | { state: 'error'; message: string };
 
-function RequestForm(props: Extract<Props, { linked: true }>) {
+function RequestForm({
+    onDone,
+    ...props
+}: Extract<Props, { linked: true }> & { onDone: () => void }) {
     const [start, setStart] = useState('');
     const [end, setEnd] = useState('');
     const [typeId, setTypeId] = useState('');
@@ -247,7 +272,6 @@ function RequestForm(props: Extract<Props, { linked: true }>) {
 
     return (
         <section aria-label="Ajukan cuti" className="space-y-2">
-            <h2 className="text-base font-medium">Ajukan cuti</h2>
             <Form
                 action="/cuti-saya"
                 method="post"
@@ -259,8 +283,9 @@ function RequestForm(props: Extract<Props, { linked: true }>) {
                     setEnd('');
                     setTypeId('');
                     setPreview({ state: 'idle' });
+                    onDone();
                 }}
-                className="space-y-4 rounded-xl border p-4"
+                className="space-y-4"
             >
                 {({ processing, errors }) => (
                     <>

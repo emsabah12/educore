@@ -1,13 +1,16 @@
 import { Form, Head, router } from '@inertiajs/react';
 import {
+    ArrowRightLeft,
     Building2,
     ChevronDown,
     ChevronRight,
     Landmark,
+    Pencil,
     Plus,
     School,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -331,6 +334,39 @@ function NodeDetail({
     canCreateRoot: boolean;
     options: Props['options'];
 }) {
+    const [dialog, setDialog] = useState<'rename' | 'create' | 'move' | null>(
+        null,
+    );
+    const close = () => setDialog(null);
+    const openChange = (value: boolean) => {
+        if (!value) {
+            close();
+        }
+    };
+
+    // Tujuan yang masuk akal: node aktif yang boleh dikelola, bukan node ini sendiri,
+    // bukan turunannya, dan bukan induknya sekarang. Server tetap memeriksa ulang.
+    const moveTargets = useMemo(() => {
+        const excluded = new Set<string>([node.id]);
+        const stack = [...(childrenOf.get(node.id) ?? [])];
+
+        while (stack.length > 0) {
+            const child = stack.pop()!;
+            excluded.add(child.id);
+            stack.push(...(childrenOf.get(child.id) ?? []));
+        }
+
+        return nodes.filter(
+            (candidate) =>
+                candidate.can_manage &&
+                candidate.is_active &&
+                !excluded.has(candidate.id) &&
+                candidate.id !== node.parent_id,
+        );
+    }, [node, nodes, childrenOf]);
+    const canMoveToRoot = canCreateRoot && node.parent_id !== null;
+    const canMove = moveTargets.length > 0 || canMoveToRoot;
+
     return (
         <div className="space-y-6">
             <div className="space-y-2">
@@ -355,20 +391,69 @@ function NodeDetail({
 
             {node.can_manage ? (
                 <>
-                    <RenameForm node={node} />
-                    {node.is_active && (
+                    {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                        {node.is_active && (
+                            <Button
+                                type="button"
+                                onClick={() => setDialog('create')}
+                            >
+                                <Plus />
+                                Tambah di bawahnya
+                            </Button>
+                        )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDialog('rename')}
+                        >
+                            <Pencil />
+                            Ubah nama
+                        </Button>
+                        {canMove && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setDialog('move')}
+                            >
+                                <ArrowRightLeft />
+                                Pindahkan
+                            </Button>
+                        )}
+                    </div>
+
+                    <FormDialog
+                        open={dialog === 'create'}
+                        onOpenChange={openChange}
+                        title={`Tambah di bawah ${node.name}`}
+                        wide
+                    >
                         <CreateForm
                             parentId={node.id}
-                            title={`Tambah di bawah ${node.name}`}
                             options={options}
+                            onDone={close}
                         />
-                    )}
-                    <MoveForm
-                        node={node}
-                        nodes={nodes}
-                        childrenOf={childrenOf}
-                        canCreateRoot={canCreateRoot}
-                    />
+                    </FormDialog>
+                    <FormDialog
+                        open={dialog === 'rename'}
+                        onOpenChange={openChange}
+                        title="Ubah nama"
+                    >
+                        <RenameForm node={node} onDone={close} />
+                    </FormDialog>
+                    <FormDialog
+                        open={dialog === 'move'}
+                        onOpenChange={openChange}
+                        title="Pindahkan ke induk lain"
+                    >
+                        <MoveForm
+                            node={node}
+                            targets={moveTargets}
+                            canMoveToRoot={canMoveToRoot}
+                            onDone={close}
+                        />
+                    </FormDialog>
+
                     <StatusForm node={node} />
                 </>
             ) : (
@@ -395,38 +480,43 @@ function FormSection({
     );
 }
 
-function RenameForm({ node }: { node: OrganizationNode }) {
+function RenameForm({
+    node,
+    onDone,
+}: {
+    node: OrganizationNode;
+    onDone: () => void;
+}) {
     return (
-        <FormSection title="Ubah nama">
-            <Form
-                action={`/lembaga/${node.id}`}
-                method="patch"
-                errorBag="rename"
-                options={{ preserveScroll: true }}
-                className="space-y-2"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <Label htmlFor="rename-name" className="sr-only">
-                            Nama
-                        </Label>
-                        <div className="flex gap-2">
-                            <Input
-                                id="rename-name"
-                                name="name"
-                                defaultValue={node.name}
-                                maxLength={200}
-                                required
-                            />
-                            <Button type="submit" disabled={processing}>
-                                Simpan
-                            </Button>
-                        </div>
-                        <InputError message={errors.name ?? errors.form} />
-                    </>
-                )}
-            </Form>
-        </FormSection>
+        <Form
+            action={`/lembaga/${node.id}`}
+            method="patch"
+            errorBag="rename"
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-2"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <Label htmlFor="rename-name" className="sr-only">
+                        Nama
+                    </Label>
+                    <div className="flex gap-2">
+                        <Input
+                            id="rename-name"
+                            name="name"
+                            defaultValue={node.name}
+                            maxLength={200}
+                            required
+                        />
+                        <Button type="submit" disabled={processing}>
+                            Simpan
+                        </Button>
+                    </div>
+                    <InputError message={errors.name ?? errors.form} />
+                </>
+            )}
+        </Form>
     );
 }
 
@@ -434,52 +524,113 @@ function CreateForm({
     parentId,
     title,
     options,
+    onDone,
 }: {
     parentId: string | null;
-    title: string;
+    /** Tanpa judul saat dipakai di dalam dialog (judul ada di dialog). */
+    title?: string;
     options: Props['options'];
+    onDone?: () => void;
 }) {
     const [type, setType] = useState('LEMBAGA');
     const isLembaga = type === 'LEMBAGA';
 
-    return (
-        <FormSection title={title}>
-            <Form
-                action="/lembaga"
-                method="post"
-                errorBag="create"
-                resetOnSuccess
-                options={{ preserveScroll: true }}
-                onSuccess={() => setType('LEMBAGA')}
-                className="space-y-3"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        {parentId && (
-                            <input
-                                type="hidden"
-                                name="parent_id"
-                                value={parentId}
+    const form = (
+        <Form
+            action="/lembaga"
+            method="post"
+            errorBag="create"
+            resetOnSuccess
+            options={{ preserveScroll: true }}
+            onSuccess={() => {
+                setType('LEMBAGA');
+                onDone?.();
+            }}
+            className="space-y-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    {parentId && (
+                        <input
+                            type="hidden"
+                            name="parent_id"
+                            value={parentId}
+                        />
+                    )}
+
+                    <InputError message={errors.form} />
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`type-${parentId ?? ROOT}`}>
+                                Jenis
+                            </Label>
+                            <select
+                                id={`type-${parentId ?? ROOT}`}
+                                name="type"
+                                className={selectClass}
+                                value={type}
+                                onChange={(event) =>
+                                    setType(event.target.value)
+                                }
+                            >
+                                {options.types.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.type} />
+                        </div>
+
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`code-${parentId ?? ROOT}`}>
+                                Kode
+                            </Label>
+                            <Input
+                                id={`code-${parentId ?? ROOT}`}
+                                name="code"
+                                placeholder="mis. U2-MDA"
+                                maxLength={50}
+                                className="uppercase"
+                                required
                             />
-                        )}
+                            <InputError message={errors.code} />
+                        </div>
+                    </div>
 
-                        <InputError message={errors.form} />
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`name-${parentId ?? ROOT}`}>Nama</Label>
+                        <Input
+                            id={`name-${parentId ?? ROOT}`}
+                            name="name"
+                            placeholder="mis. MDA Unit 2"
+                            maxLength={200}
+                            required
+                        />
+                        <InputError message={errors.name} />
+                    </div>
 
+                    {isLembaga && (
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="grid gap-1.5">
-                                <Label htmlFor={`type-${parentId ?? ROOT}`}>
-                                    Jenis
+                                <Label htmlFor={`category-${parentId ?? ROOT}`}>
+                                    Kategori
                                 </Label>
                                 <select
-                                    id={`type-${parentId ?? ROOT}`}
-                                    name="type"
+                                    id={`category-${parentId ?? ROOT}`}
+                                    name="category"
                                     className={selectClass}
-                                    value={type}
-                                    onChange={(event) =>
-                                        setType(event.target.value)
-                                    }
+                                    defaultValue=""
+                                    required
                                 >
-                                    {options.types.map((option) => (
+                                    <option value="" disabled>
+                                        Pilih kategori
+                                    </option>
+                                    {options.categories.map((option) => (
                                         <option
                                             key={option.value}
                                             value={option.value}
@@ -488,195 +639,104 @@ function CreateForm({
                                         </option>
                                     ))}
                                 </select>
-                                <InputError message={errors.type} />
+                                <InputError message={errors.category} />
                             </div>
 
                             <div className="grid gap-1.5">
-                                <Label htmlFor={`code-${parentId ?? ROOT}`}>
-                                    Kode
+                                <Label htmlFor={`jenjang-${parentId ?? ROOT}`}>
+                                    Jenjang
                                 </Label>
-                                <Input
-                                    id={`code-${parentId ?? ROOT}`}
-                                    name="code"
-                                    placeholder="mis. U2-MDA"
-                                    maxLength={50}
-                                    className="uppercase"
+                                <select
+                                    id={`jenjang-${parentId ?? ROOT}`}
+                                    name="jenjang"
+                                    className={selectClass}
+                                    defaultValue=""
                                     required
-                                />
-                                <InputError message={errors.code} />
+                                >
+                                    <option value="" disabled>
+                                        Pilih jenjang
+                                    </option>
+                                    {options.jenjangs.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.jenjang} />
                             </div>
                         </div>
+                    )}
 
-                        <div className="grid gap-1.5">
-                            <Label htmlFor={`name-${parentId ?? ROOT}`}>
-                                Nama
-                            </Label>
-                            <Input
-                                id={`name-${parentId ?? ROOT}`}
-                                name="name"
-                                placeholder="mis. MDA Unit 2"
-                                maxLength={200}
-                                required
-                            />
-                            <InputError message={errors.name} />
-                        </div>
-
-                        {isLembaga && (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="grid gap-1.5">
-                                    <Label
-                                        htmlFor={`category-${parentId ?? ROOT}`}
-                                    >
-                                        Kategori
-                                    </Label>
-                                    <select
-                                        id={`category-${parentId ?? ROOT}`}
-                                        name="category"
-                                        className={selectClass}
-                                        defaultValue=""
-                                        required
-                                    >
-                                        <option value="" disabled>
-                                            Pilih kategori
-                                        </option>
-                                        {options.categories.map((option) => (
-                                            <option
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.category} />
-                                </div>
-
-                                <div className="grid gap-1.5">
-                                    <Label
-                                        htmlFor={`jenjang-${parentId ?? ROOT}`}
-                                    >
-                                        Jenjang
-                                    </Label>
-                                    <select
-                                        id={`jenjang-${parentId ?? ROOT}`}
-                                        name="jenjang"
-                                        className={selectClass}
-                                        defaultValue=""
-                                        required
-                                    >
-                                        <option value="" disabled>
-                                            Pilih jenjang
-                                        </option>
-                                        {options.jenjangs.map((option) => (
-                                            <option
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.jenjang} />
-                                </div>
-                            </div>
-                        )}
-
-                        <Button type="submit" disabled={processing}>
-                            <Plus />
-                            Tambah
-                        </Button>
-                    </>
-                )}
-            </Form>
-        </FormSection>
+                    <Button type="submit" disabled={processing}>
+                        <Plus />
+                        Tambah
+                    </Button>
+                </>
+            )}
+        </Form>
     );
+
+    return title ? <FormSection title={title}>{form}</FormSection> : form;
 }
 
 function MoveForm({
     node,
-    nodes,
-    childrenOf,
-    canCreateRoot,
+    targets,
+    canMoveToRoot,
+    onDone,
 }: {
     node: OrganizationNode;
-    nodes: OrganizationNode[];
-    childrenOf: Map<string, OrganizationNode[]>;
-    canCreateRoot: boolean;
+    targets: OrganizationNode[];
+    canMoveToRoot: boolean;
+    onDone: () => void;
 }) {
-    // Tujuan yang masuk akal: node aktif yang boleh dikelola, bukan node ini sendiri,
-    // bukan turunannya, dan bukan induknya sekarang. Server tetap memeriksa ulang.
-    const targets = useMemo(() => {
-        const excluded = new Set<string>([node.id]);
-        const stack = [...(childrenOf.get(node.id) ?? [])];
-
-        while (stack.length > 0) {
-            const child = stack.pop()!;
-            excluded.add(child.id);
-            stack.push(...(childrenOf.get(child.id) ?? []));
-        }
-
-        return nodes.filter(
-            (candidate) =>
-                candidate.can_manage &&
-                candidate.is_active &&
-                !excluded.has(candidate.id) &&
-                candidate.id !== node.parent_id,
-        );
-    }, [node, nodes, childrenOf]);
-
-    const canMoveToRoot = canCreateRoot && node.parent_id !== null;
-
-    if (targets.length === 0 && !canMoveToRoot) {
-        return null;
-    }
-
     return (
-        <FormSection title="Pindahkan ke induk lain">
-            <Form
-                action={`/lembaga/${node.id}/induk`}
-                method="patch"
-                errorBag="move"
-                options={{ preserveScroll: true }}
-                className="space-y-2"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <Label htmlFor="move-parent" className="sr-only">
-                            Induk baru
-                        </Label>
-                        <div className="flex gap-2">
-                            <select
-                                id="move-parent"
-                                name="parent_id"
-                                className={selectClass}
-                                defaultValue={
-                                    canMoveToRoot ? '' : targets[0]?.id
-                                }
-                            >
-                                {canMoveToRoot && (
-                                    <option value="">
-                                        Langsung di bawah Yayasan
-                                    </option>
-                                )}
-                                {targets.map((target) => (
-                                    <option key={target.id} value={target.id}>
-                                        {target.name} ({target.code})
-                                    </option>
-                                ))}
-                            </select>
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                disabled={processing}
-                            >
-                                Pindahkan
-                            </Button>
-                        </div>
-                        <InputError message={errors.parent_id ?? errors.form} />
-                    </>
-                )}
-            </Form>
-        </FormSection>
+        <Form
+            action={`/lembaga/${node.id}/induk`}
+            method="patch"
+            errorBag="move"
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-2"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <Label htmlFor="move-parent" className="sr-only">
+                        Induk baru
+                    </Label>
+                    <div className="flex gap-2">
+                        <select
+                            id="move-parent"
+                            name="parent_id"
+                            className={selectClass}
+                            defaultValue={canMoveToRoot ? '' : targets[0]?.id}
+                        >
+                            {canMoveToRoot && (
+                                <option value="">
+                                    Langsung di bawah Yayasan
+                                </option>
+                            )}
+                            {targets.map((target) => (
+                                <option key={target.id} value={target.id}>
+                                    {target.name} ({target.code})
+                                </option>
+                            ))}
+                        </select>
+                        <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={processing}
+                        >
+                            Pindahkan
+                        </Button>
+                    </div>
+                    <InputError message={errors.parent_id ?? errors.form} />
+                </>
+            )}
+        </Form>
     );
 }
 

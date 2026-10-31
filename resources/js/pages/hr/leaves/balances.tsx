@@ -2,6 +2,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import { formatLeaveDateTime } from '@/components/hr/leave-format';
 import InputError from '@/components/input-error';
@@ -90,6 +91,7 @@ const selectClass =
  */
 export default function LeaveBalances(props: Props) {
     const { employees, filters, options } = props;
+    const [recapOpen, setRecapOpen] = useState(false);
 
     const applyFilters = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -117,17 +119,23 @@ export default function LeaveBalances(props: Props) {
             <Head title="Saldo cuti" />
 
             <div className="flex flex-1 flex-col gap-4 p-4">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="self-start"
-                >
-                    <Link href="/pegawai/cuti">
-                        <ArrowLeft />
-                        Kelola cuti
-                    </Link>
-                </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button variant="ghost" size="sm" asChild>
+                        <Link href="/pegawai/cuti">
+                            <ArrowLeft />
+                            Kelola cuti
+                        </Link>
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRecapOpen(true)}
+                    >
+                        <Download />
+                        Unduh rekap .xlsx
+                    </Button>
+                </div>
 
                 <Heading
                     title={`Saldo cuti ${filters.tahun}`}
@@ -190,7 +198,13 @@ export default function LeaveBalances(props: Props) {
                     </div>
                 </form>
 
-                <RecapForm filters={filters} />
+                <FormDialog
+                    open={recapOpen}
+                    onOpenChange={setRecapOpen}
+                    title={`Unduh rekap cuti ${filters.tahun}`}
+                >
+                    <RecapForm filters={filters} />
+                </FormDialog>
 
                 {employees.data.length === 0 ? (
                     <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -235,9 +249,9 @@ function RecapForm({ filters }: { filters: Filters }) {
     }
 
     return (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] items-end gap-3 rounded-xl border p-4">
+        <div className="grid gap-3">
             <div className="grid gap-1.5">
-                <Label htmlFor="recap-month">Rekap .xlsx {filters.tahun}</Label>
+                <Label htmlFor="recap-month">Periode</Label>
                 <select
                     id="recap-month"
                     className={selectClass}
@@ -259,7 +273,7 @@ function RecapForm({ filters }: { filters: Filters }) {
                     Unduh rekap
                 </a>
             </Button>
-            <p className="text-xs text-muted-foreground sm:col-span-full">
+            <p className="text-xs text-muted-foreground">
                 Lembar "Daftar cuti" berisi cuti yang disetujui pada periode
                 itu; lembar "Saldo" berisi saldo tiap pegawai aktif. Saringan
                 lembaga & jenis ikut dipakai.

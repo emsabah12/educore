@@ -10,6 +10,7 @@ import {
     TEACHING_STATUS_CLASS,
 } from '@/components/academic/teaching';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,8 @@ function displayTime(value: string): string {
     return value.replace(':', '.');
 }
 
+const TABS = ['kelas', 'jadwal', 'mengajar', 'pengganti'] as const;
+
 /**
  * Kelas saya (PRD-002 §16 AC-3d): kelas yang dipegang wali kelas/guru pengampu yang sedang login
  * dan jadwal mengajarnya. Hanya bisa dilihat.
@@ -75,6 +78,7 @@ export default function MyClasses({
     const usedDays = days.filter((day) =>
         schedule.some((lesson) => lesson.day === day.value),
     );
+    const [tab, setTab] = usePageTab(TABS, 'kelas');
 
     return (
         <>
@@ -99,136 +103,170 @@ export default function MyClasses({
                     )
                 ) : (
                     <>
-                        <section className="space-y-3">
-                            <h2 className="text-base font-medium">
-                                Kelas ({classes.length})
-                            </h2>
-                            <ul className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
-                                {classes.map((item) => (
-                                    <li key={item.id}>
-                                        <Link
-                                            href={`/kelas-saya/${item.id}`}
-                                            className="flex h-full items-start justify-between gap-2 rounded-xl border p-4 hover:bg-muted/40"
-                                        >
-                                            <div className="min-w-0 space-y-1">
-                                                <p className="font-medium break-words">
-                                                    {item.name}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {item.organization} ·
-                                                    Tingkat {item.grade} ·{' '}
-                                                    {item.year}
-                                                </p>
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                    {item.homeroom && (
-                                                        <Badge>
-                                                            Wali kelas
-                                                        </Badge>
-                                                    )}
-                                                    {item.subjects.map(
-                                                        (subject) => (
-                                                            <Badge
-                                                                key={subject}
-                                                                variant="secondary"
-                                                            >
-                                                                {subject}
+                        <PageTabs
+                            label="Bagian kelas saya"
+                            tabs={[
+                                { value: 'kelas', label: 'Kelas' },
+                                { value: 'jadwal', label: 'Jadwal mengajar' },
+                                {
+                                    value: 'mengajar',
+                                    label: 'Presensi mengajar',
+                                },
+                                {
+                                    value: 'pengganti',
+                                    label: 'Tugas menggantikan',
+                                    badge: substitutions.length,
+                                },
+                            ]}
+                            value={tab}
+                            onChange={setTab}
+                        />
+
+                        {tab === 'kelas' && (
+                            <section className="space-y-3">
+                                <h2 className="text-base font-medium">
+                                    Kelas ({classes.length})
+                                </h2>
+                                <ul className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
+                                    {classes.map((item) => (
+                                        <li key={item.id}>
+                                            <Link
+                                                href={`/kelas-saya/${item.id}`}
+                                                className="flex h-full items-start justify-between gap-2 rounded-xl border p-4 hover:bg-muted/40"
+                                            >
+                                                <div className="min-w-0 space-y-1">
+                                                    <p className="font-medium break-words">
+                                                        {item.name}
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {item.organization} ·
+                                                        Tingkat {item.grade} ·{' '}
+                                                        {item.year}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                                        {item.homeroom && (
+                                                            <Badge>
+                                                                Wali kelas
                                                             </Badge>
-                                                        ),
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
-
-                        <section className="space-y-3 rounded-xl border p-4">
-                            <h2 className="text-base font-medium">
-                                Jadwal mengajar
-                            </h2>
-                            {schedule.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    Belum ada jadwal untuk mapel yang Anda ampu.
-                                </p>
-                            ) : (
-                                <div className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
-                                    {usedDays.map((day) => (
-                                        <div
-                                            key={day.value}
-                                            className="rounded-lg border"
-                                        >
-                                            <h3 className="border-b bg-muted/40 px-3 py-1.5 text-sm font-medium">
-                                                {day.label}
-                                            </h3>
-                                            <ul className="divide-y">
-                                                {schedule
-                                                    .filter(
-                                                        (lesson) =>
-                                                            lesson.day ===
-                                                            day.value,
-                                                    )
-                                                    .map((lesson) => (
-                                                        <li
-                                                            key={
-                                                                lesson.entry_id
-                                                            }
-                                                            className="px-3 py-2 text-sm"
-                                                        >
-                                                            <p>
-                                                                <span className="font-medium tabular-nums">
-                                                                    {displayTime(
-                                                                        lesson.start,
-                                                                    )}
-                                                                    –
-                                                                    {displayTime(
-                                                                        lesson.end,
-                                                                    )}
-                                                                </span>{' '}
-                                                                {lesson.subject}
-                                                            </p>
-                                                            <p className="text-muted-foreground">
-                                                                {
-                                                                    lesson.class_name
-                                                                }{' '}
-                                                                ·{' '}
-                                                                {
-                                                                    lesson.organization
-                                                                }
-                                                            </p>
-                                                            {lessonMode.has(
-                                                                lesson.class_id,
-                                                            ) && (
-                                                                <Link
-                                                                    href={`/kelas-saya/jadwal/${lesson.entry_id}/presensi`}
-                                                                    className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                                        )}
+                                                        {item.subjects.map(
+                                                            (subject) => (
+                                                                <Badge
+                                                                    key={
+                                                                        subject
+                                                                    }
+                                                                    variant="secondary"
                                                                 >
-                                                                    <ClipboardCheck className="size-3.5" />
-                                                                    Isi presensi
-                                                                </Link>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                            </ul>
-                                        </div>
+                                                                    {subject}
+                                                                </Badge>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                            </Link>
+                                        </li>
                                     ))}
-                                </div>
-                            )}
-                        </section>
-
-                        {substitutions.length > 0 && (
-                            <SubstitutionsSection
-                                tasks={substitutions}
-                                today={today}
-                            />
+                                </ul>
+                            </section>
                         )}
 
-                        <TeachingSection
-                            lessons={teaching}
-                            today={today}
-                            now={now}
-                        />
+                        {tab === 'jadwal' && (
+                            <section className="space-y-3 rounded-xl border p-4">
+                                <h2 className="text-base font-medium">
+                                    Jadwal mengajar
+                                </h2>
+                                {schedule.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Belum ada jadwal untuk mapel yang Anda
+                                        ampu.
+                                    </p>
+                                ) : (
+                                    <div className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
+                                        {usedDays.map((day) => (
+                                            <div
+                                                key={day.value}
+                                                className="rounded-lg border"
+                                            >
+                                                <h3 className="border-b bg-muted/40 px-3 py-1.5 text-sm font-medium">
+                                                    {day.label}
+                                                </h3>
+                                                <ul className="divide-y">
+                                                    {schedule
+                                                        .filter(
+                                                            (lesson) =>
+                                                                lesson.day ===
+                                                                day.value,
+                                                        )
+                                                        .map((lesson) => (
+                                                            <li
+                                                                key={
+                                                                    lesson.entry_id
+                                                                }
+                                                                className="px-3 py-2 text-sm"
+                                                            >
+                                                                <p>
+                                                                    <span className="font-medium tabular-nums">
+                                                                        {displayTime(
+                                                                            lesson.start,
+                                                                        )}
+                                                                        –
+                                                                        {displayTime(
+                                                                            lesson.end,
+                                                                        )}
+                                                                    </span>{' '}
+                                                                    {
+                                                                        lesson.subject
+                                                                    }
+                                                                </p>
+                                                                <p className="text-muted-foreground">
+                                                                    {
+                                                                        lesson.class_name
+                                                                    }{' '}
+                                                                    ·{' '}
+                                                                    {
+                                                                        lesson.organization
+                                                                    }
+                                                                </p>
+                                                                {lessonMode.has(
+                                                                    lesson.class_id,
+                                                                ) && (
+                                                                    <Link
+                                                                        href={`/kelas-saya/jadwal/${lesson.entry_id}/presensi`}
+                                                                        className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                                                    >
+                                                                        <ClipboardCheck className="size-3.5" />
+                                                                        Isi
+                                                                        presensi
+                                                                    </Link>
+                                                                )}
+                                                            </li>
+                                                        ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {tab === 'pengganti' &&
+                            (substitutions.length > 0 ? (
+                                <SubstitutionsSection
+                                    tasks={substitutions}
+                                    today={today}
+                                />
+                            ) : (
+                                <EmptyState text="Tidak ada tugas menggantikan guru lain." />
+                            ))}
+
+                        {tab === 'mengajar' && (
+                            <TeachingSection
+                                lessons={teaching}
+                                today={today}
+                                now={now}
+                            />
+                        )}
                     </>
                 )}
             </div>

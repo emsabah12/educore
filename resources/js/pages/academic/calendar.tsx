@@ -21,8 +21,10 @@ import {
     WeeklyOffForm,
     type HolidayRow,
 } from '@/components/academic/holiday-actions';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -182,6 +184,8 @@ function draftOf(year: YearRow): YearDraft {
     };
 }
 
+const TABS = ['tahun', 'pemakaian', 'presensi', 'penilaian'] as const;
+
 /**
  * Halaman Kalender akademik (PRD-002 §4.4). Hak akses & semua aturan tanggal tetap dicek server;
  * kalender dan tahun ajaran tidak dihapus, hanya diubah.
@@ -198,7 +202,9 @@ export default function AcademicCalendar({
     today,
     limits,
 }: Props) {
+    const [tab, setTab] = usePageTab(TABS, 'tahun');
     const [creatingYear, setCreatingYear] = useState(false);
+    const [creatingCalendar, setCreatingCalendar] = useState(false);
 
     return (
         <>
@@ -210,66 +216,122 @@ export default function AcademicCalendar({
                     description="Tahun ajaran dan semester untuk seluruh lembaga. Lembaga memakai Kalender Yayasan kecuali diatur lain di Pemakaian kalender."
                 />
 
-                {/* Grid otomatis: tab yang tidak muat di satu baris pindah ke baris berikutnya (HP). */}
-                <nav
-                    aria-label="Kalender"
-                    className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2"
-                >
-                    {calendars.map((calendar) => {
-                        const active = calendar.id === selected.id;
+                <PageTabs
+                    label="Bagian kalender akademik"
+                    tabs={[
+                        { value: 'tahun', label: 'Tahun ajaran' },
+                        { value: 'pemakaian', label: 'Pemakaian kalender' },
+                        { value: 'presensi', label: 'Mode presensi' },
+                        { value: 'penilaian', label: 'Penilaian' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
 
-                        return (
-                            <Link
-                                key={calendar.id}
-                                href={`${BASE_URL}?kalender=${calendar.id}`}
-                                preserveScroll
-                                aria-current={active ? 'page' : undefined}
-                                className={
-                                    'flex min-h-14 flex-col justify-center gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors ' +
-                                    (active
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'hover:bg-muted')
-                                }
+                {tab === 'tahun' && (
+                    <>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm text-muted-foreground">
+                                Pilih kalender untuk melihat tahun ajarannya.
+                            </p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setCreatingCalendar(true)}
                             >
-                                <span className="font-medium break-words">
-                                    {calendar.name}
-                                </span>
-                                <span
-                                    className={
-                                        'text-xs ' +
-                                        (active
-                                            ? 'text-primary-foreground/80'
-                                            : 'text-muted-foreground')
-                                    }
-                                >
-                                    {calendar.is_default ? 'Bawaan · ' : ''}
-                                    {calendar.current_year
-                                        ? `Berjalan: ${calendar.current_year}`
-                                        : 'Belum ada tahun berjalan'}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </nav>
+                                <Plus />
+                                Tambah kalender
+                            </Button>
+                        </div>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <section
-                        aria-label={`Tahun ajaran ${selected.name}`}
-                        className="space-y-4"
-                    >
-                        <CalendarHeader key={selected.id} calendar={selected} />
-                        <WeeklyOffForm
-                            key={`off-${selected.id}`}
-                            calendarId={selected.id}
-                            days={selected.weekly_off_days}
-                            options={dayOptions}
-                        />
+                        <FormDialog
+                            open={creatingCalendar}
+                            onOpenChange={setCreatingCalendar}
+                            title="Tambah kalender"
+                            description="Untuk lembaga dengan periode belajar berbeda, mis. Kalender MDA. Kalender tidak bisa dihapus."
+                        >
+                            <CreateCalendarForm
+                                onDone={() => setCreatingCalendar(false)}
+                            />
+                        </FormDialog>
 
-                        {creatingYear ? (
-                            <div className="rounded-xl border p-4">
+                        {/* Grid otomatis: kartu kalender yang tidak muat di satu baris pindah ke baris berikutnya (HP). */}
+                        <nav
+                            aria-label="Kalender"
+                            className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2"
+                        >
+                            {calendars.map((calendar) => {
+                                const active = calendar.id === selected.id;
+
+                                return (
+                                    <Link
+                                        key={calendar.id}
+                                        href={`${BASE_URL}?kalender=${calendar.id}`}
+                                        preserveScroll
+                                        aria-current={
+                                            active ? 'page' : undefined
+                                        }
+                                        className={
+                                            'flex min-h-14 flex-col justify-center gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors ' +
+                                            (active
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : 'hover:bg-muted')
+                                        }
+                                    >
+                                        <span className="font-medium break-words">
+                                            {calendar.name}
+                                        </span>
+                                        <span
+                                            className={
+                                                'text-xs ' +
+                                                (active
+                                                    ? 'text-primary-foreground/80'
+                                                    : 'text-muted-foreground')
+                                            }
+                                        >
+                                            {calendar.is_default
+                                                ? 'Bawaan · '
+                                                : ''}
+                                            {calendar.current_year
+                                                ? `Berjalan: ${calendar.current_year}`
+                                                : 'Belum ada tahun berjalan'}
+                                        </span>
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+
+                        <section
+                            aria-label={`Tahun ajaran ${selected.name}`}
+                            className="space-y-4"
+                        >
+                            <CalendarHeader
+                                key={selected.id}
+                                calendar={selected}
+                            />
+                            <WeeklyOffForm
+                                key={`off-${selected.id}`}
+                                calendarId={selected.id}
+                                days={selected.weekly_off_days}
+                                options={dayOptions}
+                            />
+
+                            <Button
+                                type="button"
+                                onClick={() => setCreatingYear(true)}
+                            >
+                                <CalendarPlus />
+                                Tambah tahun ajaran
+                            </Button>
+
+                            <FormDialog
+                                open={creatingYear}
+                                onOpenChange={setCreatingYear}
+                                title={`Tambah tahun ajaran — ${selected.name}`}
+                                wide
+                            >
                                 <YearForm
                                     key={selected.id}
-                                    title="Tambah tahun ajaran"
                                     action={`${BASE_URL}/${selected.id}/tahun-ajaran`}
                                     method="post"
                                     errorBag="create-year"
@@ -280,108 +342,106 @@ export default function AcademicCalendar({
                                     limits={limits}
                                     onDone={() => setCreatingYear(false)}
                                 />
-                            </div>
-                        ) : (
-                            <Button
-                                type="button"
-                                onClick={() => setCreatingYear(true)}
-                            >
-                                <CalendarPlus />
-                                Tambah tahun ajaran
-                            </Button>
-                        )}
+                            </FormDialog>
 
-                        {selected.years.length === 0 ? (
-                            <p className="rounded-xl border p-4 text-sm text-muted-foreground">
-                                Kalender ini belum punya tahun ajaran. Tahun
-                                ajaran pertama otomatis menjadi tahun berjalan.
-                            </p>
-                        ) : (
-                            <ul className="space-y-3">
-                                {selected.years.map((year) => (
-                                    <YearCard
-                                        key={year.id}
-                                        year={year}
-                                        limits={limits}
-                                    />
-                                ))}
-                            </ul>
-                        )}
-                    </section>
-
-                    <aside className="h-fit space-y-4">
-                        <div className="rounded-xl border p-4">
-                            <CreateCalendarForm />
-                        </div>
-                    </aside>
-                </div>
-
-                <section aria-label="Pemakaian kalender" className="space-y-4">
-                    <Heading
-                        variant="small"
-                        title="Pemakaian kalender"
-                        description="Tetapkan kalender lain untuk satu jenjang (mis. semua MDA) atau untuk lembaga/unit tertentu. Pengaturan di lembaga/unit menang atas pengaturan jenjang, kecuali pengaturan jenjang dikunci."
-                    />
-
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <div className="rounded-xl border p-4">
-                            <AssignForm
-                                calendars={calendars}
-                                options={options}
-                            />
-                        </div>
-
-                        <div className="rounded-xl border">
-                            {rules.length === 0 ? (
-                                <p className="p-4 text-sm text-muted-foreground">
-                                    Belum ada pengaturan. Semua lembaga memakai
-                                    kalender bawaan.
+                            {selected.years.length === 0 ? (
+                                <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+                                    Kalender ini belum punya tahun ajaran. Tahun
+                                    ajaran pertama otomatis menjadi tahun
+                                    berjalan.
                                 </p>
                             ) : (
-                                <ul className="divide-y">
-                                    {rules.map((rule) => (
-                                        <li
-                                            key={rule.id}
-                                            className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm"
-                                        >
-                                            <span className="font-medium break-words">
-                                                {rule.target}
-                                            </span>
-                                            <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                                                {rule.calendar}
-                                                {rule.enforced && (
-                                                    <Badge variant="outline">
-                                                        <Lock />
-                                                        Dikunci
-                                                    </Badge>
-                                                )}
-                                            </span>
-                                        </li>
+                                <ul className="space-y-3">
+                                    {selected.years.map((year) => (
+                                        <YearCard
+                                            key={year.id}
+                                            year={year}
+                                            limits={limits}
+                                        />
                                     ))}
                                 </ul>
                             )}
-                        </div>
-                    </div>
-                </section>
+                        </section>
+                    </>
+                )}
 
-                <section
-                    aria-label="Kalender per lembaga"
-                    className="space-y-4"
-                >
-                    <Heading
-                        variant="small"
-                        title="Kalender per lembaga"
-                        description="Kalender dan tahun ajaran berjalan yang dipakai setiap lembaga aktif saat ini."
+                {tab === 'pemakaian' && (
+                    <>
+                        <section
+                            aria-label="Pemakaian kalender"
+                            className="space-y-4"
+                        >
+                            <Heading
+                                variant="small"
+                                title="Pemakaian kalender"
+                                description="Tetapkan kalender lain untuk satu jenjang (mis. semua MDA) atau untuk lembaga/unit tertentu. Pengaturan di lembaga/unit menang atas pengaturan jenjang, kecuali pengaturan jenjang dikunci."
+                            />
+
+                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                <div className="rounded-xl border p-4">
+                                    <AssignForm
+                                        calendars={calendars}
+                                        options={options}
+                                    />
+                                </div>
+
+                                <div className="rounded-xl border">
+                                    {rules.length === 0 ? (
+                                        <p className="p-4 text-sm text-muted-foreground">
+                                            Belum ada pengaturan. Semua lembaga
+                                            memakai kalender bawaan.
+                                        </p>
+                                    ) : (
+                                        <ul className="divide-y">
+                                            {rules.map((rule) => (
+                                                <li
+                                                    key={rule.id}
+                                                    className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm"
+                                                >
+                                                    <span className="font-medium break-words">
+                                                        {rule.target}
+                                                    </span>
+                                                    <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                                                        {rule.calendar}
+                                                        {rule.enforced && (
+                                                            <Badge variant="outline">
+                                                                <Lock />
+                                                                Dikunci
+                                                            </Badge>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section
+                            aria-label="Kalender per lembaga"
+                            className="space-y-4"
+                        >
+                            <Heading
+                                variant="small"
+                                title="Kalender per lembaga"
+                                description="Kalender dan tahun ajaran berjalan yang dipakai setiap lembaga aktif saat ini."
+                            />
+                            <UsageTable rows={usage} />
+                        </section>
+                    </>
+                )}
+
+                {tab === 'presensi' && (
+                    <AttendanceModeSection
+                        data={attendanceModes}
+                        options={options}
                     />
-                    <UsageTable rows={usage} />
-                </section>
+                )}
 
-                <AttendanceModeSection
-                    data={attendanceModes}
-                    options={options}
-                />
-
-                <GradingSection data={grading} options={options} />
+                {tab === 'penilaian' && (
+                    <GradingSection data={grading} options={options} />
+                )}
             </div>
         </>
     );
@@ -557,7 +617,7 @@ function YearForm({
     limits,
     onDone,
 }: {
-    title: string;
+    title?: string;
     action: string;
     method: 'post' | 'patch';
     errorBag: string;
@@ -594,7 +654,7 @@ function YearForm({
         >
             {({ processing, errors }) => (
                 <>
-                    <h4 className="font-medium">{title}</h4>
+                    {title && <h4 className="font-medium">{title}</h4>}
 
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div className="grid gap-1.5">
@@ -761,7 +821,7 @@ function YearForm({
     );
 }
 
-function CreateCalendarForm() {
+function CreateCalendarForm({ onDone }: { onDone: () => void }) {
     return (
         <Form
             action={BASE_URL}
@@ -769,15 +829,11 @@ function CreateCalendarForm() {
             errorBag="create-calendar"
             resetOnSuccess
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">Tambah kalender</h3>
-                    <p className="text-xs text-muted-foreground">
-                        Untuk lembaga dengan periode belajar berbeda, mis.
-                        Kalender MDA. Kalender tidak bisa dihapus.
-                    </p>
                     <div className="grid gap-1.5">
                         <Label htmlFor="calendar-name">Nama kalender</Label>
                         <Input
