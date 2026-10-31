@@ -3,6 +3,7 @@ import { Printer, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,8 @@ const rupiah = new Intl.NumberFormat('id-ID');
 const formatRupiah = (amount: number) => `Rp ${rupiah.format(amount)}`;
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' });
+
+const TABS = ['bayar', 'riwayat'] as const;
 
 function formatDate(value: string): string {
     const [year, month, day] = value.split('-').map(Number);
@@ -181,6 +184,7 @@ function StudentPanel({
     ]
         .filter(Boolean)
         .join(' · ');
+    const [tab, setTab] = usePageTab(TABS, 'bayar');
 
     return (
         <>
@@ -211,7 +215,41 @@ function StudentPanel({
                     </div>
                 </div>
 
-                {invoices.length === 0 ? (
+                <PageTabs
+                    label="Bagian kasir"
+                    tabs={[
+                        {
+                            value: 'bayar',
+                            label: canPay ? 'Tagihan & bayar' : 'Tagihan',
+                            badge: invoices.length,
+                        },
+                        {
+                            value: 'riwayat',
+                            label: `Riwayat pembayaran (${payments.length})`,
+                        },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
+
+                {tab === 'riwayat' ? (
+                    payments.length === 0 ? (
+                        <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                            Belum ada pembayaran.
+                        </p>
+                    ) : (
+                        <ul className="divide-y rounded-xl border">
+                            {payments.map((payment) => (
+                                <PaymentItem
+                                    key={payment.id}
+                                    payment={payment}
+                                    canPay={canPay}
+                                    voidReasonMax={voidReasonMax}
+                                />
+                            ))}
+                        </ul>
+                    )
+                ) : invoices.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         Tidak ada tagihan yang belum lunas.
                     </p>
@@ -226,26 +264,6 @@ function StudentPanel({
                     />
                 ) : (
                     <InvoiceList invoices={invoices} />
-                )}
-            </section>
-
-            <section className="space-y-3">
-                <h2 className="text-base font-medium">Riwayat pembayaran</h2>
-                {payments.length === 0 ? (
-                    <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-                        Belum ada pembayaran.
-                    </p>
-                ) : (
-                    <ul className="divide-y rounded-xl border">
-                        {payments.map((payment) => (
-                            <PaymentItem
-                                key={payment.id}
-                                payment={payment}
-                                canPay={canPay}
-                                voidReasonMax={voidReasonMax}
-                            />
-                        ))}
-                    </ul>
                 )}
             </section>
         </>

@@ -12,3 +12,10 @@ export type NavItem = {
     icon?: LucideIcon | null;
     isActive?: boolean;
 };
+
+/** Kelompok menu samping. Tanpa judul = ditampilkan tanpa label (mis. Beranda). */
+export type NavGroup = {
+    key: string;
+    title?: string;
+    items: NavItem[];
+};

@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Download } from 'lucide-react';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -67,6 +68,8 @@ type Props = {
 
 const ALL = 'semua';
 
+const TABS = ['ringkasan', 'transaksi'] as const;
+
 const rupiah = new Intl.NumberFormat('id-ID');
 const formatRupiah = (amount: number) => `Rp ${rupiah.format(amount)}`;
 
@@ -103,12 +106,14 @@ export default function ReceiptRecap({
     const monthLabel =
         months.find((option) => option.value === month)?.label ?? month;
     const { totals } = summary;
+    const [tab, setTab] = usePageTab(TABS, 'ringkasan');
 
     const visit = (overrides: Record<string, string | null>) => {
         const merged: Record<string, string | null> = {
             lembaga: organizationId,
             bulan: month,
             tanggal: day,
+            tab: tab === 'ringkasan' ? null : tab,
             ...overrides,
         };
         const clean: Record<string, string> = {};
@@ -201,306 +206,337 @@ export default function ReceiptRecap({
                     <Empty>Belum ada pembayaran pada {monthLabel}.</Empty>
                 ) : (
                     <>
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            <section className="min-w-0 space-y-2">
-                                <h2 className="text-sm font-medium">
-                                    Per hari
-                                </h2>
-                                {summary.days.length === 0 ? (
-                                    <Empty>Tidak ada pembayaran sah.</Empty>
-                                ) : (
-                                    <div className="overflow-x-auto rounded-xl border">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                                                <tr>
-                                                    <th className="p-2 font-medium">
-                                                        Tanggal
-                                                    </th>
-                                                    <th className="p-2 text-right font-medium">
-                                                        Tunai
-                                                    </th>
-                                                    <th className="p-2 text-right font-medium">
-                                                        Transfer
-                                                    </th>
-                                                    <th className="p-2 text-right font-medium">
-                                                        Total
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {summary.days.map((row) => (
-                                                    <tr
-                                                        key={row.date}
-                                                        className={
-                                                            row.date === day
-                                                                ? 'bg-muted/50'
-                                                                : undefined
-                                                        }
-                                                    >
-                                                        <td className="p-2">
+                        <PageTabs
+                            label="Bagian rekap penerimaan"
+                            tabs={[
+                                { value: 'ringkasan', label: 'Ringkasan' },
+                                {
+                                    value: 'transaksi',
+                                    label: `Transaksi (${transactions.total})`,
+                                },
+                            ]}
+                            value={tab}
+                            onChange={setTab}
+                        />
+
+                        {tab === 'ringkasan' && (
+                            <div className="grid gap-4 lg:grid-cols-2">
+                                <section className="min-w-0 space-y-2">
+                                    <h2 className="text-sm font-medium">
+                                        Per hari
+                                    </h2>
+                                    {summary.days.length === 0 ? (
+                                        <Empty>Tidak ada pembayaran sah.</Empty>
+                                    ) : (
+                                        <div className="overflow-x-auto rounded-xl border">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                                                    <tr>
+                                                        <th className="p-2 font-medium">
+                                                            Tanggal
+                                                        </th>
+                                                        <th className="p-2 text-right font-medium">
+                                                            Tunai
+                                                        </th>
+                                                        <th className="p-2 text-right font-medium">
+                                                            Transfer
+                                                        </th>
+                                                        <th className="p-2 text-right font-medium">
+                                                            Total
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {summary.days.map((row) => (
+                                                        <tr
+                                                            key={row.date}
+                                                            className={
+                                                                row.date === day
+                                                                    ? 'bg-muted/50'
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            <td className="p-2">
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-left font-medium underline-offset-4 hover:underline"
+                                                                    onClick={() =>
+                                                                        visit({
+                                                                            tanggal:
+                                                                                row.date ===
+                                                                                day
+                                                                                    ? null
+                                                                                    : row.date,
+                                                                            halaman:
+                                                                                null,
+                                                                            tab: 'transaksi',
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    {dateFormat.format(
+                                                                        toDate(
+                                                                            row.date,
+                                                                        ),
+                                                                    )}
+                                                                </button>
+                                                                <span className="block text-xs text-muted-foreground">
+                                                                    {row.count}{' '}
+                                                                    transaksi
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-2 text-right tabular-nums">
+                                                                {rupiah.format(
+                                                                    row.cash,
+                                                                )}
+                                                            </td>
+                                                            <td className="p-2 text-right tabular-nums">
+                                                                {rupiah.format(
+                                                                    row.transfer,
+                                                                )}
+                                                            </td>
+                                                            <td className="p-2 text-right font-semibold tabular-nums">
+                                                                {rupiah.format(
+                                                                    row.total,
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </section>
+
+                                <div className="min-w-0 space-y-4">
+                                    <section className="space-y-2">
+                                        <h2 className="text-sm font-medium">
+                                            Per jenis biaya
+                                        </h2>
+                                        {summary.fee_types.length === 0 ? (
+                                            <Empty>
+                                                Tidak ada pembayaran sah.
+                                            </Empty>
+                                        ) : (
+                                            <ul className="divide-y rounded-xl border text-sm">
+                                                {summary.fee_types.map(
+                                                    (row) => (
+                                                        <li
+                                                            key={row.name}
+                                                            className="flex items-center justify-between gap-2 p-2"
+                                                        >
+                                                            <span>
+                                                                {row.name}
+                                                            </span>
+                                                            <span className="font-semibold tabular-nums">
+                                                                {formatRupiah(
+                                                                    row.amount,
+                                                                )}
+                                                            </span>
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                        )}
+                                    </section>
+
+                                    {summary.organizations.length > 0 && (
+                                        <section className="space-y-2">
+                                            <h2 className="text-sm font-medium">
+                                                Per lembaga
+                                            </h2>
+                                            <ul className="divide-y rounded-xl border text-sm">
+                                                {summary.organizations.map(
+                                                    (row) => (
+                                                        <li
+                                                            key={
+                                                                row.organization_id
+                                                            }
+                                                        >
                                                             <button
                                                                 type="button"
-                                                                className="text-left font-medium underline-offset-4 hover:underline"
+                                                                className="flex w-full flex-wrap items-center justify-between gap-2 p-2 text-left hover:bg-muted/50"
                                                                 onClick={() =>
                                                                     visit({
+                                                                        lembaga:
+                                                                            row.organization_id,
                                                                         tanggal:
-                                                                            row.date ===
-                                                                            day
-                                                                                ? null
-                                                                                : row.date,
+                                                                            null,
                                                                         halaman:
                                                                             null,
                                                                     })
                                                                 }
                                                             >
-                                                                {dateFormat.format(
-                                                                    toDate(
-                                                                        row.date,
-                                                                    ),
-                                                                )}
+                                                                <span>
+                                                                    {row.name}
+                                                                </span>
+                                                                <span className="text-muted-foreground tabular-nums">
+                                                                    {row.count}{' '}
+                                                                    transaksi ·{' '}
+                                                                    <span className="font-semibold text-foreground">
+                                                                        {formatRupiah(
+                                                                            row.total,
+                                                                        )}
+                                                                    </span>
+                                                                </span>
                                                             </button>
-                                                            <span className="block text-xs text-muted-foreground">
-                                                                {row.count}{' '}
-                                                                transaksi
-                                                            </span>
-                                                        </td>
-                                                        <td className="p-2 text-right tabular-nums">
-                                                            {rupiah.format(
-                                                                row.cash,
-                                                            )}
-                                                        </td>
-                                                        <td className="p-2 text-right tabular-nums">
-                                                            {rupiah.format(
-                                                                row.transfer,
-                                                            )}
-                                                        </td>
-                                                        <td className="p-2 text-right font-semibold tabular-nums">
-                                                            {rupiah.format(
-                                                                row.total,
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </section>
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                        </section>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                            <div className="min-w-0 space-y-4">
-                                <section className="space-y-2">
+                        {tab === 'transaksi' && (
+                            <section className="space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <h2 className="text-sm font-medium">
-                                        Per jenis biaya
+                                        Transaksi{' '}
+                                        {day
+                                            ? longDate.format(toDate(day))
+                                            : monthLabel}{' '}
+                                        ({transactions.total})
                                     </h2>
-                                    {summary.fee_types.length === 0 ? (
-                                        <Empty>Tidak ada pembayaran sah.</Empty>
-                                    ) : (
-                                        <ul className="divide-y rounded-xl border text-sm">
-                                            {summary.fee_types.map((row) => (
-                                                <li
-                                                    key={row.name}
-                                                    className="flex items-center justify-between gap-2 p-2"
-                                                >
-                                                    <span>{row.name}</span>
-                                                    <span className="font-semibold tabular-nums">
+                                    {day && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                visit({
+                                                    tanggal: null,
+                                                    halaman: null,
+                                                })
+                                            }
+                                        >
+                                            Semua tanggal
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {transactions.rows.length === 0 ? (
+                                    <Empty>Tidak ada transaksi.</Empty>
+                                ) : (
+                                    <ul className="divide-y rounded-xl border">
+                                        {transactions.rows.map((row) => (
+                                            <li
+                                                key={row.id}
+                                                className="flex flex-wrap items-start justify-between gap-2 p-3 text-sm"
+                                            >
+                                                <div className="min-w-0 space-y-0.5">
+                                                    <p className="font-medium">
+                                                        {row.name}
+                                                        {row.class &&
+                                                            ` (${row.class})`}
+                                                        {row.status ===
+                                                            'BATAL' && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="ml-2"
+                                                            >
+                                                                Batal
+                                                            </Badge>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        {[
+                                                            dateFormat.format(
+                                                                toDate(
+                                                                    row.paid_on,
+                                                                ),
+                                                            ),
+                                                            allOrganizations
+                                                                ? row.organization
+                                                                : null,
+                                                            row.method,
+                                                            row.recorded_by &&
+                                                                `oleh ${row.recorded_by}`,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
+                                                    </p>
+                                                    {row.items.length > 0 && (
+                                                        <p className="text-muted-foreground">
+                                                            {row.items.join(
+                                                                ', ',
+                                                            )}
+                                                        </p>
+                                                    )}
+                                                    {row.void_reason && (
+                                                        <p className="text-destructive">
+                                                            Dibatalkan:{' '}
+                                                            {row.void_reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="text-right">
+                                                    <p
+                                                        className={`font-semibold tabular-nums ${row.status === 'BATAL' ? 'text-muted-foreground line-through' : ''}`}
+                                                    >
                                                         {formatRupiah(
                                                             row.amount,
                                                         )}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </section>
-
-                                {summary.organizations.length > 0 && (
-                                    <section className="space-y-2">
-                                        <h2 className="text-sm font-medium">
-                                            Per lembaga
-                                        </h2>
-                                        <ul className="divide-y rounded-xl border text-sm">
-                                            {summary.organizations.map(
-                                                (row) => (
-                                                    <li
-                                                        key={
-                                                            row.organization_id
-                                                        }
+                                                    </p>
+                                                    <Link
+                                                        href={`/keuangan/kuitansi/${row.id}`}
+                                                        className="font-mono text-xs underline underline-offset-4"
                                                     >
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full flex-wrap items-center justify-between gap-2 p-2 text-left hover:bg-muted/50"
-                                                            onClick={() =>
-                                                                visit({
-                                                                    lembaga:
-                                                                        row.organization_id,
-                                                                    tanggal:
-                                                                        null,
-                                                                    halaman:
-                                                                        null,
-                                                                })
-                                                            }
-                                                        >
-                                                            <span>
-                                                                {row.name}
-                                                            </span>
-                                                            <span className="text-muted-foreground tabular-nums">
-                                                                {row.count}{' '}
-                                                                transaksi ·{' '}
-                                                                <span className="font-semibold text-foreground">
-                                                                    {formatRupiah(
-                                                                        row.total,
-                                                                    )}
-                                                                </span>
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                    </section>
+                                                        {row.receipt_number}
+                                                    </Link>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 )}
-                            </div>
-                        </div>
 
-                        <section className="space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-sm font-medium">
-                                    Transaksi{' '}
-                                    {day
-                                        ? longDate.format(toDate(day))
-                                        : monthLabel}{' '}
-                                    ({transactions.total})
-                                </h2>
-                                {day && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            visit({
-                                                tanggal: null,
-                                                halaman: null,
-                                            })
-                                        }
+                                {transactions.last_page > 1 && (
+                                    <nav
+                                        aria-label="Halaman"
+                                        className="flex flex-wrap items-center justify-between gap-2 text-sm"
                                     >
-                                        Semua tanggal
-                                    </Button>
-                                )}
-                            </div>
-
-                            {transactions.rows.length === 0 ? (
-                                <Empty>Tidak ada transaksi.</Empty>
-                            ) : (
-                                <ul className="divide-y rounded-xl border">
-                                    {transactions.rows.map((row) => (
-                                        <li
-                                            key={row.id}
-                                            className="flex flex-wrap items-start justify-between gap-2 p-3 text-sm"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={transactions.page <= 1}
+                                            onClick={() =>
+                                                visit({
+                                                    halaman: String(
+                                                        transactions.page - 1,
+                                                    ),
+                                                })
+                                            }
                                         >
-                                            <div className="min-w-0 space-y-0.5">
-                                                <p className="font-medium">
-                                                    {row.name}
-                                                    {row.class &&
-                                                        ` (${row.class})`}
-                                                    {row.status === 'BATAL' && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="ml-2"
-                                                        >
-                                                            Batal
-                                                        </Badge>
-                                                    )}
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    {[
-                                                        dateFormat.format(
-                                                            toDate(row.paid_on),
-                                                        ),
-                                                        allOrganizations
-                                                            ? row.organization
-                                                            : null,
-                                                        row.method,
-                                                        row.recorded_by &&
-                                                            `oleh ${row.recorded_by}`,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                                </p>
-                                                {row.items.length > 0 && (
-                                                    <p className="text-muted-foreground">
-                                                        {row.items.join(', ')}
-                                                    </p>
-                                                )}
-                                                {row.void_reason && (
-                                                    <p className="text-destructive">
-                                                        Dibatalkan:{' '}
-                                                        {row.void_reason}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="text-right">
-                                                <p
-                                                    className={`font-semibold tabular-nums ${row.status === 'BATAL' ? 'text-muted-foreground line-through' : ''}`}
-                                                >
-                                                    {formatRupiah(row.amount)}
-                                                </p>
-                                                <Link
-                                                    href={`/keuangan/kuitansi/${row.id}`}
-                                                    className="font-mono text-xs underline underline-offset-4"
-                                                >
-                                                    {row.receipt_number}
-                                                </Link>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            {transactions.last_page > 1 && (
-                                <nav
-                                    aria-label="Halaman"
-                                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                                >
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={transactions.page <= 1}
-                                        onClick={() =>
-                                            visit({
-                                                halaman: String(
-                                                    transactions.page - 1,
-                                                ),
-                                            })
-                                        }
-                                    >
-                                        Sebelumnya
-                                    </Button>
-                                    <span className="text-muted-foreground">
-                                        Halaman {transactions.page} dari{' '}
-                                        {transactions.last_page}
-                                    </span>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={
-                                            transactions.page >=
-                                            transactions.last_page
-                                        }
-                                        onClick={() =>
-                                            visit({
-                                                halaman: String(
-                                                    transactions.page + 1,
-                                                ),
-                                            })
-                                        }
-                                    >
-                                        Berikutnya
-                                    </Button>
-                                </nav>
-                            )}
-                        </section>
+                                            Sebelumnya
+                                        </Button>
+                                        <span className="text-muted-foreground">
+                                            Halaman {transactions.page} dari{' '}
+                                            {transactions.last_page}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={
+                                                transactions.page >=
+                                                transactions.last_page
+                                            }
+                                            onClick={() =>
+                                                visit({
+                                                    halaman: String(
+                                                        transactions.page + 1,
+                                                    ),
+                                                })
+                                            }
+                                        >
+                                            Berikutnya
+                                        </Button>
+                                    </nav>
+                                )}
+                            </section>
+                        )}
                     </>
                 )}
             </div>

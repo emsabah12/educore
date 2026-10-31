@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-10-30
-- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-4 SELESAI; KS-5 (persetujuan berjenjang) dibangun 2026-10-30, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
-- **Commit terakhir:** `d672621` — feat(finance): KS-4 mutasi kas & laporan arus kas
+- **Tahap aktif:** Keuangan lanjutan — Kas umum & pengeluaran (PRD-004): KS-1 s.d. KS-5 SELESAI; perapian tampilan UI-1 (menu berkelompok + halaman Keuangan) dibangun 2026-10-31, menunggu uji owner (tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI)
+- **Commit terakhir:** `1693032` — feat(finance): KS-5 persetujuan pengeluaran berjenjang
 
 ## Keputusan penting
 
@@ -46,6 +46,7 @@
 | 2026-10-28 | Modul **Keuangan** (`modules/Finance`): tagihan & pembayaran siswa; Bendahara per lembaga (role baru) + Admin Keuangan tingkat Yayasan (role baru, terpisah dari Admin SDM); pembayaran dicatat petugas; tarif per lembaga/tahun ajaran/tingkat; kelebihan bayar ditolak; tanpa denda                           | PRD-003, OD-FN-01 s.d. OD-FN-08                          |
 | 2026-10-30 | Keuangan lanjutan pertama = **kas umum & pengeluaran**: kas per lembaga + kas Yayasan; pengeluaran wajib diajukan → disetujui (Kepala Lembaga / Pimpinan Yayasan) → direalisasi; pembayaran siswa otomatis masuk buku kas; saldo tidak boleh minus                                                              | PRD-004, OD-KS-01 s.d. OD-KS-08                          |
 | 2026-10-30 | Urutan keuangan lanjutan: persetujuan berjenjang (batas nominal → naik ke Yayasan) → tabungan siswa → payment gateway **Midtrans** (akun sudah ada) → pembukuan                                                                                                                                                 | PRD-004 §11, §16, OD-KS-06                               |
+| 2026-10-31 | **Pedoman tampilan**: menu samping berkelompok (Untuk saya, Akademik, Kepegawaian, Keuangan siswa, Kas & pengeluaran, Pengaturan); satu tampilan = satu fungsi utama — bagian berbeda jadi **tab** (`?tab=`), form tambahan di **jendela pop-up**, bukan menumpuk di halaman                                    | STATUS § Pedoman tampilan                                |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -776,11 +777,28 @@
 - Test: `tests/Feature/Finance/CashTransfersTest.php` (4 test, awalan `fnt`); `CashTest` disesuaikan (12 kategori bawaan). 711 test lulus (7 arsitektur + 704), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**KS-5 — Persetujuan pengeluaran berjenjang: DIBANGUN (2026-10-30, menunggu uji owner)** — PRD-004 §16
+**KS-5 — Persetujuan pengeluaran berjenjang: SELESAI (`1693032`)** — PRD-004 §16
 
 - Finance: `Application/Cash/ExpenseApprovalLimitSetting` (aturan berjenjang `finance.expense_approval_limit`, didaftarkan di `FinanceServiceProvider`); migration `2026_10_30_300011_add_second_approval_to_fn_expense_requests` (status `MENUNGGU_YAYASAN`, kolom tahap 1, `status` varchar 20); `ManageExpenses::approve|reject` (parameter `$foundationLevel`), `cancel` mengizinkan menunggu Yayasan; `ExpenseList` (`first_decision`, `countAwaitingFoundation`); `ExpenseController` (`can_decide` tahap 2); `FeeSettingsController::setApprovalLimit` (`POST /keuangan/batas-persetujuan`).
 - Frontend: `pages/finance/settings.tsx` (bagian **Batas persetujuan pengeluaran**), `pages/finance/expenses.tsx` (status & jejak tahap 1).
 - Test: `tests/Feature/Finance/ExpenseApprovalLimitTest.php` (2 test, awalan `fnb`). 713 test lulus (7 arsitektur + 706), Pint PASS, Larastan `[OK]`, `tsc` bersih.
+- Uji manual owner lancar.
+
+## Perapian tampilan
+
+**UI-1 — Menu berkelompok & halaman Keuangan: DIBANGUN (2026-10-31, menunggu uji owner)** — permintaan owner 2026-10-31
+
+- Menu samping (`components/app-sidebar.tsx`, `components/nav-main.tsx`, tipe `NavGroup`): kelompok **Untuk saya**, **Akademik**, **Kepegawaian**, **Keuangan siswa**, **Kas & pengeluaran**, **Pengaturan** (pengaturan cuti/gaji/keuangan, kategori kas, kalender akademik, katalog SDM, lembaga, log audit dipindah ke sini). Kelompok bisa dibuka/tutup (diingat di browser), kelompok yang memuat halaman aktif selalu terbuka; hanya satu menu aktif (alamat paling cocok, mis. `/pegawai/123` → Pegawai). Hak akses tiap menu tidak berubah.
+- Komponen bersama: `components/page-tabs.tsx` (`PageTabs`, `usePageTab` — tab tercatat di `?tab=`), `components/form-dialog.tsx` (`FormDialog`).
+- Halaman Keuangan: **Pengaturan keuangan** (tab Jenis biaya · Tarif · Jatuh tempo · Batas persetujuan; tambah jenis biaya di pop-up), **Kas** (tab Buku kas · Rekening; catat pemasukan, mutasi, tambah rekening di pop-up), **Tagihan** (buat tagihan bulanan/sekali bayar di pop-up), **Pengeluaran** (ajukan, setujui, tolak, realisasi, batal realisasi di pop-up), **Rekap penerimaan** (tab Ringkasan · Transaksi; klik tanggal → tab Transaksi), **Kasir** (tab Tagihan & bayar · Riwayat pembayaran), **Potongan siswa** (tambah di pop-up), **Kategori kas** (tab Pemasukan · Pengeluaran; tambah di pop-up).
+- Tanpa perubahan backend/test; `tsc` bersih. (`vite build` tidak bisa dijalankan di lingkungan uji Claude — dijalankan owner.)
+
+### Pedoman tampilan (berlaku untuk halaman baru) [owner 2026-10-31]
+
+1. Menu baru masuk ke salah satu kelompok di atas; pengaturan selalu di **Pengaturan**.
+2. Satu tampilan = satu fungsi utama. Bagian yang berbeda (mis. daftar vs pengaturan vs riwayat) dipisah dengan `PageTabs`; tab tercatat di alamat dan ikut dikirim saat mengganti saringan.
+3. Form tambahan (tambah, catat, ajukan, setujui, batalkan) dibuka dengan `FormDialog`, bukan disisipkan di atas daftar. Form sangat panjang (mis. tambah siswa/pegawai) boleh tetap halaman tersendiri.
+4. Saringan di atas daftar; ringkasan angka (kotak statistik) paling banyak satu baris.
 
 ## Struktur file utama
 
@@ -821,6 +839,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji KS-5 oleh owner.
+1. Uji UI-1 oleh owner, lalu **UI-2**: pola yang sama untuk halaman Akademik & SDM yang padat (Kalender akademik, Pengaturan cuti & presensi, Pengaturan gaji, detail siswa, detail pegawai, kelas, lembaga, dll.).
 2. Keuangan lanjutan berikutnya (urutan owner, PRD-004 §11): tabungan siswa → payment gateway Midtrans → pembukuan; masing-masing dirinci & disetujui dulu.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

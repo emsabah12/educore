@@ -1,6 +1,9 @@
 import { Form, Head, router } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,6 +29,8 @@ type Props = {
 
 const URL = '/keuangan/kategori-kas';
 
+const TABS = ['MASUK', 'KELUAR'] as const;
+
 const selectClass =
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
@@ -37,6 +42,10 @@ export default function CashCategories({
     directions,
     nameMax,
 }: Props) {
+    const [tab, setTab] = usePageTab(TABS, 'MASUK');
+    const [creating, setCreating] = useState(false);
+    const current = directions.find((direction) => direction.value === tab);
+
     return (
         <>
             <Head title="Kategori kas" />
@@ -47,91 +56,101 @@ export default function CashCategories({
                     description="Pengelompokan pemasukan dan pengeluaran di buku kas seluruh lembaga & Yayasan. Kategori tidak dihapus; nonaktifkan bila tidak dipakai lagi."
                 />
 
-                <Form
-                    action={URL}
-                    method="post"
-                    errorBag="createCategory"
-                    resetOnSuccess
-                    options={{ preserveScroll: true }}
-                    className="grid gap-3 rounded-xl border p-4 sm:grid-cols-[10rem_minmax(0,1fr)_12rem_auto] sm:items-start"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="cat-code">Kode</Label>
-                                <Input
-                                    id="cat-code"
-                                    name="code"
-                                    placeholder="mis. ATK"
-                                    maxLength={30}
-                                    className="uppercase"
-                                    required
-                                />
-                                <InputError message={errors.code} />
-                            </div>
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="cat-name">Nama</Label>
-                                <Input
-                                    id="cat-name"
-                                    name="name"
-                                    placeholder="mis. ATK & perlengkapan"
-                                    maxLength={nameMax}
-                                    required
-                                />
-                                <InputError message={errors.name} />
-                            </div>
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="cat-direction">Jenis</Label>
-                                <select
-                                    id="cat-direction"
-                                    name="direction"
-                                    className={selectClass}
-                                    defaultValue="KELUAR"
-                                >
-                                    {directions.map((direction) => (
-                                        <option
-                                            key={direction.value}
-                                            value={direction.value}
-                                        >
-                                            {direction.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.direction} />
-                            </div>
-                            <div className="grid gap-1.5">
-                                <span className="hidden text-sm sm:block">
-                                    &nbsp;
-                                </span>
-                                <Button type="submit" disabled={processing}>
-                                    Tambah
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <PageTabs
+                        label="Jenis kategori"
+                        tabs={directions.map((direction) => ({
+                            value: direction.value as (typeof TABS)[number],
+                            label: direction.label,
+                        }))}
+                        value={tab}
+                        onChange={setTab}
+                    />
+                    <Button type="button" onClick={() => setCreating(true)}>
+                        <Plus />
+                        Tambah kategori
+                    </Button>
+                </div>
 
-                {directions.map((direction) => (
-                    <section key={direction.value} className="space-y-2">
-                        <h2 className="text-sm font-medium">
-                            {direction.label}
-                        </h2>
-                        <ul className="divide-y rounded-xl border">
-                            {categories
-                                .filter(
-                                    (category) =>
-                                        category.direction === direction.value,
-                                )
-                                .map((category) => (
-                                    <CategoryItem
-                                        key={category.id}
-                                        category={category}
-                                        nameMax={nameMax}
+                <FormDialog
+                    open={creating}
+                    onOpenChange={setCreating}
+                    title="Tambah kategori kas"
+                >
+                    <Form
+                        action={URL}
+                        method="post"
+                        errorBag="createCategory"
+                        resetOnSuccess
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setCreating(false)}
+                        className="grid gap-3"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="cat-code">Kode</Label>
+                                    <Input
+                                        id="cat-code"
+                                        name="code"
+                                        placeholder="mis. ATK"
+                                        maxLength={30}
+                                        className="uppercase"
+                                        required
                                     />
-                                ))}
-                        </ul>
-                    </section>
-                ))}
+                                    <InputError message={errors.code} />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="cat-name">Nama</Label>
+                                    <Input
+                                        id="cat-name"
+                                        name="name"
+                                        placeholder="mis. ATK & perlengkapan"
+                                        maxLength={nameMax}
+                                        required
+                                    />
+                                    <InputError message={errors.name} />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="cat-direction">Jenis</Label>
+                                    <select
+                                        id="cat-direction"
+                                        name="direction"
+                                        className={selectClass}
+                                        defaultValue={tab}
+                                    >
+                                        {directions.map((direction) => (
+                                            <option
+                                                key={direction.value}
+                                                value={direction.value}
+                                            >
+                                                {direction.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.direction} />
+                                </div>
+                                <Button type="submit" disabled={processing}>
+                                    Simpan kategori
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                </FormDialog>
+
+                <section aria-label={current?.label} className="space-y-2">
+                    <ul className="divide-y rounded-xl border">
+                        {categories
+                            .filter((category) => category.direction === tab)
+                            .map((category) => (
+                                <CategoryItem
+                                    key={category.id}
+                                    category={category}
+                                    nameMax={nameMax}
+                                />
+                            ))}
+                    </ul>
+                </section>
             </div>
         </>
     );

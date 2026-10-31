@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
 import {
     EnforcedCheckbox,
@@ -8,6 +9,7 @@ import {
     TargetFields,
 } from '@/components/core/scoped-rules';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,6 +56,8 @@ const rupiah = new Intl.NumberFormat('id-ID');
 
 const TYPES_URL = '/keuangan/jenis-biaya';
 
+const TABS = ['jenis', 'tarif', 'jatuh-tempo', 'batas'] as const;
+
 const selectClass =
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
@@ -73,6 +77,9 @@ export default function FinanceSettings({
     approvalLimit,
     targets,
 }: Props) {
+    const [tab, setTab] = usePageTab(TABS, 'jenis');
+    const [creating, setCreating] = useState(false);
+
     return (
         <>
             <Head title="Pengaturan keuangan" />
@@ -80,51 +87,88 @@ export default function FinanceSettings({
             <div className="flex flex-1 flex-col gap-4 p-4">
                 <Heading
                     title="Pengaturan keuangan"
-                    description="Jenis biaya siswa dan tarifnya per lembaga & tahun ajaran. Tagihan dibuat dari tarif ini; mengubah tarif tidak mengubah tagihan yang sudah dibuat."
+                    description="Jenis biaya siswa, tarif per lembaga & tahun ajaran, jatuh tempo, dan batas persetujuan pengeluaran."
                 />
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <PageTabs
+                    label="Bagian pengaturan keuangan"
+                    tabs={[
+                        { value: 'jenis', label: 'Jenis biaya' },
+                        { value: 'tarif', label: 'Tarif' },
+                        { value: 'jatuh-tempo', label: 'Jatuh tempo' },
+                        { value: 'batas', label: 'Batas persetujuan' },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
+
+                {tab === 'jenis' && (
                     <section
                         aria-label="Daftar jenis biaya"
-                        className="rounded-xl border"
+                        className="space-y-3"
                     >
-                        <h2 className="border-b px-4 py-3 text-base font-medium">
-                            Jenis biaya
-                        </h2>
-                        {types.length === 0 ? (
-                            <p className="p-4 text-sm text-muted-foreground">
-                                Belum ada jenis biaya. Tambahkan yang pertama,
-                                mis. SPP (bulanan) atau Daftar ulang (sekali
-                                bayar).
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm text-muted-foreground">
+                                Tagihan dibuat dari jenis biaya & tarifnya;
+                                mengubahnya tidak mengubah tagihan yang sudah
+                                dibuat.
                             </p>
-                        ) : (
-                            <ul className="divide-y">
-                                {types.map((type) => (
-                                    <TypeRow key={type.id} type={type} />
-                                ))}
-                            </ul>
-                        )}
+                            <Button
+                                type="button"
+                                onClick={() => setCreating(true)}
+                            >
+                                <Plus />
+                                Tambah jenis biaya
+                            </Button>
+                        </div>
+                        <div className="rounded-xl border">
+                            {types.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">
+                                    Belum ada jenis biaya. Tambahkan yang
+                                    pertama, mis. SPP (bulanan) atau Daftar
+                                    ulang (sekali bayar).
+                                </p>
+                            ) : (
+                                <ul className="divide-y">
+                                    {types.map((type) => (
+                                        <TypeRow key={type.id} type={type} />
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <FormDialog
+                            open={creating}
+                            onOpenChange={setCreating}
+                            title="Tambah jenis biaya"
+                        >
+                            <CreateTypeForm
+                                kinds={kinds}
+                                onDone={() => setCreating(false)}
+                            />
+                        </FormDialog>
                     </section>
+                )}
 
-                    <section
-                        aria-label="Tambah jenis biaya"
-                        className="h-fit rounded-xl border p-4"
-                    >
-                        <CreateTypeForm kinds={kinds} />
-                    </section>
-                </div>
+                {tab === 'tarif' && (
+                    <RatesSection
+                        organizations={organizations}
+                        organizationId={organizationId}
+                        years={years}
+                        yearId={yearId}
+                        rates={rates}
+                    />
+                )}
 
-                <RatesSection
-                    organizations={organizations}
-                    organizationId={organizationId}
-                    years={years}
-                    yearId={yearId}
-                    rates={rates}
-                />
+                {tab === 'jatuh-tempo' && (
+                    <DueDaySection data={dueDay} targets={targets} />
+                )}
 
-                <DueDaySection data={dueDay} targets={targets} />
-
-                <ApprovalLimitSection data={approvalLimit} targets={targets} />
+                {tab === 'batas' && (
+                    <ApprovalLimitSection
+                        data={approvalLimit}
+                        targets={targets}
+                    />
+                )}
             </div>
         </>
     );
@@ -259,7 +303,13 @@ function ApprovalLimitSection({
     );
 }
 
-function CreateTypeForm({ kinds }: { kinds: Option[] }) {
+function CreateTypeForm({
+    kinds,
+    onDone,
+}: {
+    kinds: Option[];
+    onDone: () => void;
+}) {
     return (
         <Form
             action={TYPES_URL}
@@ -267,12 +317,11 @@ function CreateTypeForm({ kinds }: { kinds: Option[] }) {
             errorBag="createType"
             resetOnSuccess
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">Tambah jenis biaya</h3>
-
                     <div className="grid gap-1.5">
                         <Label htmlFor="fee-code">Kode</Label>
                         <Input
@@ -488,10 +537,14 @@ function RatesSection({
     rates: RateRow[];
 }) {
     const visit = (params: Record<string, string>) =>
-        router.get('/keuangan/pengaturan', params, {
-            preserveScroll: true,
-            preserveState: true,
-        });
+        router.get(
+            '/keuangan/pengaturan',
+            { ...params, tab: 'tarif' },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
 
     return (
         <section aria-label="Tarif" className="space-y-4 rounded-xl border p-4">

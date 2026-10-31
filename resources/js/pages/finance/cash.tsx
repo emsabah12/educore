@@ -7,8 +7,10 @@ import {
     Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +89,8 @@ function formatDate(value: string): string {
     return dateFormat.format(new Date(year, month - 1, day));
 }
 
+const TABS = ['buku', 'rekening'] as const;
+
 const selectClass =
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
@@ -114,16 +118,21 @@ export default function Cash({
     const [panel, setPanel] = useState<
         'income' | 'account' | 'transfer' | null
     >(null);
+    const [tab, setTab] = usePageTab(TABS, 'buku');
     const activeAccounts = accounts.filter((account) => account.is_active);
     const total = accounts.reduce((sum, account) => sum + account.balance, 0);
     const monthLabel =
         months.find((option) => option.value === month)?.label ?? month;
+    const missingReceiver =
+        receivesPayments &&
+        !accounts.some((account) => account.receives_transfers);
 
     const visit = (overrides: Record<string, string | null>) => {
         const merged: Record<string, string | null> = {
             kas: bookKey,
             bulan: month,
             rekening: accountId,
+            tab: tab === 'buku' ? null : tab,
             ...overrides,
         };
         const clean: Record<string, string> = {};
@@ -137,88 +146,59 @@ export default function Cash({
         router.get('/keuangan/kas', clean, { preserveScroll: true });
     };
 
+    const closePanel = () => setPanel(null);
+
     return (
         <>
             <Head title="Kas" />
 
             <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4">
-                <Heading
-                    title="Kas"
-                    description="Saldo setiap rekening dan buku kas bulanan. Saldo dihitung dari saldo awal dan transaksi yang sah."
-                />
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                    <SelectField
-                        id="cash-book"
-                        label="Kas"
-                        value={bookKey}
-                        options={books}
-                        onChange={(value) =>
-                            visit({ kas: value, rekening: null })
-                        }
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <Heading
+                        title="Kas"
+                        description="Buku kas bulanan dan saldo setiap rekening. Saldo dihitung dari saldo awal dan transaksi yang sah."
                     />
-                    <SelectField
-                        id="cash-month"
-                        label="Bulan"
-                        value={month}
-                        options={months}
-                        onChange={(value) => visit({ bulan: value })}
-                    />
-                    <SelectField
-                        id="cash-account"
-                        label="Rekening"
-                        value={accountId ?? ''}
-                        options={[
-                            { value: '', label: 'Semua rekening' },
-                            ...accounts.map((account) => ({
-                                value: account.id,
-                                label: account.name,
-                            })),
-                        ]}
-                        onChange={(value) => visit({ rekening: value || null })}
-                    />
+                    <div className="grid min-w-0 gap-3 sm:w-72">
+                        <SelectField
+                            id="cash-book"
+                            label="Kas"
+                            value={bookKey}
+                            options={books}
+                            onChange={(value) =>
+                                visit({ kas: value, rekening: null })
+                            }
+                        />
+                    </div>
                 </div>
 
-                <section className="space-y-2">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <h2 className="text-sm font-medium">Saldo rekening</h2>
-                        <p className="text-sm">
-                            Total{' '}
-                            <span className="font-semibold tabular-nums">
-                                {formatRupiah(total)}
-                            </span>
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
-                        {accounts.map((account) => (
-                            <AccountCard
-                                key={account.id}
-                                account={account}
-                                canManage={canManage}
-                                canReceive={receivesPayments}
-                                today={today}
-                                limits={limits}
-                            />
-                        ))}
-                    </div>
-                    {receivesPayments &&
-                        !accounts.some(
-                            (account) => account.receives_transfers,
-                        ) && (
-                            <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                                Pembayaran siswa via transfer saat ini dicatat
-                                ke Kas tunai karena belum ada rekening bank
-                                penerima transfer.
-                                {canManage &&
-                                    ' Tambah atau pilih rekening bank, lalu tekan "Jadikan penerima transfer siswa".'}
-                            </p>
-                        )}
-                </section>
+                <p className="text-sm">
+                    Total saldo{' '}
+                    <span className="font-semibold tabular-nums">
+                        {formatRupiah(total)}
+                    </span>{' '}
+                    <span className="text-muted-foreground">
+                        di {accounts.length} rekening
+                    </span>
+                </p>
 
-                {canManage && (
-                    <>
-                        {panel === null && (
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
+                <PageTabs
+                    label="Bagian kas"
+                    tabs={[
+                        { value: 'buku', label: 'Buku kas' },
+                        {
+                            value: 'rekening',
+                            label: 'Rekening',
+                            badge: missingReceiver ? 1 : undefined,
+                        },
+                    ]}
+                    value={tab}
+                    onChange={setTab}
+                />
+
+                {tab === 'buku' && (
+                    <section aria-label="Buku kas" className="space-y-3">
+                        {canManage && (
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex">
                                 <Button
                                     type="button"
                                     onClick={() => setPanel('income')}
@@ -242,9 +222,96 @@ export default function Cash({
                                     <ArrowLeftRight />
                                     Mutasi / setoran
                                 </Button>
+                            </div>
+                        )}
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <SelectField
+                                id="cash-month"
+                                label="Bulan"
+                                value={month}
+                                options={months}
+                                onChange={(value) => visit({ bulan: value })}
+                            />
+                            <SelectField
+                                id="cash-account"
+                                label="Rekening"
+                                value={accountId ?? ''}
+                                options={[
+                                    { value: '', label: 'Semua rekening' },
+                                    ...accounts.map((account) => ({
+                                        value: account.id,
+                                        label: account.name,
+                                    })),
+                                ]}
+                                onChange={(value) =>
+                                    visit({ rekening: value || null })
+                                }
+                            />
+                        </div>
+
+                        <dl className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                            <Stat
+                                label="Saldo awal bulan"
+                                value={formatRupiah(ledger.opening)}
+                            />
+                            <Stat
+                                label="Pemasukan"
+                                value={formatRupiah(ledger.total_in)}
+                            />
+                            <Stat
+                                label="Pengeluaran"
+                                value={formatRupiah(ledger.total_out)}
+                            />
+                            <Stat
+                                label="Saldo akhir"
+                                value={formatRupiah(ledger.closing)}
+                            />
+                        </dl>
+                        {(ledger.transfer_in > 0 ||
+                            ledger.transfer_out > 0) && (
+                            <p className="text-sm text-muted-foreground">
+                                Mutasi (tidak dihitung sebagai
+                                pemasukan/pengeluaran): masuk{' '}
+                                {formatRupiah(ledger.transfer_in)}, keluar{' '}
+                                {formatRupiah(ledger.transfer_out)}.
+                            </p>
+                        )}
+
+                        {ledger.rows.length === 0 ? (
+                            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                                Belum ada transaksi pada {monthLabel}.
+                            </p>
+                        ) : (
+                            <ul className="divide-y rounded-xl border">
+                                {ledger.rows.map((row) => (
+                                    <LedgerItem
+                                        key={row.id}
+                                        row={row}
+                                        canManage={canManage}
+                                        reasonMax={limits.reason}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+                )}
+
+                {tab === 'rekening' && (
+                    <section aria-label="Rekening" className="space-y-3">
+                        {missingReceiver && (
+                            <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                Pembayaran siswa via transfer saat ini dicatat
+                                ke Kas tunai karena belum ada rekening bank
+                                penerima transfer.
+                                {canManage &&
+                                    ' Tambah atau pilih rekening bank, lalu tekan "Jadikan penerima transfer siswa".'}
+                            </p>
+                        )}
+                        {canManage && (
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
                                 <Button
                                     type="button"
-                                    variant="outline"
                                     onClick={() => setPanel('account')}
                                 >
                                     <Landmark />
@@ -252,84 +319,62 @@ export default function Cash({
                                 </Button>
                             </div>
                         )}
-                        {panel === 'income' && (
-                            <IncomeForm
-                                bookKey={bookKey}
-                                accounts={activeAccounts}
-                                categories={incomeCategories}
-                                today={today}
-                                limits={limits}
-                                onDone={() => setPanel(null)}
-                            />
-                        )}
-                        {panel === 'transfer' && (
-                            <TransferForm
-                                accounts={activeAccounts}
-                                targets={transferTargets}
-                                today={today}
-                                limits={limits}
-                                onDone={() => setPanel(null)}
-                            />
-                        )}
-                        {panel === 'account' && (
-                            <AccountForm
-                                bookKey={bookKey}
-                                today={today}
-                                limits={limits}
-                                onDone={() => setPanel(null)}
-                            />
-                        )}
-                    </>
-                )}
-
-                <section className="space-y-2">
-                    <h2 className="text-sm font-medium">
-                        Buku kas {monthLabel}
-                    </h2>
-                    <dl className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
-                        <Stat
-                            label="Saldo awal bulan"
-                            value={formatRupiah(ledger.opening)}
-                        />
-                        <Stat
-                            label="Pemasukan"
-                            value={formatRupiah(ledger.total_in)}
-                        />
-                        <Stat
-                            label="Pengeluaran"
-                            value={formatRupiah(ledger.total_out)}
-                        />
-                        <Stat
-                            label="Saldo akhir"
-                            value={formatRupiah(ledger.closing)}
-                        />
-                    </dl>
-                    {(ledger.transfer_in > 0 || ledger.transfer_out > 0) && (
-                        <p className="text-sm text-muted-foreground">
-                            Mutasi (tidak dihitung sebagai
-                            pemasukan/pengeluaran): masuk{' '}
-                            {formatRupiah(ledger.transfer_in)}, keluar{' '}
-                            {formatRupiah(ledger.transfer_out)}.
-                        </p>
-                    )}
-
-                    {ledger.rows.length === 0 ? (
-                        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                            Belum ada transaksi pada {monthLabel}.
-                        </p>
-                    ) : (
-                        <ul className="divide-y rounded-xl border">
-                            {ledger.rows.map((row) => (
-                                <LedgerItem
-                                    key={row.id}
-                                    row={row}
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
+                            {accounts.map((account) => (
+                                <AccountCard
+                                    key={account.id}
+                                    account={account}
                                     canManage={canManage}
-                                    reasonMax={limits.reason}
+                                    canReceive={receivesPayments}
+                                    today={today}
+                                    limits={limits}
                                 />
                             ))}
-                        </ul>
-                    )}
-                </section>
+                        </div>
+                    </section>
+                )}
+
+                <FormDialog
+                    open={panel === 'income'}
+                    onOpenChange={(open) => !open && closePanel()}
+                    title="Catat pemasukan"
+                    description="Untuk uang masuk di luar pembayaran siswa (mis. dana BOS, donasi). Pengeluaran dicatat lewat pengajuan yang disetujui."
+                >
+                    <IncomeForm
+                        bookKey={bookKey}
+                        accounts={activeAccounts}
+                        categories={incomeCategories}
+                        today={today}
+                        limits={limits}
+                        onDone={closePanel}
+                    />
+                </FormDialog>
+                <FormDialog
+                    open={panel === 'transfer'}
+                    onOpenChange={(open) => !open && closePanel()}
+                    title="Mutasi / setoran"
+                    description="Pindah uang antar-rekening kas ini (mis. setor tunai ke bank), setoran lembaga ke kas Yayasan, atau dari kas Yayasan ke kas lembaga. Mutasi tidak dihitung sebagai pemasukan/pengeluaran."
+                >
+                    <TransferForm
+                        accounts={activeAccounts}
+                        targets={transferTargets}
+                        today={today}
+                        limits={limits}
+                        onDone={closePanel}
+                    />
+                </FormDialog>
+                <FormDialog
+                    open={panel === 'account'}
+                    onOpenChange={(open) => !open && closePanel()}
+                    title="Tambah rekening bank"
+                >
+                    <AccountForm
+                        bookKey={bookKey}
+                        today={today}
+                        limits={limits}
+                        onDone={closePanel}
+                    />
+                </FormDialog>
             </div>
         </>
     );
@@ -596,11 +641,10 @@ function AccountForm({
             errorBag="createAccount"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="font-medium">Tambah rekening bank</h3>
                     <input type="hidden" name="kas" value={bookKey} />
                     <BankFields
                         idPrefix="new-acc"
@@ -656,16 +700,10 @@ function IncomeForm({
             errorBag="income"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="font-medium">Catat pemasukan</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Untuk uang masuk di luar pembayaran siswa (mis. dana
-                        BOS, donasi). Pengeluaran dicatat lewat pengajuan yang
-                        disetujui.
-                    </p>
                     <input type="hidden" name="kas" value={bookKey} />
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
@@ -782,17 +820,10 @@ function TransferForm({
             errorBag="transfer"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="font-medium">Mutasi / setoran</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Pindah uang antar-rekening kas ini (mis. setor tunai ke
-                        bank), setoran lembaga ke kas Yayasan, atau dari kas
-                        Yayasan ke kas lembaga. Mutasi tidak dihitung sebagai
-                        pemasukan/pengeluaran.
-                    </p>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="trf-from">Dari rekening</Label>

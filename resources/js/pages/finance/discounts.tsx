@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentHit } from '@/components/finance/student-search';
 import { StudentSearch } from '@/components/finance/student-search';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -131,23 +132,32 @@ export default function Discounts({
                                     Keuangan menambahkannya di Pengaturan
                                     keuangan.
                                 </p>
-                            ) : adding ? (
-                                <AddForm
-                                    organizationId={organizationId}
-                                    yearId={yearId}
-                                    feeTypes={feeTypes}
-                                    reasonMax={reasonMax}
-                                    onDone={() => setAdding(false)}
-                                />
                             ) : (
-                                <Button
-                                    type="button"
-                                    onClick={() => setAdding(true)}
-                                    className="w-full sm:w-auto sm:self-start"
-                                >
-                                    <Plus />
-                                    Tambah potongan
-                                </Button>
+                                <>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setAdding(true)}
+                                        className="w-full sm:w-auto sm:self-start"
+                                    >
+                                        <Plus />
+                                        Tambah potongan
+                                    </Button>
+                                    <FormDialog
+                                        open={adding}
+                                        onOpenChange={setAdding}
+                                        title="Tambah / ubah potongan"
+                                        description="Siswa yang sudah punya potongan untuk jenis biaya yang sama akan diubah potongannya."
+                                        wide
+                                    >
+                                        <AddForm
+                                            organizationId={organizationId}
+                                            yearId={yearId}
+                                            feeTypes={feeTypes}
+                                            reasonMax={reasonMax}
+                                            onDone={() => setAdding(false)}
+                                        />
+                                    </FormDialog>
+                                </>
                             ))}
 
                         {discounts.length === 0 ? (
@@ -293,20 +303,10 @@ function AddForm({
             errorBag="addDiscount"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h2 className="text-base font-medium">
-                            Tambah / ubah potongan
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Siswa yang sudah punya potongan untuk jenis biaya
-                            yang sama akan diubah potongannya.
-                        </p>
-                    </div>
-
                     <input
                         type="hidden"
                         name="organization_id"

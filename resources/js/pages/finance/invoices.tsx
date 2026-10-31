@@ -3,6 +3,7 @@ import { FilePlus2, Search, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentHit } from '@/components/finance/student-search';
 import { StudentSearch } from '@/components/finance/student-search';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -181,24 +182,42 @@ export default function Invoices({
                     </Empty>
                 ) : (
                     <>
-                        {canManage &&
-                            (generating === 'bulanan' ? (
-                                <GenerateForm
-                                    organizationId={organizationId ?? ''}
-                                    yearId={yearId}
-                                    types={options.monthlyTypes}
-                                    months={options.months}
-                                    onDone={() => setGenerating(null)}
-                                />
-                            ) : generating === 'sekali' ? (
-                                <OnceForm
-                                    organizationId={organizationId ?? ''}
-                                    yearId={yearId}
-                                    types={options.onceTypes}
-                                    classes={options.classes}
-                                    onDone={() => setGenerating(null)}
-                                />
-                            ) : (
+                        {canManage && (
+                            <>
+                                <FormDialog
+                                    open={generating === 'bulanan'}
+                                    onOpenChange={(open) =>
+                                        !open && setGenerating(null)
+                                    }
+                                    title="Buat tagihan bulanan"
+                                    description="Untuk semua siswa yang terdaftar di lembaga ini pada bulan itu. Tagihan yang sudah ada dilewati, jadi aman diulang (mis. untuk siswa baru)."
+                                    wide
+                                >
+                                    <GenerateForm
+                                        organizationId={organizationId ?? ''}
+                                        yearId={yearId}
+                                        types={options.monthlyTypes}
+                                        months={options.months}
+                                        onDone={() => setGenerating(null)}
+                                    />
+                                </FormDialog>
+                                <FormDialog
+                                    open={generating === 'sekali'}
+                                    onOpenChange={(open) =>
+                                        !open && setGenerating(null)
+                                    }
+                                    title="Buat tagihan sekali bayar"
+                                    description="Mis. daftar ulang atau seragam. Satu tagihan per siswa per jenis biaya dalam tahun ajaran ini; yang sudah ada dilewati."
+                                    wide
+                                >
+                                    <OnceForm
+                                        organizationId={organizationId ?? ''}
+                                        yearId={yearId}
+                                        types={options.onceTypes}
+                                        classes={options.classes}
+                                        onDone={() => setGenerating(null)}
+                                    />
+                                </FormDialog>
                                 <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2 sm:flex">
                                     <Button
                                         type="button"
@@ -216,7 +235,8 @@ export default function Invoices({
                                         Buat tagihan sekali bayar
                                     </Button>
                                 </div>
-                            ))}
+                            </>
+                        )}
 
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
                             <SelectField
@@ -625,21 +645,10 @@ function GenerateForm({
             errorBag="generate"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h2 className="text-base font-medium">
-                            Buat tagihan bulanan
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Untuk semua siswa yang terdaftar di lembaga ini pada
-                            bulan itu. Tagihan yang sudah ada dilewati, jadi
-                            aman diulang (mis. untuk siswa baru).
-                        </p>
-                    </div>
-
                     <input
                         type="hidden"
                         name="organization_id"
@@ -808,21 +817,10 @@ function OnceForm({
             errorBag="generateOnce"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h2 className="text-base font-medium">
-                            Buat tagihan sekali bayar
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Mis. daftar ulang atau seragam. Satu tagihan per
-                            siswa per jenis biaya dalam tahun ajaran ini; yang
-                            sudah ada dilewati.
-                        </p>
-                    </div>
-
                     <input
                         type="hidden"
                         name="organization_id"

@@ -50,7 +50,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
+import type { NavGroup, NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
@@ -271,80 +271,132 @@ export function AppSidebar() {
     // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
     // walaupun role tingkat Yayasan-nya terpasang.
     const atTenantLevel = context?.workspace.type === 'tenant';
-    const navItems = [
-        ...mainNavItems,
-        ...(permissions.includes('core.organizations.view')
-            ? [organizationsNavItem]
-            : []),
-        ...(permissions.includes('hr.employees.view')
-            ? [employeesNavItem]
-            : []),
-        ...(permissions.includes('academic.students.view')
-            ? [studentsNavItem, classesNavItem, subjectsNavItem]
-            : []),
-        ...(academic?.myClasses ? [myClassesNavItem] : []),
-        ...(academic?.isGuardian ? [myChildrenNavItem] : []),
-        ...(permissions.includes('academic.teaching.manage') ||
-        academic?.teachingDuty
-            ? [teachingNavItem]
-            : []),
-        ...(hr?.isEmployee
-            ? [
-                  myAttendanceNavItem,
-                  myLeaveNavItem,
-                  myDocumentsNavItem,
-                  myPayNavItem,
-              ]
-            : []),
-        ...(permissions.includes('hr.attendance.manage')
-            ? [attendanceSheetNavItem]
-            : []),
-        ...(permissions.includes('hr.leave.approve') ||
-        (atTenantLevel && permissions.includes('hr.leave.manage'))
-            ? [leaveApprovalsNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('hr.leave.manage')
-            ? [leavesNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('hr.employees.manage')
-            ? [expiringDocumentsNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('hr.catalog.manage')
-            ? [hrCatalogNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('hr.leave.manage')
-            ? [leaveSettingsNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('hr.payroll.manage')
-            ? [
-                  payrollEmployeesNavItem,
-                  payrollRecapNavItem,
-                  payrollSettingsNavItem,
-              ]
-            : []),
-        ...(permissions.includes('finance.billing.view')
-            ? [
-                  cashierNavItem,
-                  invoicesNavItem,
-                  arrearsNavItem,
-                  receiptRecapNavItem,
-                  discountsNavItem,
-              ]
-            : []),
-        ...(permissions.includes('finance.cash.view')
-            ? [cashNavItem, expensesNavItem, cashReportNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('finance.settings.manage')
-            ? [financeSettingsNavItem, cashCategoriesNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('academic.calendar.manage')
-            ? [academicCalendarNavItem]
-            : []),
-        ...(atTenantLevel && permissions.includes('core.audit.view')
-            ? [auditNavItem]
-            : []),
-        ...(auth.user?.is_superadmin ? [platformNavItem] : []),
-    ];
+    const when = (
+        condition: boolean | undefined,
+        items: NavItem[],
+    ): NavItem[] => (condition ? items : []);
+
+    // Menu berkelompok (pedoman tampilan UI-1); kelompok kosong tidak ditampilkan.
+    const groups: NavGroup[] = [
+        { key: 'home', items: mainNavItems },
+        {
+            key: 'mine',
+            title: 'Untuk saya',
+            items: [
+                ...when(academic?.isGuardian, [myChildrenNavItem]),
+                ...when(academic?.myClasses, [myClassesNavItem]),
+                ...when(hr?.isEmployee, [
+                    myAttendanceNavItem,
+                    myLeaveNavItem,
+                    myDocumentsNavItem,
+                    myPayNavItem,
+                ]),
+            ],
+        },
+        {
+            key: 'academic',
+            title: 'Akademik',
+            items: [
+                ...when(permissions.includes('academic.students.view'), [
+                    studentsNavItem,
+                    classesNavItem,
+                    subjectsNavItem,
+                ]),
+                ...when(
+                    permissions.includes('academic.teaching.manage') ||
+                        academic?.teachingDuty,
+                    [teachingNavItem],
+                ),
+            ],
+        },
+        {
+            key: 'hr',
+            title: 'Kepegawaian',
+            items: [
+                ...when(permissions.includes('hr.employees.view'), [
+                    employeesNavItem,
+                ]),
+                ...when(permissions.includes('hr.attendance.manage'), [
+                    attendanceSheetNavItem,
+                ]),
+                ...when(
+                    permissions.includes('hr.leave.approve') ||
+                        (atTenantLevel &&
+                            permissions.includes('hr.leave.manage')),
+                    [leaveApprovalsNavItem],
+                ),
+                ...when(
+                    atTenantLevel && permissions.includes('hr.leave.manage'),
+                    [leavesNavItem],
+                ),
+                ...when(
+                    atTenantLevel &&
+                        permissions.includes('hr.employees.manage'),
+                    [expiringDocumentsNavItem],
+                ),
+                ...when(
+                    atTenantLevel && permissions.includes('hr.payroll.manage'),
+                    [payrollEmployeesNavItem, payrollRecapNavItem],
+                ),
+            ],
+        },
+        {
+            key: 'billing',
+            title: 'Keuangan siswa',
+            items: when(permissions.includes('finance.billing.view'), [
+                cashierNavItem,
+                invoicesNavItem,
+                arrearsNavItem,
+                receiptRecapNavItem,
+                discountsNavItem,
+            ]),
+        },
+        {
+            key: 'cash',
+            title: 'Kas & pengeluaran',
+            items: when(permissions.includes('finance.cash.view'), [
+                cashNavItem,
+                expensesNavItem,
+                cashReportNavItem,
+            ]),
+        },
+        {
+            key: 'settings',
+            title: 'Pengaturan',
+            items: [
+                ...when(permissions.includes('core.organizations.view'), [
+                    organizationsNavItem,
+                ]),
+                ...when(
+                    atTenantLevel && permissions.includes('hr.catalog.manage'),
+                    [hrCatalogNavItem],
+                ),
+                ...when(
+                    atTenantLevel && permissions.includes('hr.leave.manage'),
+                    [leaveSettingsNavItem],
+                ),
+                ...when(
+                    atTenantLevel && permissions.includes('hr.payroll.manage'),
+                    [payrollSettingsNavItem],
+                ),
+                ...when(
+                    atTenantLevel &&
+                        permissions.includes('finance.settings.manage'),
+                    [financeSettingsNavItem, cashCategoriesNavItem],
+                ),
+                ...when(
+                    atTenantLevel &&
+                        permissions.includes('academic.calendar.manage'),
+                    [academicCalendarNavItem],
+                ),
+                ...when(
+                    atTenantLevel && permissions.includes('core.audit.view'),
+                    [auditNavItem],
+                ),
+                ...when(auth.user?.is_superadmin, [platformNavItem]),
+            ],
+        },
+    ].filter((group) => group.items.length > 0);
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -362,7 +414,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <ContextSwitcher />
-                <NavMain items={navItems} />
+                <NavMain groups={groups} />
             </SidebarContent>
 
             <SidebarFooter>

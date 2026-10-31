@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Paperclip, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -170,17 +171,8 @@ export default function Expenses({
                     />
                 </div>
 
-                {manageBooks.length > 0 &&
-                    (requesting ? (
-                        <RequestForm
-                            books={manageBooks}
-                            defaultBook={openRequestFor ?? manageBooks[0].value}
-                            categories={expenseCategories}
-                            today={today}
-                            limits={limits}
-                            onDone={() => setRequesting(false)}
-                        />
-                    ) : (
+                {manageBooks.length > 0 && (
+                    <>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2 sm:flex">
                             <Button
                                 type="button"
@@ -190,7 +182,25 @@ export default function Expenses({
                                 Ajukan pengeluaran
                             </Button>
                         </div>
-                    ))}
+                        <FormDialog
+                            open={requesting}
+                            onOpenChange={setRequesting}
+                            title="Ajukan pengeluaran"
+                            wide
+                        >
+                            <RequestForm
+                                books={manageBooks}
+                                defaultBook={
+                                    openRequestFor ?? manageBooks[0].value
+                                }
+                                categories={expenseCategories}
+                                today={today}
+                                limits={limits}
+                                onDone={() => setRequesting(false)}
+                            />
+                        </FormDialog>
+                    </>
+                )}
 
                 {expenses.rows.length === 0 ? (
                     <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -270,11 +280,10 @@ function RequestForm({
             errorBag="requestExpense"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h2 className="font-medium">Ajukan pengeluaran</h2>
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1.5">
                             <Label htmlFor="req-book">Dari kas</Label>
@@ -565,7 +574,13 @@ function ExpenseCard({
                 </div>
             )}
 
-            {panel === 'approve' && (
+            <FormDialog
+                open={panel === 'approve'}
+                onOpenChange={(open) => !open && setPanel(null)}
+                title="Setujui pengeluaran"
+                description={expense.description}
+                wide={false}
+            >
                 <ActionForm
                     action={`${base}/setujui`}
                     bag={`approve-${expense.id}`}
@@ -605,9 +620,15 @@ function ExpenseCard({
                         </>
                     )}
                 </ActionForm>
-            )}
+            </FormDialog>
 
-            {panel === 'reject' && (
+            <FormDialog
+                open={panel === 'reject'}
+                onOpenChange={(open) => !open && setPanel(null)}
+                title="Tolak pengajuan"
+                description={expense.description}
+                wide={false}
+            >
                 <ActionForm
                     action={`${base}/tolak`}
                     bag={`reject-${expense.id}`}
@@ -625,9 +646,15 @@ function ExpenseCard({
                         />
                     )}
                 </ActionForm>
-            )}
+            </FormDialog>
 
-            {panel === 'realize' && (
+            <FormDialog
+                open={panel === 'realize'}
+                onOpenChange={(open) => !open && setPanel(null)}
+                title="Realisasi (uang keluar)"
+                description={expense.description}
+                wide={true}
+            >
                 <ActionForm
                     action={`${base}/realisasi`}
                     bag={`realize-${expense.id}`}
@@ -711,9 +738,15 @@ function ExpenseCard({
                         </>
                     )}
                 </ActionForm>
-            )}
+            </FormDialog>
 
-            {panel === 'void' && (
+            <FormDialog
+                open={panel === 'void'}
+                onOpenChange={(open) => !open && setPanel(null)}
+                title="Batalkan realisasi"
+                description={expense.description}
+                wide={false}
+            >
                 <ActionForm
                     action={`${base}/batalkan-realisasi`}
                     bag={`void-${expense.id}`}
@@ -732,7 +765,7 @@ function ExpenseCard({
                         />
                     )}
                 </ActionForm>
-            )}
+            </FormDialog>
         </li>
     );
 }
@@ -759,7 +792,7 @@ function ActionForm({
             errorBag={bag}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-lg border p-3"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
