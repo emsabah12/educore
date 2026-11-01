@@ -223,6 +223,7 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
             FinanceAccess::BILLING_VIEW,
             FinanceAccess::CASH_VIEW,
             FinanceAccess::EXPENSES_APPROVE,
+            FinanceAccess::SAVINGS_VIEW,
             HrAccess::ATTENDANCE_MANAGE,
             HrAccess::EMPLOYEES_VIEW,
             HrAccess::EMPLOYEES_VIEW_PERSONAL,

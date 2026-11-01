@@ -24,7 +24,7 @@ final class CashierOverview
     ) {}
 
     /**
-     * @return array{student: array{enrollment_id: string, name: string, class: string|null, student_number: string|null, nisn: string|null, active: bool}, invoices: list<OpenInvoice>, outstanding: int, payments: list<PaymentRow>}|null
+     * @return array{student: array{enrollment_id: string, student_id: string, name: string, class: string|null, student_number: string|null, nisn: string|null, active: bool}, invoices: list<OpenInvoice>, outstanding: int, payments: list<PaymentRow>}|null
      */
     public function forStudent(string $tenantId, string $organizationId, string $enrollmentId, string $today): ?array
     {
@@ -100,6 +100,7 @@ final class CashierOverview
         return [
             'student' => [
                 'enrollment_id' => $student['enrollment_id'],
+                'student_id' => $student['student_id'],
                 'name' => $student['name'],
                 'class' => $student['class'],
                 'student_number' => $student['student_number'],

@@ -18,6 +18,8 @@ use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Payment\CashierOverview;
 use Modules\Finance\Application\Payment\ManagePayments;
 use Modules\Finance\Application\Payment\Receipts;
+use Modules\Finance\Application\Savings\ManageSavings;
+use Modules\Finance\Application\Savings\SavingsOverview;
 use Modules\Finance\Domain\Payment\PaymentMethod;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 
@@ -40,7 +42,7 @@ final class CashierController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, CashierOverview $overview): Response
+    public function index(Request $request, CashierOverview $overview, SavingsOverview $savings): Response
     {
         $organizations = $this->organizations();
 
@@ -54,10 +56,22 @@ final class CashierController
             ? $overview->forStudent($this->tenantId(), $organizationId, $enrollmentId, BusinessClock::todayString())
             : null;
 
+        // Tab Tabungan (PRD-005 §4, TB-1): hanya untuk pemilik finance.savings.view di lembaga ini.
+        $canViewSavings = $organizationId !== null && $this->authorization->allows(FinanceAccess::SAVINGS_VIEW, $organizationId);
+
         return Inertia::render('finance/cashier', [
             'organizations' => $organizations,
             'organizationId' => $organizationId,
             'student' => $student,
+            'savings' => $student !== null && $canViewSavings
+                ? $savings->forStudent($this->tenantId(), (string) $organizationId, $student['student']['student_id'])
+                : null,
+            'canSave' => $canViewSavings && $this->authorization->allows(FinanceAccess::SAVINGS_MANAGE, (string) $organizationId),
+            'savingsLimits' => [
+                'note' => ManageSavings::NOTE_MAX_LENGTH,
+                'takenBy' => ManageSavings::TAKEN_BY_MAX_LENGTH,
+                'reason' => ManageSavings::REASON_MAX_LENGTH,
+            ],
             'canPay' => $organizationId !== null && $this->authorization->allows(FinanceAccess::PAYMENTS_MANAGE, $organizationId),
             'today' => BusinessClock::todayString(),
             'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),

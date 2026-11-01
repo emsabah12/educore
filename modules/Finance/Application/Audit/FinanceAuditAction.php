@@ -3,7 +3,7 @@
 namespace Modules\Finance\Application\Audit;
 
 /**
- * Aksi modul Finance yang dicatat di audit log (PRD-003 §8, PRD-004 §8), dengan label untuk halaman Log audit.
+ * Aksi modul Finance yang dicatat di audit log (PRD-003 §8, PRD-004 §8, PRD-005 §8), dengan label untuk halaman Log audit.
  */
 final class FinanceAuditAction
 {
@@ -66,6 +66,14 @@ final class FinanceAuditAction
 
     public const CASH_TRANSFER_VOIDED = 'finance.cash_transfer_voided';
 
+    public const SAVINGS_DEPOSITED = 'finance.savings_deposited';
+
+    public const SAVINGS_WITHDRAWN = 'finance.savings_withdrawn';
+
+    public const SAVINGS_ENTRY_VOIDED = 'finance.savings_entry_voided';
+
+    public const SUBJECT_SAVINGS_ENTRY = 'fn_savings_entry';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
 
     public const SUBJECT_CASH_TRANSFER = 'fn_cash_transfer';
@@ -120,6 +128,9 @@ final class FinanceAuditAction
             self::EXPENSE_REALIZATION_VOIDED => 'Realisasi pengeluaran dibatalkan',
             self::CASH_TRANSFER_RECORDED => 'Mutasi kas dicatat',
             self::CASH_TRANSFER_VOIDED => 'Mutasi kas dibatalkan',
+            self::SAVINGS_DEPOSITED => 'Setoran tabungan dicatat',
+            self::SAVINGS_WITHDRAWN => 'Penarikan tabungan dicatat',
+            self::SAVINGS_ENTRY_VOIDED => 'Transaksi tabungan dibatalkan',
         ];
     }
 }

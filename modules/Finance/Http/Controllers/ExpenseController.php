@@ -15,6 +15,7 @@ use Modules\Finance\Application\Cash\ExpenseFileStore;
 use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Cash\ManageCashCategories;
 use Modules\Finance\Application\Cash\ManageExpenses;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerCashBook;
@@ -102,7 +103,7 @@ final class ExpenseController
 
         foreach ($manageBooks as $manageBook) {
             foreach ($book->accounts($tenantId, $manageBook['value'] === self::YAYASAN_KEY ? null : $manageBook['value']) as $account) {
-                if ($account['is_active']) {
+                if ($account['is_active'] && $account['kind'] !== CashAccountKind::Custody->value) {
                     $accounts[$manageBook['value']][] = ['value' => $account['id'], 'label' => $account['name'], 'balance' => $account['balance']];
                 }
             }

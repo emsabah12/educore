@@ -35,6 +35,8 @@ final class ManageCashAccounts
 
     public const CASH_NAME = 'Kas tunai';
 
+    public const CUSTODY_NAME = 'Titipan tabungan';
+
     public function __construct(
         private readonly AuditLogger $audit,
     ) {}
@@ -65,6 +67,40 @@ final class ManageCashAccounts
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Rekening "Titipan tabungan" lembaga (PRD-005 §3.1), dibuat bila belum ada; mengembalikan id-nya. Saldo awal Rp 0
+     * per 1 tahun lalu, sehingga setoran bertanggal mundur (paling lama 1 tahun) tetap masuk buku kas. Aman diulang &
+     * bersamaan (indeks unik parsial).
+     */
+    public function ensureCustodyAccount(string $tenantId, string $organizationId): string
+    {
+        $find = fn (): mixed => DB::table('fn_cash_accounts')
+            ->where('tenant_id', $tenantId)
+            ->where('organization_id', $organizationId)
+            ->where('kind', CashAccountKind::Custody->value)
+            ->value('id');
+
+        $id = $find();
+
+        if ($id === null) {
+            DB::table('fn_cash_accounts')->insertOrIgnore([
+                'id' => (string) Str::uuid7(),
+                'tenant_id' => $tenantId,
+                'organization_id' => $organizationId,
+                'kind' => CashAccountKind::Custody->value,
+                'name' => self::CUSTODY_NAME,
+                'opening_balance' => 0,
+                'opening_date' => BusinessClock::today()->subYear()->toDateString(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $id = $find();
+        }
+
+        return (string) $id;
     }
 
     /**
@@ -120,6 +156,10 @@ final class ManageCashAccounts
 
             if ($account === null) {
                 throw FinanceException::make('form', 'Rekening tidak ditemukan.');
+            }
+
+            if ((string) $account->kind === CashAccountKind::Custody->value) {
+                throw FinanceException::make('form', 'Rekening Titipan tabungan diisi otomatis dari tabungan siswa dan tidak bisa diubah.');
             }
 
             $values = [];

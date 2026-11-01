@@ -17,7 +17,8 @@ use stdClass;
  *
  * Aturan [ASUMSI KS-1, mengikuti jenis biaya FN-1a]: kode huruf besar/angka/"-" 2–30 karakter, unik per yayasan,
  * tidak bisa diubah; nama 1–100; jenis (Masuk/Keluar) tetap; tidak dihapus (nonaktif = tidak bisa dipilih lagi).
- * Kategori sistem ("Pembayaran siswa" KS-2, "Mutasi masuk/keluar" KS-4) tidak bisa diubah, dinonaktifkan, atau dipilih manual.
+ * Kategori sistem ("Pembayaran siswa" KS-2, "Mutasi masuk/keluar" KS-4, "Setoran/Penarikan tabungan" PRD-005 TB-1) tidak bisa
+ * diubah, dinonaktifkan, atau dipilih manual.
  *
  * @phpstan-type CategoryRow array{id: string, code: string, name: string, direction: string, is_system: bool, is_active: bool}
  */
@@ -35,11 +36,18 @@ final class ManageCashCategories
 
     public const SYSTEM_TRANSFER_OUT = 'MUTASI-KELUAR';
 
+    /** Kategori sistem tabungan siswa di rekening Titipan tabungan (PRD-005 §3.1, TB-1). */
+    public const SYSTEM_SAVINGS_DEPOSIT = 'SETORAN-TABUNGAN';
+
+    public const SYSTEM_SAVINGS_WITHDRAWAL = 'PENARIKAN-TABUNGAN';
+
     /** Kategori bawaan saat yayasan pertama kali membuka kas: [kode, nama, arah, sistem]. */
     private const DEFAULTS = [
         [self::SYSTEM_STUDENT_PAYMENTS, 'Pembayaran siswa', CashDirection::In, true],
         [self::SYSTEM_TRANSFER_IN, 'Mutasi masuk', CashDirection::In, true],
         [self::SYSTEM_TRANSFER_OUT, 'Mutasi keluar', CashDirection::Out, true],
+        [self::SYSTEM_SAVINGS_DEPOSIT, 'Setoran tabungan', CashDirection::In, true],
+        [self::SYSTEM_SAVINGS_WITHDRAWAL, 'Penarikan tabungan', CashDirection::Out, true],
         ['BOS', 'Dana BOS', CashDirection::In, false],
         ['DONASI', 'Donasi / infak', CashDirection::In, false],
         ['MASUK-LAIN', 'Pemasukan lain-lain', CashDirection::In, false],

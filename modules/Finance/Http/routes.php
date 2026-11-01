@@ -12,6 +12,7 @@ use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
+use Modules\Finance\Http\Controllers\SavingsController;
 
 /*
  * Route web modul Finance (PRD-003 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -46,6 +47,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/pembayaran', [CashierController::class, 'store'])->name('finance.payments.store');
     Route::post('keuangan/pembayaran/{payment}/batalkan', [CashierController::class, 'void'])->whereUuid('payment')->name('finance.payments.void');
     Route::get('keuangan/kuitansi/{payment}', [CashierController::class, 'receipt'])->whereUuid('payment')->name('finance.receipts.show');
+
+    // Tabungan siswa di Kasir (PRD-005 TB-1). Catat & batal: finance.savings.manage; slip: finance.savings.view.
+    Route::post('keuangan/tabungan/setor', [SavingsController::class, 'deposit'])->name('finance.savings.deposit');
+    Route::post('keuangan/tabungan/tarik', [SavingsController::class, 'withdraw'])->name('finance.savings.withdraw');
+    Route::post('keuangan/tabungan/{entry}/batalkan', [SavingsController::class, 'void'])->whereUuid('entry')->name('finance.savings.void');
+    Route::get('keuangan/slip-tabungan/{entry}', [SavingsController::class, 'slip'])->whereUuid('entry')->name('finance.savings.slip');
 
     // Tunggakan (FN-4a): finance.billing.view di lembaga itu.
     Route::get('keuangan/tunggakan', [ArrearsController::class, 'index'])->name('finance.arrears.index');

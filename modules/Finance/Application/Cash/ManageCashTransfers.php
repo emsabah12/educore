@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
@@ -78,6 +79,13 @@ final class ManageCashTransfers
 
             if ($to === null || ! (bool) $to->is_active) {
                 throw FinanceException::make('to_account_id', 'Pilih rekening tujuan yang aktif.');
+            }
+
+            // Uang titipan tabungan milik siswa: tidak dipindah manual (PRD-005 §3.1).
+            foreach ([['account_id', $from], ['to_account_id', $to]] as [$field, $account]) {
+                if ((string) $account->kind === CashAccountKind::Custody->value) {
+                    throw FinanceException::make($field, 'Rekening Titipan tabungan tidak bisa dipakai untuk mutasi manual.');
+                }
             }
 
             $fromOrg = $from->organization_id === null ? null : (string) $from->organization_id;

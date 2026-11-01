@@ -10,6 +10,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
@@ -239,6 +240,10 @@ final class ManageExpenses
 
                 if ($account === null || ! (bool) $account->is_active) {
                     throw FinanceException::make('account_id', 'Pilih rekening kas ini yang aktif.');
+                }
+
+                if ((string) $account->kind === CashAccountKind::Custody->value) {
+                    throw FinanceException::make('account_id', 'Pengeluaran tidak boleh diambil dari rekening Titipan tabungan.');
                 }
 
                 $requestedOn = CarbonImmutable::parse((string) $request->created_at)->setTimezone(BusinessClock::timezone())->toDateString();

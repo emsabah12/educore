@@ -18,6 +18,7 @@ use Modules\Finance\Application\Cash\ManageCashEntries;
 use Modules\Finance\Application\Cash\ManageCashTransfers;
 use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Report\ReceiptRecap;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerCashBook;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
@@ -244,6 +245,7 @@ final class CashController
             ->leftJoin('organizations as o', 'o.id', '=', 'a.organization_id')
             ->where('a.tenant_id', $tenantId)
             ->where('a.is_active', true)
+            ->where('a.kind', '!=', CashAccountKind::Custody->value)
             // Dari kas Yayasan: semua kas (sendiri + lembaga). Dari kas lembaga: kas sendiri + kas Yayasan.
             ->when($organizationId !== null, fn ($query) => $query->where(fn ($where) => $where->where('a.organization_id', $organizationId)->orWhereNull('a.organization_id')))
             ->orderByRaw('CASE WHEN a.organization_id IS NOT DISTINCT FROM CAST(? AS uuid) THEN 0 WHEN a.organization_id IS NULL THEN 1 ELSE 2 END', [$organizationId])

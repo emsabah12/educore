@@ -5,6 +5,7 @@ namespace Modules\Finance\Application\Report;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Payment\PaymentStatus;
@@ -76,6 +77,7 @@ final class CashFlowReport
         };
 
         foreach ($this->scope(DB::table('fn_cash_accounts'), $tenantId, $organizationIds, $includeYayasan, 'organization_id')
+            ->where('kind', '!=', CashAccountKind::Custody->value)
             ->where('opening_date', '<=', $to)
             ->groupBy('organization_id')
             ->get(['organization_id', DB::raw('SUM(opening_balance) AS total')]) as $row) {
@@ -206,7 +208,9 @@ final class CashFlowReport
     {
         return $this->scope(DB::table('fn_cash_entries as e'), $tenantId, $organizationIds, $includeYayasan, 'e.organization_id', 'e.tenant_id')
             ->join('fn_cash_categories as c', 'c.id', '=', 'e.category_id')
-            ->where('e.status', PaymentStatus::Valid->value);
+            ->where('e.status', PaymentStatus::Valid->value)
+            // Titipan tabungan siswa bukan uang operasional (PRD-005 §3.1).
+            ->whereNotIn('e.account_id', fn (Builder $accounts) => $accounts->select('id')->from('fn_cash_accounts')->where('tenant_id', $tenantId)->where('kind', CashAccountKind::Custody->value));
     }
 
     /**

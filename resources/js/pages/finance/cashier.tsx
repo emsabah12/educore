@@ -1,6 +1,12 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { Printer, XCircle } from 'lucide-react';
+import {
+    ArrowDownToLine,
+    ArrowUpFromLine,
+    Printer,
+    XCircle,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
@@ -33,9 +39,32 @@ type PaymentRow = {
     items: string[];
 };
 
+type SavingsRow = {
+    id: string;
+    slip_number: string;
+    entry_date: string;
+    kind: 'SETOR' | 'TARIK' | 'BAYAR_TAGIHAN';
+    kind_label: string;
+    method: string | null;
+    amount: number;
+    balance_after: number;
+    taken_by: string | null;
+    note: string | null;
+    status: 'SAH' | 'BATAL';
+    void_reason: string | null;
+};
+
+type SavingsData = {
+    balance: number;
+    entries: SavingsRow[];
+};
+
+type SavingsLimits = { note: number; takenBy: number; reason: number };
+
 type StudentData = {
     student: {
         enrollment_id: string;
+        student_id: string;
         name: string;
         class: string | null;
         student_number: string | null;
@@ -51,6 +80,10 @@ type Props = {
     organizations: Option[];
     organizationId: string | null;
     student: StudentData | null;
+    /** Tabungan siswa (PRD-005); null bila tanpa izin lihat tabungan. */
+    savings: SavingsData | null;
+    canSave: boolean;
+    savingsLimits: SavingsLimits;
     canPay: boolean;
     today: string;
     methods: Option[];
@@ -63,7 +96,7 @@ const formatRupiah = (amount: number) => `Rp ${rupiah.format(amount)}`;
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' });
 
-const TABS = ['bayar', 'riwayat'] as const;
+const TABS = ['bayar', 'riwayat', 'tabungan'] as const;
 
 function formatDate(value: string): string {
     const [year, month, day] = value.split('-').map(Number);
@@ -82,6 +115,9 @@ export default function Cashier({
     organizations,
     organizationId,
     student,
+    savings,
+    canSave,
+    savingsLimits,
     canPay,
     today,
     methods,
@@ -146,6 +182,9 @@ export default function Cashier({
                     <StudentPanel
                         key={student.student.enrollment_id}
                         data={student}
+                        savings={savings}
+                        canSave={canSave}
+                        savingsLimits={savingsLimits}
                         organizationId={organizationId ?? ''}
                         canPay={canPay}
                         today={today}
@@ -161,6 +200,9 @@ export default function Cashier({
 
 function StudentPanel({
     data,
+    savings,
+    canSave,
+    savingsLimits,
     organizationId,
     canPay,
     today,
@@ -169,6 +211,9 @@ function StudentPanel({
     voidReasonMax,
 }: {
     data: StudentData;
+    savings: SavingsData | null;
+    canSave: boolean;
+    savingsLimits: SavingsLimits;
     organizationId: string;
     canPay: boolean;
     today: string;
@@ -184,7 +229,12 @@ function StudentPanel({
     ]
         .filter(Boolean)
         .join(' · ');
-    const [tab, setTab] = usePageTab(TABS, 'bayar');
+    const [requestedTab, setTab] = usePageTab(TABS, 'bayar');
+    // Tab Tabungan hanya ada bila boleh melihat tabungan.
+    const tab =
+        requestedTab === 'tabungan' && savings === null
+            ? 'bayar'
+            : requestedTab;
 
     return (
         <>
@@ -227,12 +277,31 @@ function StudentPanel({
                             value: 'riwayat',
                             label: `Riwayat pembayaran (${payments.length})`,
                         },
+                        ...(savings !== null
+                            ? [
+                                  {
+                                      value: 'tabungan' as const,
+                                      label: 'Tabungan',
+                                  },
+                              ]
+                            : []),
                     ]}
                     value={tab}
                     onChange={setTab}
                 />
 
-                {tab === 'riwayat' ? (
+                {tab === 'tabungan' && savings !== null ? (
+                    <SavingsPanel
+                        savings={savings}
+                        organizationId={organizationId}
+                        enrollmentId={student.enrollment_id}
+                        active={student.active}
+                        canSave={canSave}
+                        today={today}
+                        methods={methods}
+                        limits={savingsLimits}
+                    />
+                ) : tab === 'riwayat' ? (
                     payments.length === 0 ? (
                         <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
                             Belum ada pembayaran.
@@ -607,6 +676,422 @@ function PaymentItem({
                                     disabled={processing}
                                 >
                                     Batalkan pembayaran
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setVoiding(false)}
+                                >
+                                    Kembali
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+            )}
+        </li>
+    );
+}
+
+/**
+ * Tab Tabungan di Kasir (PRD-005 §4, TB-1): saldo, setor/tarik lewat pop-up, riwayat 30 transaksi terakhir, slip &
+ * batal. Server memeriksa ulang saldo, tanggal, dan hak akses.
+ */
+function SavingsPanel({
+    savings,
+    organizationId,
+    enrollmentId,
+    active,
+    canSave,
+    today,
+    methods,
+    limits,
+}: {
+    savings: SavingsData;
+    organizationId: string;
+    enrollmentId: string;
+    active: boolean;
+    canSave: boolean;
+    today: string;
+    methods: Option[];
+    limits: SavingsLimits;
+}) {
+    const [dialog, setDialog] = useState<'deposit' | 'withdraw' | null>(null);
+    const close = () => setDialog(null);
+
+    return (
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border p-4">
+                <div>
+                    <p className="text-xs text-muted-foreground">
+                        Saldo tabungan
+                    </p>
+                    <p className="text-2xl font-semibold tabular-nums">
+                        {formatRupiah(savings.balance)}
+                    </p>
+                </div>
+                {canSave && (
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+                        <Button
+                            type="button"
+                            onClick={() => setDialog('deposit')}
+                            disabled={!active}
+                        >
+                            <ArrowDownToLine />
+                            Setor
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDialog('withdraw')}
+                            disabled={savings.balance === 0}
+                        >
+                            <ArrowUpFromLine />
+                            Tarik
+                        </Button>
+                    </div>
+                )}
+            </div>
+            {canSave && !active && (
+                <p className="text-xs text-muted-foreground">
+                    Siswa sudah keluar: tidak bisa menabung lagi, tetapi
+                    saldonya masih bisa ditarik.
+                </p>
+            )}
+
+            {savings.entries.length === 0 ? (
+                <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    Belum ada transaksi tabungan.
+                </p>
+            ) : (
+                <ul className="divide-y rounded-xl border">
+                    {savings.entries.map((entry) => (
+                        <SavingsItem
+                            key={entry.id}
+                            entry={entry}
+                            canSave={canSave}
+                            reasonMax={limits.reason}
+                        />
+                    ))}
+                </ul>
+            )}
+
+            <FormDialog
+                open={dialog !== null}
+                onOpenChange={(open) => !open && close()}
+                title={
+                    dialog === 'withdraw' ? 'Tarik tabungan' : 'Setor tabungan'
+                }
+                description={
+                    dialog === 'withdraw'
+                        ? `Saldo sekarang ${formatRupiah(savings.balance)}. Penarikan boleh sampai saldo habis.`
+                        : 'Uang tabungan dicatat di rekening kas Titipan tabungan lembaga, terpisah dari kas operasional.'
+                }
+            >
+                {dialog !== null && (
+                    <SavingsForm
+                        kind={dialog}
+                        organizationId={organizationId}
+                        enrollmentId={enrollmentId}
+                        balance={savings.balance}
+                        today={today}
+                        methods={methods}
+                        limits={limits}
+                    />
+                )}
+            </FormDialog>
+        </div>
+    );
+}
+
+function SavingsForm({
+    kind,
+    organizationId,
+    enrollmentId,
+    balance,
+    today,
+    methods,
+    limits,
+}: {
+    kind: 'deposit' | 'withdraw';
+    organizationId: string;
+    enrollmentId: string;
+    balance: number;
+    today: string;
+    methods: Option[];
+    limits: SavingsLimits;
+}) {
+    const withdraw = kind === 'withdraw';
+    const [amount, setAmount] = useState('');
+
+    return (
+        <Form
+            action={
+                withdraw
+                    ? '/keuangan/tabungan/tarik'
+                    : '/keuangan/tabungan/setor'
+            }
+            method="post"
+            errorBag={withdraw ? 'savingsWithdraw' : 'savingsDeposit'}
+            options={{ preserveScroll: true }}
+            className="space-y-4"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <input
+                        type="hidden"
+                        name="organization_id"
+                        value={organizationId}
+                    />
+                    <input
+                        type="hidden"
+                        name="enrollment_id"
+                        value={enrollmentId}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="sav-amount">
+                                {withdraw
+                                    ? 'Jumlah penarikan (Rp)'
+                                    : 'Jumlah setoran (Rp)'}
+                            </Label>
+                            <Input
+                                id="sav-amount"
+                                name="amount"
+                                inputMode="numeric"
+                                value={amount}
+                                onChange={(event) =>
+                                    setAmount(event.target.value)
+                                }
+                                maxLength={20}
+                                autoFocus
+                                required
+                            />
+                            {withdraw && (
+                                <button
+                                    type="button"
+                                    className="justify-self-start text-xs font-medium underline underline-offset-4"
+                                    onClick={() =>
+                                        setAmount(rupiah.format(balance))
+                                    }
+                                >
+                                    Tarik semua: {formatRupiah(balance)}
+                                </button>
+                            )}
+                            <InputError message={errors.amount} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="sav-date">Tanggal</Label>
+                            <Input
+                                id="sav-date"
+                                name="entry_date"
+                                type="date"
+                                defaultValue={today}
+                                max={today}
+                                required
+                            />
+                            <InputError message={errors.entry_date} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="sav-method">Cara</Label>
+                            <select
+                                id="sav-method"
+                                name="method"
+                                className={selectClass}
+                                defaultValue={methods[0]?.value}
+                            >
+                                {methods.map((method) => (
+                                    <option
+                                        key={method.value}
+                                        value={method.value}
+                                    >
+                                        {method.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.method} />
+                        </div>
+                    </div>
+
+                    {withdraw && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="sav-taken-by">Diambil oleh</Label>
+                            <Input
+                                id="sav-taken-by"
+                                name="taken_by"
+                                maxLength={limits.takenBy}
+                                placeholder="mis. Ibu Siti (ibu)"
+                                required
+                            />
+                            <InputError message={errors.taken_by} />
+                        </div>
+                    )}
+
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="sav-note">Catatan (opsional)</Label>
+                        <Input
+                            id="sav-note"
+                            name="note"
+                            maxLength={limits.note}
+                            placeholder={
+                                withdraw
+                                    ? 'mis. untuk study tour'
+                                    : 'mis. nomor referensi transfer'
+                            }
+                        />
+                        <InputError message={errors.note} />
+                    </div>
+
+                    <InputError
+                        message={
+                            errors.form ??
+                            errors.enrollment_id ??
+                            errors.organization_id
+                        }
+                    />
+
+                    <Button
+                        type="submit"
+                        disabled={processing || amount.trim() === ''}
+                        className="w-full sm:w-auto"
+                    >
+                        {processing
+                            ? 'Menyimpan…'
+                            : withdraw
+                              ? 'Simpan penarikan & buat slip'
+                              : 'Simpan setoran & buat slip'}
+                    </Button>
+                </>
+            )}
+        </Form>
+    );
+}
+
+function SavingsItem({
+    entry,
+    canSave,
+    reasonMax,
+}: {
+    entry: SavingsRow;
+    canSave: boolean;
+    reasonMax: number;
+}) {
+    const [voiding, setVoiding] = useState(false);
+    const voided = entry.status === 'BATAL';
+    const incoming = entry.kind === 'SETOR';
+
+    return (
+        <li className="space-y-2 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium">
+                        {entry.kind_label}
+                        <span
+                            className={
+                                'ml-2 font-mono text-xs font-normal text-muted-foreground ' +
+                                (voided ? 'line-through' : '')
+                            }
+                        >
+                            {entry.slip_number}
+                        </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {formatDate(entry.entry_date)}
+                        {entry.method && ` · ${entry.method}`}
+                        {entry.taken_by && ` · diambil ${entry.taken_by}`}
+                    </p>
+                    {entry.note && (
+                        <p className="text-xs break-words text-muted-foreground">
+                            {entry.note}
+                        </p>
+                    )}
+                    {entry.void_reason && (
+                        <p className="text-xs text-muted-foreground">
+                            Dibatalkan: {entry.void_reason}
+                        </p>
+                    )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                    <span
+                        className={
+                            'font-medium tabular-nums ' +
+                            (voided ? 'text-muted-foreground line-through' : '')
+                        }
+                    >
+                        {incoming ? '+' : '−'}
+                        {formatRupiah(entry.amount)}
+                    </span>
+                    {voided ? (
+                        <Badge variant="outline">Batal</Badge>
+                    ) : (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                            Saldo {formatRupiah(entry.balance_after)}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {!voiding && (
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={`/keuangan/slip-tabungan/${entry.id}`}>
+                            <Printer />
+                            Slip
+                        </Link>
+                    </Button>
+                    {canSave && !voided && entry.kind !== 'BAYAR_TAGIHAN' && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => setVoiding(true)}
+                        >
+                            <XCircle />
+                            Batalkan
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {voiding && (
+                <Form
+                    action={`/keuangan/tabungan/${entry.id}/batalkan`}
+                    method="post"
+                    errorBag={`void-saving-${entry.id}`}
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => setVoiding(false)}
+                    className="space-y-2 rounded-md border border-destructive/40 p-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <Label htmlFor={`void-saving-${entry.id}`}>
+                                Alasan pembatalan
+                            </Label>
+                            <Input
+                                id={`void-saving-${entry.id}`}
+                                name="reason"
+                                maxLength={reasonMax}
+                                placeholder="mis. Salah input jumlah"
+                                required
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Saldo dihitung ulang. Slip tetap tersimpan
+                                dengan tanda BATAL.
+                            </p>
+                            <InputError
+                                message={errors.reason ?? errors.form}
+                            />
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={processing}
+                                >
+                                    Batalkan transaksi
                                 </Button>
                                 <Button
                                     type="button"

@@ -5,6 +5,7 @@ namespace Modules\Finance\Application\Cash;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Payment\PaymentStatus;
@@ -86,8 +87,9 @@ final class CashBook
         $from = $first->toDateString();
         $to = $first->endOfMonth()->toDateString();
 
+        // "Semua rekening" = rekening operasional; Titipan tabungan (PRD-005 §3.1) hanya bila dipilih sendiri.
         $accounts = $this->accountQuery($tenantId, $organizationId)
-            ->when($accountId !== null, fn (Builder $query) => $query->where('id', $accountId))
+            ->when($accountId !== null, fn (Builder $query) => $query->where('id', $accountId), fn (Builder $query) => $query->where('kind', '!=', CashAccountKind::Custody->value))
             ->get(['id', 'name', 'opening_balance', 'opening_date']);
 
         $ids = [];

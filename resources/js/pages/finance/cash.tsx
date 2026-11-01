@@ -2,6 +2,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeftRight,
     Landmark,
+    PiggyBank,
     Plus,
     ReceiptText,
     Wallet,
@@ -20,7 +21,8 @@ type Option = { value: string; label: string };
 
 type Account = {
     id: string;
-    kind: 'TUNAI' | 'BANK';
+    /** TITIPAN = Titipan tabungan siswa (PRD-005 §3.1): otomatis, bukan uang operasional. */
+    kind: 'TUNAI' | 'BANK' | 'TITIPAN';
     name: string;
     bank_name: string | null;
     account_number: string | null;
@@ -119,8 +121,20 @@ export default function Cash({
         'income' | 'account' | 'transfer' | null
     >(null);
     const [tab, setTab] = usePageTab(TABS, 'buku');
-    const activeAccounts = accounts.filter((account) => account.is_active);
-    const total = accounts.reduce((sum, account) => sum + account.balance, 0);
+    // Rekening operasional: tanpa Titipan tabungan (tidak bisa dipakai untuk pemasukan/mutasi manual).
+    const operational = accounts.filter(
+        (account) => account.kind !== 'TITIPAN',
+    );
+    const custody = accounts.filter((account) => account.kind === 'TITIPAN');
+    const activeAccounts = operational.filter((account) => account.is_active);
+    const total = operational.reduce(
+        (sum, account) => sum + account.balance,
+        0,
+    );
+    const custodyTotal = custody.reduce(
+        (sum, account) => sum + account.balance,
+        0,
+    );
     const monthLabel =
         months.find((option) => option.value === month)?.label ?? month;
     const missingReceiver =
@@ -177,8 +191,17 @@ export default function Cash({
                         {formatRupiah(total)}
                     </span>{' '}
                     <span className="text-muted-foreground">
-                        di {accounts.length} rekening
+                        di {operational.length} rekening
                     </span>
+                    {custody.length > 0 && (
+                        <span className="block text-muted-foreground">
+                            Titipan tabungan siswa{' '}
+                            <span className="font-medium tabular-nums">
+                                {formatRupiah(custodyTotal)}
+                            </span>{' '}
+                            (terpisah, tidak termasuk saldo di atas)
+                        </span>
+                    )}
                 </p>
 
                 <PageTabs
@@ -394,7 +417,9 @@ function AccountCard({
     limits: Props['limits'];
 }) {
     const [editing, setEditing] = useState(false);
-    const Icon = account.kind === 'TUNAI' ? Wallet : Landmark;
+    const custody = account.kind === 'TITIPAN';
+    const Icon =
+        account.kind === 'TUNAI' ? Wallet : custody ? PiggyBank : Landmark;
 
     return (
         <div className="space-y-2 rounded-xl border p-3">
@@ -412,7 +437,7 @@ function AccountCard({
                         </p>
                     )}
                 </div>
-                {canManage && !editing && (
+                {canManage && !editing && !custody && (
                     <Button
                         type="button"
                         variant="ghost"
@@ -428,12 +453,23 @@ function AccountCard({
             >
                 {formatRupiah(account.balance)}
             </p>
-            <p className="text-xs text-muted-foreground">
-                Saldo awal {formatRupiah(account.opening_balance)} per{' '}
-                {formatDate(account.opening_date)}
-            </p>
+            {!custody && (
+                <p className="text-xs text-muted-foreground">
+                    Saldo awal {formatRupiah(account.opening_balance)} per{' '}
+                    {formatDate(account.opening_date)}
+                </p>
+            )}
             {account.receives_transfers && (
                 <Badge variant="secondary">Penerima transfer siswa</Badge>
+            )}
+            {custody && (
+                <p className="text-xs text-muted-foreground">
+                    <Badge variant="secondary" className="mr-1">
+                        Titipan
+                    </Badge>
+                    Uang tabungan siswa, diisi otomatis dari Kasir. Tidak
+                    dihitung di saldo operasional.
+                </p>
             )}
             {canManage &&
                 canReceive &&
