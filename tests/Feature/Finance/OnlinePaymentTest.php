@@ -16,6 +16,7 @@ use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Tenancy\Tenant;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
+use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Fee\ManageFeeRates;
 use Modules\Finance\Application\Fee\ManageFeeTypes;
 use Modules\Finance\Application\Online\MidtransException;
@@ -311,4 +312,88 @@ test('webhook tidak memakai perlindungan CSRF (test otomatis melewati CSRF, jadi
     expect(collect($middleware)->contains(fn (mixed $item): bool => is_string($item) && is_a($item, PreventRequestForgery::class, true)))->toBeFalse()
         // Pembanding: route biasa tetap dilindungi.
         ->and(collect($store)->contains(fn (mixed $item): bool => is_string($item) && is_a($item, PreventRequestForgery::class, true)))->toBeTrue();
+});
+
+test('petugas (MG-3): daftar & rincian pesanan, kelebihan bayar ditandai dikembalikan, kartu Beranda, Kasir & rekap', function () {
+    // Pesanan Juli + Agustus; Agustus keburu dibayar di kasir → kelebihan Rp 150.000.
+    fnyOrder($this, fnyInvoices($this->ahmad, '2026-07', '2026-08'), 'BCA_VA')->assertRedirect();
+    $order = fnyLatestOrder();
+
+    $this->flushSession();
+    $this->actingAs($this->admin);
+    $this->get(route('finance.cashier.index', ['lembaga' => $this->smp->id, 'siswa' => $this->ahmad->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('onlinePending.id', $order->id)->where('onlinePending.gross_amount', 304000));
+    $this->post(route('finance.payments.store'), [
+        'organization_id' => $this->smp->id, 'enrollment_id' => $this->ahmad->id, 'amount' => '150000', 'paid_on' => '2026-11-03', 'method' => 'TUNAI',
+        'invoice_ids' => fnyInvoices($this->ahmad, '2026-08'),
+    ])->assertSessionHasNoErrors();
+
+    // Petugas menekan "Cek status" → Midtrans bilang lunas.
+    $this->midtrans->statuses[$order->order_id] = ['transaction_status' => 'settlement', 'gross_amount' => '304000.00', 'settlement_time' => '2026-11-03 10:00:00'];
+    $this->post(route('finance.online-payments.check', ['order' => $order->id]))->assertRedirect()->assertSessionHasNoErrors();
+    expect(DB::table('fn_online_payments')->where('id', $order->id)->value('status'))->toBe('LUNAS');
+
+    $this->get(route('finance.cashier.index', ['lembaga' => $this->smp->id, 'siswa' => $this->ahmad->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('onlinePending', null));
+
+    $this->get(route('finance.online-payments.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/online-payments')
+            ->where('orders.total', 1)
+            ->where('orders.rows.0.student', 'Ahmad Fauzi')
+            ->where('orders.rows.0.organization', 'SMP Unit 3')
+            ->where('orders.rows.0.overpaid_amount', 150000)
+            ->where('orders.rows.0.overpaid_settled', false)
+            ->where('overpaid', ['count' => 1, 'amount' => 150000]));
+    $this->get(route('finance.online-payments.index', ['status' => 'KELEBIHAN']))->assertInertia(fn (Assert $page) => $page->where('orders.total', 1));
+    $this->get(route('finance.online-payments.index', ['status' => 'MENUNGGU']))->assertInertia(fn (Assert $page) => $page->where('orders.total', 0));
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('cards', fn ($cards): bool => collect($cards)->contains(fn (array $card): bool => $card['key'] === 'finance.online_overpaid'
+            && $card['value'] === 1 && $card['description'] === 'Rp 150.000 perlu dikembalikan ke orang tua.' && $card['tone'] === 'warning')));
+
+    $this->get(route('finance.online-payments.show', ['order' => $order->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('finance/online-payment-show')
+            ->where('student.name', 'Ahmad Fauzi')
+            ->where('receiptNumber', 'U3-SMP/2026/000002')
+            ->where('canManage', true)
+            ->has('events', 0));
+
+    $this->post(route('finance.online-payments.settle-overpaid', ['order' => $order->id]), ['note' => 'Dikembalikan tunai ke Ibu Siti'])->assertRedirect()->assertSessionHasNoErrors();
+    $this->post(route('finance.online-payments.settle-overpaid', ['order' => $order->id]), [])->assertSessionHasErrors('form');
+
+    expect(DB::table('fn_online_payments')->where('id', $order->id)->value('overpaid_settled_at'))->not->toBeNull()
+        ->and(DB::table('audit_logs')->where('action', FinanceAuditAction::ONLINE_OVERPAID_SETTLED)->count())->toBe(1);
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('cards', fn ($cards): bool => ! collect($cards)->contains('key', 'finance.online_overpaid')));
+
+    // Rekap penerimaan: kolom Online.
+    $this->get(route('finance.receipt-recap.index', ['lembaga' => $this->smp->id, 'bulan' => '2026-11']))
+        ->assertInertia(fn (Assert $page) => $page->where('summary.totals.online', 150000)->where('summary.totals.cash', 150000)->where('summary.totals.transfer', 0));
+});
+
+test('petugas (MG-3): kepala lembaga hanya melihat; bendahara lembaga lain tidak melihat', function () {
+    fnyOrder($this, fnyInvoices($this->ahmad, '2026-07'), 'BCA_VA')->assertRedirect();
+    $order = fnyLatestOrder();
+
+    CoreFixtures::syncAccess();
+    $kepala = User::factory()->create();
+    CoreFixtures::assignmentRole(CoreFixtures::assign(CoreFixtures::member($kepala, $this->tenant), $this->smp), 'kepala-lembaga');
+    $other = User::factory()->create();
+    CoreFixtures::assignmentRole(CoreFixtures::assign(CoreFixtures::member($other, $this->tenant), CoreFixtures::node($this->tenant, 'U1-MTS')), FinanceAccess::ROLE_BENDAHARA);
+
+    $this->flushSession();
+    $this->actingAs($kepala)->get(route('dashboard'))->assertOk();
+    $this->get(route('finance.online-payments.index'))->assertInertia(fn (Assert $page) => $page->where('orders.total', 1));
+    $this->get(route('finance.online-payments.show', ['order' => $order->id]))->assertInertia(fn (Assert $page) => $page->where('canManage', false));
+    $this->post(route('finance.online-payments.check', ['order' => $order->id]))->assertForbidden();
+
+    $this->flushSession();
+    $this->actingAs($other)->get(route('dashboard'))->assertOk();
+    $this->get(route('finance.online-payments.index'))->assertInertia(fn (Assert $page) => $page->where('orders.total', 0));
+    $this->get(route('finance.online-payments.show', ['order' => $order->id]))->assertNotFound();
+    $this->post(route('finance.online-payments.settle-overpaid', ['order' => $order->id]))->assertNotFound();
 });

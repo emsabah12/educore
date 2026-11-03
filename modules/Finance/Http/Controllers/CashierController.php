@@ -15,6 +15,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Online\OnlinePaymentList;
 use Modules\Finance\Application\Payment\CashierOverview;
 use Modules\Finance\Application\Payment\ManagePayments;
 use Modules\Finance\Application\Payment\Receipts;
@@ -42,7 +43,7 @@ final class CashierController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, CashierOverview $overview, SavingsOverview $savings): Response
+    public function index(Request $request, CashierOverview $overview, SavingsOverview $savings, OnlinePaymentList $online): Response
     {
         $organizations = $this->organizations();
 
@@ -66,6 +67,8 @@ final class CashierController
             'savings' => $student !== null && $canViewSavings
                 ? $savings->forStudent($this->tenantId(), (string) $organizationId, $student['student']['student_id'])
                 : null,
+            // PRD-006 MG-3: peringatan bila siswa punya pesanan bayar online yang menunggu (hindari kelebihan bayar).
+            'onlinePending' => $student === null ? null : $online->pendingFor($this->tenantId(), $student['student']['enrollment_id']),
             'canSave' => $canViewSavings && $this->authorization->allows(FinanceAccess::SAVINGS_MANAGE, (string) $organizationId),
             'savingsLimits' => [
                 'note' => ManageSavings::NOTE_MAX_LENGTH,

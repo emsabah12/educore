@@ -15,6 +15,7 @@ use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\MidtransWebhookController;
+use Modules\Finance\Http\Controllers\OnlinePaymentController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
 use Modules\Finance\Http\Controllers\SavingsController;
 use Modules\Finance\Http\Controllers\SavingsReportController;
@@ -64,6 +65,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('keuangan/tabungan', [SavingsReportController::class, 'index'])->name('finance.savings.index');
     Route::get('keuangan/tabungan/unduh-saldo', [SavingsReportController::class, 'exportBalances'])->middleware('throttle:10,1')->name('finance.savings.export-balances');
     Route::get('keuangan/tabungan/unduh-rekap', [SavingsReportController::class, 'exportMonthly'])->middleware('throttle:10,1')->name('finance.savings.export-monthly');
+
+    // Pembayaran online untuk petugas (PRD-006 MG-3): lihat finance.billing.view; cek status & kelebihan bayar
+    // finance.payments.manage di lembaga pesanan.
+    Route::get('keuangan/pembayaran-online', [OnlinePaymentController::class, 'index'])->name('finance.online-payments.index');
+    Route::get('keuangan/pembayaran-online/{order}', [OnlinePaymentController::class, 'show'])->whereUuid('order')->name('finance.online-payments.show');
+    Route::post('keuangan/pembayaran-online/{order}/cek', [OnlinePaymentController::class, 'check'])->whereUuid('order')->middleware('throttle:20,1')->name('finance.online-payments.check');
+    Route::post('keuangan/pembayaran-online/{order}/kelebihan-dikembalikan', [OnlinePaymentController::class, 'settleOverpaid'])->whereUuid('order')->name('finance.online-payments.settle-overpaid');
 
     // Tunggakan (FN-4a): finance.billing.view di lembaga itu.
     Route::get('keuangan/tunggakan', [ArrearsController::class, 'index'])->name('finance.arrears.index');

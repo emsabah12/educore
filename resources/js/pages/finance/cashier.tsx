@@ -2,11 +2,14 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
+    CircleAlert,
     Printer,
     XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
+import { formatDateTime } from '@/components/finance/online-order';
+import type { OnlineOrder } from '@/components/finance/online-order';
 import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
@@ -84,6 +87,8 @@ type Props = {
     savings: SavingsData | null;
     canSave: boolean;
     savingsLimits: SavingsLimits;
+    /** Pesanan bayar online siswa ini yang masih menunggu (PRD-006 MG-3). */
+    onlinePending: OnlineOrder | null;
     canPay: boolean;
     today: string;
     methods: Option[];
@@ -118,6 +123,7 @@ export default function Cashier({
     savings,
     canSave,
     savingsLimits,
+    onlinePending,
     canPay,
     today,
     methods,
@@ -179,19 +185,45 @@ export default function Cashier({
                         Cari siswa untuk melihat tagihannya.
                     </p>
                 ) : (
-                    <StudentPanel
-                        key={student.student.enrollment_id}
-                        data={student}
-                        savings={savings}
-                        canSave={canSave}
-                        savingsLimits={savingsLimits}
-                        organizationId={organizationId ?? ''}
-                        canPay={canPay}
-                        today={today}
-                        methods={methods}
-                        noteMax={noteMax}
-                        voidReasonMax={voidReasonMax}
-                    />
+                    <>
+                        {onlinePending && (
+                            <div className="flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+                                <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                                <p>
+                                    Orang tua sedang membayar online{' '}
+                                    {formatRupiah(onlinePending.gross_amount)}{' '}
+                                    lewat {onlinePending.method_label} (batas{' '}
+                                    {formatDateTime(onlinePending.expires_at)})
+                                    untuk:{' '}
+                                    {onlinePending.invoices
+                                        .map((invoice) => invoice.description)
+                                        .join(', ')}
+                                    . Bila tagihan yang sama dibayar di kasir
+                                    dan pembayaran online juga masuk, akan ada
+                                    kelebihan bayar yang harus dikembalikan.{' '}
+                                    <Link
+                                        href={`/keuangan/pembayaran-online/${onlinePending.id}`}
+                                        className="font-medium underline underline-offset-4"
+                                    >
+                                        Lihat
+                                    </Link>
+                                </p>
+                            </div>
+                        )}
+                        <StudentPanel
+                            key={student.student.enrollment_id}
+                            data={student}
+                            savings={savings}
+                            canSave={canSave}
+                            savingsLimits={savingsLimits}
+                            organizationId={organizationId ?? ''}
+                            canPay={canPay}
+                            today={today}
+                            methods={methods}
+                            noteMax={noteMax}
+                            voidReasonMax={voidReasonMax}
+                        />
+                    </>
                 )}
             </div>
         </>

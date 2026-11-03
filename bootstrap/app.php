@@ -10,8 +10,8 @@ use Modules\Core\Http\Middleware\EnsureAccountUsable;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -26,14 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // Keluarkan akun nonaktif & tahan akun bersandi sementara (PRD-000 §4.7).
             EnsureAccountUsable::class,
         ]);
-
-        $middleware->trustProxies(at: '*');
-        $middleware->validateCsrfTokens(except: [
-            'midtrans/callback', // sesuaikan dengan route kamu
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn(Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })->create();

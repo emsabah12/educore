@@ -218,6 +218,40 @@ final class ManageOnlinePayments
     }
 
     /**
+     * Bendahara menandai kelebihan bayar sudah dikembalikan ke orang tua (PRD-006 §8, OD-MG-07, MG-3). Pengembaliannya
+     * sendiri di luar aplikasi (tunai / transfer / dashboard Midtrans).
+     *
+     * @throws FinanceException
+     */
+    public function settleOverpaid(string $tenantId, string $id, ?string $note): void
+    {
+        $note = $note === null ? '' : trim((string) preg_replace('/\s+/u', ' ', $note));
+
+        if (mb_strlen($note) > ManagePayments::NOTE_MAX_LENGTH) {
+            throw FinanceException::make('note', 'Catatan maksimal '.ManagePayments::NOTE_MAX_LENGTH.' karakter.');
+        }
+
+        DB::transaction(function () use ($tenantId, $id, $note): void {
+            $order = DB::table('fn_online_payments')->where('tenant_id', $tenantId)->where('id', $id)->lockForUpdate()->first();
+
+            if ($order === null || (int) $order->overpaid_amount === 0 || $order->overpaid_settled_at !== null) {
+                throw FinanceException::make('form', 'Tidak ada kelebihan bayar yang perlu ditandai untuk pembayaran ini.');
+            }
+
+            DB::table('fn_online_payments')->where('id', $id)->update(['overpaid_settled_at' => now(), 'updated_at' => now()]);
+
+            $this->audit->record(
+                FinanceAuditAction::ONLINE_OVERPAID_SETTLED,
+                FinanceAuditAction::SUBJECT_ONLINE_PAYMENT,
+                $id,
+                array_filter(['order' => (string) $order->order_id, 'jumlah' => (int) $order->overpaid_amount, 'catatan' => $note === '' ? null : $note], fn (mixed $value): bool => $value !== null),
+                organizationId: (string) $order->organization_id,
+                tenantId: $tenantId,
+            );
+        });
+    }
+
+    /**
      * Tanya status terkini ke Midtrans lalu terapkan (tombol "Cek status").
      *
      * @throws FinanceException

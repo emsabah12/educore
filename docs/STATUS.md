@@ -1,7 +1,7 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-01
-- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 s.d. TB-4 SELESAI (PRD-005 selesai); **Pembayaran online Midtrans (PRD-006)**: MG-1 SELESAI; MG-2 (bayar dari portal + webhook) dibangun 2026-11-03, menunggu uji owner (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 s.d. TB-4 SELESAI (PRD-005 selesai); **Pembayaran online Midtrans (PRD-006)**: MG-1 & MG-2 SELESAI; MG-3 (halaman petugas, kelebihan bayar, rekap Online) dibangun 2026-11-04, menunggu uji owner — tahap terakhir PRD-006 (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
 - **Commit terakhir:** `1001720` — feat(finance): TB-4 tabungan di portal orang tua
 
 ## Keputusan penting
@@ -821,13 +821,20 @@
 - Frontend: `pages/finance/settings.tsx` (tab **Pembayaran online**), `pages/finance/cash.tsx` (penerima pembayaran online).
 - Test: `tests/Feature/Finance/OnlinePaymentSetupTest.php` (4 test, awalan `fnz`, `Http::fake` + `preventStrayRequests`). 733 test lulus (7 arsitektur + 726), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
-**MG-2 — Bayar online di portal, webhook, kuitansi otomatis: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-006 §16
+**MG-2 — Bayar online di portal, webhook, kuitansi otomatis: SELESAI (`2c1b9c8`)** — PRD-006 §16
 
 - Finance: migration `2026_11_03_300015_add_online_method_to_fn_payments` (cara bayar `ONLINE`, `PaymentMethod::cashier()`); `Application/Online/ManageOnlinePayments` (quote, create, cancel, refresh, handleNotification, lunas + kelebihan bayar), `OnlinePaymentList`; `MidtransException::isRejection`; `PaymentCashSync` (penerima online); `Http/Controllers/ChildOnlinePaymentController` (route `finance.child-online.*`), `MidtransWebhookController` (`POST /webhook/midtrans`, tanpa CSRF); `ChildBillingController` (`onlineActive`, `onlineOrders`); `Receipts` (petugas "Pembayaran online (otomatis)").
 - Frontend: `pages/finance/child-billing.tsx` (Bayar online, pesanan menunggu), `child-online-pay.tsx`, `child-online-status.tsx`, `components/finance/online-order.ts`.
 - **MG-2-fix2**: webhook `/webhook/midtrans` menjawab 419 di server sungguhan karena CSRF masih aktif → dikecualikan dengan `PreventRequestForgery` (+ test daftar middleware route).
 - **MG-2-fix1**: zona waktu sesi database dikunci UTC (`config/database.php`), waktu pesanan online dikirim ISO 8601 (`OnlinePaymentList`); seluruh suite juga diuji dengan zona waktu server PostgreSQL Asia/Jakarta.
 - Test: `tests/Feature/Finance/OnlinePaymentTest.php` (5 test, awalan `fny`), `tests/Support/FakeMidtransGateway.php` (Midtrans tiruan). 738 test lulus (7 arsitektur + 731), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
+
+**MG-3 — Halaman petugas, kelebihan bayar, Kasir, rekap Online, Beranda: DIBANGUN (2026-11-04, menunggu uji owner)** — PRD-006 §17
+
+- Finance: `OnlinePaymentList::forStaff|overpaid|pendingFor|events`, `ManageOnlinePayments::settleOverpaid`, `Http/Controllers/OnlinePaymentController` (route `finance.online-payments.index|show|check|settle-overpaid`), `CashierController` (`onlinePending`), `ReceiptRecap`/`ReceiptRecapExport` (kolom Online), kartu Beranda `finance.online_overpaid`, audit `finance.online_overpaid_settled`.
+- App: `bootstrap/app.php` dirapikan (perubahan owner `trustProxies('*')` & pengecualian CSRF `midtrans/callback` dipindah/dihapus, keputusan owner 2026-11-04); `TRUSTED_PROXIES` → `config/educore.php` + `AppServiceProvider::configureTrustedProxies`, contoh di `.env.example`.
+- Frontend: `pages/finance/online-payments.tsx`, `online-payment-show.tsx`, `cashier.tsx` (spanduk pesanan menunggu), `receipt-recap.tsx` (Online), menu Keuangan siswa → **Pembayaran online**.
+- Test: `OnlinePaymentTest` +2 test petugas (8 test); `ReceiptRecapTest` disesuaikan. 741 test lulus (7 arsitektur + 734), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
 ## Perapian tampilan
 
@@ -897,6 +904,7 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Sesudah menyalin file frontend wajib `npm run build` (atau `npm run dev` berjalan) lalu muat ulang dengan Ctrl+F5; tanpa itu halaman lama tetap tampil (TB-1: tab Tabungan "belum ada"). Jangan `route:cache`/`optimize` di laptop pengembangan — route baru tidak terbaca, termasuk oleh test (`Route [...] not defined`); bila terlanjur, `php artisan optimize:clear`.
 - Fungsi bantu di file test Pest bersifat global: awalan nama wajib unik per file (TB-3: `fnpPay` bentrok dengan `PaymentsTest` → fatal "Cannot redeclare" saat seluruh suite dijalankan, padahal file itu lulus sendiri). Cek dengan `grep -rn "^function fnX" tests` sebelum memilih awalan.
 - **Zona waktu sesi PostgreSQL dikunci `UTC`** (`config/database.php` → `pgsql.timezone`, sama dengan `app.timezone`). Tanpa itu PostgreSQL memakai zona waktu servernya (Laragon/Windows: Asia/Jakarta) sehingga kolom `timestampTz` yang ditulis Laravel tanpa offset bergeser 7 jam — ketahuan dari test batas waktu bayar online (MG-2-fix1). Data `timestampTz` lama di database pengembangan owner bisa bergeser 7 jam; untuk produksi tidak masalah karena belum dipakai. Waktu yang dikirim ke browser diformat ISO 8601 dengan offset.
+- **Owner mengubah file di luar paket** (MG-2: `bootstrap/app.php`) → sebelum lanjut, cek `git diff HEAD origin/main` sesudah fetch, tanyakan maksudnya, dan jalankan `pint --test` (perubahan itu sempat membuat `composer lint` gagal).
 - **CSRF di Laravel 13 = `PreventRequestForgery`** (grup web). Untuk mengecualikan route (mis. webhook) pakai `withoutMiddleware([PreventRequestForgery::class])`; `ValidateCsrfToken` hanya turunannya sehingga mengecualikannya tidak berpengaruh → webhook menjawab 419 (MG-2-fix2). Test otomatis **selalu** melewati CSRF, jadi pengecualian ini diuji dengan memeriksa daftar middleware route.
 - Integrasi pihak ketiga (Midtrans) di test: ganti `MidtransGateway` dengan `Tests\Support\FakeMidtransGateway` lewat `app()->instance(...)` dan pasang `Http::preventStrayRequests()` agar tidak ada panggilan ke internet.
 - `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
@@ -904,6 +912,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji MG-2 oleh owner di **sandbox** Midtrans (simulator pembayaran; webhook perlu alamat publik, mis. ngrok), lalu **MG-3** (halaman petugas Pembayaran online, peringatan di Kasir, kelebihan bayar, kolom Online di rekap penerimaan, kartu Beranda).
-2. Sesudahnya (urutan owner, PRD-004 §11): pembukuan; dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
+1. Uji MG-3 oleh owner (PRD-006 selesai). Sebelum produksi: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
+2. Berikutnya (urutan owner, PRD-004 §11): **pembukuan** (COA, jurnal, neraca) — draf PRD-007 → persetujuan owner. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

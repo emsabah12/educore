@@ -88,6 +88,8 @@ final class FinanceAuditAction
 
     public const ONLINE_PAYMENT_FAILED = 'finance.online_payment_failed';
 
+    public const ONLINE_OVERPAID_SETTLED = 'finance.online_overpaid_settled';
+
     public const SUBJECT_ONLINE_PAYMENT = 'fn_online_payment';
 
     /** Pengaturan pembayaran online yayasan (subjek = id yayasan). */
@@ -157,6 +159,7 @@ final class FinanceAuditAction
             self::ONLINE_PAYMENT_EXPIRED => 'Pembayaran online kedaluwarsa',
             self::ONLINE_PAYMENT_CANCELLED => 'Pembayaran online dibatalkan',
             self::ONLINE_PAYMENT_FAILED => 'Pembayaran online gagal',
+            self::ONLINE_OVERPAID_SETTLED => 'Kelebihan bayar online dikembalikan',
         ];
     }
 }

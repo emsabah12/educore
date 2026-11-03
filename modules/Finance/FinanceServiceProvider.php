@@ -24,6 +24,7 @@ use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
 use Modules\Finance\Application\Online\HttpMidtransGateway;
 use Modules\Finance\Application\Online\MidtransGateway;
+use Modules\Finance\Application\Online\OnlinePaymentList;
 use Modules\Finance\Application\Report\Arrears;
 use Modules\Finance\Application\Savings\SavingsReport;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
@@ -71,6 +72,9 @@ class FinanceServiceProvider extends ModuleServiceProvider
         $this->app->make(DashboardCards::class)
             ->register('finance.expenses_pending', fn (): ?array => $this->expenseCard(FinanceAccess::EXPENSES_APPROVE))
             ->register('finance.expenses_approved', fn (): ?array => $this->expenseCard(FinanceAccess::CASH_MANAGE));
+
+        // Kartu Beranda "Kelebihan bayar online" (PRD-006 §9, MG-3): hanya bila ada yang belum dikembalikan.
+        $this->app->make(DashboardCards::class)->register('finance.online_overpaid', fn (): ?array => $this->overpaidCard());
 
         // Kartu Beranda "Titipan tabungan siswa" (PRD-005 §7, TB-2): pemilik finance.savings.view, sesuai cakupannya.
         $this->app->make(DashboardCards::class)->register('finance.savings', fn (): ?array => $this->savingsCard());
@@ -160,6 +164,34 @@ class FinanceServiceProvider extends ModuleServiceProvider
                 : Rupiah::format($total).' milik '.$students.' siswa'.($organizations > 1 ? " di {$organizations} lembaga." : '.'),
             'href' => '/keuangan/tabungan',
             'tone' => 'default',
+        ];
+    }
+
+    /**
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function overpaidCard(): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+        $organizationIds = $context === null ? [] : $this->visibleLembaga($context->tenantId, FinanceAccess::BILLING_VIEW);
+
+        if ($context === null || $organizationIds === []) {
+            return null;
+        }
+
+        $overpaid = $this->app->make(OnlinePaymentList::class)->overpaid($context->tenantId, $organizationIds);
+
+        if ($overpaid['count'] === 0) {
+            return null;
+        }
+
+        return [
+            'key' => 'finance.online_overpaid',
+            'title' => 'Kelebihan bayar online',
+            'value' => $overpaid['count'],
+            'description' => Rupiah::format($overpaid['amount']).' perlu dikembalikan ke orang tua.',
+            'href' => '/keuangan/pembayaran-online?status='.OnlinePaymentList::FILTER_OVERPAID,
+            'tone' => 'warning',
         ];
     }
 

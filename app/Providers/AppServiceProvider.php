@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +26,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureTrustedProxies();
+    }
+
+    /**
+     * Proxy tepercaya dari config('educore.trusted_proxies') / TRUSTED_PROXIES (MG-3). Tidak dipasang permanen di
+     * bootstrap/app.php agar produksi tidak mempercayai header X-Forwarded-* dari sembarang sumber.
+     */
+    protected function configureTrustedProxies(): void
+    {
+        $proxies = trim((string) config('educore.trusted_proxies', ''));
+
+        if ($proxies === '') {
+            return;
+        }
+
+        TrustProxies::at($proxies === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $proxies)))));
     }
 
     /**

@@ -32,6 +32,7 @@ import {
     School,
     ScrollText,
     ShieldCheck,
+    Smartphone,
     Tags,
     UserCheck,
     Users,
@@ -212,6 +213,12 @@ const savingsNavItem: NavItem = {
     icon: PiggyBank,
 };
 
+const onlinePaymentsNavItem: NavItem = {
+    title: 'Pembayaran online',
+    href: '/keuangan/pembayaran-online',
+    icon: Smartphone,
+};
+
 const arrearsNavItem: NavItem = {
     title: 'Tunggakan',
     href: '/keuangan/tunggakan',
@@ -356,6 +363,7 @@ export function AppSidebar() {
                     invoicesNavItem,
                     arrearsNavItem,
                     receiptRecapNavItem,
+                    onlinePaymentsNavItem,
                     discountsNavItem,
                 ]),
                 // Tabungan siswa (PRD-005 TB-2).

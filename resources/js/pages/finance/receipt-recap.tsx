@@ -15,6 +15,8 @@ type Totals = {
     transfer: number;
     /** Dari saldo tabungan siswa (PRD-005 TB-3). */
     savings: number;
+    /** Online Midtrans (PRD-006 MG-3). */
+    online: number;
     voided_count: number;
     voided_amount: number;
 };
@@ -25,6 +27,7 @@ type DayRow = {
     cash: number;
     transfer: number;
     savings: number;
+    online: number;
     total: number;
 };
 
@@ -201,6 +204,12 @@ export default function ReceiptRecap({
                             value={formatRupiah(totals.savings)}
                         />
                     )}
+                    {totals.online > 0 && (
+                        <Stat
+                            label="Online"
+                            value={formatRupiah(totals.online)}
+                        />
+                    )}
                     <Stat label="Transaksi" value={String(totals.count)} />
                 </dl>
 
@@ -253,6 +262,11 @@ export default function ReceiptRecap({
                                                         {totals.savings > 0 && (
                                                             <th className="p-2 text-right font-medium">
                                                                 Tabungan
+                                                            </th>
+                                                        )}
+                                                        {totals.online > 0 && (
+                                                            <th className="p-2 text-right font-medium">
+                                                                Online
                                                             </th>
                                                         )}
                                                         <th className="p-2 text-right font-medium">
@@ -313,6 +327,14 @@ export default function ReceiptRecap({
                                                                 <td className="p-2 text-right tabular-nums">
                                                                     {rupiah.format(
                                                                         row.savings,
+                                                                    )}
+                                                                </td>
+                                                            )}
+                                                            {totals.online >
+                                                                0 && (
+                                                                <td className="p-2 text-right tabular-nums">
+                                                                    {rupiah.format(
+                                                                        row.online,
                                                                     )}
                                                                 </td>
                                                             )}

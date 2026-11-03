@@ -14,6 +14,8 @@ export type OnlineOrder = {
     paid_at: string | null;
     payment_id: string | null;
     overpaid_amount: number;
+    overpaid_settled_at?: string | null;
+    organization_id?: string;
     created_at: string;
     invoices: {
         id: string;
