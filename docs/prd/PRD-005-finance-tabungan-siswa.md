@@ -1,8 +1,8 @@
 # PRD-005 — Modul Finance (Keuangan): Tabungan Siswa
 
-- **Versi:** 0.2 (2026-11-01: disetujui owner; rincian & pembangunan TB-1, §12)
-- **Versi sebelumnya:** 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-11-01)**; TB-1 dibangun 2026-11-01, menunggu uji owner
+- **Versi:** 0.3 (2026-11-02: rincian & pembangunan TB-2, §13)
+- **Versi sebelumnya:** 0.2 (disetujui owner; TB-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-11-01)**; TB-1 SELESAI (`7bb4a3d`); TB-2 dibangun 2026-11-02, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, akses), PRD-002 (siswa & pendaftaran, orang tua/wali), PRD-003 (kasir, kuitansi, portal Anak saya), PRD-004 (kas, rekening, kategori sistem, mutasi), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → **(2) tabungan siswa** → (3) payment gateway Midtrans → (4) pembukuan
 
@@ -141,3 +141,11 @@ Setoran lewat payment gateway (Midtrans menyusul, PRD berikutnya), tabungan berj
 - **Kas (PRD-004)**: rekening Titipan tampil di tab Rekening dengan label **Titipan** (tanpa tombol Ubah); "Total saldo" hanya rekening operasional, titipan disebut terpisah. Buku kas "Semua rekening" dan **Laporan arus kas** tidak memuat rekening Titipan; buku kas Titipan bisa dilihat dengan memilih rekeningnya. Pemasukan manual, mutasi, realisasi pengeluaran, dan ubah saldo awal ke/dari rekening Titipan **ditolak**.
 - **Hak akses**: `finance.savings.view|manage` (§5). Lembaga di luar cakupan → 404; tanpa izin kelola → 403.
 - **Audit**: `finance.savings_deposited`, `finance.savings_withdrawn` (slip, jumlah, cara, tanggal, diambil oleh), `finance.savings_entry_voided` (slip, jenis, jumlah, alasan).
+
+## 13. TB-2 Halaman Tabungan, rekap bulanan, unduh, kartu Beranda [ASUMSI — rincian teknis 2026-11-02]
+
+- **Menu** Keuangan siswa → **Tabungan** (`/keuangan/tabungan`) untuk pemilik `finance.savings.view`; pilihan lembaga = node LEMBAGA aktif dalam cakupan izin itu (lembaga lain di URL diabaikan; unduhan lembaga lain → 404; tanpa izin → 403). Bila cakupan lebih dari satu lembaga: **Titipan per lembaga** (jumlah siswa bersaldo & total) di atas.
+- **Tab Saldo per siswa**: saring **kelas** (kelas berjalan, "Tanpa kelas", "Sudah keluar"), **cari** (sebagian nama, awal NIS/NISN, ≤ 100 karakter), bawaan hanya **saldo > 0**; centang "Tampilkan juga saldo Rp 0". Ringkasan jumlah siswa & total saldo; kotak per kelas (siswa bersaldo & total) bila tanpa saringan; daftar urut kelas lalu nama, 50 per halaman, berisi kelas, NIS, tanggal transaksi sah terakhir, saldo, tanda **"Sudah keluar, saldo belum diambil"** (OD-TB-07), tombol **Buka di kasir** (tab Tabungan). Data siswa diambil dari pendaftaran pada transaksi tabungan terakhirnya di lembaga itu.
+- **Tab Rekap bulanan** (12 bulan terakhir, bawaan bulan berjalan): saldo awal bulan, setoran, penarikan, bayar tagihan (bila ada), saldo akhir — hanya transaksi **Sah**; jumlah transaksi batal disebut terpisah. Daftar semua transaksi bulan itu (termasuk batal, bertanda) urut tanggal lalu nomor slip, dengan tautan slip.
+- **Unduh .xlsx**: saldo (`saldo-tabungan-<kode>-<YYYY-MM-DD>.xlsx`, lembar **Saldo**, saringan ikut, baris Total) dan rekap (`rekap-tabungan-<kode>-<YYYY-MM>.xlsx`, lembar **Ringkasan** & **Transaksi** termasuk yang batal + alasan). Bulan di luar pilihan → 404.
+- **Kartu Beranda** "Titipan tabungan siswa": jumlah siswa bersaldo, deskripsi total rupiah (dan jumlah lembaga bila lebih dari satu), tautan ke halaman Tabungan; untuk pemilik `finance.savings.view`, sesuai cakupan.

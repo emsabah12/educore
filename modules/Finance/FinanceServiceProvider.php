@@ -23,6 +23,7 @@ use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
 use Modules\Finance\Application\Report\Arrears;
+use Modules\Finance\Application\Savings\SavingsReport;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
 
 /**
@@ -62,6 +63,9 @@ class FinanceServiceProvider extends ModuleServiceProvider
         $this->app->make(DashboardCards::class)
             ->register('finance.expenses_pending', fn (): ?array => $this->expenseCard(FinanceAccess::EXPENSES_APPROVE))
             ->register('finance.expenses_approved', fn (): ?array => $this->expenseCard(FinanceAccess::CASH_MANAGE));
+
+        // Kartu Beranda "Titipan tabungan siswa" (PRD-005 §7, TB-2): pemilik finance.savings.view, sesuai cakupannya.
+        $this->app->make(DashboardCards::class)->register('finance.savings', fn (): ?array => $this->savingsCard());
 
         // Tombol "Tagihan" di halaman anak pada portal orang tua/wali (FN-5).
         $this->app->make(GuardianPortalLinks::class)->register('finance.billing', 'Tagihan', 'tagihan', 'receipt');
@@ -117,28 +121,73 @@ class FinanceServiceProvider extends ModuleServiceProvider
     /**
      * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
      */
-    private function arrearsCard(): ?array
+    private function savingsCard(): ?array
     {
         $context = $this->app->make(TenantContext::class)->get();
+        $organizationIds = $context === null ? [] : $this->visibleLembaga($context->tenantId, FinanceAccess::SAVINGS_VIEW);
 
-        if ($context === null) {
+        if ($context === null || $organizationIds === []) {
             return null;
         }
 
-        $visible = $this->app->make(AuthorizationService::class)->visibleNodeIds(FinanceAccess::BILLING_VIEW);
+        $students = 0;
+        $total = 0;
+        $organizations = 0;
+
+        foreach ($this->app->make(SavingsReport::class)->byOrganization($context->tenantId, $organizationIds) as $row) {
+            $students += $row['students'];
+            $total += $row['total'];
+            $organizations++;
+        }
+
+        return [
+            'key' => 'finance.savings',
+            'title' => 'Titipan tabungan siswa',
+            'value' => $students,
+            'description' => $students === 0
+                ? 'Belum ada saldo tabungan siswa.'
+                : Rupiah::format($total).' milik '.$students.' siswa'.($organizations > 1 ? " di {$organizations} lembaga." : '.'),
+            'href' => '/keuangan/tabungan',
+            'tone' => 'default',
+        ];
+    }
+
+    /**
+     * Id node LEMBAGA yang terlihat dengan $permission di yayasan ini.
+     *
+     * @return list<string>
+     */
+    private function visibleLembaga(string $tenantId, string $permission): array
+    {
+        $visible = $this->app->make(AuthorizationService::class)->visibleNodeIds($permission);
 
         if ($visible === []) {
-            return null;
+            return [];
         }
 
         $organizationIds = [];
 
         foreach (Organization::query()->withoutGlobalScope('tenant')
-            ->where('tenant_id', $context->tenantId)
+            ->where('tenant_id', $tenantId)
             ->whereIn('id', $visible)
             ->where('type', OrganizationType::Lembaga->value)
             ->pluck('id') as $id) {
             $organizationIds[] = (string) $id;
+        }
+
+        return $organizationIds;
+    }
+
+    /**
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function arrearsCard(): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+        $organizationIds = $context === null ? [] : $this->visibleLembaga($context->tenantId, FinanceAccess::BILLING_VIEW);
+
+        if ($context === null || $organizationIds === []) {
+            return null;
         }
 
         $students = 0;

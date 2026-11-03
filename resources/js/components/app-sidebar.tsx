@@ -25,6 +25,7 @@ import {
     LayoutGrid,
     Network,
     Percent,
+    PiggyBank,
     Plane,
     Receipt,
     ReceiptText,
@@ -205,6 +206,12 @@ const cashierNavItem: NavItem = {
     icon: CreditCard,
 };
 
+const savingsNavItem: NavItem = {
+    title: 'Tabungan',
+    href: '/keuangan/tabungan',
+    icon: PiggyBank,
+};
+
 const arrearsNavItem: NavItem = {
     title: 'Tunggakan',
     href: '/keuangan/tunggakan',
@@ -343,13 +350,19 @@ export function AppSidebar() {
         {
             key: 'billing',
             title: 'Keuangan siswa',
-            items: when(permissions.includes('finance.billing.view'), [
-                cashierNavItem,
-                invoicesNavItem,
-                arrearsNavItem,
-                receiptRecapNavItem,
-                discountsNavItem,
-            ]),
+            items: [
+                ...when(permissions.includes('finance.billing.view'), [
+                    cashierNavItem,
+                    invoicesNavItem,
+                    arrearsNavItem,
+                    receiptRecapNavItem,
+                    discountsNavItem,
+                ]),
+                // Tabungan siswa (PRD-005 TB-2).
+                ...when(permissions.includes('finance.savings.view'), [
+                    savingsNavItem,
+                ]),
+            ],
         },
         {
             key: 'cash',

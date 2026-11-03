@@ -13,6 +13,7 @@ use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
 use Modules\Finance\Http\Controllers\SavingsController;
+use Modules\Finance\Http\Controllers\SavingsReportController;
 
 /*
  * Route web modul Finance (PRD-003 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -53,6 +54,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/tabungan/tarik', [SavingsController::class, 'withdraw'])->name('finance.savings.withdraw');
     Route::post('keuangan/tabungan/{entry}/batalkan', [SavingsController::class, 'void'])->whereUuid('entry')->name('finance.savings.void');
     Route::get('keuangan/slip-tabungan/{entry}', [SavingsController::class, 'slip'])->whereUuid('entry')->name('finance.savings.slip');
+    // Halaman Tabungan (TB-2): saldo per siswa, rekap bulanan, unduh .xlsx. finance.savings.view, lembaga dalam cakupan.
+    Route::get('keuangan/tabungan', [SavingsReportController::class, 'index'])->name('finance.savings.index');
+    Route::get('keuangan/tabungan/unduh-saldo', [SavingsReportController::class, 'exportBalances'])->middleware('throttle:10,1')->name('finance.savings.export-balances');
+    Route::get('keuangan/tabungan/unduh-rekap', [SavingsReportController::class, 'exportMonthly'])->middleware('throttle:10,1')->name('finance.savings.export-monthly');
 
     // Tunggakan (FN-4a): finance.billing.view di lembaga itu.
     Route::get('keuangan/tunggakan', [ArrearsController::class, 'index'])->name('finance.arrears.index');
