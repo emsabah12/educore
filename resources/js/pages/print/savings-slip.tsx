@@ -31,6 +31,8 @@ type Props = {
     amountLabel: string;
     balanceLabel: string;
     backUrl: string;
+    /** Teks tautan kembali; bawaan untuk petugas (kasir). Portal orang tua: "Kembali ke tabungan". */
+    backLabel?: string;
 };
 
 const longDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
@@ -50,6 +52,7 @@ export default function PrintSavingsSlip({
     amountLabel,
     balanceLabel,
     backUrl,
+    backLabel = 'Kembali ke kasir',
 }: Props) {
     const voided = slip.status === 'BATAL';
     const title =
@@ -70,7 +73,7 @@ export default function PrintSavingsSlip({
                         className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4"
                     >
                         <ArrowLeft className="size-4" />
-                        Kembali ke kasir
+                        {backLabel}
                     </Link>
                     <button
                         type="button"

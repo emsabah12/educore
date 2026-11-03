@@ -1,8 +1,8 @@
 # PRD-005 — Modul Finance (Keuangan): Tabungan Siswa
 
-- **Versi:** 0.4 (2026-11-03: rincian & pembangunan TB-3, §14; §3.1 baris "Bayar tagihan dari tabungan" diperjelas)
-- **Versi sebelumnya:** 0.3 (TB-2, §13), 0.2 (disetujui owner; TB-1, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-11-01)**; TB-1 SELESAI (`7bb4a3d`); TB-2 SELESAI (`a6e9a65`); TB-3 dibangun 2026-11-03, menunggu uji owner
+- **Versi:** 0.5 (2026-11-03: rincian & pembangunan TB-4, §15)
+- **Versi sebelumnya:** 0.4 (TB-3, §14), 0.3 (TB-2, §13), 0.2 (disetujui owner; TB-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-11-01)**; TB-1 SELESAI (`7bb4a3d`); TB-2 SELESAI (`a6e9a65`); TB-3 SELESAI (`1bd00e2`); TB-4 dibangun 2026-11-03, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, akses), PRD-002 (siswa & pendaftaran, orang tua/wali), PRD-003 (kasir, kuitansi, portal Anak saya), PRD-004 (kas, rekening, kategori sistem, mutasi), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → **(2) tabungan siswa** → (3) payment gateway Midtrans → (4) pembukuan
 
@@ -158,3 +158,10 @@ Setoran lewat payment gateway (Midtrans menyusul, PRD berikutnya), tabungan berj
 - **Rekap penerimaan** (PRD-003 FN-4b): kolom/kotak **Dari tabungan** (tampil bila ada), juga di unduhan lembar Harian. **Rekap tabungan** (TB-2) menghitungnya sebagai "Bayar tagihan".
 - Setor/tarik tabungan tetap hanya Tunai / Transfer bank.
 - **Audit**: `finance.savings_used_for_payment` (slip, jumlah, kuitansi, tanggal); batal tercatat `finance.savings_entry_voided` + `finance.payment_voided`.
+
+## 15. TB-4 Portal orang tua: Tabungan di Anak saya [ASUMSI — rincian teknis 2026-11-03]
+
+- Halaman anak di **Anak saya** mendapat tombol **Tabungan** (registri Core `GuardianPortalLinks`, sesudah Tagihan) → `/anak-saya/{siswa}/tabungan`. Akses tanpa izin/role, cukup tautan orang tua/wali (sama dengan Tagihan, PRD-003 FN-5); bukan anaknya → 404.
+- Isi: per lembaga tempat anak pernah/sedang terdaftar **yang punya rekening tabungan** (lembaga yang sudah ditinggalkan tetap tampil, bertanda "Sudah keluar"), saldo, dan **30 transaksi Sah terakhir** (tanggal, jenis, cara, diambil oleh, catatan mis. "Kuitansi …", jumlah, saldo sesudahnya, tautan slip). Transaksi yang dibatalkan petugas **tidak ditampilkan** (sama dengan riwayat pembayaran FN-5). Total saldo tampil bila lebih dari satu lembaga. Belum punya tabungan → "… belum punya tabungan di sekolah."
+- **Slip** (`/anak-saya/{siswa}/slip-tabungan/{id}`): halaman cetak yang sama dengan petugas, tombol "Kembali ke tabungan"; hanya slip Sah milik pendaftaran anak itu, lainnya → 404.
+- Hanya baca; setor/tarik tetap di kasir sekolah.

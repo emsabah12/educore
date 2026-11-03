@@ -7,6 +7,7 @@ use Modules\Finance\Http\Controllers\CashController;
 use Modules\Finance\Http\Controllers\CashierController;
 use Modules\Finance\Http\Controllers\CashReportController;
 use Modules\Finance\Http\Controllers\ChildBillingController;
+use Modules\Finance\Http\Controllers\ChildSavingsController;
 use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
@@ -70,6 +71,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Portal orang tua/wali (FN-5): tagihan & kuitansi anak sendiri; akses dari tautan orang tua/wali, tanpa izin.
     Route::get('anak-saya/{student}/tagihan', [ChildBillingController::class, 'index'])->whereUuid('student')->name('finance.child-billing.index');
     Route::get('anak-saya/{student}/kuitansi/{payment}', [ChildBillingController::class, 'receipt'])->whereUuid(['student', 'payment'])->name('finance.child-billing.receipt');
+    // Tabungan anak (PRD-005 TB-4): saldo, transaksi sah, slip; akses dari tautan orang tua/wali, tanpa izin.
+    Route::get('anak-saya/{student}/tabungan', [ChildSavingsController::class, 'index'])->whereUuid('student')->name('finance.child-savings.index');
+    Route::get('anak-saya/{student}/slip-tabungan/{entry}', [ChildSavingsController::class, 'slip'])->whereUuid(['student', 'entry'])->name('finance.child-savings.slip');
 
     // Kas umum (PRD-004 KS-1). Lihat: finance.cash.view; kelola: finance.cash.manage di kas itu (lembaga / Yayasan).
     Route::get('keuangan/kas', [CashController::class, 'index'])->name('finance.cash.index');

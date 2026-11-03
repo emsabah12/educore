@@ -4,6 +4,7 @@ namespace Modules\Finance\Application\Savings;
 
 use Illuminate\Support\Facades\DB;
 use Modules\Finance\Domain\Payment\PaymentMethod;
+use Modules\Finance\Domain\Payment\PaymentStatus;
 use Modules\Finance\Domain\Savings\SavingsEntryKind;
 
 /**
@@ -18,9 +19,10 @@ final class SavingsOverview
     public const HISTORY_LIMIT = 30;
 
     /**
-     * @return array{balance: int, entries: list<SavingsRow>}
+     * @param  bool  $validOnly  hanya transaksi SAH (portal orang tua, TB-4)
+     * @return array{exists: bool, balance: int, entries: list<SavingsRow>}
      */
-    public function forStudent(string $tenantId, string $organizationId, string $studentId): array
+    public function forStudent(string $tenantId, string $organizationId, string $studentId, bool $validOnly = false): array
     {
         $account = DB::table('fn_savings_accounts')
             ->where('tenant_id', $tenantId)
@@ -29,13 +31,14 @@ final class SavingsOverview
             ->first(['id', 'balance']);
 
         if ($account === null) {
-            return ['balance' => 0, 'entries' => []];
+            return ['exists' => false, 'balance' => 0, 'entries' => []];
         }
 
         $entries = [];
 
         foreach (DB::table('fn_savings_entries')
             ->where('savings_account_id', $account->id)
+            ->when($validOnly, fn ($query) => $query->where('status', PaymentStatus::Valid->value))
             ->orderByDesc('entry_date')
             ->orderByDesc('slip_year')
             ->orderByDesc('slip_sequence')
@@ -58,6 +61,6 @@ final class SavingsOverview
             ];
         }
 
-        return ['balance' => (int) $account->balance, 'entries' => $entries];
+        return ['exists' => true, 'balance' => (int) $account->balance, 'entries' => $entries];
     }
 }

@@ -5,6 +5,7 @@ import {
     BookOpenCheck,
     CalendarCheck,
     Link2,
+    PiggyBank,
     Receipt,
 } from 'lucide-react';
 import Heading from '@/components/heading';
@@ -63,7 +64,10 @@ type Props = {
 /** Tombol dari modul lain (registri Core GuardianPortalLinks), mis. Keuangan: Tagihan. */
 type PortalLink = { key: string; label: string; suffix: string; icon: string };
 
-const linkIcons: Record<string, LucideIcon> = { receipt: Receipt };
+const linkIcons: Record<string, LucideIcon> = {
+    receipt: Receipt,
+    'piggy-bank': PiggyBank,
+};
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 

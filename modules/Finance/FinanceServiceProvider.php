@@ -68,7 +68,10 @@ class FinanceServiceProvider extends ModuleServiceProvider
         $this->app->make(DashboardCards::class)->register('finance.savings', fn (): ?array => $this->savingsCard());
 
         // Tombol "Tagihan" di halaman anak pada portal orang tua/wali (FN-5).
-        $this->app->make(GuardianPortalLinks::class)->register('finance.billing', 'Tagihan', 'tagihan', 'receipt');
+        $this->app->make(GuardianPortalLinks::class)
+            ->register('finance.billing', 'Tagihan', 'tagihan', 'receipt')
+            // Tombol "Tabungan" (PRD-005 §6, TB-4).
+            ->register('finance.savings', 'Tabungan', 'tabungan', 'piggy-bank');
     }
 
     /**

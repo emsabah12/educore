@@ -1,7 +1,7 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-01
-- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 & TB-2 SELESAI; TB-3 dibangun 2026-11-03, menunggu uji owner (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 s.d. TB-3 SELESAI; TB-4 (portal orang tua) dibangun 2026-11-03, menunggu uji owner — tahap terakhir PRD-005 (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
 - **Commit terakhir:** `c5dae4a` — feat(ui): UI-2 perapian halaman akademik & SDM
 
 ## Keputusan penting
@@ -800,11 +800,17 @@
 - Frontend: `pages/finance/savings.tsx` (tab Saldo per siswa · Rekap bulanan), menu Keuangan siswa → **Tabungan** (`components/app-sidebar.tsx`).
 - Test: `tests/Feature/Finance/SavingsReportTest.php` (4 test). 722 test lulus (7 arsitektur + 715), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
-**TB-3 — Bayar tagihan dari tabungan: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-005 §14
+**TB-3 — Bayar tagihan dari tabungan: SELESAI (`1bd00e2`)** — PRD-005 §14
 
 - Finance: migration `2026_11_03_300013_add_savings_method_to_fn_payments` (cara bayar `TABUNGAN`); `PaymentMethod::Savings`; `ManageSavings::payInvoices|voidPayment` (dipanggil `ManagePayments::record|void` di transaksi yang sama); `ManagePayments::ownerOf`; izin `finance.savings.manage` tambahan di `CashierController::store|void`; `ReceiptRecap`/`ReceiptRecapExport` kolom **Dari tabungan**; audit `finance.savings_used_for_payment`.
 - Frontend: `pages/finance/cashier.tsx` (cara bayar Tabungan siswa + saldo), `pages/finance/receipt-recap.tsx` (Dari tabungan).
 - Test: `tests/Feature/Finance/SavingsPaymentTest.php` (4 test, awalan `fnw`); `ReceiptRecapTest` disesuaikan. 726 test lulus (7 arsitektur + 719), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
+
+**TB-4 — Portal orang tua: Tabungan di Anak saya: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-005 §15
+
+- Finance: `Http/Controllers/ChildSavingsController` (route `finance.child-savings.index|slip`), tombol portal `finance.savings` di `FinanceServiceProvider`, `SavingsOverview::forStudent(..., validOnly)` (+ `exists`).
+- Frontend: `pages/finance/child-savings.tsx`, ikon `piggy-bank` di `pages/academic/my-children/show.tsx`, `pages/print/savings-slip.tsx` (`backLabel`).
+- Test: `tests/Feature/Finance/ChildSavingsTest.php` (3 test, awalan `fnx`); `ChildBillingTest` (tombol portal bertambah). 729 test lulus (7 arsitektur + 722), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
 ## Perapian tampilan
 
@@ -878,6 +884,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji TB-3 oleh owner, lalu **TB-4** (portal orang tua: tab Tabungan di Anak saya) — tahap terakhir PRD-005.
-2. Sesudahnya (urutan owner, PRD-004 §11): payment gateway Midtrans → pembukuan; masing-masing dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
+1. Uji TB-4 oleh owner (PRD-005 selesai).
+2. Berikutnya (urutan owner, PRD-004 §11): **payment gateway Midtrans** (draf PRD-006 → persetujuan owner), lalu pembukuan; masing-masing dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

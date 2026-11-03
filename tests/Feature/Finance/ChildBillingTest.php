@@ -97,7 +97,10 @@ test('orang tua melihat tombol Tagihan, sisa tagihan, dan riwayat pembayaran sah
 
     $this->actingAs($this->siti)->get(route('academic.my-children.show', ['student' => $ahmad->student_id]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('links', [['key' => 'finance.billing', 'label' => 'Tagihan', 'suffix' => 'tagihan', 'icon' => 'receipt']]));
+        ->assertInertia(fn (Assert $page) => $page->where('links', [
+            ['key' => 'finance.billing', 'label' => 'Tagihan', 'suffix' => 'tagihan', 'icon' => 'receipt'],
+            ['key' => 'finance.savings', 'label' => 'Tabungan', 'suffix' => 'tabungan', 'icon' => 'piggy-bank'],
+        ]));
 
     $this->get(route('finance.child-billing.index', ['student' => $ahmad->student_id]))
         ->assertOk()
