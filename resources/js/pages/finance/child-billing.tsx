@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CreditCard } from 'lucide-react';
+import { formatDateTime } from '@/components/finance/online-order';
+import type { OnlineOrder } from '@/components/finance/online-order';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,9 @@ type Props = {
     outstanding: number;
     today: string;
     historyLimit: number;
+    /** Bayar online Midtrans aktif (PRD-006 MG-2). */
+    onlineActive: boolean;
+    onlineOrders: OnlineOrder[];
 };
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -62,7 +67,12 @@ export default function ChildBilling({
     organizations,
     outstanding,
     historyLimit,
+    onlineActive,
+    onlineOrders,
 }: Props) {
+    const pending = onlineOrders.filter((order) => order.status === 'MENUNGGU');
+    const others = onlineOrders.filter((order) => order.status !== 'MENUNGGU');
+
     return (
         <>
             <Head title={`Tagihan — ${student.name}`} />
@@ -79,7 +89,11 @@ export default function ChildBilling({
 
                 <Heading
                     title="Tagihan"
-                    description="Sisa tagihan dan riwayat pembayaran. Pembayaran dilakukan melalui bendahara sekolah; kuitansi bisa dibuka dan dicetak di sini."
+                    description={
+                        onlineActive
+                            ? 'Sisa tagihan dan riwayat pembayaran. Bayar online lewat Virtual Account atau QRIS, atau melalui bendahara sekolah; kuitansi bisa dibuka dan dicetak di sini.'
+                            : 'Sisa tagihan dan riwayat pembayaran. Pembayaran dilakukan melalui bendahara sekolah; kuitansi bisa dibuka dan dicetak di sini.'
+                    }
                 />
 
                 {organizations.length === 0 ? (
@@ -88,14 +102,61 @@ export default function ChildBilling({
                     </p>
                 ) : (
                     <>
-                        <div className="rounded-xl border p-4">
-                            <p className="text-xs text-muted-foreground">
-                                Total sisa tagihan
-                            </p>
-                            <p className="text-2xl font-semibold tabular-nums">
-                                {formatRupiah(outstanding)}
-                            </p>
+                        <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border p-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Total sisa tagihan
+                                </p>
+                                <p className="text-2xl font-semibold tabular-nums">
+                                    {formatRupiah(outstanding)}
+                                </p>
+                            </div>
+                            {onlineActive && outstanding > 0 && (
+                                <Button asChild className="w-full sm:w-auto">
+                                    <Link
+                                        href={`/anak-saya/${student.id}/bayar-online`}
+                                    >
+                                        <CreditCard />
+                                        Bayar online
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
+
+                        {pending.map((order) => (
+                            <div
+                                key={order.id}
+                                className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+                            >
+                                <p className="font-medium">
+                                    Menunggu pembayaran{' '}
+                                    {formatRupiah(order.gross_amount)} lewat{' '}
+                                    {order.method_label}
+                                </p>
+                                <p>
+                                    Bayar sebelum{' '}
+                                    {formatDateTime(order.expires_at)}. Status
+                                    diperbarui otomatis setelah pembayaran
+                                    diterima.
+                                </p>
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                                    <Button asChild size="sm">
+                                        <a
+                                            href={`/anak-saya/${student.id}/bayar-online/${order.id}/lanjutkan`}
+                                        >
+                                            Lanjutkan pembayaran
+                                        </a>
+                                    </Button>
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link
+                                            href={`/anak-saya/${student.id}/bayar-online/${order.id}`}
+                                        >
+                                            Lihat status
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
 
                         {organizations.map((organization) => (
                             <section
@@ -251,6 +312,48 @@ export default function ChildBilling({
                                 </div>
                             </section>
                         ))}
+
+                        {others.length > 0 && (
+                            <section className="space-y-2 rounded-xl border p-4">
+                                <h2 className="text-sm font-medium">
+                                    Pembayaran online sebelumnya
+                                </h2>
+                                <ul className="divide-y rounded-lg border">
+                                    {others.map((order) => (
+                                        <li key={order.id}>
+                                            <Link
+                                                href={`/anak-saya/${student.id}/bayar-online/${order.id}`}
+                                                className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm hover:bg-muted/40"
+                                            >
+                                                <span className="min-w-0">
+                                                    {formatDateTime(
+                                                        order.created_at,
+                                                    )}{' '}
+                                                    · {order.method_label}
+                                                </span>
+                                                <span className="flex items-center gap-2">
+                                                    <span className="tabular-nums">
+                                                        {formatRupiah(
+                                                            order.gross_amount,
+                                                        )}
+                                                    </span>
+                                                    <Badge
+                                                        variant={
+                                                            order.status ===
+                                                            'LUNAS'
+                                                                ? 'default'
+                                                                : 'outline'
+                                                        }
+                                                    >
+                                                        {order.status_label}
+                                                    </Badge>
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
                     </>
                 )}
             </div>

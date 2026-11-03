@@ -69,7 +69,8 @@ final class Receipts
             'note' => $payment->note === null ? null : (string) $payment->note,
             'status' => (string) $payment->status,
             'void_reason' => $payment->void_reason === null ? null : (string) $payment->void_reason,
-            'recorded_by' => $payment->recorded_by === null ? null : (string) $payment->recorded_by,
+            // Kuitansi online dibuat otomatis (PRD-006 MG-2), tanpa petugas.
+            'recorded_by' => $payment->recorded_by !== null ? (string) $payment->recorded_by : ((string) $payment->method === PaymentMethod::Online->value ? 'Pembayaran online (otomatis)' : null),
             'student' => [
                 'name' => $student['name'] ?? '(siswa tidak ditemukan)',
                 'class' => $student['class'] ?? null,

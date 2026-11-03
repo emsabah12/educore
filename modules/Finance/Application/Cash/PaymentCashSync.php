@@ -18,7 +18,8 @@ use stdClass;
  *
  * Baris kas `source = PEMBAYARAN` adalah CERMINAN kuitansi; sumber aslinya tetap `fn_payments`. Aturan [ASUMSI KS-2]:
  * - satu kuitansi SAH = satu baris MASUK kategori sistem "Pembayaran siswa", tanggal = tanggal bayar;
- * - Tunai → Kas tunai lembaga; Transfer → rekening bank penerima transfer lembaga (bila belum ada: Kas tunai);
+ * - Tunai / Tabungan → Kas tunai lembaga; Transfer → rekening bank penerima transfer lembaga (bila belum ada: Kas tunai);
+ * - Online (PRD-006 §7) → rekening penerima pembayaran online (bila belum ada: penerima transfer, lalu Kas tunai);
  * - kuitansi bertanggal SEBELUM tanggal saldo awal rekening tujuan tidak dicerminkan (sudah termasuk saldo awal);
  * - kuitansi dibatalkan → cerminannya BATAL (tetap tampil); ditolak bila saldo rekening menjadi minus (OD-KS-08);
  * - bila tanggal saldo awal atau rekening penerima transfer berubah, cerminan SAH yang tidak lagi cocok disusun ulang
@@ -70,7 +71,7 @@ final class PaymentCashSync
                 ->where('code', ManageCashCategories::SYSTEM_STUDENT_PAYMENTS)
                 ->value('id');
 
-            [$cashAccount, $transferAccount] = $this->targets($tenantId, $organizationId);
+            [$cashAccount, $transferAccount, $onlineAccount] = $this->targets($tenantId, $organizationId);
 
             $payments = DB::table('fn_payments')
                 ->where('tenant_id', $tenantId)
@@ -103,7 +104,11 @@ final class PaymentCashSync
                     continue;
                 }
 
-                $account = (string) $payment->method === PaymentMethod::Transfer->value ? $transferAccount : $cashAccount;
+                $account = match ((string) $payment->method) {
+                    PaymentMethod::Transfer->value => $transferAccount,
+                    PaymentMethod::Online->value => $onlineAccount,
+                    default => $cashAccount,
+                };
                 $date = substr((string) $payment->paid_on, 0, 10);
                 $wanted = $date >= $account['opening_date'];
 
@@ -165,20 +170,21 @@ final class PaymentCashSync
     }
 
     /**
-     * Rekening tujuan: [Kas tunai, penerima transfer (atau Kas tunai)].
+     * Rekening tujuan: [Kas tunai, penerima transfer (atau Kas tunai), penerima online (atau penerima transfer)].
      *
-     * @return array{0: array{id: string, opening_date: string}, 1: array{id: string, opening_date: string}}
+     * @return array{0: array{id: string, opening_date: string}, 1: array{id: string, opening_date: string}, 2: array{id: string, opening_date: string}}
      */
     private function targets(string $tenantId, string $organizationId): array
     {
         $cash = null;
         $transfer = null;
+        $online = null;
 
         foreach (DB::table('fn_cash_accounts')
             ->where('tenant_id', $tenantId)
             ->where('organization_id', $organizationId)
-            ->where(fn ($query) => $query->where('kind', CashAccountKind::Cash->value)->orWhere('receives_transfers', true))
-            ->get(['id', 'kind', 'opening_date', 'receives_transfers']) as $account) {
+            ->where(fn ($query) => $query->where('kind', CashAccountKind::Cash->value)->orWhere('receives_transfers', true)->orWhere('receives_online', true))
+            ->get(['id', 'kind', 'opening_date', 'receives_transfers', 'receives_online']) as $account) {
             $row = ['id' => (string) $account->id, 'opening_date' => substr((string) $account->opening_date, 0, 10)];
 
             if ((string) $account->kind === CashAccountKind::Cash->value) {
@@ -188,13 +194,17 @@ final class PaymentCashSync
             if ((bool) $account->receives_transfers) {
                 $transfer = $row;
             }
+
+            if ((bool) $account->receives_online) {
+                $online = $row;
+            }
         }
 
         if ($cash === null) {
             throw FinanceException::make('form', 'Kas tunai lembaga tidak ditemukan.');
         }
 
-        return [$cash, $transfer ?? $cash];
+        return [$cash, $transfer ?? $cash, $online ?? $transfer ?? $cash];
     }
 
     /**

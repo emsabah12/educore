@@ -1,8 +1,8 @@
 # PRD-006 — Modul Finance (Keuangan): Pembayaran Online (Midtrans)
 
-- **Versi:** 0.2 (2026-11-03: disetujui owner; rincian & pembangunan MG-1, §15)
-- **Versi sebelumnya:** 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-11-03)**; MG-1 dibangun 2026-11-03, menunggu uji owner
+- **Versi:** 0.3 (2026-11-03: rincian & pembangunan MG-2, §16)
+- **Versi sebelumnya:** 0.2 (disetujui owner; MG-1, §15), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-11-03)**; MG-1 SELESAI (`93a5f30`); MG-2 dibangun 2026-11-03, menunggu uji owner
 - **Bergantung pada:** PRD-003 (tagihan, kuitansi, portal Tagihan FN-5), PRD-004 (buku kas, rekening penerima transfer KS-2), PRD-005 (tabungan — tidak diubah), PRD-000 (akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → **(3) payment gateway Midtrans** (yayasan sudah punya akun) → (4) pembukuan
 
@@ -150,3 +150,14 @@ Refund otomatis lewat API Midtrans, kartu kredit / e-wallet / minimarket, setora
 - **Pengaturan → tab Pembayaran online** (`finance.settings.manage` tingkat Yayasan): status (Aktif / Belum aktif, Sandbox / Produksi), per metode centang **dibuka** + **biaya layanan** — VA nominal Rp 0–50.000; QRIS 0–10% dengan ≤ 2 angka desimal (koma atau titik), disimpan sebagai basis poin, biaya = `ceil(tagihan × persen)`. Kunci belum dipasang → metode tidak bisa dibuka ("Kunci Midtrans belum dipasang di server (.env)…"). Tidak ada tarif bawaan [CEK]. Audit `finance.online_settings_updated` (hanya bila berubah).
 - **Kas → Rekening**: tombol **Jadikan penerima pembayaran online** / lepas pada rekening bank aktif lembaga (≤ 1 per lembaga, `fn_cash_accounts.receives_online`), lencana "Penerima pembayaran online". Dipakai buku kas di MG-2 (OD-MG-06).
 - **Data** (migration `2026_11_03_300014`): `fn_online_payment_methods`, `fn_online_payments` (satu MENUNGGU per pendaftaran, `gross = tagihan + biaya`), `fn_online_payment_events`. Pesanan & notifikasi dipakai mulai MG-2.
+
+## 16. MG-2 Bayar online di portal, webhook, kuitansi otomatis [ASUMSI — rincian teknis 2026-11-03]
+
+- **Anak saya → Tagihan**: tombol **Bayar online** (bila aktif & ada sisa tagihan); kartu kuning untuk pesanan **Menunggu** (total, metode, batas waktu, tombol **Lanjutkan pembayaran** & **Lihat status**); daftar "Pembayaran online sebelumnya" (10 terbaru, status).
+- **Bayar online** (`/anak-saya/{siswa}/bayar-online`): pilih lembaga (bila > 1), centang tagihan (bawaan semua yang belum lunas), pilih metode (dengan keterangan biaya), rincian Tagihan + Biaya layanan = **Total bayar** (perkiraan di browser; dihitung ulang server), batas waktu. **Lanjut bayar** → pesanan dibuat, lalu diarahkan penuh ke halaman Midtrans (`redirect_url`). Dibatasi 10 kali/menit.
+- **Pesanan**: `order_id` = `EDU-<KODE LEMBAGA tanpa tanda>-<YYYYMMDD>-<8 huruf/angka acak>`; Snap: `transaction_details`, `item_details` (tiap tagihan + "Biaya layanan <metode>"), `customer_details.first_name` = **nama siswa saja** (tanpa HP/email), `enabled_payments` = satu metode, `expiry` (start_time WIB, `minutes`, 1.440 / 15), `callbacks.finish` = `/anak-saya/{siswa}/bayar-online/selesai`. Pesanan MENUNGGU lama dibatalkan (juga di Midtrans; bila Midtrans menolak karena transaksinya belum ada → batal lokal; bila Midtrans tak bisa dihubungi → ditolak dengan pesan ramah). Snap gagal → pesanan **GAGAL**, pesan ramah, bisa diulang.
+- **Halaman status** (`/anak-saya/{siswa}/bayar-online/{id}`): status, rincian, tombol **Lanjutkan pembayaran / Cek status / Batalkan** (menunggu) atau **Lihat kuitansi** (lunas); pesan kelebihan bayar bila ada. Kembali dari Midtrans (`…/selesai?order_id=`) → status dicek sekali ke API lalu diarahkan ke halaman status.
+- **Webhook** `POST /webhook/midtrans` (tanpa login & CSRF, 120/menit): setiap notifikasi dicatat di `fn_online_payment_events` (tanpa `signature_key`); tanda tangan salah → **403**; order tak dikenal → 200 tanpa tindakan; selain itu status **dicek ulang ke API** — Midtrans tak bisa dihubungi → **503** (Midtrans mengirim ulang). `settlement` (atau `capture` + `fraud_status=accept`) dengan `gross_amount` **sama persis** → LUNAS; `expire` → KEDALUWARSA; `cancel` → DIBATALKAN; `deny`/`failure` → GAGAL; `pending` → tidak berubah. Jumlah beda → diabaikan & dicatat di log.
+- **Lunas** (satu transaksi, kunci baris pesanan, aman diulang): kuitansi cara bayar **ONLINE** ("Pembayaran online") untuk tagihan pesanan yang **masih terbuka**, jumlah = min(total tagihan pesanan, sisa sekarang), tanggal = tanggal `settlement_time` (WIB), catatan "Midtrans <metode> · <order_id>", petugas di kuitansi "Pembayaran online (otomatis)"; sisanya = **kelebihan bayar** (`overpaid_amount`, OD-MG-07; ditindaklanjuti bendahara di MG-3). Buku kas: MASUK "Pembayaran siswa" ke rekening penerima online → penerima transfer → Kas tunai (OD-MG-06; menandai/melepas penerima menyusun ulang cerminan).
+- **Kasir**: cara bayar ONLINE tidak bisa dipilih petugas. Catatan: di **Rekap penerimaan** kuitansi ONLINE sementara terhitung di kolom Transfer sampai kolom **Online** ditambahkan di MG-3.
+- **Audit**: `finance.online_payment_created|paid|expired|cancelled|failed` (+ `finance.payment_recorded` untuk kuitansinya).

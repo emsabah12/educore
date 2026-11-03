@@ -97,6 +97,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Zona waktu sesi database WAJIB sama dengan config('app.timezone') (UTC). Tanpa ini PostgreSQL memakai
+            // zona waktu servernya (mis. Asia/Jakarta di Laragon/Windows) sehingga kolom timestampTz yang ditulis
+            // Laravel (tanpa offset) bergeser 7 jam (MG-2-fix1).
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [

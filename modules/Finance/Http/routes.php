@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 use Modules\Finance\Http\Controllers\ArrearsController;
 use Modules\Finance\Http\Controllers\CashCategoryController;
@@ -7,11 +8,13 @@ use Modules\Finance\Http\Controllers\CashController;
 use Modules\Finance\Http\Controllers\CashierController;
 use Modules\Finance\Http\Controllers\CashReportController;
 use Modules\Finance\Http\Controllers\ChildBillingController;
+use Modules\Finance\Http\Controllers\ChildOnlinePaymentController;
 use Modules\Finance\Http\Controllers\ChildSavingsController;
 use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
+use Modules\Finance\Http\Controllers\MidtransWebhookController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
 use Modules\Finance\Http\Controllers\SavingsController;
 use Modules\Finance\Http\Controllers\SavingsReportController;
@@ -73,6 +76,15 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Portal orang tua/wali (FN-5): tagihan & kuitansi anak sendiri; akses dari tautan orang tua/wali, tanpa izin.
     Route::get('anak-saya/{student}/tagihan', [ChildBillingController::class, 'index'])->whereUuid('student')->name('finance.child-billing.index');
     Route::get('anak-saya/{student}/kuitansi/{payment}', [ChildBillingController::class, 'receipt'])->whereUuid(['student', 'payment'])->name('finance.child-billing.receipt');
+    // Bayar online (PRD-006 MG-2): tautan orang tua/wali, tanpa izin; pesanan anak sendiri saja.
+    Route::get('anak-saya/{student}/bayar-online', [ChildOnlinePaymentController::class, 'create'])->whereUuid('student')->name('finance.child-online.create');
+    Route::post('anak-saya/{student}/bayar-online', [ChildOnlinePaymentController::class, 'store'])->whereUuid('student')->middleware('throttle:10,1')->name('finance.child-online.store');
+    Route::get('anak-saya/{student}/bayar-online/selesai', [ChildOnlinePaymentController::class, 'finish'])->whereUuid('student')->name('finance.child-online.finish');
+    Route::get('anak-saya/{student}/bayar-online/{order}', [ChildOnlinePaymentController::class, 'show'])->whereUuid(['student', 'order'])->name('finance.child-online.show');
+    Route::post('anak-saya/{student}/bayar-online/{order}/cek', [ChildOnlinePaymentController::class, 'check'])->whereUuid(['student', 'order'])->middleware('throttle:20,1')->name('finance.child-online.check');
+    Route::get('anak-saya/{student}/bayar-online/{order}/lanjutkan', [ChildOnlinePaymentController::class, 'resume'])->whereUuid(['student', 'order'])->name('finance.child-online.resume');
+    Route::post('anak-saya/{student}/bayar-online/{order}/batalkan', [ChildOnlinePaymentController::class, 'cancel'])->whereUuid(['student', 'order'])->name('finance.child-online.cancel');
+
     // Tabungan anak (PRD-005 TB-4): saldo, transaksi sah, slip; akses dari tautan orang tua/wali, tanpa izin.
     Route::get('anak-saya/{student}/tabungan', [ChildSavingsController::class, 'index'])->whereUuid('student')->name('finance.child-savings.index');
     Route::get('anak-saya/{student}/slip-tabungan/{entry}', [ChildSavingsController::class, 'slip'])->whereUuid(['student', 'entry'])->name('finance.child-savings.slip');
@@ -116,3 +128,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Cari siswa aktif di lembaga untuk form keuangan; dibatasi 30 kali/menit.
     Route::get('keuangan/siswa/cari', [DiscountController::class, 'searchStudents'])->middleware('throttle:30,1')->name('finance.students.search');
 });
+
+// Notifikasi HTTP Midtrans (PRD-006 §5, MG-2): dipanggil server Midtrans, tanpa login & tanpa token CSRF. Keamanannya
+// dari tanda tangan + cek ulang status ke API Midtrans. Daftarkan URL ini di dashboard Midtrans (Payment Notification URL).
+Route::post('webhook/midtrans', MidtransWebhookController::class)
+    // Laravel 13: perlindungan CSRF di grup web = PreventRequestForgery (ValidateCsrfToken hanya turunannya, jadi
+    // mengecualikan ValidateCsrfToken tidak berpengaruh — MG-2-fix2).
+    ->withoutMiddleware([PreventRequestForgery::class])
+    ->middleware('throttle:120,1')
+    ->name('finance.midtrans.webhook');

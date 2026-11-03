@@ -74,7 +74,7 @@ final class CashierController
             ],
             'canPay' => $organizationId !== null && $this->authorization->allows(FinanceAccess::PAYMENTS_MANAGE, $organizationId),
             'today' => BusinessClock::todayString(),
-            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cases()),
+            'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::cashier()),
             'noteMax' => ManagePayments::NOTE_MAX_LENGTH,
             'voidReasonMax' => ManagePayments::REASON_MAX_LENGTH,
         ]);
@@ -105,7 +105,8 @@ final class CashierController
             'enrollment_id' => ['required', 'uuid'],
             'amount' => ['required', 'string', 'max:30'],
             'paid_on' => ['required', 'date_format:Y-m-d'],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            // ONLINE hanya dibuat otomatis dari Midtrans (PRD-006), tidak bisa dipilih petugas.
+            'method' => ['required', Rule::in(array_map(fn (PaymentMethod $method): string => $method->value, PaymentMethod::cashier()))],
             'note' => ['nullable', 'string', 'max:'.ManagePayments::NOTE_MAX_LENGTH],
             'invoice_ids' => ['nullable', 'array', 'max:200'],
             'invoice_ids.*' => ['uuid'],

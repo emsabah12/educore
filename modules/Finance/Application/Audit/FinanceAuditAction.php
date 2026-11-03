@@ -78,6 +78,18 @@ final class FinanceAuditAction
 
     public const ONLINE_SETTINGS_UPDATED = 'finance.online_settings_updated';
 
+    public const ONLINE_PAYMENT_CREATED = 'finance.online_payment_created';
+
+    public const ONLINE_PAYMENT_PAID = 'finance.online_payment_paid';
+
+    public const ONLINE_PAYMENT_EXPIRED = 'finance.online_payment_expired';
+
+    public const ONLINE_PAYMENT_CANCELLED = 'finance.online_payment_cancelled';
+
+    public const ONLINE_PAYMENT_FAILED = 'finance.online_payment_failed';
+
+    public const SUBJECT_ONLINE_PAYMENT = 'fn_online_payment';
+
     /** Pengaturan pembayaran online yayasan (subjek = id yayasan). */
     public const SUBJECT_ONLINE_SETTINGS = 'fn_online_payment_settings';
 
@@ -140,6 +152,11 @@ final class FinanceAuditAction
             self::SAVINGS_ENTRY_VOIDED => 'Transaksi tabungan dibatalkan',
             self::SAVINGS_USED_FOR_PAYMENT => 'Tagihan dibayar dari tabungan',
             self::ONLINE_SETTINGS_UPDATED => 'Pengaturan pembayaran online diubah',
+            self::ONLINE_PAYMENT_CREATED => 'Pembayaran online dibuat',
+            self::ONLINE_PAYMENT_PAID => 'Pembayaran online lunas',
+            self::ONLINE_PAYMENT_EXPIRED => 'Pembayaran online kedaluwarsa',
+            self::ONLINE_PAYMENT_CANCELLED => 'Pembayaran online dibatalkan',
+            self::ONLINE_PAYMENT_FAILED => 'Pembayaran online gagal',
         ];
     }
 }

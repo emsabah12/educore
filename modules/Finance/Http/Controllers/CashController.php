@@ -171,7 +171,7 @@ final class CashController
     /**
      * Rekening bank lembaga penerima pembayaran online (PRD-006 §7, MG-1).
      */
-    public function setOnlineReceiver(Request $request, string $account, ManageCashAccounts $accounts): RedirectResponse
+    public function setOnlineReceiver(Request $request, string $account, ManageCashAccounts $accounts, PaymentCashSync $sync): RedirectResponse
     {
         $owner = $accounts->ownerOf($this->tenantId(), $account);
 
@@ -183,6 +183,11 @@ final class CashController
         $receives = $request->boolean('receives');
 
         $this->attempt(fn () => $accounts->setOnlineReceiver($this->tenantId(), $account, $receives));
+
+        // Kuitansi online yang sudah ada dipindah ke rekening penerima yang baru (sama dengan penerima transfer, KS-2).
+        if ($owner['organization_id'] !== null) {
+            $sync->syncOrganization($this->tenantId(), $owner['organization_id']);
+        }
 
         return $this->done($receives ? 'Rekening ini menerima pembayaran online (Midtrans).' : 'Pembayaran online akan dicatat ke rekening penerima transfer siswa.');
     }

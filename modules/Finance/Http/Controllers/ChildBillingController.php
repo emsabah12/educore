@@ -8,6 +8,8 @@ use Modules\Academic\Contracts\GuardianChildren;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Online\OnlinePaymentList;
+use Modules\Finance\Application\Online\OnlinePaymentSettings;
 use Modules\Finance\Application\Payment\CashierOverview;
 use Modules\Finance\Application\Payment\Receipts;
 use Modules\Finance\Domain\Payment\PaymentStatus;
@@ -26,7 +28,7 @@ final class ChildBillingController
         private readonly GuardianChildren $children,
     ) {}
 
-    public function index(string $student, CashierOverview $overview): Response
+    public function index(string $student, CashierOverview $overview, OnlinePaymentSettings $online, OnlinePaymentList $orders): Response
     {
         $context = $this->tenantContext->require();
         $child = $this->children->child($context->tenantId, $context->membershipId, $student) ?? abort(404);
@@ -81,6 +83,9 @@ final class ChildBillingController
             'outstanding' => $outstanding,
             'today' => $today,
             'historyLimit' => CashierOverview::HISTORY_LIMIT,
+            // PRD-006 MG-2: bayar online (aktif bila kunci terpasang & ada metode dibuka) + pesanan terbaru.
+            'onlineActive' => $online->isActive($context->tenantId),
+            'onlineOrders' => $orders->recent($context->tenantId, array_column($child['enrollments'], 'enrollment_id')),
         ]);
     }
 
