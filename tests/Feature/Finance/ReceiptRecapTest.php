@@ -101,10 +101,10 @@ test('rekap bulan: semua lembaga bawaan; per hari, per jenis biaya, per lembaga;
             ->where('months.0', ['value' => '2026-10', 'label' => 'Oktober 2026'])
             ->has('months', 25)
             ->where('day', null)
-            ->where('summary.totals', ['count' => 4, 'amount' => 750000, 'cash' => 450000, 'transfer' => 300000, 'voided_count' => 1, 'voided_amount' => 150000])
+            ->where('summary.totals', ['count' => 4, 'amount' => 750000, 'cash' => 450000, 'transfer' => 300000, 'savings' => 0, 'voided_count' => 1, 'voided_amount' => 150000])
             ->where('summary.days', [
-                ['date' => '2026-10-05', 'count' => 2, 'cash' => 150000, 'transfer' => 300000, 'total' => 450000],
-                ['date' => '2026-10-12', 'count' => 2, 'cash' => 300000, 'transfer' => 0, 'total' => 300000],
+                ['date' => '2026-10-05', 'count' => 2, 'cash' => 150000, 'transfer' => 300000, 'savings' => 0, 'total' => 450000],
+                ['date' => '2026-10-12', 'count' => 2, 'cash' => 300000, 'transfer' => 0, 'savings' => 0, 'total' => 300000],
             ])
             ->where('summary.fee_types', [['name' => 'SPP', 'amount' => 650000], ['name' => 'Seragam', 'amount' => 100000]])
             ->where('summary.organizations', [
@@ -159,8 +159,8 @@ test('unduh .xlsx: harian, per jenis biaya, per lembaga, transaksi', function ()
 
     expect(array_keys($sheets))->toBe(['Harian', 'Per jenis biaya', 'Per lembaga', 'Transaksi'])
         ->and($sheets['Harian'][0][0])->toBe('Rekap penerimaan semua lembaga — Oktober 2026')
-        ->and($sheets['Harian'][2])->toBe([1, '2026-10-05', 2, 150000, 300000, 450000])
-        ->and($sheets['Harian'][4])->toBe(['', 'Total', 4, 450000, 300000, 750000])
+        ->and($sheets['Harian'][2])->toBe([1, '2026-10-05', 2, 150000, 300000, 0, 450000])
+        ->and($sheets['Harian'][4])->toBe(['', 'Total', 4, 450000, 300000, 0, 750000])
         ->and(end($sheets['Harian'])[1])->toBe('Dibatalkan (tidak dihitung): 1 transaksi, Rp 150.000')
         ->and($sheets['Per jenis biaya'][2])->toBe([1, 'SPP', 650000])
         ->and($sheets['Per lembaga'][3])->toBe([2, 'MTs Unit 1', 1, 200000])

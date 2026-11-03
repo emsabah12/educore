@@ -11,6 +11,7 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Savings\ManageSavings;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
 use Modules\Finance\Domain\Payment\PaymentMethod;
@@ -27,6 +28,8 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
  * - nomor kuitansi `KODE-LEMBAGA/TAHUN/000001`, urut per lembaga per tahun tanggal bayar, tidak lompat/dobel
  *   walau dua petugas menyimpan bersamaan (kunci per lembaga × tahun);
  * - batal: alasan wajib; alokasinya dikembalikan sehingga tagihan terbuka lagi; kuitansi tetap ada (BATAL).
+ * - cara bayar Tabungan (PRD-005 TB-3): saldo tabungan siswa di lembaga itu berkurang di transaksi yang sama (kurang →
+ *   ditolak); kuitansi dibatalkan → saldo kembali. Hak akses tabungan dicek pemanggil.
  */
 final class ManagePayments
 {
@@ -40,6 +43,7 @@ final class ManagePayments
         private readonly EnrolledStudents $students,
         private readonly AuditLogger $audit,
         private readonly PaymentCashSync $cashSync,
+        private readonly ManageSavings $savings,
     ) {}
 
     /**
@@ -51,7 +55,7 @@ final class ManagePayments
     public function record(string $tenantId, string $organizationId, string $enrollmentId, mixed $amount, string $paidOn, string $method, ?string $note, ?array $invoiceIds, ?string $membershipId): string
     {
         $value = Rupiah::parse($amount, 'amount', 'jumlah bayar', 1, self::MAX_AMOUNT);
-        $methodCase = PaymentMethod::tryFrom($method) ?? throw FinanceException::make('method', 'Pilih cara bayar: tunai atau transfer.');
+        $methodCase = PaymentMethod::tryFrom($method) ?? throw FinanceException::make('method', 'Pilih cara bayar: tunai, transfer, atau tabungan.');
         $date = $this->paidOn($paidOn);
         $note = $note === null ? null : trim((string) preg_replace('/\s+/u', ' ', $note));
         $note = $note === '' ? null : $note;
@@ -149,6 +153,11 @@ final class ManagePayments
                 ]);
             }
 
+            // Dari tabungan (TB-3): saldo dipotong; saldo kurang → seluruh pembayaran batal disimpan.
+            if ($methodCase === PaymentMethod::Savings) {
+                $this->savings->payInvoices($tenantId, $organizationId, $enrollmentId, $value, $date, $paymentId, $number, $membershipId);
+            }
+
             $this->audit->record(
                 FinanceAuditAction::PAYMENT_RECORDED,
                 FinanceAuditAction::SUBJECT_PAYMENT,
@@ -166,17 +175,17 @@ final class ManagePayments
     }
 
     /**
-     * Lembaga pemilik pembayaran (untuk cek hak akses), atau null bila tidak ada di yayasan ini.
+     * Lembaga & cara bayar pembayaran (untuk cek hak akses), atau null bila tidak ada di yayasan ini.
+     *
+     * @return array{organization_id: string, method: string}|null
      */
-    public function organizationOf(string $tenantId, string $paymentId): ?string
+    public function ownerOf(string $tenantId, string $paymentId): ?array
     {
-        if (! Str::isUuid($paymentId)) {
-            return null;
-        }
+        $payment = Str::isUuid($paymentId)
+            ? DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->first(['organization_id', 'method'])
+            : null;
 
-        $organizationId = DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->value('organization_id');
-
-        return $organizationId === null ? null : (string) $organizationId;
+        return $payment === null ? null : ['organization_id' => (string) $payment->organization_id, 'method' => (string) $payment->method];
     }
 
     /**
@@ -192,7 +201,7 @@ final class ManagePayments
 
         DB::transaction(function () use ($tenantId, $paymentId, $reason, $membershipId): void {
             $payment = Str::isUuid($paymentId)
-                ? DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->lockForUpdate()->first(['id', 'organization_id', 'receipt_number', 'amount', 'status'])
+                ? DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->lockForUpdate()->first(['id', 'organization_id', 'receipt_number', 'amount', 'method', 'status'])
                 : null;
 
             if ($payment === null) {
@@ -228,6 +237,11 @@ final class ManagePayments
                 'voided_by_membership_id' => $membershipId,
                 'updated_at' => $now,
             ]);
+
+            // Dibayar dari tabungan (TB-3): saldo tabungan dikembalikan.
+            if ((string) $payment->method === PaymentMethod::Savings->value) {
+                $this->savings->voidPayment($tenantId, (string) $payment->id, $reason, $membershipId);
+            }
 
             // Baris buku kas ikut batal; ditolak bila saldo rekening menjadi minus (PRD-004 KS-2, OD-KS-08).
             $this->cashSync->syncPayment($tenantId, (string) $payment->organization_id, (string) $payment->id);

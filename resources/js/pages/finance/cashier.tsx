@@ -330,6 +330,11 @@ function StudentPanel({
                         today={today}
                         methods={methods}
                         noteMax={noteMax}
+                        savingsBalance={
+                            canSave && savings !== null && savings.balance > 0
+                                ? savings.balance
+                                : null
+                        }
                     />
                 ) : (
                     <InvoiceList invoices={invoices} />
@@ -382,6 +387,7 @@ function PaymentForm({
     today,
     methods,
     noteMax,
+    savingsBalance,
 }: {
     organizationId: string;
     enrollmentId: string;
@@ -389,10 +395,17 @@ function PaymentForm({
     today: string;
     methods: Option[];
     noteMax: number;
+    /** Saldo tabungan yang boleh dipakai (PRD-005 TB-3); null = cara bayar Tabungan tidak ditawarkan. */
+    savingsBalance: number | null;
 }) {
     // Kosong = semua tagihan, dibayar urut jatuh tempo terlama.
     const [selected, setSelected] = useState<string[]>([]);
     const [amount, setAmount] = useState('');
+    const paymentMethods = methods.filter(
+        (method) => method.value !== 'TABUNGAN' || savingsBalance !== null,
+    );
+    const [method, setMethod] = useState(paymentMethods[0]?.value ?? '');
+    const fromSavings = method === 'TABUNGAN' && savingsBalance !== null;
 
     const target = useMemo(() => {
         const chosen =
@@ -491,13 +504,28 @@ function PaymentForm({
                                 maxLength={20}
                                 required
                             />
-                            <button
-                                type="button"
-                                className="justify-self-start text-xs font-medium underline underline-offset-4"
-                                onClick={() => setAmount(rupiah.format(target))}
-                            >
-                                Isi lunas: {formatRupiah(target)}
-                            </button>
+                            {fromSavings && savingsBalance < target ? (
+                                <button
+                                    type="button"
+                                    className="justify-self-start text-xs font-medium underline underline-offset-4"
+                                    onClick={() =>
+                                        setAmount(rupiah.format(savingsBalance))
+                                    }
+                                >
+                                    Pakai seluruh saldo:{' '}
+                                    {formatRupiah(savingsBalance)}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="justify-self-start text-xs font-medium underline underline-offset-4"
+                                    onClick={() =>
+                                        setAmount(rupiah.format(target))
+                                    }
+                                >
+                                    Isi lunas: {formatRupiah(target)}
+                                </button>
+                            )}
                             <InputError message={errors.amount} />
                         </div>
                         <div className="grid content-start gap-1.5">
@@ -518,17 +546,27 @@ function PaymentForm({
                                 id="pay-method"
                                 name="method"
                                 className={selectClass}
-                                defaultValue={methods[0]?.value}
+                                value={method}
+                                onChange={(event) =>
+                                    setMethod(event.target.value)
+                                }
                             >
-                                {methods.map((method) => (
+                                {paymentMethods.map((option) => (
                                     <option
-                                        key={method.value}
-                                        value={method.value}
+                                        key={option.value}
+                                        value={option.value}
                                     >
-                                        {method.label}
+                                        {option.label}
                                     </option>
                                 ))}
                             </select>
+                            {fromSavings && (
+                                <p className="text-xs text-muted-foreground">
+                                    Saldo tabungan{' '}
+                                    {formatRupiah(savingsBalance)}; jumlah bayar
+                                    tidak boleh melebihi saldo.
+                                </p>
+                            )}
                             <InputError message={errors.method} />
                         </div>
                     </div>
@@ -902,14 +940,18 @@ function SavingsForm({
                                 className={selectClass}
                                 defaultValue={methods[0]?.value}
                             >
-                                {methods.map((method) => (
-                                    <option
-                                        key={method.value}
-                                        value={method.value}
-                                    >
-                                        {method.label}
-                                    </option>
-                                ))}
+                                {methods
+                                    .filter(
+                                        (method) => method.value !== 'TABUNGAN',
+                                    )
+                                    .map((method) => (
+                                        <option
+                                            key={method.value}
+                                            value={method.value}
+                                        >
+                                            {method.label}
+                                        </option>
+                                    ))}
                             </select>
                             <InputError message={errors.method} />
                         </div>

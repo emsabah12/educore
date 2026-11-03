@@ -72,6 +72,8 @@ final class FinanceAuditAction
 
     public const SAVINGS_ENTRY_VOIDED = 'finance.savings_entry_voided';
 
+    public const SAVINGS_USED_FOR_PAYMENT = 'finance.savings_used_for_payment';
+
     public const SUBJECT_SAVINGS_ENTRY = 'fn_savings_entry';
 
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
@@ -131,6 +133,7 @@ final class FinanceAuditAction
             self::SAVINGS_DEPOSITED => 'Setoran tabungan dicatat',
             self::SAVINGS_WITHDRAWN => 'Penarikan tabungan dicatat',
             self::SAVINGS_ENTRY_VOIDED => 'Transaksi tabungan dibatalkan',
+            self::SAVINGS_USED_FOR_PAYMENT => 'Tagihan dibayar dari tabungan',
         ];
     }
 }

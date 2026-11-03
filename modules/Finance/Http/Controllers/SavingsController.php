@@ -125,7 +125,8 @@ final class SavingsController
             'enrollment_id' => ['required', 'uuid'],
             'amount' => ['required', 'string', 'max:30'],
             'entry_date' => ['required', 'date_format:Y-m-d'],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            // Setor/tarik hanya tunai atau transfer (TABUNGAN khusus kuitansi).
+            'method' => ['required', Rule::in([PaymentMethod::Cash->value, PaymentMethod::Transfer->value])],
             'taken_by' => $withdrawal ? ['required', 'string', 'max:'.ManageSavings::TAKEN_BY_MAX_LENGTH] : ['prohibited'],
             'note' => ['nullable', 'string', 'max:'.ManageSavings::NOTE_MAX_LENGTH],
         ], [

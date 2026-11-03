@@ -73,9 +73,9 @@ final class ReceiptRecapExport
      */
     private function daySheet(Writer $writer, string $title, array $days, array $totals): void
     {
-        $this->prepare($writer, 'Harian', [5, 14, 12, 16, 16, 16]);
+        $this->prepare($writer, 'Harian', [5, 14, 12, 16, 16, 18, 16]);
         $writer->addRow(Row::fromValues([$title]));
-        $writer->addRow($this->header(['No', 'Tanggal', 'Transaksi', 'Tunai (Rp)', 'Transfer (Rp)', 'Total (Rp)']));
+        $writer->addRow($this->header(['No', 'Tanggal', 'Transaksi', 'Tunai (Rp)', 'Transfer (Rp)', 'Dari tabungan (Rp)', 'Total (Rp)']));
         $money = (new Style)->withFormat(self::MONEY_FORMAT);
 
         foreach ($days as $index => $day) {
@@ -85,11 +85,12 @@ final class ReceiptRecapExport
                 Cell::fromValue($day['count']),
                 Cell::fromValue($day['cash'], $money),
                 Cell::fromValue($day['transfer'], $money),
+                Cell::fromValue($day['savings'], $money),
                 Cell::fromValue($day['total'], $money),
             ]));
         }
 
-        $writer->addRow($this->totalRow(['', 'Total', $totals['count'], $totals['cash'], $totals['transfer'], $totals['amount']], [3, 4, 5]));
+        $writer->addRow($this->totalRow(['', 'Total', $totals['count'], $totals['cash'], $totals['transfer'], $totals['savings'], $totals['amount']], [3, 4, 5, 6]));
 
         if ($totals['voided_count'] > 0) {
             $writer->addRow(Row::fromValues([]));

@@ -120,6 +120,11 @@ final class CashierController
         $organizationId = $request->string('organization_id')->value();
         $this->authorizeAt($organizationId, FinanceAccess::PAYMENTS_MANAGE);
 
+        // Bayar dari tabungan (PRD-005 §5, TB-3): juga butuh izin kelola tabungan.
+        if ($request->string('method')->value() === PaymentMethod::Savings->value) {
+            $this->authorizeAt($organizationId, FinanceAccess::SAVINGS_MANAGE);
+        }
+
         /** @var list<string>|null $invoiceIds */
         $invoiceIds = $request->filled('invoice_ids') ? array_values(array_map('strval', (array) $request->input('invoice_ids'))) : null;
 
@@ -142,13 +147,18 @@ final class CashierController
 
     public function void(Request $request, string $payment, ManagePayments $payments): RedirectResponse
     {
-        $organizationId = $payments->organizationOf($this->tenantId(), $payment);
+        $owner = $payments->ownerOf($this->tenantId(), $payment);
 
-        if ($organizationId === null) {
+        if ($owner === null) {
             abort(404);
         }
 
-        $this->authorizeAt($organizationId, FinanceAccess::PAYMENTS_MANAGE);
+        $this->authorizeAt($owner['organization_id'], FinanceAccess::PAYMENTS_MANAGE);
+
+        // Membatalkan kuitansi dari tabungan mengembalikan saldo tabungan: juga butuh izin kelola tabungan.
+        if ($owner['method'] === PaymentMethod::Savings->value) {
+            $this->authorizeAt($owner['organization_id'], FinanceAccess::SAVINGS_MANAGE);
+        }
 
         $request->validate(['reason' => ['required', 'string', 'max:'.ManagePayments::REASON_MAX_LENGTH]], [
             'reason.required' => 'Alasan pembatalan wajib diisi.',
@@ -160,7 +170,9 @@ final class CashierController
             return true;
         });
 
-        return $this->done('Pembayaran dibatalkan; tagihannya terbuka kembali.');
+        return $this->done($owner['method'] === PaymentMethod::Savings->value
+            ? 'Pembayaran dibatalkan; tagihannya terbuka kembali dan saldo tabungan dikembalikan.'
+            : 'Pembayaran dibatalkan; tagihannya terbuka kembali.');
     }
 
     /**

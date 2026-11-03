@@ -1,8 +1,8 @@
 # PRD-005 — Modul Finance (Keuangan): Tabungan Siswa
 
-- **Versi:** 0.3 (2026-11-02: rincian & pembangunan TB-2, §13)
-- **Versi sebelumnya:** 0.2 (disetujui owner; TB-1, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-11-01)**; TB-1 SELESAI (`7bb4a3d`); TB-2 dibangun 2026-11-02, menunggu uji owner
+- **Versi:** 0.4 (2026-11-03: rincian & pembangunan TB-3, §14; §3.1 baris "Bayar tagihan dari tabungan" diperjelas)
+- **Versi sebelumnya:** 0.3 (TB-2, §13), 0.2 (disetujui owner; TB-1, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-11-01)**; TB-1 SELESAI (`7bb4a3d`); TB-2 SELESAI (`a6e9a65`); TB-3 dibangun 2026-11-03, menunggu uji owner
 - **Bergantung pada:** PRD-000 (pondasi, pohon lembaga, akses), PRD-002 (siswa & pendaftaran, orang tua/wali), PRD-003 (kasir, kuitansi, portal Anak saya), PRD-004 (kas, rekening, kategori sistem, mutasi), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → **(2) tabungan siswa** → (3) payment gateway Midtrans → (4) pembukuan
 
@@ -48,12 +48,12 @@ Rekening kas "Titipan tabungan"           jenis rekening baru TITIPAN di fn_cash
 
 ### 3.1 Hubungan dengan buku kas (OD-TB-03)
 
-| Kejadian                      | Buku kas lembaga (otomatis)                                                                                                 |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Setoran                       | MASUK ke rekening **Titipan tabungan**, kategori sistem **Setoran tabungan**                                                |
-| Penarikan                     | KELUAR dari **Titipan tabungan**, kategori sistem **Penarikan tabungan**                                                    |
-| Bayar tagihan dari tabungan   | Mutasi otomatis **Titipan tabungan → Kas tunai** (pasangan KELUAR/MASUK), lalu pembayaran tercatat seperti biasa (kuitansi) |
-| Transaksi tabungan dibatalkan | Transaksi kas pasangannya ikut batal                                                                                        |
+| Kejadian                      | Buku kas lembaga (otomatis)                                                                                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setoran                       | MASUK ke rekening **Titipan tabungan**, kategori sistem **Setoran tabungan**                                                                                                                                                                                                                                        |
+| Penarikan                     | KELUAR dari **Titipan tabungan**, kategori sistem **Penarikan tabungan**                                                                                                                                                                                                                                            |
+| Bayar tagihan dari tabungan   | KELUAR dari **Titipan tabungan** (kategori sistem Penarikan tabungan, uraian "Bayar tagihan dari tabungan"), lalu kuitansi tercermin sebagai MASUK **Pembayaran siswa** di **Kas tunai** (PRD-004 KS-2) — efeknya sama dengan mutasi Titipan → Kas tunai, tetapi tetap terhitung sebagai pemasukan pembayaran siswa |
+| Transaksi tabungan dibatalkan | Transaksi kas pasangannya ikut batal                                                                                                                                                                                                                                                                                |
 
 - Saldo rekening Titipan tabungan = jumlah semua saldo tabungan siswa di lembaga itu. Rekening ini **tidak dihitung dalam saldo operasional** di ringkasan kas dan laporan arus kas. Rekening ini ditampilkan terpisah sebagai "Titipan".
 - Uang fisik tabungan boleh disimpan di laci/brankas tersendiri. Aplikasi hanya memastikan pencatatannya terpisah. Setoran yang ditransfer ke rekening bank tetap dicatat di Titipan tabungan dengan cara "Transfer" (lihat OD-TB-04).
@@ -149,3 +149,12 @@ Setoran lewat payment gateway (Midtrans menyusul, PRD berikutnya), tabungan berj
 - **Tab Rekap bulanan** (12 bulan terakhir, bawaan bulan berjalan): saldo awal bulan, setoran, penarikan, bayar tagihan (bila ada), saldo akhir — hanya transaksi **Sah**; jumlah transaksi batal disebut terpisah. Daftar semua transaksi bulan itu (termasuk batal, bertanda) urut tanggal lalu nomor slip, dengan tautan slip.
 - **Unduh .xlsx**: saldo (`saldo-tabungan-<kode>-<YYYY-MM-DD>.xlsx`, lembar **Saldo**, saringan ikut, baris Total) dan rekap (`rekap-tabungan-<kode>-<YYYY-MM>.xlsx`, lembar **Ringkasan** & **Transaksi** termasuk yang batal + alasan). Bulan di luar pilihan → 404.
 - **Kartu Beranda** "Titipan tabungan siswa": jumlah siswa bersaldo, deskripsi total rupiah (dan jumlah lembaga bila lebih dari satu), tautan ke halaman Tabungan; untuk pemilik `finance.savings.view`, sesuai cakupan.
+
+## 14. TB-3 Bayar tagihan dari tabungan [ASUMSI — rincian teknis 2026-11-03]
+
+- **Kasir → tab Tagihan & bayar**: cara bayar ketiga **Tabungan siswa** (`fn_payments.method = TABUNGAN`) hanya ditawarkan bila pengguna punya `finance.payments.manage` **dan** `finance.savings.manage` di lembaga itu dan saldo tabungan siswa > 0; saat dipilih tampil saldo dan tombol "Pakai seluruh saldo" bila saldo kurang dari tagihan terpilih. Server tetap memeriksa izin & saldo.
+- **Simpan**: satu transaksi database — kuitansi biasa (nomor, alokasi tagihan, cicil boleh, kelebihan bayar ditolak) + transaksi tabungan **BAYAR_TAGIHAN** (slip `TAB-…` berurut, tanpa cara, catatan "Kuitansi …", `payment_id`) + baris KELUAR di **Titipan tabungan**; kuitansi tercermin MASUK di **Kas tunai**. Saldo kurang → "Saldo tabungan tidak cukup. Saldo sekarang Rp …" dan tidak ada yang tersimpan. Siswa yang belum pernah menabung → "Siswa ini belum punya tabungan di lembaga ini." Siswa yang sudah keluar tetap boleh membayar tunggakan dari saldonya.
+- **Kuitansi** menampilkan cara bayar **Tabungan siswa**. **Batal kuitansi** (butuh juga `finance.savings.manage`): tagihan terbuka lagi, transaksi BAYAR_TAGIHAN ikut BATAL ("Kuitansi dibatalkan: …"), saldo kembali, baris Titipan & Kas tunai ikut batal. Transaksi BAYAR_TAGIHAN tidak bisa dibatalkan dari tab Tabungan.
+- **Rekap penerimaan** (PRD-003 FN-4b): kolom/kotak **Dari tabungan** (tampil bila ada), juga di unduhan lembar Harian. **Rekap tabungan** (TB-2) menghitungnya sebagai "Bayar tagihan".
+- Setor/tarik tabungan tetap hanya Tunai / Transfer bank.
+- **Audit**: `finance.savings_used_for_payment` (slip, jumlah, kuitansi, tanggal); batal tercatat `finance.savings_entry_voided` + `finance.payment_voided`.

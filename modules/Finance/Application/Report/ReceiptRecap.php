@@ -17,8 +17,8 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
  * - Hanya pembayaran SAH yang dihitung; pembayaran batal tetap muncul di daftar transaksi (bertanda) dan
  *   dihitung terpisah.
  *
- * @phpstan-type Totals array{count: int, amount: int, cash: int, transfer: int, voided_count: int, voided_amount: int}
- * @phpstan-type DayRow array{date: string, count: int, cash: int, transfer: int, total: int}
+ * @phpstan-type Totals array{count: int, amount: int, cash: int, transfer: int, savings: int, voided_count: int, voided_amount: int}
+ * @phpstan-type DayRow array{date: string, count: int, cash: int, transfer: int, savings: int, total: int}
  * @phpstan-type FeeTypeRow array{name: string, amount: int}
  * @phpstan-type OrganizationRow array{organization_id: string, count: int, total: int}
  * @phpstan-type Transaction array{id: string, organization_id: string, enrollment_id: string, receipt_number: string, paid_on: string, method: string, amount: int, status: string, void_reason: string|null, name: string, class: string|null, items: list<string>, recorded_by: string|null}
@@ -67,7 +67,7 @@ final class ReceiptRecap
     {
         [$from, $to] = self::range($month);
 
-        $totals = ['count' => 0, 'amount' => 0, 'cash' => 0, 'transfer' => 0, 'voided_count' => 0, 'voided_amount' => 0];
+        $totals = ['count' => 0, 'amount' => 0, 'cash' => 0, 'transfer' => 0, 'savings' => 0, 'voided_count' => 0, 'voided_amount' => 0];
         $days = [];
         $organizations = [];
 
@@ -85,16 +85,21 @@ final class ReceiptRecap
             }
 
             $date = substr((string) $row->paid_on, 0, 10);
-            $cash = (string) $row->method === PaymentMethod::Cash->value;
+            // Tunai / transfer bank / dari tabungan siswa (PRD-005 TB-3).
+            $method = match ((string) $row->method) {
+                PaymentMethod::Cash->value => 'cash',
+                PaymentMethod::Savings->value => 'savings',
+                default => 'transfer',
+            };
             $organizationId = (string) $row->organization_id;
 
             $totals['count'] += $count;
             $totals['amount'] += $amount;
-            $totals[$cash ? 'cash' : 'transfer'] += $amount;
+            $totals[$method] += $amount;
 
-            $days[$date] ??= ['date' => $date, 'count' => 0, 'cash' => 0, 'transfer' => 0, 'total' => 0];
+            $days[$date] ??= ['date' => $date, 'count' => 0, 'cash' => 0, 'transfer' => 0, 'savings' => 0, 'total' => 0];
             $days[$date]['count'] += $count;
-            $days[$date][$cash ? 'cash' : 'transfer'] += $amount;
+            $days[$date][$method] += $amount;
             $days[$date]['total'] += $amount;
 
             $organizations[$organizationId] ??= ['organization_id' => $organizationId, 'count' => 0, 'total' => 0];

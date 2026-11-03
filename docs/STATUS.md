@@ -1,7 +1,7 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-01
-- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 SELESAI; TB-2 dibangun 2026-11-02, menunggu uji owner (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 & TB-2 SELESAI; TB-3 dibangun 2026-11-03, menunggu uji owner (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
 - **Commit terakhir:** `c5dae4a` — feat(ui): UI-2 perapian halaman akademik & SDM
 
 ## Keputusan penting
@@ -794,11 +794,17 @@
 - Frontend: `pages/finance/cashier.tsx` (tab **Tabungan**: saldo, Setor/Tarik di pop-up, riwayat, slip, batal), `pages/print/savings-slip.tsx`, `pages/finance/cash.tsx` (label Titipan, total operasional terpisah).
 - Test: `tests/Feature/Finance/SavingsTest.php` (5 test, awalan `fns`); `CashTest` (14 kategori bawaan), `AccessCatalogTest`, `TreeAuthorizationTest` disesuaikan. 718 test lulus (7 arsitektur + 711), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
-**TB-2 — Halaman Tabungan, rekap, unduh, kartu Beranda: DIBANGUN (2026-11-02, menunggu uji owner)** — PRD-005 §13
+**TB-2 — Halaman Tabungan, rekap, unduh, kartu Beranda: SELESAI (`a6e9a65`)** — PRD-005 §13
 
 - Finance: `Application/Savings/SavingsReport` (titipan per lembaga, saldo per siswa, rekap bulanan), `SavingsExport` (.xlsx saldo & rekap), `Http/Controllers/SavingsReportController` (route `finance.savings.index|export-balances|export-monthly`), kartu Beranda `finance.savings` di `FinanceServiceProvider` (helper `visibleLembaga` dipakai juga kartu tunggakan).
 - Frontend: `pages/finance/savings.tsx` (tab Saldo per siswa · Rekap bulanan), menu Keuangan siswa → **Tabungan** (`components/app-sidebar.tsx`).
 - Test: `tests/Feature/Finance/SavingsReportTest.php` (4 test). 722 test lulus (7 arsitektur + 715), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
+
+**TB-3 — Bayar tagihan dari tabungan: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-005 §14
+
+- Finance: migration `2026_11_03_300013_add_savings_method_to_fn_payments` (cara bayar `TABUNGAN`); `PaymentMethod::Savings`; `ManageSavings::payInvoices|voidPayment` (dipanggil `ManagePayments::record|void` di transaksi yang sama); `ManagePayments::ownerOf`; izin `finance.savings.manage` tambahan di `CashierController::store|void`; `ReceiptRecap`/`ReceiptRecapExport` kolom **Dari tabungan**; audit `finance.savings_used_for_payment`.
+- Frontend: `pages/finance/cashier.tsx` (cara bayar Tabungan siswa + saldo), `pages/finance/receipt-recap.tsx` (Dari tabungan).
+- Test: `tests/Feature/Finance/SavingsPaymentTest.php` (4 test, awalan `fnw`); `ReceiptRecapTest` disesuaikan. 726 test lulus (7 arsitektur + 719), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
 ## Perapian tampilan
 
@@ -866,11 +872,12 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - `composer test` menjalankan test arsitektur (`--testsuite=Architecture`) dan test lain (`--testsuite=Unit,Feature`) di **dua proses terpisah**: Pest arch mem-parse seluruh kode dan menahan ±400 MB sampai proses selesai, sehingga di Windows/Laragon (`memory_limit` 512M) test berikutnya kehabisan memori sesudah FN-1a menambah aturan batas modul (2026-10-28). Saat menjalankan satu file test, cukup `php artisan test tests/Feature/...`.
 - **502 Bad Gateway saat halaman dimuat ulang** (nginx Laragon): penyebab paling mungkin header `Link` dari `AddLinkHeadersForPreloadedAssets` yang memuat semua chunk JS halaman sehingga melebihi `fastcgi_buffer_size`. Hanya terjadi pada muat penuh (refresh), bukan navigasi Inertia. Middleware itu sudah dilepas (UI-2-fix1); jangan dipasang lagi tanpa batas (`::using(n)`). Cek log nginx: `upstream sent too big header`.
 - Sesudah menyalin file frontend wajib `npm run build` (atau `npm run dev` berjalan) lalu muat ulang dengan Ctrl+F5; tanpa itu halaman lama tetap tampil (TB-1: tab Tabungan "belum ada"). Jangan `route:cache`/`optimize` di laptop pengembangan — route baru tidak terbaca, termasuk oleh test (`Route [...] not defined`); bila terlanjur, `php artisan optimize:clear`.
+- Fungsi bantu di file test Pest bersifat global: awalan nama wajib unik per file (TB-3: `fnpPay` bentrok dengan `PaymentsTest` → fatal "Cannot redeclare" saat seluruh suite dijalankan, padahal file itu lulus sendiri). Cek dengan `grep -rn "^function fnX" tests` sebelum memilih awalan.
 - `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
-1. Uji TB-2 oleh owner, lalu **TB-3** (bayar tagihan dari tabungan di kasir) dan TB-4 (portal orang tua: tab Tabungan di Anak saya).
+1. Uji TB-3 oleh owner, lalu **TB-4** (portal orang tua: tab Tabungan di Anak saya) — tahap terakhir PRD-005.
 2. Sesudahnya (urutan owner, PRD-004 §11): payment gateway Midtrans → pembukuan; masing-masing dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

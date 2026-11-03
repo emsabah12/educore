@@ -126,39 +126,47 @@ final class ManageSavings
                 throw FinanceException::make('form', 'Pembatalan setoran ditolak: saldo tabungan sekarang ('.Rupiah::format((int) $account->balance).') kurang dari jumlah setoran. Batalkan dulu penarikan sesudahnya.');
             }
 
-            $now = now();
+            $this->markVoid($tenantId, $entry, $balance, $reason, $membershipId);
+        });
+    }
 
-            DB::table('fn_savings_entries')->where('id', $entry->id)->update([
+    /**
+     * Tandai transaksi tabungan BATAL, simpan saldo baru, batalkan baris Titipan-nya, catat audit. Di dalam transaksi.
+     */
+    private function markVoid(string $tenantId, stdClass $entry, int $balance, string $reason, ?string $membershipId): void
+    {
+        $now = now();
+
+        DB::table('fn_savings_entries')->where('id', $entry->id)->update([
+            'status' => PaymentStatus::Void->value,
+            'void_reason' => $reason,
+            'voided_at' => $now,
+            'voided_by_membership_id' => $membershipId,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('fn_savings_accounts')->where('id', $entry->savings_account_id)->update(['balance' => $balance, 'updated_at' => $now]);
+
+        // Baris buku kas di rekening Titipan tabungan ikut batal.
+        DB::table('fn_cash_entries')
+            ->where('source', CashEntrySource::Savings->value)
+            ->where('source_id', $entry->id)
+            ->update([
                 'status' => PaymentStatus::Void->value,
-                'void_reason' => $reason,
+                'void_reason' => mb_substr('Transaksi tabungan dibatalkan: '.$reason, 0, ManageCashEntries::REASON_MAX_LENGTH),
                 'voided_at' => $now,
                 'voided_by_membership_id' => $membershipId,
                 'updated_at' => $now,
             ]);
 
-            DB::table('fn_savings_accounts')->where('id', $account->id)->update(['balance' => $balance, 'updated_at' => $now]);
-
-            // Baris buku kas di rekening Titipan tabungan ikut batal.
-            DB::table('fn_cash_entries')
-                ->where('source', CashEntrySource::Savings->value)
-                ->where('source_id', $entry->id)
-                ->update([
-                    'status' => PaymentStatus::Void->value,
-                    'void_reason' => mb_substr('Transaksi tabungan dibatalkan: '.$reason, 0, ManageCashEntries::REASON_MAX_LENGTH),
-                    'voided_at' => $now,
-                    'voided_by_membership_id' => $membershipId,
-                    'updated_at' => $now,
-                ]);
-
-            $this->audit->record(
-                FinanceAuditAction::SAVINGS_ENTRY_VOIDED,
-                FinanceAuditAction::SUBJECT_SAVINGS_ENTRY,
-                (string) $entry->id,
-                ['slip' => (string) $entry->slip_number, 'jenis' => $kind->value, 'jumlah' => $amount, 'alasan' => $reason],
-                organizationId: (string) $entry->organization_id,
-                tenantId: $tenantId,
-            );
-        });
+        $this->audit->record(
+            FinanceAuditAction::SAVINGS_ENTRY_VOIDED,
+            FinanceAuditAction::SUBJECT_SAVINGS_ENTRY,
+            (string) $entry->id,
+            ['slip' => (string) $entry->slip_number, 'jenis' => (string) $entry->kind, 'jumlah' => (int) $entry->amount, 'alasan' => $reason],
+            organizationId: (string) $entry->organization_id,
+            tenantId: $tenantId,
+        );
     }
 
     /**
@@ -167,7 +175,12 @@ final class ManageSavings
     private function record(string $tenantId, string $organizationId, string $enrollmentId, SavingsEntryKind $kind, mixed $amount, string $date, string $method, ?string $takenBy, ?string $note, ?string $membershipId): string
     {
         $value = Rupiah::parse($amount, 'amount', $kind === SavingsEntryKind::Deposit ? 'jumlah setoran' : 'jumlah penarikan', 1, self::MAX_AMOUNT);
-        $methodCase = PaymentMethod::tryFrom($method) ?? throw FinanceException::make('method', 'Pilih cara: tunai atau transfer.');
+        $methodCase = PaymentMethod::tryFrom($method);
+
+        if ($methodCase === null || $methodCase === PaymentMethod::Savings) {
+            throw FinanceException::make('method', 'Pilih cara: tunai atau transfer.');
+        }
+
         $day = $this->entryDate($date);
         $note = self::optional($note, 'note', 'Catatan', self::NOTE_MAX_LENGTH);
 
@@ -191,92 +204,149 @@ final class ManageSavings
             throw FinanceException::make('enrollment_id', 'Siswa ini sudah keluar dari lembaga, jadi tidak bisa menabung lagi. Saldonya masih bisa ditarik.');
         }
 
-        return DB::transaction(function () use ($tenantId, $organizationId, $enrollmentId, $student, $kind, $value, $methodCase, $day, $takenBy, $note, $membershipId): string {
-            $accountId = $this->accountId($tenantId, $organizationId, $student['student_id'], $kind === SavingsEntryKind::Deposit);
+        return DB::transaction(fn (): string => $this->post($tenantId, $organizationId, $enrollmentId, $student['student_id'], $student['name'], $kind, $value, $methodCase, $day, $takenBy, $note, null, $membershipId));
+    }
 
-            if ($accountId === null) {
-                throw FinanceException::make('amount', 'Siswa ini belum punya tabungan di lembaga ini.');
-            }
+    /**
+     * Bayar tagihan dari saldo tabungan (PRD-005 §4.3, TB-3): dipanggil ManagePayments DI DALAM transaksi pencatatan
+     * kuitansi, sesudah kuitansi dibuat. Saldo berkurang, transaksi BAYAR_TAGIHAN tertaut ke kuitansi, dan baris KELUAR
+     * di rekening Titipan tabungan; uangnya masuk Kas tunai lewat cerminan kuitansi (PRD-004 KS-2). Saldo kurang →
+     * seluruh pembayaran ditolak.
+     *
+     * @throws FinanceException
+     */
+    public function payInvoices(string $tenantId, string $organizationId, string $enrollmentId, int $amount, CarbonImmutable $day, string $paymentId, string $receiptNumber, ?string $membershipId): void
+    {
+        $student = $this->students->describe($tenantId, [$enrollmentId])[$enrollmentId] ?? null;
 
-            $account = $this->lockAccount($accountId);
+        if ($student === null || $student['organization_id'] !== $organizationId) {
+            throw FinanceException::make('enrollment_id', 'Pilih siswa lembaga ini.');
+        }
 
-            $balance = (int) $account->balance + ($kind === SavingsEntryKind::Deposit ? $value : -$value);
+        $this->post($tenantId, $organizationId, $enrollmentId, $student['student_id'], $student['name'], SavingsEntryKind::InvoicePayment, $amount, null, $day, null, "Kuitansi {$receiptNumber}", $paymentId, $membershipId);
+    }
 
-            if ($balance < 0) {
-                throw FinanceException::make('amount', 'Saldo tabungan tidak cukup. Saldo sekarang '.Rupiah::format((int) $account->balance).'.');
-            }
+    /**
+     * Kuitansi yang dibayar dari tabungan dibatalkan (dipanggil ManagePayments di dalam transaksinya): transaksi
+     * BAYAR_TAGIHAN ikut batal, saldo kembali, baris Titipan ikut batal.
+     */
+    public function voidPayment(string $tenantId, string $paymentId, string $reason, ?string $membershipId): void
+    {
+        $entry = DB::table('fn_savings_entries')
+            ->where('tenant_id', $tenantId)
+            ->where('payment_id', $paymentId)
+            ->where('status', PaymentStatus::Valid->value)
+            ->lockForUpdate()
+            ->first();
 
-            // Kategori & rekening Titipan disiapkan sebelum nomor slip dikunci (urutan kunci tetap: rekening → slip).
-            $this->cashCategories->ensureDefaults($tenantId);
-            $custodyId = $this->cashAccounts->ensureCustodyAccount($tenantId, $organizationId);
-            $categoryId = (string) DB::table('fn_cash_categories')
-                ->where('tenant_id', $tenantId)
-                ->where('code', $kind === SavingsEntryKind::Deposit ? ManageCashCategories::SYSTEM_SAVINGS_DEPOSIT : ManageCashCategories::SYSTEM_SAVINGS_WITHDRAWAL)
-                ->value('id');
+        if ($entry === null) {
+            return;
+        }
 
-            [$year, $sequence, $number] = $this->nextSlip($organizationId, $day);
-            $entryId = (string) Str::uuid7();
-            $now = now();
+        $account = $this->lockAccount((string) $entry->savings_account_id);
+        $this->markVoid($tenantId, $entry, (int) $account->balance + (int) $entry->amount, mb_substr('Kuitansi dibatalkan: '.$reason, 0, self::REASON_MAX_LENGTH), $membershipId);
+    }
 
-            DB::table('fn_savings_entries')->insert([
-                'id' => $entryId,
-                'tenant_id' => $tenantId,
-                'organization_id' => $organizationId,
-                'savings_account_id' => $accountId,
-                'enrollment_id' => $enrollmentId,
-                'entry_date' => $day->toDateString(),
-                'kind' => $kind->value,
-                'method' => $methodCase->value,
-                'amount' => $value,
-                'balance_after' => $balance,
-                'slip_number' => $number,
-                'slip_year' => $year,
-                'slip_sequence' => $sequence,
-                'taken_by' => $takenBy,
-                'note' => $note,
-                'status' => PaymentStatus::Valid->value,
-                'recorded_by_membership_id' => $membershipId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+    /**
+     * Catat satu transaksi tabungan + cerminannya di rekening Titipan. Dipanggil di dalam transaksi.
+     *
+     * @throws FinanceException saldo tidak cukup / belum punya tabungan
+     */
+    private function post(string $tenantId, string $organizationId, string $enrollmentId, string $studentId, string $studentName, SavingsEntryKind $kind, int $value, ?PaymentMethod $methodCase, CarbonImmutable $day, ?string $takenBy, ?string $note, ?string $paymentId, ?string $membershipId): string
+    {
+        $accountId = $this->accountId($tenantId, $organizationId, $studentId, $kind === SavingsEntryKind::Deposit);
 
-            DB::table('fn_savings_accounts')->where('id', $accountId)->update(['balance' => $balance, 'updated_at' => $now]);
+        if ($accountId === null) {
+            throw FinanceException::make('amount', 'Siswa ini belum punya tabungan di lembaga ini.');
+        }
 
-            DB::table('fn_cash_entries')->insert([
-                'id' => (string) Str::uuid7(),
-                'tenant_id' => $tenantId,
-                'organization_id' => $organizationId,
-                'account_id' => $custodyId,
-                'category_id' => $categoryId,
-                'entry_date' => $day->toDateString(),
-                'direction' => $kind === SavingsEntryKind::Deposit ? CashDirection::In->value : CashDirection::Out->value,
-                'amount' => $value,
-                'description' => mb_substr($kind->label().' tabungan — '.$student['name']." ({$number})", 0, ManageCashEntries::DESCRIPTION_MAX_LENGTH),
-                'source' => CashEntrySource::Savings->value,
-                'source_id' => $entryId,
-                'status' => PaymentStatus::Valid->value,
-                'recorded_by_membership_id' => $membershipId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+        $account = $this->lockAccount($accountId);
 
-            $this->audit->record(
-                $kind === SavingsEntryKind::Deposit ? FinanceAuditAction::SAVINGS_DEPOSITED : FinanceAuditAction::SAVINGS_WITHDRAWN,
-                FinanceAuditAction::SUBJECT_SAVINGS_ENTRY,
-                $entryId,
-                array_filter([
-                    'slip' => $number,
-                    'jumlah' => $value,
-                    'cara' => $methodCase->value,
-                    'tanggal' => $day->toDateString(),
-                    'diambil_oleh' => $takenBy,
-                ], fn (mixed $item): bool => $item !== null),
-                organizationId: $organizationId,
-                tenantId: $tenantId,
-            );
+        $balance = (int) $account->balance + ($kind === SavingsEntryKind::Deposit ? $value : -$value);
 
-            return $entryId;
-        });
+        if ($balance < 0) {
+            throw FinanceException::make('amount', 'Saldo tabungan tidak cukup. Saldo sekarang '.Rupiah::format((int) $account->balance).'.');
+        }
+
+        // Kategori & rekening Titipan disiapkan sebelum nomor slip dikunci (urutan kunci tetap: rekening → slip).
+        $this->cashCategories->ensureDefaults($tenantId);
+        $custodyId = $this->cashAccounts->ensureCustodyAccount($tenantId, $organizationId);
+        $categoryId = (string) DB::table('fn_cash_categories')
+            ->where('tenant_id', $tenantId)
+            ->where('code', $kind === SavingsEntryKind::Deposit ? ManageCashCategories::SYSTEM_SAVINGS_DEPOSIT : ManageCashCategories::SYSTEM_SAVINGS_WITHDRAWAL)
+            ->value('id');
+
+        [$year, $sequence, $number] = $this->nextSlip($organizationId, $day);
+        $entryId = (string) Str::uuid7();
+        $now = now();
+
+        DB::table('fn_savings_entries')->insert([
+            'id' => $entryId,
+            'tenant_id' => $tenantId,
+            'organization_id' => $organizationId,
+            'savings_account_id' => $accountId,
+            'enrollment_id' => $enrollmentId,
+            'entry_date' => $day->toDateString(),
+            'kind' => $kind->value,
+            'method' => $methodCase?->value,
+            'amount' => $value,
+            'balance_after' => $balance,
+            'slip_number' => $number,
+            'slip_year' => $year,
+            'slip_sequence' => $sequence,
+            'taken_by' => $takenBy,
+            'note' => $note,
+            'payment_id' => $paymentId,
+            'status' => PaymentStatus::Valid->value,
+            'recorded_by_membership_id' => $membershipId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('fn_savings_accounts')->where('id', $accountId)->update(['balance' => $balance, 'updated_at' => $now]);
+
+        DB::table('fn_cash_entries')->insert([
+            'id' => (string) Str::uuid7(),
+            'tenant_id' => $tenantId,
+            'organization_id' => $organizationId,
+            'account_id' => $custodyId,
+            'category_id' => $categoryId,
+            'entry_date' => $day->toDateString(),
+            'direction' => $kind === SavingsEntryKind::Deposit ? CashDirection::In->value : CashDirection::Out->value,
+            'amount' => $value,
+            'description' => mb_substr(match ($kind) {
+                SavingsEntryKind::InvoicePayment => 'Bayar tagihan dari tabungan — '.$studentName." ({$number}, {$note})",
+                default => $kind->label().' tabungan — '.$studentName." ({$number})",
+            }, 0, ManageCashEntries::DESCRIPTION_MAX_LENGTH),
+            'source' => CashEntrySource::Savings->value,
+            'source_id' => $entryId,
+            'status' => PaymentStatus::Valid->value,
+            'recorded_by_membership_id' => $membershipId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $this->audit->record(
+            match ($kind) {
+                SavingsEntryKind::Deposit => FinanceAuditAction::SAVINGS_DEPOSITED,
+                SavingsEntryKind::Withdrawal => FinanceAuditAction::SAVINGS_WITHDRAWN,
+                SavingsEntryKind::InvoicePayment => FinanceAuditAction::SAVINGS_USED_FOR_PAYMENT,
+            },
+            FinanceAuditAction::SUBJECT_SAVINGS_ENTRY,
+            $entryId,
+            array_filter([
+                'slip' => $number,
+                'jumlah' => $value,
+                'cara' => $methodCase?->value,
+                'kuitansi' => $kind === SavingsEntryKind::InvoicePayment ? $note : null,
+                'tanggal' => $day->toDateString(),
+                'diambil_oleh' => $takenBy,
+            ], fn (mixed $item): bool => $item !== null),
+            organizationId: $organizationId,
+            tenantId: $tenantId,
+        );
+
+        return $entryId;
     }
 
     /**

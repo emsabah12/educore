@@ -13,6 +13,8 @@ type Totals = {
     amount: number;
     cash: number;
     transfer: number;
+    /** Dari saldo tabungan siswa (PRD-005 TB-3). */
+    savings: number;
     voided_count: number;
     voided_amount: number;
 };
@@ -22,6 +24,7 @@ type DayRow = {
     count: number;
     cash: number;
     transfer: number;
+    savings: number;
     total: number;
 };
 
@@ -192,6 +195,12 @@ export default function ReceiptRecap({
                         label="Transfer bank"
                         value={formatRupiah(totals.transfer)}
                     />
+                    {totals.savings > 0 && (
+                        <Stat
+                            label="Dari tabungan"
+                            value={formatRupiah(totals.savings)}
+                        />
+                    )}
                     <Stat label="Transaksi" value={String(totals.count)} />
                 </dl>
 
@@ -241,6 +250,11 @@ export default function ReceiptRecap({
                                                         <th className="p-2 text-right font-medium">
                                                             Transfer
                                                         </th>
+                                                        {totals.savings > 0 && (
+                                                            <th className="p-2 text-right font-medium">
+                                                                Tabungan
+                                                            </th>
+                                                        )}
                                                         <th className="p-2 text-right font-medium">
                                                             Total
                                                         </th>
@@ -294,6 +308,14 @@ export default function ReceiptRecap({
                                                                     row.transfer,
                                                                 )}
                                                             </td>
+                                                            {totals.savings >
+                                                                0 && (
+                                                                <td className="p-2 text-right tabular-nums">
+                                                                    {rupiah.format(
+                                                                        row.savings,
+                                                                    )}
+                                                                </td>
+                                                            )}
                                                             <td className="p-2 text-right font-semibold tabular-nums">
                                                                 {rupiah.format(
                                                                     row.total,
