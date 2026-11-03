@@ -168,6 +168,25 @@ final class CashController
         return $this->done($receives ? 'Rekening ini menerima pembayaran transfer siswa.' : 'Pembayaran transfer siswa kembali dicatat ke Kas tunai.');
     }
 
+    /**
+     * Rekening bank lembaga penerima pembayaran online (PRD-006 §7, MG-1).
+     */
+    public function setOnlineReceiver(Request $request, string $account, ManageCashAccounts $accounts): RedirectResponse
+    {
+        $owner = $accounts->ownerOf($this->tenantId(), $account);
+
+        if ($owner === false) {
+            abort(404);
+        }
+
+        $this->authorizeBook($owner['organization_id'], FinanceAccess::CASH_MANAGE);
+        $receives = $request->boolean('receives');
+
+        $this->attempt(fn () => $accounts->setOnlineReceiver($this->tenantId(), $account, $receives));
+
+        return $this->done($receives ? 'Rekening ini menerima pembayaran online (Midtrans).' : 'Pembayaran online akan dicatat ke rekening penerima transfer siswa.');
+    }
+
     public function storeIncome(Request $request, ManageCashEntries $entries): RedirectResponse
     {
         $organizationId = $this->bookFromRequest($request, FinanceAccess::CASH_MANAGE);

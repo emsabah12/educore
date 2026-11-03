@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-01
-- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 s.d. TB-3 SELESAI; TB-4 (portal orang tua) dibangun 2026-11-03, menunggu uji owner — tahap terakhir PRD-005 (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `c5dae4a` — feat(ui): UI-2 perapian halaman akademik & SDM
+- **Tahap aktif:** Keuangan lanjutan — **Tabungan siswa (PRD-005)**: TB-1 s.d. TB-4 SELESAI (PRD-005 selesai); **Pembayaran online Midtrans (PRD-006)** disetujui; MG-1 dibangun 2026-11-03, menunggu uji owner (kas & pengeluaran PRD-004 KS-1 s.d. KS-5 SELESAI; tagihan siswa PRD-003 FN-1 s.d. FN-5 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Commit terakhir:** `1001720` — feat(finance): TB-4 tabungan di portal orang tua
 
 ## Keputusan penting
 
@@ -47,6 +47,7 @@
 | 2026-10-30 | Keuangan lanjutan pertama = **kas umum & pengeluaran**: kas per lembaga + kas Yayasan; pengeluaran wajib diajukan → disetujui (Kepala Lembaga / Pimpinan Yayasan) → direalisasi; pembayaran siswa otomatis masuk buku kas; saldo tidak boleh minus                                                                       | PRD-004, OD-KS-01 s.d. OD-KS-08                          |
 | 2026-10-30 | Urutan keuangan lanjutan: persetujuan berjenjang (batas nominal → naik ke Yayasan) → tabungan siswa → payment gateway **Midtrans** (akun sudah ada) → pembukuan                                                                                                                                                          | PRD-004 §11, §16, OD-KS-06                               |
 | 2026-11-01 | **Tabungan siswa** (PRD-005): dicatat kasir (tab Tabungan di Kasir) dengan slip bernomor; penarikan bebas selama saldo cukup; uang tabungan di rekening kas **Titipan tabungan** per lembaga, terpisah dari kas operasional; saldo boleh dipakai bayar tagihan (TB-3); tanpa bunga/biaya; wali kelas tidak melihat saldo | PRD-005 §2, §10                                          |
+| 2026-11-03 | **Pembayaran online Midtrans** (PRD-006, disetujui; OD-MG-04 s.d. 09 sesuai usulan): dibayar orang tua dari portal Anak saya → Tagihan; metode VA bank + QRIS; biaya admin ditanggung orang tua (ditambahkan di atas tagihan, kuitansi tetap sebesar tagihan)                                                            | PRD-006 §2                                               |
 | 2026-10-31 | **Pedoman tampilan**: menu samping berkelompok (Untuk saya, Akademik, Kepegawaian, Keuangan siswa, Kas & pengeluaran, Pengaturan); satu tampilan = satu fungsi utama — bagian berbeda jadi **tab** (`?tab=`), form tambahan di **jendela pop-up**, bukan menumpuk di halaman                                             | STATUS § Pedoman tampilan                                |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                         | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
@@ -806,11 +807,19 @@
 - Frontend: `pages/finance/cashier.tsx` (cara bayar Tabungan siswa + saldo), `pages/finance/receipt-recap.tsx` (Dari tabungan).
 - Test: `tests/Feature/Finance/SavingsPaymentTest.php` (4 test, awalan `fnw`); `ReceiptRecapTest` disesuaikan. 726 test lulus (7 arsitektur + 719), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
-**TB-4 — Portal orang tua: Tabungan di Anak saya: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-005 §15
+**TB-4 — Portal orang tua: Tabungan di Anak saya: SELESAI (`1001720`)** — PRD-005 §15
 
 - Finance: `Http/Controllers/ChildSavingsController` (route `finance.child-savings.index|slip`), tombol portal `finance.savings` di `FinanceServiceProvider`, `SavingsOverview::forStudent(..., validOnly)` (+ `exists`).
 - Frontend: `pages/finance/child-savings.tsx`, ikon `piggy-bank` di `pages/academic/my-children/show.tsx`, `pages/print/savings-slip.tsx` (`backLabel`).
 - Test: `tests/Feature/Finance/ChildSavingsTest.php` (3 test, awalan `fnx`); `ChildBillingTest` (tombol portal bertambah). 729 test lulus (7 arsitektur + 722), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
+
+## Pembayaran online Midtrans (PRD-006)
+
+**MG-1 — Konfigurasi, pengaturan, klien Midtrans, rekening penerima: DIBANGUN (2026-11-03, menunggu uji owner)** — PRD-006 §15
+
+- Finance: migration `2026_11_03_300014_create_fn_online_payment_tables`; `Domain/Online/OnlinePaymentMethod|OnlinePaymentStatus`; `Application/Online/MidtransGateway` + `HttpMidtransGateway` (didaftarkan di `FinanceServiceProvider::register`), `MidtransException`, `OnlinePaymentSettings`; `FeeSettingsController::setOnlinePayments` (route `finance.online-settings.update`); `ManageCashAccounts::setOnlineReceiver` + `CashController::setOnlineReceiver` (route `finance.cash-accounts.online-receiver`); `config/services.php` (`midtrans`), `.env.example`.
+- Frontend: `pages/finance/settings.tsx` (tab **Pembayaran online**), `pages/finance/cash.tsx` (penerima pembayaran online).
+- Test: `tests/Feature/Finance/OnlinePaymentSetupTest.php` (4 test, awalan `fnz`, `Http::fake` + `preventStrayRequests`). 733 test lulus (7 arsitektur + 726), Pint PASS, Larastan `[OK]`, `tsc`, oxfmt & oxlint bersih.
 
 ## Perapian tampilan
 
@@ -884,6 +893,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Uji TB-4 oleh owner (PRD-005 selesai).
-2. Berikutnya (urutan owner, PRD-004 §11): **payment gateway Midtrans** (draf PRD-006 → persetujuan owner), lalu pembukuan; masing-masing dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
+1. Uji MG-1 oleh owner (pasang kunci **sandbox** Midtrans di `.env`), lalu **MG-2** (portal bayar online → Snap → webhook → kuitansi otomatis), lalu MG-3.
+2. Sesudahnya (urutan owner, PRD-004 §11): pembukuan; dirinci & disetujui dulu. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

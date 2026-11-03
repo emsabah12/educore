@@ -18,7 +18,7 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
  * dilihat tampil sebagai baris "Saldo awal" pada tanggal itu. Transaksi batal tetap tampil (dicoret) tetapi
  * tidak dihitung.
  *
- * @phpstan-type AccountRow array{id: string, kind: string, name: string, bank_name: string|null, account_number: string|null, opening_balance: int, opening_date: string, is_active: bool, receives_transfers: bool, balance: int, has_entries: bool}
+ * @phpstan-type AccountRow array{id: string, kind: string, name: string, bank_name: string|null, account_number: string|null, opening_balance: int, opening_date: string, is_active: bool, receives_transfers: bool, receives_online: bool, balance: int, has_entries: bool}
  * @phpstan-type LedgerRow array{id: string, type: string, date: string, description: string, category: string|null, account: string, direction: string, amount: int, status: string, void_reason: string|null, source: string|null, source_id: string|null, recorded_by: string|null, balance: int|null}
  */
 final class CashBook
@@ -38,7 +38,7 @@ final class CashBook
             ->orderByRaw("kind <> 'TUNAI'")
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'kind', 'name', 'bank_name', 'account_number', 'opening_balance', 'opening_date', 'is_active', 'receives_transfers']);
+            ->get(['id', 'kind', 'name', 'bank_name', 'account_number', 'opening_balance', 'opening_date', 'is_active', 'receives_transfers', 'receives_online']);
 
         $ids = [];
 
@@ -68,6 +68,7 @@ final class CashBook
                 'opening_date' => substr((string) $row->opening_date, 0, 10),
                 'is_active' => (bool) $row->is_active,
                 'receives_transfers' => (bool) $row->receives_transfers,
+                'receives_online' => (bool) $row->receives_online,
                 'balance' => $balances[$id] ?? 0,
                 'has_entries' => isset($used[$id]),
             ];

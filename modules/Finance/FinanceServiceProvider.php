@@ -22,6 +22,8 @@ use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
+use Modules\Finance\Application\Online\HttpMidtransGateway;
+use Modules\Finance\Application\Online\MidtransGateway;
 use Modules\Finance\Application\Report\Arrears;
 use Modules\Finance\Application\Savings\SavingsReport;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
@@ -38,6 +40,12 @@ class FinanceServiceProvider extends ModuleServiceProvider
     protected function modulePath(): string
     {
         return __DIR__;
+    }
+
+    public function register(): void
+    {
+        // Klien Midtrans (PRD-006 MG-1): HTTP client Laravel; test bisa menggantinya dengan tiruan.
+        $this->app->singleton(MidtransGateway::class, HttpMidtransGateway::class);
     }
 
     public function boot(): void

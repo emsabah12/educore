@@ -76,6 +76,11 @@ final class FinanceAuditAction
 
     public const SUBJECT_SAVINGS_ENTRY = 'fn_savings_entry';
 
+    public const ONLINE_SETTINGS_UPDATED = 'finance.online_settings_updated';
+
+    /** Pengaturan pembayaran online yayasan (subjek = id yayasan). */
+    public const SUBJECT_ONLINE_SETTINGS = 'fn_online_payment_settings';
+
     public const SUBJECT_FEE_TYPE = 'fn_fee_type';
 
     public const SUBJECT_CASH_TRANSFER = 'fn_cash_transfer';
@@ -134,6 +139,7 @@ final class FinanceAuditAction
             self::SAVINGS_WITHDRAWN => 'Penarikan tabungan dicatat',
             self::SAVINGS_ENTRY_VOIDED => 'Transaksi tabungan dibatalkan',
             self::SAVINGS_USED_FOR_PAYMENT => 'Tagihan dibayar dari tabungan',
+            self::ONLINE_SETTINGS_UPDATED => 'Pengaturan pembayaran online diubah',
         ];
     }
 }

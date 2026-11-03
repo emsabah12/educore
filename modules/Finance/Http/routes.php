@@ -33,6 +33,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/jatuh-tempo', [FeeSettingsController::class, 'setDueDay'])->name('finance.due-day.set');
     // Batas persetujuan pengeluaran berjenjang (PRD-004 KS-5).
     Route::post('keuangan/batas-persetujuan', [FeeSettingsController::class, 'setApprovalLimit'])->name('finance.approval-limit.set');
+    // Pembayaran online Midtrans (PRD-006 MG-1): metode & biaya layanan.
+    Route::post('keuangan/pembayaran-online/pengaturan', [FeeSettingsController::class, 'setOnlinePayments'])->name('finance.online-settings.update');
 
     // Tagihan (FN-2a). Lihat: finance.billing.view; buat & batalkan: finance.invoices.manage di lembaga itu.
     Route::get('keuangan/tagihan', [InvoiceController::class, 'index'])->name('finance.invoices.index');
@@ -80,6 +82,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/kas/rekening', [CashController::class, 'storeAccount'])->name('finance.cash-accounts.store');
     Route::patch('keuangan/kas/rekening/{account}', [CashController::class, 'updateAccount'])->whereUuid('account')->name('finance.cash-accounts.update');
     Route::post('keuangan/kas/rekening/{account}/penerima-transfer', [CashController::class, 'setTransferReceiver'])->whereUuid('account')->name('finance.cash-accounts.transfer-receiver');
+    // Rekening penerima pembayaran online (PRD-006 MG-1).
+    Route::post('keuangan/kas/rekening/{account}/penerima-online', [CashController::class, 'setOnlineReceiver'])->whereUuid('account')->name('finance.cash-accounts.online-receiver');
     Route::post('keuangan/kas/pemasukan', [CashController::class, 'storeIncome'])->name('finance.cash-income.store');
     // Mutasi antar-rekening / antar-kas (KS-4): finance.cash.manage di kas rekening asal.
     Route::post('keuangan/kas/mutasi', [CashController::class, 'storeTransfer'])->name('finance.cash-transfers.store');

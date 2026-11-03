@@ -50,13 +50,32 @@ type Props = {
     dueDay: RulesData;
     approvalLimit: RulesData;
     targets: TargetOptions;
+    onlinePayments: OnlinePayments;
+};
+
+type OnlineMethod = {
+    method: string;
+    label: string;
+    enabled: boolean;
+    fee_value: number;
+    fee_is_percent: boolean;
+    fee_input: string;
+    fee_label: string;
+};
+
+type OnlinePayments = {
+    /** Kunci Midtrans terpasang di .env server (kuncinya sendiri tidak pernah dikirim). */
+    configured: boolean;
+    production: boolean;
+    methods: OnlineMethod[];
+    maxFixedFee: number;
 };
 
 const rupiah = new Intl.NumberFormat('id-ID');
 
 const TYPES_URL = '/keuangan/jenis-biaya';
 
-const TABS = ['jenis', 'tarif', 'jatuh-tempo', 'batas'] as const;
+const TABS = ['jenis', 'tarif', 'jatuh-tempo', 'batas', 'online'] as const;
 
 const selectClass =
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
@@ -76,6 +95,7 @@ export default function FinanceSettings({
     dueDay,
     approvalLimit,
     targets,
+    onlinePayments,
 }: Props) {
     const [tab, setTab] = usePageTab(TABS, 'jenis');
     const [creating, setCreating] = useState(false);
@@ -87,7 +107,7 @@ export default function FinanceSettings({
             <div className="flex flex-1 flex-col gap-4 p-4">
                 <Heading
                     title="Pengaturan keuangan"
-                    description="Jenis biaya siswa, tarif per lembaga & tahun ajaran, jatuh tempo, dan batas persetujuan pengeluaran."
+                    description="Jenis biaya siswa, tarif per lembaga & tahun ajaran, jatuh tempo, batas persetujuan pengeluaran, dan pembayaran online."
                 />
 
                 <PageTabs
@@ -97,6 +117,7 @@ export default function FinanceSettings({
                         { value: 'tarif', label: 'Tarif' },
                         { value: 'jatuh-tempo', label: 'Jatuh tempo' },
                         { value: 'batas', label: 'Batas persetujuan' },
+                        { value: 'online', label: 'Pembayaran online' },
                     ]}
                     value={tab}
                     onChange={setTab}
@@ -168,6 +189,10 @@ export default function FinanceSettings({
                         data={approvalLimit}
                         targets={targets}
                     />
+                )}
+
+                {tab === 'online' && (
+                    <OnlinePaymentsSection data={onlinePayments} />
                 )}
             </div>
         </>
@@ -970,5 +995,146 @@ function PostButton({
                 </>
             )}
         </Form>
+    );
+}
+
+/**
+ * Pembayaran online Midtrans (PRD-006 §6, MG-1): metode VA bank + QRIS yang dibuka dan biaya layanan per metode
+ * (ditanggung orang tua, OD-MG-03). Kunci Midtrans dipasang di .env server, bukan di sini.
+ */
+function OnlinePaymentsSection({ data }: { data: OnlinePayments }) {
+    const active = data.configured && data.methods.some((row) => row.enabled);
+
+    return (
+        <section aria-label="Pembayaran online" className="max-w-3xl space-y-4">
+            <div className="space-y-2 rounded-xl border p-4 text-sm">
+                <p className="flex flex-wrap items-center gap-2 font-medium">
+                    Status:
+                    {active ? (
+                        <Badge>Aktif</Badge>
+                    ) : (
+                        <Badge variant="outline">Belum aktif</Badge>
+                    )}
+                    {data.configured && (
+                        <Badge variant="secondary">
+                            {data.production
+                                ? 'Akun produksi'
+                                : 'Sandbox (uji coba)'}
+                        </Badge>
+                    )}
+                </p>
+                {data.configured ? (
+                    <p className="text-muted-foreground">
+                        Kunci Midtrans sudah terpasang di server. Pembayaran
+                        online aktif bila minimal satu metode dibuka.
+                    </p>
+                ) : (
+                    <p className="text-muted-foreground">
+                        Kunci Midtrans belum dipasang. Pengelola server mengisi{' '}
+                        <code>MIDTRANS_SERVER_KEY</code> dan{' '}
+                        <code>MIDTRANS_CLIENT_KEY</code> di file{' '}
+                        <code>.env</code>; setelah itu metode bisa dibuka di
+                        sini.
+                    </p>
+                )}
+                <p className="text-muted-foreground">
+                    Biaya layanan ditanggung orang tua: ditambahkan di atas
+                    tagihan dan ditampilkan sebelum bayar. Isi sesuai tarif di
+                    kontrak Midtrans yayasan.
+                </p>
+            </div>
+
+            <Form
+                action="/keuangan/pembayaran-online/pengaturan"
+                method="post"
+                errorBag="onlinePayments"
+                options={{ preserveScroll: true }}
+                className="space-y-3"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <ul className="divide-y rounded-xl border">
+                            {data.methods.map((row) => (
+                                <OnlineMethodRow
+                                    key={row.method}
+                                    row={row}
+                                    disabled={!data.configured}
+                                    maxFixedFee={data.maxFixedFee}
+                                    error={
+                                        (
+                                            errors as Record<
+                                                string,
+                                                string | undefined
+                                            >
+                                        )[`methods.${row.method}.fee`]
+                                    }
+                                />
+                            ))}
+                        </ul>
+                        <InputError message={errors.form} />
+                        <Button type="submit" disabled={processing}>
+                            {processing ? 'Menyimpan…' : 'Simpan'}
+                        </Button>
+                    </>
+                )}
+            </Form>
+        </section>
+    );
+}
+
+function OnlineMethodRow({
+    row,
+    disabled,
+    maxFixedFee,
+    error,
+}: {
+    row: OnlineMethod;
+    disabled: boolean;
+    maxFixedFee: number;
+    error?: string;
+}) {
+    const [enabled, setEnabled] = useState(row.enabled);
+    const id = `online-${row.method}`;
+
+    return (
+        <li className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+            <div className="space-y-0.5">
+                <input
+                    type="hidden"
+                    name={`methods[${row.method}][enabled]`}
+                    value={enabled ? '1' : '0'}
+                />
+                <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                        type="checkbox"
+                        checked={enabled}
+                        disabled={disabled && !enabled}
+                        onChange={(event) => setEnabled(event.target.checked)}
+                        className="size-4 accent-primary"
+                    />
+                    {row.label}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                    Saat ini: {row.enabled ? 'dibuka' : 'ditutup'} ·{' '}
+                    {row.fee_label}
+                </p>
+            </div>
+            <div className="grid gap-1">
+                <Label htmlFor={`${id}-fee`} className="text-xs">
+                    {row.fee_is_percent
+                        ? 'Biaya layanan (% dari tagihan)'
+                        : `Biaya layanan (Rp, maks ${rupiah.format(maxFixedFee)})`}
+                </Label>
+                <Input
+                    id={`${id}-fee`}
+                    name={`methods[${row.method}][fee]`}
+                    defaultValue={row.fee_input}
+                    inputMode="decimal"
+                    maxLength={10}
+                    placeholder={row.fee_is_percent ? 'mis. 0,7' : 'mis. 4000'}
+                />
+                <InputError message={error} />
+            </div>
+        </li>
     );
 }

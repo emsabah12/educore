@@ -30,6 +30,8 @@ type Account = {
     opening_date: string;
     is_active: boolean;
     receives_transfers: boolean;
+    /** Penerima pembayaran online Midtrans di buku kas (PRD-006 §7). */
+    receives_online: boolean;
     balance: number;
     has_entries: boolean;
 };
@@ -462,6 +464,9 @@ function AccountCard({
             {account.receives_transfers && (
                 <Badge variant="secondary">Penerima transfer siswa</Badge>
             )}
+            {account.receives_online && (
+                <Badge variant="secondary">Penerima pembayaran online</Badge>
+            )}
             {custody && (
                 <p className="text-xs text-muted-foreground">
                     <Badge variant="secondary" className="mr-1">
@@ -492,6 +497,29 @@ function AccountCard({
                         {account.receives_transfers
                             ? 'Lepas penerima transfer'
                             : 'Jadikan penerima transfer siswa'}
+                    </Button>
+                )}
+            {canManage &&
+                canReceive &&
+                account.kind === 'BANK' &&
+                account.is_active &&
+                !editing && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                            router.post(
+                                `/keuangan/kas/rekening/${account.id}/penerima-online`,
+                                { receives: !account.receives_online },
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        {account.receives_online
+                            ? 'Lepas penerima pembayaran online'
+                            : 'Jadikan penerima pembayaran online'}
                     </Button>
                 )}
 

@@ -252,6 +252,51 @@ final class ManageCashAccounts
     }
 
     /**
+     * Tandai (atau lepas) rekening bank lembaga sebagai penerima pembayaran online (PRD-006 §7, OD-MG-06), paling banyak
+     * satu per lembaga.
+     *
+     * @throws FinanceException
+     */
+    public function setOnlineReceiver(string $tenantId, string $accountId, bool $receives): void
+    {
+        DB::transaction(function () use ($tenantId, $accountId, $receives): void {
+            $account = Str::isUuid($accountId)
+                ? DB::table('fn_cash_accounts')->where('tenant_id', $tenantId)->where('id', $accountId)->lockForUpdate()->first()
+                : null;
+
+            if ($account === null) {
+                throw FinanceException::make('form', 'Rekening tidak ditemukan.');
+            }
+
+            if ((bool) $account->receives_online === $receives) {
+                return;
+            }
+
+            if ($receives && ((string) $account->kind !== CashAccountKind::Bank->value || $account->organization_id === null || ! (bool) $account->is_active)) {
+                throw FinanceException::make('form', 'Penerima pembayaran online harus rekening bank aktif milik lembaga.');
+            }
+
+            if ($receives) {
+                DB::table('fn_cash_accounts')
+                    ->where('organization_id', $account->organization_id)
+                    ->where('receives_online', true)
+                    ->update(['receives_online' => false, 'updated_at' => now()]);
+            }
+
+            DB::table('fn_cash_accounts')->where('id', $accountId)->update(['receives_online' => $receives, 'updated_at' => now()]);
+
+            $this->audit->record(
+                FinanceAuditAction::CASH_ACCOUNT_UPDATED,
+                FinanceAuditAction::SUBJECT_CASH_ACCOUNT,
+                $accountId,
+                ['rekening' => (string) $account->name, 'penerima_pembayaran_online' => $receives],
+                organizationId: $account->organization_id === null ? null : (string) $account->organization_id,
+                tenantId: $tenantId,
+            );
+        });
+    }
+
+    /**
      * Kas pemilik rekening (untuk cek hak akses), atau false bila rekening tidak ada di yayasan ini.
      *
      * @return array{organization_id: string|null}|false

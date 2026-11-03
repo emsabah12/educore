@@ -22,9 +22,12 @@ use Modules\Finance\Application\Fee\ManageFeeRates;
 use Modules\Finance\Application\Fee\ManageFeeTypes;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
+use Modules\Finance\Application\Online\MidtransGateway;
+use Modules\Finance\Application\Online\OnlinePaymentSettings;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
 use Modules\Finance\Domain\Fee\FeeType;
+use Modules\Finance\Domain\Online\OnlinePaymentMethod;
 
 /**
  * Pengaturan keuangan (PRD-003 §6, FN-1a): jenis biaya dan tarif per lembaga × tahun ajaran (opsional
@@ -38,7 +41,7 @@ final class FeeSettingsController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, FeeSettingsOverview $overview, ScopedSettingOverview $settings): Response
+    public function index(Request $request, FeeSettingsOverview $overview, ScopedSettingOverview $settings, OnlinePaymentSettings $online, MidtransGateway $gateway): Response
     {
         $this->authorize();
         $tenantId = $this->tenantId();
@@ -75,6 +78,13 @@ final class FeeSettingsController
                 'usage' => $settings->usage($tenantId, ExpenseApprovalLimitSetting::KEY, fn (mixed $value): string => ExpenseApprovalLimitSetting::label(ExpenseApprovalLimitSetting::normalize($value))),
             ],
             'targets' => $settings->targetOptions($tenantId),
+            // PRD-006 MG-1: pembayaran online Midtrans. Kunci tidak pernah dikirim ke browser, hanya "terpasang?".
+            'onlinePayments' => [
+                'configured' => $gateway->isConfigured(),
+                'production' => $gateway->isProduction(),
+                'methods' => $online->methods($tenantId),
+                'maxFixedFee' => OnlinePaymentSettings::MAX_FIXED_FEE,
+            ],
         ]);
     }
 
@@ -204,6 +214,37 @@ final class FeeSettingsController
         }
 
         return $this->done('Batas persetujuan disimpan. Berlaku untuk persetujuan berikutnya.');
+    }
+
+    /**
+     * Metode & biaya layanan pembayaran online (PRD-006 §6, MG-1).
+     */
+    public function setOnlinePayments(Request $request, OnlinePaymentSettings $online): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'methods' => ['required', 'array'],
+            'methods.*.enabled' => ['boolean'],
+            'methods.*.fee' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $input = [];
+
+        foreach (OnlinePaymentMethod::cases() as $method) {
+            $input[$method->value] = [
+                'enabled' => $request->boolean("methods.{$method->value}.enabled"),
+                'fee' => trim($request->string("methods.{$method->value}.fee")->value()),
+            ];
+        }
+
+        $this->attempt(function () use ($online, $input): bool {
+            $online->save($this->tenantId(), $input);
+
+            return true;
+        });
+
+        return $this->done('Pengaturan pembayaran online disimpan.');
     }
 
     public function setDueDay(Request $request, SetScopedSetting $settings): RedirectResponse
