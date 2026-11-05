@@ -106,7 +106,15 @@ final class FinanceAuditAction
 
     public const JOURNALS_REBUILT = 'finance.journals_rebuilt';
 
+    public const OPENING_BALANCE_SET = 'finance.opening_balance_set';
+
+    public const JOURNAL_POSTED = 'finance.journal_posted';
+
+    public const JOURNAL_VOIDED = 'finance.journal_voided';
+
     public const SUBJECT_LEDGER_ACCOUNT = 'fn_ledger_account';
+
+    public const SUBJECT_JOURNAL = 'fn_journal';
 
     /** Pengaturan pembukuan yayasan (subjek = id yayasan). */
     public const SUBJECT_LEDGER_SETTINGS = 'fn_ledger_settings';
@@ -186,6 +194,9 @@ final class FinanceAuditAction
             self::LEDGER_MAPPING_SET => 'Pemetaan akun pembukuan diubah',
             self::LEDGER_SETTINGS_SET => 'Pengaturan pembukuan diubah',
             self::JOURNALS_REBUILT => 'Jurnal otomatis disusun ulang',
+            self::OPENING_BALANCE_SET => 'Saldo awal pembukuan diubah',
+            self::JOURNAL_POSTED => 'Jurnal manual dicatat',
+            self::JOURNAL_VOIDED => 'Jurnal manual dibatalkan',
         ];
     }
 }

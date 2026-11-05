@@ -1,9 +1,14 @@
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import { CircleAlert, Plus, RefreshCw } from 'lucide-react';
+import { CircleAlert, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import { formatDateTime } from '@/components/finance/online-order';
-import { formatMonth, selectClass } from '@/components/finance/ledger';
+import {
+    formatMonth,
+    formatNumber,
+    formatRupiah,
+    selectClass,
+} from '@/components/finance/ledger';
 import type { LedgerSettings, Option } from '@/components/finance/ledger';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -58,11 +63,33 @@ type Props = {
     >;
     months: Option[];
     nameMax: number;
+    openingScopes: Option[];
+    openingScope: string;
+    opening: {
+        description: string | null;
+        lines: {
+            account_id: string;
+            cash_account: string | null;
+            debit: number;
+            credit: number;
+        }[];
+        items: OpeningItem[];
+    };
+    openingAccounts: Option[];
+    noteMax: number;
+};
+
+type OpeningItem = {
+    id: string;
+    account_id: string;
+    side: 'DEBIT' | 'KREDIT';
+    amount: number;
+    note: string | null;
 };
 
 const BASE = '/keuangan/pembukuan';
 
-const TABS = ['akun', 'pemetaan', 'periode'] as const;
+const TABS = ['akun', 'pemetaan', 'saldo-awal', 'periode'] as const;
 
 const RESTRICTABLE: Group[] = ['PENDAPATAN', 'ASET_NETO'];
 
@@ -94,6 +121,7 @@ export default function LedgerSettingsPage(props: Props) {
                     tabs={[
                         { value: 'akun', label: 'Akun' },
                         { value: 'pemetaan', label: 'Pemetaan' },
+                        { value: 'saldo-awal', label: 'Saldo awal' },
                         { value: 'periode', label: 'Periode' },
                     ]}
                     value={tab}
@@ -102,6 +130,7 @@ export default function LedgerSettingsPage(props: Props) {
 
                 {tab === 'akun' && <AccountsTab {...props} />}
                 {tab === 'pemetaan' && <MappingsTab {...props} byId={byId} />}
+                {tab === 'saldo-awal' && <OpeningTab {...props} byId={byId} />}
                 {tab === 'periode' && <PeriodTab {...props} />}
             </div>
         </>
@@ -921,5 +950,353 @@ function PeriodTab({ settings, months }: Props) {
                 )}
             </div>
         </section>
+    );
+}
+
+/* ----------------------------------------------------------------------------------------------------------------- */
+
+/**
+ * Saldo awal per lembaga (PRD-007 §5, PB-2a): kas/bank, piutang, titipan dihitung otomatis dari aplikasi; akuntan
+ * menambah baris lain; selisihnya ke Aset neto tanpa pembatasan.
+ */
+function OpeningTab({
+    settings,
+    openingScopes,
+    openingScope,
+    opening,
+    openingAccounts,
+    noteMax,
+    byId,
+}: Props & { byId: Map<string, Account> }) {
+    const [creating, setCreating] = useState(false);
+    const [editing, setEditing] = useState<OpeningItem | null>(null);
+    const debit = opening.lines.reduce((sum, line) => sum + line.debit, 0);
+    const credit = opening.lines.reduce((sum, line) => sum + line.credit, 0);
+    const label = (id: string) => {
+        const account = byId.get(id);
+
+        return account ? `${account.code} · ${account.name}` : '-';
+    };
+
+    if (!settings.active) {
+        return (
+            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Atur tanggal mulai pembukuan di tab Periode dulu.
+            </p>
+        );
+    }
+
+    return (
+        <section className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+                Saldo awal disusun otomatis per{' '}
+                {settings.start_date && formatMonth(settings.start_date)}: kas
+                &amp; bank dari buku kas, piutang dari tagihan yang belum
+                dibayar, titipan dari tabungan siswa. Tambahkan saldo lain
+                (tanah, bangunan, peralatan, utang); selisihnya otomatis masuk
+                Aset neto tanpa pembatasan.
+            </p>
+
+            <div className="flex flex-wrap items-end justify-between gap-2">
+                <div className="grid min-w-0 gap-1.5 sm:w-72">
+                    <Label htmlFor="opening-scope">Kas</Label>
+                    <select
+                        id="opening-scope"
+                        className={selectClass}
+                        value={openingScope}
+                        onChange={(event) =>
+                            router.get(
+                                `${BASE}/pengaturan`,
+                                {
+                                    tab: 'saldo-awal',
+                                    lingkup: event.target.value,
+                                },
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        {openingScopes.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <Button type="button" onClick={() => setCreating(true)}>
+                    <Plus />
+                    Tambah saldo awal
+                </Button>
+            </div>
+
+            <div className="space-y-2">
+                <h2 className="text-sm font-medium">Saldo tambahan</h2>
+                {opening.items.length === 0 ? (
+                    <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+                        Belum ada saldo tambahan untuk kas ini.
+                    </p>
+                ) : (
+                    <ul className="divide-y rounded-xl border">
+                        {opening.items.map((item) => (
+                            <li
+                                key={item.id}
+                                className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
+                            >
+                                <div className="min-w-0">
+                                    <p className="font-medium">
+                                        {label(item.account_id)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {item.side === 'DEBIT'
+                                            ? 'Debit'
+                                            : 'Kredit'}{' '}
+                                        {formatRupiah(item.amount)}
+                                        {item.note && ` · ${item.note}`}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setEditing(item)}
+                                    >
+                                        <Pencil />
+                                        Ubah
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            router.delete(
+                                                `${BASE}/saldo-awal/${item.id}`,
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        <Trash2 />
+                                        Hapus
+                                    </Button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <h2 className="text-sm font-medium">Jurnal saldo awal</h2>
+                {opening.lines.length === 0 ? (
+                    <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+                        Semua saldo awal kas ini nol, jadi tidak ada jurnal
+                        saldo awal.
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto rounded-xl border">
+                        <table className="w-full min-w-[32rem] text-sm">
+                            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                                <tr>
+                                    <th className="p-2 font-medium">Akun</th>
+                                    <th className="p-2 text-right font-medium">
+                                        Debit
+                                    </th>
+                                    <th className="p-2 text-right font-medium">
+                                        Kredit
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {opening.lines.map((line, index) => (
+                                    <tr key={index}>
+                                        <td
+                                            className={`p-2 ${line.credit > 0 ? 'pl-8' : ''}`}
+                                        >
+                                            {label(line.account_id)}
+                                            {line.cash_account && (
+                                                <span className="block text-xs text-muted-foreground">
+                                                    Rekening:{' '}
+                                                    {line.cash_account}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right tabular-nums">
+                                            {line.debit > 0
+                                                ? formatNumber(line.debit)
+                                                : ''}
+                                        </td>
+                                        <td className="p-2 text-right tabular-nums">
+                                            {line.credit > 0
+                                                ? formatNumber(line.credit)
+                                                : ''}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="border-t bg-muted/30 font-medium">
+                                <tr>
+                                    <td className="p-2">Total</td>
+                                    <td className="p-2 text-right tabular-nums">
+                                        {formatNumber(debit)}
+                                    </td>
+                                    <td className="p-2 text-right tabular-nums">
+                                        {formatNumber(credit)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                    Rancangan ini dihitung ulang dari data terbaru. Jurnalnya di
+                    daftar Jurnal ikut diperbarui otomatis (paling lambat 1
+                    menit, atau saat halaman Jurnal dibuka).
+                </p>
+            </div>
+
+            <FormDialog
+                open={creating}
+                onOpenChange={setCreating}
+                title="Tambah saldo awal"
+            >
+                <OpeningForm
+                    action={`${BASE}/saldo-awal`}
+                    method="post"
+                    errorBag="createOpening"
+                    scope={openingScope}
+                    accounts={openingAccounts}
+                    noteMax={noteMax}
+                    onDone={() => setCreating(false)}
+                />
+            </FormDialog>
+
+            <FormDialog
+                open={editing !== null}
+                onOpenChange={(open) => !open && setEditing(null)}
+                title="Ubah saldo awal"
+            >
+                {editing && (
+                    <OpeningForm
+                        action={`${BASE}/saldo-awal/${editing.id}`}
+                        method="patch"
+                        errorBag={`opening-${editing.id}`}
+                        scope={openingScope}
+                        accounts={openingAccounts}
+                        noteMax={noteMax}
+                        item={editing}
+                        onDone={() => setEditing(null)}
+                    />
+                )}
+            </FormDialog>
+        </section>
+    );
+}
+
+function OpeningForm({
+    action,
+    method,
+    errorBag,
+    scope,
+    accounts,
+    noteMax,
+    item,
+    onDone,
+}: {
+    action: string;
+    method: 'post' | 'patch';
+    errorBag: string;
+    scope: string;
+    accounts: Option[];
+    noteMax: number;
+    item?: OpeningItem;
+    onDone: () => void;
+}) {
+    return (
+        <Form
+            action={action}
+            method={method}
+            errorBag={errorBag}
+            resetOnSuccess
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="grid gap-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <input type="hidden" name="lingkup" value={scope} />
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`${errorBag}-account`}>Akun</Label>
+                        <select
+                            id={`${errorBag}-account`}
+                            name="account_id"
+                            className={selectClass}
+                            defaultValue={item?.account_id ?? ''}
+                            required
+                        >
+                            <option value="" disabled>
+                                Pilih akun
+                            </option>
+                            {accounts.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <InputError message={errors.account_id} />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`${errorBag}-side`}>Posisi</Label>
+                            <select
+                                id={`${errorBag}-side`}
+                                name="side"
+                                className={selectClass}
+                                defaultValue={item?.side ?? 'DEBIT'}
+                            >
+                                <option value="DEBIT">
+                                    Debit (aset, beban)
+                                </option>
+                                <option value="KREDIT">
+                                    Kredit (utang, aset neto, akumulasi)
+                                </option>
+                            </select>
+                            <InputError message={errors.side} />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`${errorBag}-amount`}>
+                                Nominal
+                            </Label>
+                            <Input
+                                id={`${errorBag}-amount`}
+                                name="amount"
+                                inputMode="numeric"
+                                defaultValue={item ? String(item.amount) : ''}
+                                placeholder="mis. 250000000"
+                                required
+                            />
+                            <InputError message={errors.amount} />
+                        </div>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`${errorBag}-note`}>
+                            Keterangan (opsional)
+                        </Label>
+                        <Input
+                            id={`${errorBag}-note`}
+                            name="note"
+                            maxLength={noteMax}
+                            defaultValue={item?.note ?? ''}
+                            placeholder="mis. Gedung sekolah, nilai buku per 31 Des"
+                        />
+                        <InputError message={errors.note} />
+                    </div>
+                    <InputError
+                        message={errors.organization_id ?? errors.form}
+                    />
+                    <Button type="submit" disabled={processing}>
+                        Simpan
+                    </Button>
+                </>
+            )}
+        </Form>
     );
 }

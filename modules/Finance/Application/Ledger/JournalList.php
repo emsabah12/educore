@@ -181,6 +181,10 @@ final class JournalList
             return $transfer === null ? null : $this->cashBookUrl($transfer->organization_id, (string) $transfer->transfer_date);
         }
 
+        if ($source === JournalSource::Opening) {
+            return '/keuangan/pembukuan/pengaturan?'.http_build_query(['tab' => 'saldo-awal', 'lingkup' => $sourceId === $tenantId ? 'yayasan' : $sourceId]);
+        }
+
         if ($source === JournalSource::AccountOpening) {
             $account = DB::table('fn_cash_accounts')->where('tenant_id', $tenantId)->where('id', $sourceId)->first(['organization_id', 'opening_date']);
 

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Domain\Cash\CashAccountKind;
@@ -19,10 +20,11 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
 use stdClass;
 
 /**
- * Jurnal otomatis (PRD-007 §4, PB-1): proyeksi transaksi aplikasi ke jurnal berpasangan.
+ * Jurnal otomatis (PRD-007 §4–§5, PB-1, PB-2a): proyeksi transaksi aplikasi ke jurnal berpasangan.
  *
  * Sumber: tagihan (TAGIHAN), transaksi kas selain mutasi (KAS), mutasi (MUTASI, dua baris kas = satu jurnal), saldo awal
- * rekening kas yang dibuka pada/sesudah tanggal mulai pembukuan (SALDO_REKENING).
+ * rekening kas yang dibuka pada/sesudah tanggal mulai pembukuan (SALDO_REKENING), dan saldo awal per lembaga pada tanggal
+ * mulai (SALDO_AWAL, termasuk baris tambahan akuntan).
  *
  * Proyeksi bersifat deterministik & aman diulang: untuk tiap sumber dihitung jurnal yang seharusnya, lalu dibandingkan
  * dengan yang tersimpan —
@@ -41,7 +43,7 @@ final class JournalProjector
 {
     public const BATCH = 500;
 
-    private const PHASES = ['SALDO_REKENING', 'TAGIHAN', 'KAS', 'MUTASI', 'BERSIHKAN'];
+    private const PHASES = ['SALDO_REKENING', 'TAGIHAN', 'KAS', 'MUTASI', 'SALDO_AWAL', 'BERSIHKAN'];
 
     /** @var array<string, string> */
     private array $keyed = [];
@@ -171,7 +173,8 @@ final class JournalProjector
         $total = DB::table('fn_cash_accounts')->where('tenant_id', $tenantId)->count()
             + DB::table('fn_invoices')->where('tenant_id', $tenantId)->count()
             + DB::table('fn_cash_entries')->where('tenant_id', $tenantId)->where('source', '!=', CashEntrySource::Transfer->value)->count()
-            + DB::table('fn_cash_transfers')->where('tenant_id', $tenantId)->count();
+            + DB::table('fn_cash_transfers')->where('tenant_id', $tenantId)->count()
+            + count($this->openingOwners($tenantId));
 
         DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->update([
             'rebuild_version' => $version,
@@ -220,6 +223,23 @@ final class JournalProjector
         }
 
         $source = JournalSource::from($phase);
+
+        // Saldo awal: satu jurnal per lembaga + Yayasan, cukup satu potongan.
+        if ($source === JournalSource::Opening) {
+            $owners = $this->openingOwners($tenantId);
+            $this->project($tenantId, $source, $owners, $start);
+            $done = min($total, $done + count($owners));
+
+            DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->update([
+                'rebuild_phase' => 'BERSIHKAN',
+                'rebuild_cursor' => null,
+                'rebuild_done' => $done,
+                'updated_at' => now(),
+            ]);
+
+            return ['done' => $done, 'total' => $total, 'finished' => false];
+        }
+
         $query = match ($source) {
             JournalSource::AccountOpening => DB::table('fn_cash_accounts'),
             JournalSource::Invoice => DB::table('fn_invoices'),
@@ -285,6 +305,7 @@ final class JournalProjector
             JournalSource::CashEntry => $this->cashEntries($tenantId, $ids, $start),
             JournalSource::Transfer => $this->transfers($tenantId, $ids, $start),
             JournalSource::AccountOpening => $this->accountOpenings($tenantId, $ids, $start),
+            JournalSource::Opening => $this->openings($tenantId, $ids, $start),
             default => [],
         };
 
@@ -655,6 +676,173 @@ final class JournalProjector
         }
 
         return $desired;
+    }
+
+    /**
+     * Rancangan jurnal saldo awal satu lembaga (null = Yayasan) untuk halaman Saldo awal; null bila pembukuan belum
+     * aktif atau semua saldonya nol.
+     *
+     * @return Desired|null
+     */
+    public function openingPreview(string $tenantId, ?string $organizationId): ?array
+    {
+        $start = $this->startDate($tenantId);
+
+        if ($start === null) {
+            return null;
+        }
+
+        $this->load($tenantId);
+        $owner = $organizationId ?? $tenantId;
+
+        return $this->openings($tenantId, [$owner], $start)[$owner] ?? null;
+    }
+
+    /**
+     * Antrekan ulang jurnal saldo awal lembaga ini (sesudah baris tambahan saldo awal berubah).
+     */
+    public function queueOpening(string $tenantId, ?string $organizationId): void
+    {
+        DB::table('fn_ledger_queue')->insertOrIgnore([
+            'tenant_id' => $tenantId,
+            'source' => JournalSource::Opening->value,
+            'source_id' => $organizationId ?? $tenantId,
+            'queued_at' => now(),
+        ]);
+    }
+
+    /**
+     * Pemilik jurnal saldo awal: id yayasan (kas Yayasan) + semua node LEMBAGA.
+     *
+     * @return list<string>
+     */
+    private function openingOwners(string $tenantId): array
+    {
+        $owners = [$tenantId];
+
+        foreach (DB::table('organizations')->where('tenant_id', $tenantId)->where('type', OrganizationType::Lembaga->value)->orderBy('id')->pluck('id') as $id) {
+            $owners[] = (string) $id;
+        }
+
+        return $owners;
+    }
+
+    /**
+     * Jurnal saldo awal per lembaga pada tanggal mulai (PRD-007 §5): kas & bank = saldo buku kas tiap rekening sehari
+     * sebelumnya (rekening yang dibuka sebelum tanggal mulai); kas titipan = utang titipan; piutang siswa = tagihan
+     * bertanggal sebelum tanggal mulai dikurangi kuitansi sebelum tanggal mulai; baris tambahan akuntan; selisihnya →
+     * Aset neto tanpa pembatasan. `$ids` = id lembaga, atau id yayasan untuk kas Yayasan.
+     *
+     * @param  list<string>  $ids
+     * @return array<string, Desired>
+     */
+    private function openings(string $tenantId, array $ids, string $start): array
+    {
+        $desired = [];
+        $startUtc = CarbonImmutable::parse($start, BusinessClock::timezone())->utc();
+
+        foreach ($ids as $owner) {
+            $organizationId = $owner === $tenantId ? null : $owner;
+            $debits = [];
+            $credits = [];
+            $scoped = fn ($query, string $column = 'organization_id') => $organizationId === null ? $query->whereNull($column) : $query->where($column, $organizationId);
+
+            // Kas & bank: saldo awal rekening + transaksi SAH sebelum tanggal mulai.
+            $accounts = $scoped(DB::table('fn_cash_accounts')->where('tenant_id', $tenantId)->where('opening_date', '<', $start))
+                ->orderByRaw("CASE kind WHEN 'TUNAI' THEN 0 WHEN 'BANK' THEN 1 ELSE 2 END")
+                ->orderBy('name')
+                ->get(['id', 'kind', 'opening_balance']);
+            $movements = [];
+
+            if ($accounts->isNotEmpty()) {
+                foreach (DB::table('fn_cash_entries')
+                    ->whereIn('account_id', $accounts->pluck('id')->all())
+                    ->where('status', PaymentStatus::Valid->value)
+                    ->where('entry_date', '<', $start)
+                    ->groupBy('account_id')
+                    ->get(['account_id', DB::raw("SUM(CASE WHEN direction = 'MASUK' THEN amount ELSE -amount END) AS total")]) as $row) {
+                    $movements[(string) $row->account_id] = (int) $row->total;
+                }
+            }
+
+            foreach ($accounts as $account) {
+                $balance = (int) $account->opening_balance + ($movements[(string) $account->id] ?? 0);
+                $ledger = $this->cashAccounts[(string) $account->id]['ledger_account_id'] ?? null;
+
+                if ($balance === 0 || $ledger === null) {
+                    continue;
+                }
+
+                $this->push($debits, $credits, $ledger, $organizationId, (string) $account->id, $balance);
+
+                if ((string) $account->kind === CashAccountKind::Custody->value) {
+                    $this->push($debits, $credits, $this->keyed[ChartOfAccounts::KEY_SAVINGS_LIABILITY], $organizationId, null, -$balance);
+                }
+            }
+
+            // Piutang siswa (hanya lembaga).
+            if ($organizationId !== null) {
+                $billed = (int) DB::table('fn_invoices')
+                    ->where('tenant_id', $tenantId)
+                    ->where('organization_id', $organizationId)
+                    ->where('status', '!=', InvoiceStatus::Void->value)
+                    ->where(fn ($query) => $query->where('period', '<', $start)->orWhere(fn ($once) => $once->whereNull('period')->where('created_at', '<', $startUtc)))
+                    ->sum('amount');
+                $paid = (int) DB::table('fn_payments')
+                    ->where('tenant_id', $tenantId)
+                    ->where('organization_id', $organizationId)
+                    ->where('status', PaymentStatus::Valid->value)
+                    ->where('paid_on', '<', $start)
+                    ->sum('amount');
+
+                if ($billed - $paid !== 0) {
+                    $this->push($debits, $credits, $this->keyed[ChartOfAccounts::KEY_RECEIVABLE], $organizationId, null, $billed - $paid);
+                }
+            }
+
+            // Baris tambahan akuntan.
+            foreach ($scoped(DB::table('fn_opening_items')->where('tenant_id', $tenantId))->orderBy('created_at')->orderBy('id')->get(['account_id', 'debit', 'credit']) as $item) {
+                $this->push($debits, $credits, (string) $item->account_id, $organizationId, null, (int) $item->debit - (int) $item->credit);
+            }
+
+            $difference = array_sum(array_column($debits, 'debit')) - array_sum(array_column($credits, 'credit'));
+
+            if ($difference !== 0) {
+                $this->push($debits, $credits, $this->keyed[ChartOfAccounts::KEY_NET_ASSETS_FREE], $organizationId, null, -$difference);
+            }
+
+            if ($debits === [] && $credits === []) {
+                continue;
+            }
+
+            $name = $organizationId === null ? 'Kas Yayasan' : ($this->organizationNames[$organizationId] ?? 'lembaga');
+
+            $desired[$owner] = [
+                'date' => $start,
+                'description' => $this->text("Saldo awal {$name} per ".LedgerDate::long($start)),
+                'organization_id' => $organizationId,
+                'valid' => true,
+                'void_reason' => null,
+                'lines' => [...$debits, ...$credits],
+            ];
+        }
+
+        return $desired;
+    }
+
+    /**
+     * Tambah baris saldo: positif → debit, negatif → kredit.
+     *
+     * @param  list<Line>  $debits
+     * @param  list<Line>  $credits
+     */
+    private function push(array &$debits, array &$credits, string $accountId, ?string $organizationId, ?string $cashAccountId, int $amount): void
+    {
+        if ($amount > 0) {
+            $debits[] = $this->line($accountId, $organizationId, $cashAccountId, $amount, 0);
+        } elseif ($amount < 0) {
+            $credits[] = $this->line($accountId, $organizationId, $cashAccountId, 0, -$amount);
+        }
     }
 
     /**

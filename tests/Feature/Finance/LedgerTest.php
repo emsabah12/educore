@@ -24,7 +24,7 @@ use Tests\Support\DevAccounts;
 /*
  * Pembukuan PB-1 (PRD-007 §3–§5). "Hari ini" Kamis 5 Nov 2026, pembukuan mulai 1 Nov 2026.
  *   SMP Unit 3: Ahmad Fauzi, SPP Rp 150.000/bulan, potongan 10% (Rp 15.000) → tagihan Rp 135.000 Okt–Des.
- *   Kas tunai SMP saldo awal Rp 1.000.000 per 1 Okt (sebelum tanggal mulai → masuk saldo awal PB-2, bukan jurnal ini).
+ *   Kas tunai SMP saldo awal Rp 1.000.000 per 1 Okt (sebelum tanggal mulai → masuk jurnal saldo awal SMP, PB-2a).
  */
 
 beforeEach(function () {
@@ -153,7 +153,7 @@ test('jurnal otomatis: tagihan (akrual + potongan), kuitansi, tabungan, pemasuka
             ->where('settings.active', true)
             ->where('settings.pending', 0)
             ->where('scope', 'semua')
-            ->where('journals.total', 7));
+            ->where('journals.total', 8));
 
     expect(DB::table('fn_ledger_queue')->count())->toBe(0);
 
@@ -182,9 +182,12 @@ test('jurnal otomatis: tagihan (akrual + potongan), kuitansi, tabungan, pemasuka
     expect($transferLines->pluck('organization_id')->all())->toBe([$this->smp->id, $this->smp->id, null, null])
         ->and($transferLines->pluck('cash_account_id')->all())->toBe([null, $this->smpCash, $this->yayasanCash, null]);
 
+    // Saldo awal SMP (PB-2a): Kas tunai Rp 1.000.000 per 1 Okt + piutang tagihan Oktober Rp 135.000 → aset neto.
+    expect(fnlLines('SALDO_AWAL', $this->smp->id))->toBe([['1-1100', 1000000, 0], ['1-1400', 135000, 0], ['3-1000', 0, 1135000]]);
+
     // Nomor JU-<tahun>-<urut>, unik.
     expect(DB::table('fn_journals')->pluck('number')->every(fn ($number) => preg_match('/^JU-2026-\d{6}$/', $number) === 1))->toBeTrue()
-        ->and(DB::table('fn_journals')->distinct()->count('number'))->toBe(7);
+        ->and(DB::table('fn_journals')->distinct()->count('number'))->toBe(8);
 
     // Semua jurnal seimbang (constraint trigger dicek sekarang, bukan saat COMMIT).
     DB::statement('SET CONSTRAINTS ALL IMMEDIATE');
@@ -380,7 +383,7 @@ test('hak akses: bendahara tidak melihat pembukuan; kepala lembaga hanya lembaga
             ->where('scopes', [['value' => $this->smp->id, 'label' => 'SMP Unit 3']])
             ->where('scope', $this->smp->id)
             ->where('canManage', false)
-            ->where('journals.total', 2));
+            ->where('journals.total', 3));
     $this->actingAs($kepala)->get(route('finance.journals.index', ['lingkup' => 'semua']))
         ->assertInertia(fn (Assert $page) => $page->where('scope', $this->smp->id));
     $this->actingAs($kepala)->get(route('finance.journals.show', ['journal' => $mtsJournal]))->assertNotFound();

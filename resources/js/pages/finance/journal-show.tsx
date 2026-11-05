@@ -1,13 +1,18 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { Form, Head, Link } from '@inertiajs/react';
+import { ArrowLeft, Ban, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import {
     formatDate,
     formatNumber,
     formatRupiah,
 } from '@/components/finance/ledger';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Props = {
     journal: {
@@ -30,12 +35,21 @@ type Props = {
         credit: number;
     }[];
     source_url: string | null;
+    canVoid: boolean;
+    reasonMax: number;
 };
 
 /**
  * Rincian satu jurnal (PRD-007 §7, PB-1): baris debit/kredit per akun & lembaga, tautan ke transaksi sumbernya.
  */
-export default function JournalShow({ journal, lines, source_url }: Props) {
+export default function JournalShow({
+    journal,
+    lines,
+    source_url,
+    canVoid,
+    reasonMax,
+}: Props) {
+    const [voiding, setVoiding] = useState(false);
     const debit = lines.reduce((sum, line) => sum + line.debit, 0);
     const credit = lines.reduce((sum, line) => sum + line.credit, 0);
 
@@ -92,6 +106,17 @@ export default function JournalShow({ journal, lines, source_url }: Props) {
                             Jurnal batal tidak dihitung di buku besar dan
                             laporan.
                         </p>
+                    )}
+                    {canVoid && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVoiding(true)}
+                        >
+                            <Ban />
+                            Batalkan jurnal
+                        </Button>
                     )}
                     {source_url && (
                         <Button asChild variant="outline" size="sm">
@@ -162,6 +187,46 @@ export default function JournalShow({ journal, lines, source_url }: Props) {
                         </tfoot>
                     </table>
                 </div>
+
+                <FormDialog
+                    open={voiding}
+                    onOpenChange={setVoiding}
+                    title={`Batalkan jurnal ${journal.number}`}
+                    description="Jurnal yang dibatalkan tetap tersimpan (dicoret) dan tidak dihitung di laporan."
+                >
+                    <Form
+                        action={`/keuangan/pembukuan/jurnal/${journal.id}/batalkan`}
+                        method="post"
+                        errorBag="voidJournal"
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setVoiding(false)}
+                        className="grid gap-3"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="void-reason">Alasan</Label>
+                                    <Input
+                                        id="void-reason"
+                                        name="reason"
+                                        maxLength={reasonMax}
+                                        required
+                                    />
+                                    <InputError
+                                        message={errors.reason ?? errors.form}
+                                    />
+                                </div>
+                                <Button
+                                    type="submit"
+                                    variant="destructive"
+                                    disabled={processing}
+                                >
+                                    Batalkan jurnal
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                </FormDialog>
             </div>
         </>
     );

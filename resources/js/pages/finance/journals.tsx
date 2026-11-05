@@ -1,5 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CircleAlert, Search } from 'lucide-react';
+import { CircleAlert, Plus, Search } from 'lucide-react';
+import { FormDialog } from '@/components/form-dialog';
+import { ManualJournalForm } from '@/components/finance/manual-journal-form';
+import type { ManualJournalOptions } from '@/components/finance/manual-journal-form';
 import { useState } from 'react';
 import {
     formatDate,
@@ -36,6 +39,7 @@ type Props = {
     status: string | null;
     search: string;
     searchMax: number;
+    manual: ManualJournalOptions | null;
     journals: {
         rows: JournalRow[];
         total: number;
@@ -63,8 +67,10 @@ export default function Journals({
     search,
     searchMax,
     journals,
+    manual,
 }: Props) {
     const [query, setQuery] = useState(search);
+    const [recording, setRecording] = useState(false);
 
     const visit = (overrides: Record<string, string | null>) => {
         const merged: Record<string, string | null> = {
@@ -91,10 +97,35 @@ export default function Journals({
             <Head title="Jurnal" />
 
             <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4">
-                <Heading
-                    title="Jurnal"
-                    description="Jurnal berpasangan yang disusun otomatis dari tagihan, kas, tabungan, dan mutasi. Jurnal manual menyusul."
-                />
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <Heading
+                        title="Jurnal"
+                        description="Jurnal berpasangan yang disusun otomatis dari tagihan, kas, tabungan, dan mutasi, ditambah jurnal manual penyesuaian."
+                    />
+                    {manual && (
+                        <Button
+                            type="button"
+                            onClick={() => setRecording(true)}
+                        >
+                            <Plus />
+                            Catat jurnal manual
+                        </Button>
+                    )}
+                </div>
+
+                {manual && (
+                    <FormDialog
+                        open={recording}
+                        onOpenChange={setRecording}
+                        title="Catat jurnal manual"
+                        description="Untuk penyesuaian seperti penyusutan, aset hibah, atau koreksi."
+                    >
+                        <ManualJournalForm
+                            options={manual}
+                            onDone={() => setRecording(false)}
+                        />
+                    </FormDialog>
+                )}
 
                 {!settings.active ? (
                     <div className="space-y-3 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">

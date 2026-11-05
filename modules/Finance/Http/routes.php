@@ -128,6 +128,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Pembukuan (PRD-007 PB-1): daftar & rincian jurnal, pengaturan (COA, pemetaan, periode, susun ulang).
     Route::get('keuangan/pembukuan/jurnal', [JournalController::class, 'index'])->name('finance.journals.index');
     Route::get('keuangan/pembukuan/jurnal/{journal}', [JournalController::class, 'show'])->whereUuid('journal')->name('finance.journals.show');
+    Route::post('keuangan/pembukuan/jurnal', [JournalController::class, 'store'])->name('finance.journals.store');
+    Route::post('keuangan/pembukuan/jurnal/{journal}/batalkan', [JournalController::class, 'void'])->whereUuid('journal')->name('finance.journals.void');
+    Route::post('keuangan/pembukuan/saldo-awal', [LedgerSettingsController::class, 'storeOpening'])->name('finance.opening-items.store');
+    Route::patch('keuangan/pembukuan/saldo-awal/{item}', [LedgerSettingsController::class, 'updateOpening'])->whereUuid('item')->name('finance.opening-items.update');
+    Route::delete('keuangan/pembukuan/saldo-awal/{item}', [LedgerSettingsController::class, 'destroyOpening'])->whereUuid('item')->name('finance.opening-items.destroy');
     Route::get('keuangan/pembukuan/pengaturan', [LedgerSettingsController::class, 'index'])->name('finance.ledger-settings.index');
     Route::post('keuangan/pembukuan/akun', [LedgerSettingsController::class, 'storeAccount'])->name('finance.ledger-accounts.store');
     Route::patch('keuangan/pembukuan/akun/{account}', [LedgerSettingsController::class, 'updateAccount'])->whereUuid('account')->name('finance.ledger-accounts.update');

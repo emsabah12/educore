@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-05
-- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) dibangun 2026-11-05, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `28029fd` — feat(finance): MG-3 pembayaran online untuk petugas, kelebihan bayar, rekap Online
+- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) dibangun 2026-11-05, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Commit terakhir:** `706ec25` — test: naikkan memory_limit phpunit ke 1536M (PB-1 `c602d11`)
 
 ## Keputusan penting
 
@@ -840,11 +840,17 @@
 
 ## Pembukuan (PRD-007)
 
-**PB-1 — COA, pemetaan, periode, jurnal otomatis, daftar jurnal: DIBANGUN (2026-11-05, menunggu uji owner)** — PRD-007 §15
+**PB-1 — COA, pemetaan, periode, jurnal otomatis, daftar jurnal: SELESAI (2026-11-05, commit `c602d11`; fix `706ec25` memory_limit test 1536M)** — PRD-007 §15
 
 - Finance: migration `2026_11_05_300016_create_fn_ledger_tables` (akun, pengaturan, jurnal, baris, antrean, kolom `ledger_account_id`, trigger antrean, constraint trigger seimbang, sequence nomor); `Domain/Ledger/AccountGroup|NormalBalance|CashFlowActivity|JournalSource`; `Application/Ledger/ChartOfAccounts` (COA bawaan 33 akun + kelola akun), `LedgerSetup` (periode, pemetaan, minta susun ulang), `JournalProjector` (proyeksi TAGIHAN/KAS/MUTASI/SALDO_REKENING, antrean, susun ulang bertahap), `JournalList`; `Console/ProcessLedgerCommand` (`finance:ledger-process`, dijadwalkan tiap menit); `LedgerSettingsController`, `JournalController`; permission `finance.ledger.view|manage`; audit akun/pemetaan/pengaturan/susun ulang.
 - Frontend: `pages/finance/ledger-settings.tsx` (tab Akun · Pemetaan · Periode), `pages/finance/journals.tsx`, `pages/finance/journal-show.tsx`, `components/finance/ledger.ts`; menu samping kelompok **Pembukuan** (Jurnal; Pengaturan pembukuan di "Seluruh Yayasan").
 - Test: `tests/Feature/Finance/LedgerTest.php` (5 test).
+
+**PB-2a — Saldo awal & jurnal manual: DIBANGUN (2026-11-05, menunggu uji owner)** — PRD-007 §16
+
+- Finance: migration `2026_11_05_300017_create_fn_opening_items_table` (saldo tambahan + trigger antrean saldo awal untuk transaksi sebelum tanggal mulai); `JournalProjector` sumber SALDO_AWAL (`openings`, `openingPreview`, `queueOpening`, fase susun ulang); `Application/Ledger/OpeningItems`, `ManualJournals`, `LedgerDate`; `ChartOfAccounts::manualOptions|assertManualAccount|ledgerOrganization`; route `finance.journals.store|void`, `finance.opening-items.store|update|destroy`; audit saldo awal & jurnal manual.
+- Frontend: tab **Saldo awal** di `ledger-settings.tsx`; tombol & formulir **Catat jurnal manual** (`components/finance/manual-journal-form.tsx`) di `journals.tsx`; **Batalkan jurnal** di `journal-show.tsx`.
+- Test: `tests/Feature/Finance/LedgerOpeningTest.php` (3 test); `LedgerTest` disesuaikan (jurnal saldo awal).
 
 ## Perapian tampilan
 
@@ -923,5 +929,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Pembukuan (PRD-007)**: owner menguji PB-1 → PB-2 (saldo awal, jurnal manual, buku besar, neraca saldo, cek kecocokan) → PB-3 (laporan ISAK 35) → PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
+2. **Pembukuan (PRD-007)**: owner menguji PB-2a → PB-2b (buku besar, neraca saldo, cek kecocokan) → PB-3 (laporan ISAK 35) → PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

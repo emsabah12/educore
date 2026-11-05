@@ -2,10 +2,13 @@
 
 namespace Modules\Finance\Application\Ledger;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Domain\Organization\OrganizationStatus;
+use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Cash\ManageCashCategories;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
@@ -217,6 +220,72 @@ final class ChartOfAccounts
         }
 
         return $ids;
+    }
+
+    /**
+     * Akun yang boleh dipakai jurnal manual / baris saldo awal (PRD-007 §5–§6): akun posting aktif, bukan akun kas/bank,
+     * bukan akun yang hanya diisi jurnal otomatis; untuk saldo awal juga bukan Aset neto tanpa pembatasan (penyeimbang).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public function manualOptions(string $tenantId, bool $forOpening): array
+    {
+        $options = [];
+
+        foreach ($this->manualQuery($tenantId, $forOpening)->orderBy('code')->get(['id', 'code', 'name']) as $row) {
+            $options[] = ['value' => (string) $row->id, 'label' => "{$row->code} · {$row->name}"];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @throws FinanceException akun tidak boleh dipakai
+     */
+    public function assertManualAccount(string $tenantId, string $accountId, bool $forOpening, string $field, string $prefix = ''): void
+    {
+        if (! Str::isUuid($accountId) || ! $this->manualQuery($tenantId, $forOpening)->where('id', $accountId)->exists()) {
+            throw FinanceException::make($field, $prefix.($forOpening
+                ? 'Pilih akun aktif selain akun kas/bank, akun otomatis, dan Aset neto tanpa pembatasan (diisi otomatis sebagai selisih).'
+                : 'Pilih akun aktif selain akun kas/bank dan akun yang hanya diisi jurnal otomatis. Uang masuk/keluar dicatat di Kas.'));
+        }
+    }
+
+    /**
+     * Lembaga baris jurnal: kosong = Yayasan, selain itu node LEMBAGA aktif yayasan ini.
+     *
+     * @throws FinanceException
+     */
+    public function ledgerOrganization(string $tenantId, ?string $organizationId, string $field, string $prefix = ''): ?string
+    {
+        if ($organizationId === null || $organizationId === '' || $organizationId === 'yayasan') {
+            return null;
+        }
+
+        $found = Str::isUuid($organizationId) && DB::table('organizations')
+            ->where('tenant_id', $tenantId)
+            ->where('id', $organizationId)
+            ->where('type', OrganizationType::Lembaga->value)
+            ->where('status', OrganizationStatus::Active->value)
+            ->exists();
+
+        if (! $found) {
+            throw FinanceException::make($field, $prefix.'Pilih lembaga yang aktif (atau Yayasan).');
+        }
+
+        return $organizationId;
+    }
+
+    private function manualQuery(string $tenantId, bool $forOpening): Builder
+    {
+        $excluded = $forOpening ? [...self::SYSTEM_ONLY_KEYS, self::KEY_NET_ASSETS_FREE] : self::SYSTEM_ONLY_KEYS;
+
+        return DB::table('fn_ledger_accounts')
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->where('is_header', false)
+            ->where('is_cash', false)
+            ->where(fn (Builder $query) => $query->whereNull('system_key')->orWhereNotIn('system_key', $excluded));
     }
 
     /**

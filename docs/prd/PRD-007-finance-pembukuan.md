@@ -1,8 +1,8 @@
 # PRD-007 — Modul Finance (Keuangan): Pembukuan (COA, Jurnal, Laporan ISAK 35)
 
-- **Versi:** 0.2 (2026-11-05: disetujui owner; rincian & pembangunan PB-1, §15)
-- **Versi sebelumnya:** 0.1 (draf pertama, 2026-11-04)
-- **Status:** **DISETUJUI (2026-11-05)**; PB-1 dibangun 2026-11-05, menunggu uji owner
+- **Versi:** 0.3 (2026-11-05: PB-2 dipecah PB-2a/PB-2b; rincian & pembangunan PB-2a, §16)
+- **Versi sebelumnya:** 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
+- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a dibangun 2026-11-05, menunggu uji owner
 - **Bergantung pada:** PRD-003 (tagihan, potongan, kuitansi), PRD-004 (kas, rekening, kategori, pengeluaran, mutasi), PRD-005 (tabungan, rekening Titipan), PRD-006 (pembayaran online), PRD-000 (pohon lembaga, akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → (3) Midtrans (selesai) → **(4) pembukuan**
 
@@ -178,12 +178,13 @@ Menu samping kelompok baru **Pembukuan** (pedoman tampilan STATUS: satu fungsi p
 
 ## 10. Tahapan [ASUMSI]
 
-| Tahap    | Isi                                                                                                                                                                        |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **PB-1** | Hak akses, COA bawaan + kelola akun, pemetaan, pengaturan (tanggal mulai, tahun buku), jurnal otomatis dari semua sumber (sinkron + susun awal/susun ulang), daftar jurnal |
-| **PB-2** | Saldo awal otomatis + tambahan akuntan, jurnal manual + batal, buku besar, neraca saldo, cek kecocokan (+ kartu Beranda)                                                   |
-| **PB-3** | Laporan ISAK 35: posisi keuangan, penghasilan komprehensif, perubahan aset neto, arus kas metode langsung; saring periode & lingkup; kolom pembanding; unduh .xlsx         |
-| **PB-4** | Kunci periode (tutup bulan): Kasir, Kas, Pengeluaran, Tabungan, dan Online menolak transaksi/batal bertanggal di periode terkunci dengan pesan jelas; buka kunci + audit   |
+| Tahap     | Isi                                                                                                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PB-1**  | Hak akses, COA bawaan + kelola akun, pemetaan, pengaturan (tanggal mulai, tahun buku), jurnal otomatis dari semua sumber (sinkron + susun awal/susun ulang), daftar jurnal |
+| **PB-2a** | Saldo awal otomatis + tambahan akuntan, jurnal manual + batal                                                                                                              |
+| **PB-2b** | Buku besar, neraca saldo, cek kecocokan (+ kartu Beranda), unduh .xlsx                                                                                                     |
+| **PB-3**  | Laporan ISAK 35: posisi keuangan, penghasilan komprehensif, perubahan aset neto, arus kas metode langsung; saring periode & lingkup; kolom pembanding; unduh .xlsx         |
+| **PB-4**  | Kunci periode (tutup bulan): Kasir, Kas, Pengeluaran, Tabungan, dan Online menolak transaksi/batal bertanggal di periode terkunci dengan pesan jelas; buka kunci + audit   |
 
 ## 11. Di luar tahap ini
 
@@ -229,4 +230,16 @@ Anggaran (RAPBS) & realisasi anggaran, modul aset tetap & penyusutan otomatis, i
 - **Susun ulang** (tab Periode): `fn_ledger_settings` menyimpan versi & posisi; tiap permintaan memproses ±5 detik (urutan: saldo rekening → tagihan → kas → mutasi → bersihkan jurnal yatim) lalu halaman mengulang otomatis dengan bilah kemajuan; tombol bisa memaksa susun ulang walau tidak ada perubahan. Scheduler juga menyelesaikan susun ulang yang tertunda. Audit `finance.journals_rebuilt`.
 - **Halaman**: menu baru **Pembukuan** → **Jurnal** (`/keuangan/pembukuan/jurnal`: saring lingkup, bulan yang punya jurnal, sumber, status; cari nomor/uraian; 50 per halaman; pemberitahuan bila belum aktif / perlu disusun ulang / masih ada antrean) dan rincian (`/jurnal/{id}`: baris akun–lembaga–rekening, debit/kredit, total, tautan ke kuitansi / slip tabungan / kasir siswa / buku kas / pengeluaran); **Pengaturan pembukuan** (`/keuangan/pembukuan/pengaturan`, tab Akun · Pemetaan · Periode).
 - **Audit**: `finance.ledger_account_created|updated|deactivated|activated`, `finance.ledger_mapping_set`, `finance.ledger_settings_set`, `finance.journals_rebuilt`.
-- **Belum di PB-1**: jurnal saldo awal, jurnal manual, buku besar, neraca saldo, cek kecocokan (PB-2); laporan ISAK 35 (PB-3); kunci periode (PB-4).
+- **Belum di PB-1**: jurnal saldo awal & jurnal manual (PB-2a); buku besar, neraca saldo, cek kecocokan (PB-2b); laporan ISAK 35 (PB-3); kunci periode (PB-4).
+
+## 16. PB-2a Saldo awal & jurnal manual [ASUMSI — rincian teknis 2026-11-05]
+
+- **Jurnal saldo awal** (sumber SALDO_AWAL, satu per lembaga + satu untuk Kas Yayasan, tanggal = tanggal mulai, uraian "Saldo awal SMP Unit 3 per 1 November 2026"), disusun otomatis dan diperbarui lewat antrean bila datanya berubah:
+    - **kas & bank**: tiap rekening yang tanggal saldo awalnya **sebelum** tanggal mulai = saldo awal rekening + transaksi kas SAH sebelum tanggal mulai (sama dengan buku kas). Rekening Titipan → Dr Kas titipan / Cr Utang titipan sebesar saldonya;
+    - **piutang siswa** (lembaga): tagihan tidak batal bertanggal sebelum tanggal mulai − kuitansi SAH sebelum tanggal mulai (boleh minus bila ada bayar di muka);
+    - **saldo tambahan akuntan** (tab Saldo awal);
+    - **selisih** → Aset neto tanpa pembatasan. Lembaga yang semua saldonya nol tidak mendapat jurnal.
+- **Antrean saldo awal**: trigger di transaksi kas, kuitansi (dibuat/batal/tanggal/nominal), tagihan (dibuat/batal/nominal/periode; sekali bayar selalu), dan rekening kas (saldo/tanggal saldo awal) yang bertanggal sebelum tanggal mulai mengantrekan jurnal saldo awal lembaganya. Susun ulang juga menyusun semua jurnal saldo awal.
+- **Saldo tambahan** (`fn_opening_items`, Pengaturan pembukuan → tab **Saldo awal**, pilih Kas Yayasan / lembaga): akun posting aktif selain akun kas/bank, akun otomatis terkunci, dan Aset neto tanpa pembatasan; posisi debit/kredit; nominal Rp 1 s.d. Rp 999.999.999.999; keterangan ≤ 100. Boleh tambah/ubah/hapus kapan saja (sampai kunci periode PB-4); audit `finance.opening_balance_set`. Halaman menampilkan rancangan jurnal saldo awal (dihitung dari data terbaru) beserta totalnya.
+- **Jurnal manual** (Jurnal → **Catat jurnal manual**, `finance.ledger.manage` tingkat Yayasan): tanggal sejak tanggal mulai s.d. akhir bulan berjalan; uraian 3–200; 2–50 baris (baris kosong diabaikan), tiap baris akun (posting aktif, bukan kas/bank, bukan akun otomatis terkunci), lembaga (Yayasan / lembaga aktif), debit **atau** kredit; total debit = kredit (formulir menampilkan total & selisih, tombol simpan aktif bila seimbang; dicek ulang di server). Tidak bisa diubah; **Batalkan jurnal** di halaman rinciannya (alasan ≤ 200) → BATAL, tetap tampil. Jurnal otomatis hanya batal lewat transaksi sumbernya. Audit `finance.journal_posted|voided`. Susun ulang tidak menyentuh jurnal manual.
+- **Daftar jurnal**: saringan sumber kini memuat Saldo awal & Jurnal manual; rincian jurnal saldo awal menautkan ke tab Saldo awal lembaganya.
