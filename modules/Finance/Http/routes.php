@@ -14,6 +14,8 @@ use Modules\Finance\Http\Controllers\DiscountController;
 use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
+use Modules\Finance\Http\Controllers\JournalController;
+use Modules\Finance\Http\Controllers\LedgerSettingsController;
 use Modules\Finance\Http\Controllers\MidtransWebhookController;
 use Modules\Finance\Http\Controllers\OnlinePaymentController;
 use Modules\Finance\Http\Controllers\ReceiptRecapController;
@@ -123,6 +125,18 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('keuangan/laporan-kas', [CashReportController::class, 'index'])->name('finance.cash-report.index');
     Route::get('keuangan/laporan-kas/unduh', [CashReportController::class, 'export'])->middleware('throttle:10,1')->name('finance.cash-report.export');
     // Kategori kas: finance.settings.manage tingkat Yayasan.
+    // Pembukuan (PRD-007 PB-1): daftar & rincian jurnal, pengaturan (COA, pemetaan, periode, susun ulang).
+    Route::get('keuangan/pembukuan/jurnal', [JournalController::class, 'index'])->name('finance.journals.index');
+    Route::get('keuangan/pembukuan/jurnal/{journal}', [JournalController::class, 'show'])->whereUuid('journal')->name('finance.journals.show');
+    Route::get('keuangan/pembukuan/pengaturan', [LedgerSettingsController::class, 'index'])->name('finance.ledger-settings.index');
+    Route::post('keuangan/pembukuan/akun', [LedgerSettingsController::class, 'storeAccount'])->name('finance.ledger-accounts.store');
+    Route::patch('keuangan/pembukuan/akun/{account}', [LedgerSettingsController::class, 'updateAccount'])->whereUuid('account')->name('finance.ledger-accounts.update');
+    Route::post('keuangan/pembukuan/akun/{account}/nonaktifkan', [LedgerSettingsController::class, 'deactivateAccount'])->whereUuid('account')->name('finance.ledger-accounts.deactivate');
+    Route::post('keuangan/pembukuan/akun/{account}/aktifkan', [LedgerSettingsController::class, 'activateAccount'])->whereUuid('account')->name('finance.ledger-accounts.activate');
+    Route::post('keuangan/pembukuan/pemetaan', [LedgerSettingsController::class, 'setMapping'])->name('finance.ledger-mappings.set');
+    Route::post('keuangan/pembukuan/periode', [LedgerSettingsController::class, 'setPeriod'])->name('finance.ledger-period.set');
+    Route::post('keuangan/pembukuan/susun-ulang', [LedgerSettingsController::class, 'rebuild'])->middleware('throttle:60,1')->name('finance.ledger-rebuild');
+
     Route::get('keuangan/kategori-kas', [CashCategoryController::class, 'index'])->name('finance.cash-categories.index');
     Route::post('keuangan/kategori-kas', [CashCategoryController::class, 'store'])->name('finance.cash-categories.store');
     Route::patch('keuangan/kategori-kas/{category}', [CashCategoryController::class, 'update'])->whereUuid('category')->name('finance.cash-categories.update');

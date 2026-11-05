@@ -2,7 +2,7 @@
 
 - **Versi:** 0.4 (2026-11-04: rincian & pembangunan MG-3, §17)
 - **Versi sebelumnya:** 0.3 (MG-2, §16), 0.2 (disetujui owner; MG-1, §15), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-11-03)**; MG-1 SELESAI (`93a5f30`); MG-2 SELESAI (`2c1b9c8`); MG-3 dibangun 2026-11-04, menunggu uji owner
+- **Status:** **DISETUJUI (2026-11-03)**; MG-1 SELESAI (`93a5f30`); MG-2 SELESAI (`2c1b9c8`); MG-3 SELESAI (`28029fd`) — PRD-006 selesai
 - **Bergantung pada:** PRD-003 (tagihan, kuitansi, portal Tagihan FN-5), PRD-004 (buku kas, rekening penerima transfer KS-2), PRD-005 (tabungan — tidak diubah), PRD-000 (akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → **(3) payment gateway Midtrans** (yayasan sudah punya akun) → (4) pembukuan
 

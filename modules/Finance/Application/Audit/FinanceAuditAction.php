@@ -3,7 +3,7 @@
 namespace Modules\Finance\Application\Audit;
 
 /**
- * Aksi modul Finance yang dicatat di audit log (PRD-003 §8, PRD-004 §8, PRD-005 §8), dengan label untuk halaman Log audit.
+ * Aksi modul Finance yang dicatat di audit log (PRD-003 §8, PRD-004 §8, PRD-005 §8, PRD-007 §12), dengan label untuk halaman Log audit.
  */
 final class FinanceAuditAction
 {
@@ -92,6 +92,25 @@ final class FinanceAuditAction
 
     public const SUBJECT_ONLINE_PAYMENT = 'fn_online_payment';
 
+    public const LEDGER_ACCOUNT_CREATED = 'finance.ledger_account_created';
+
+    public const LEDGER_ACCOUNT_UPDATED = 'finance.ledger_account_updated';
+
+    public const LEDGER_ACCOUNT_DEACTIVATED = 'finance.ledger_account_deactivated';
+
+    public const LEDGER_ACCOUNT_ACTIVATED = 'finance.ledger_account_activated';
+
+    public const LEDGER_MAPPING_SET = 'finance.ledger_mapping_set';
+
+    public const LEDGER_SETTINGS_SET = 'finance.ledger_settings_set';
+
+    public const JOURNALS_REBUILT = 'finance.journals_rebuilt';
+
+    public const SUBJECT_LEDGER_ACCOUNT = 'fn_ledger_account';
+
+    /** Pengaturan pembukuan yayasan (subjek = id yayasan). */
+    public const SUBJECT_LEDGER_SETTINGS = 'fn_ledger_settings';
+
     /** Pengaturan pembayaran online yayasan (subjek = id yayasan). */
     public const SUBJECT_ONLINE_SETTINGS = 'fn_online_payment_settings';
 
@@ -160,6 +179,13 @@ final class FinanceAuditAction
             self::ONLINE_PAYMENT_CANCELLED => 'Pembayaran online dibatalkan',
             self::ONLINE_PAYMENT_FAILED => 'Pembayaran online gagal',
             self::ONLINE_OVERPAID_SETTLED => 'Kelebihan bayar online dikembalikan',
+            self::LEDGER_ACCOUNT_CREATED => 'Akun pembukuan ditambahkan',
+            self::LEDGER_ACCOUNT_UPDATED => 'Akun pembukuan diubah',
+            self::LEDGER_ACCOUNT_DEACTIVATED => 'Akun pembukuan dinonaktifkan',
+            self::LEDGER_ACCOUNT_ACTIVATED => 'Akun pembukuan diaktifkan kembali',
+            self::LEDGER_MAPPING_SET => 'Pemetaan akun pembukuan diubah',
+            self::LEDGER_SETTINGS_SET => 'Pengaturan pembukuan diubah',
+            self::JOURNALS_REBUILT => 'Jurnal otomatis disusun ulang',
         ];
     }
 }

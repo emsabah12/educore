@@ -41,9 +41,11 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     // Kepala Lembaga +1.
     // Tabungan siswa (PRD-005 §5, TB-1): +2 permission (lihat & kelola tabungan) — Bendahara, Admin Keuangan, Admin Yayasan
     // +2, Pimpinan & Kepala Lembaga +1 (lihat tabungan).
-    expect(Permission::query()->count())->toBe(29)
+    // Pembukuan (PRD-007 §8, PB-1): +2 permission (lihat & kelola pembukuan) — Admin Keuangan, Admin Yayasan +2,
+    // Pimpinan & Kepala Lembaga +1 (lihat).
+    expect(Permission::query()->count())->toBe(31)
         ->and(Role::query()->count())->toBe(10)
-        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8);
+        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8 + 2 + 2 + 1 + 1);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
@@ -58,6 +60,7 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             FinanceAccess::BILLING_VIEW,
             FinanceAccess::CASH_VIEW,
             FinanceAccess::EXPENSES_APPROVE,
+            FinanceAccess::LEDGER_VIEW,
             FinanceAccess::SAVINGS_VIEW,
             HrAccess::ATTENDANCE_MANAGE,
             HrAccess::EMPLOYEES_VIEW,

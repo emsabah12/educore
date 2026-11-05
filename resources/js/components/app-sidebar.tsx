@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BookOpen,
+    BookText,
     Calculator,
     CalendarCog,
     CalendarDays,
@@ -32,6 +33,7 @@ import {
     School,
     ScrollText,
     ShieldCheck,
+    SlidersHorizontal,
     Smartphone,
     Tags,
     UserCheck,
@@ -273,6 +275,18 @@ const financeSettingsNavItem: NavItem = {
     icon: Coins,
 };
 
+const journalsNavItem: NavItem = {
+    title: 'Jurnal',
+    href: '/keuangan/pembukuan/jurnal',
+    icon: BookText,
+};
+
+const ledgerSettingsNavItem: NavItem = {
+    title: 'Pengaturan pembukuan',
+    href: '/keuangan/pembukuan/pengaturan',
+    icon: SlidersHorizontal,
+};
+
 const platformNavItem: NavItem = {
     title: 'Panel platform',
     href: '/platform',
@@ -380,6 +394,21 @@ export function AppSidebar() {
                 expensesNavItem,
                 cashReportNavItem,
             ]),
+        },
+        {
+            // Pembukuan (PRD-007 PB-1). Pengaturan hanya dari lembaga kerja "Seluruh Yayasan".
+            key: 'ledger',
+            title: 'Pembukuan',
+            items: [
+                ...when(permissions.includes('finance.ledger.view'), [
+                    journalsNavItem,
+                ]),
+                ...when(
+                    atTenantLevel &&
+                        permissions.includes('finance.ledger.manage'),
+                    [ledgerSettingsNavItem],
+                ),
+            ],
         },
         {
             key: 'settings',

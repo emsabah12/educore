@@ -2,6 +2,7 @@
 
 namespace Modules\Finance;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\Academic\Contracts\Events\EnrollmentClosed;
 use Modules\Core\Application\Audit\AuditAction;
@@ -27,6 +28,7 @@ use Modules\Finance\Application\Online\MidtransGateway;
 use Modules\Finance\Application\Online\OnlinePaymentList;
 use Modules\Finance\Application\Report\Arrears;
 use Modules\Finance\Application\Savings\SavingsReport;
+use Modules\Finance\Console\ProcessLedgerCommand;
 use Modules\Finance\Domain\Cash\ExpenseStatus;
 
 /**
@@ -61,6 +63,15 @@ class FinanceServiceProvider extends ModuleServiceProvider
             ->define(DueDaySetting::definition())
             // Batas persetujuan pengeluaran berjenjang per jenjang/lembaga (PRD-004 §16, KS-5).
             ->define(ExpenseApprovalLimitSetting::definition());
+
+        // Jurnal otomatis pembukuan dari antrean (PRD-007 §4, PB-1).
+        if ($this->app->runningInConsole()) {
+            $this->commands([ProcessLedgerCommand::class]);
+        }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('finance:ledger-process')->everyMinute()->withoutOverlapping();
+        });
 
         // Siswa keluar → tagihan bulan sesudahnya yang belum dibayar dibatalkan (OD-FN-07, FN-2b).
         Event::listen(EnrollmentClosed::class, [VoidInvoicesAfterExit::class, 'handle']);

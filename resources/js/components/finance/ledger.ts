@@ -1,0 +1,49 @@
+/**
+ * Bantuan bersama halaman pembukuan (PRD-007, PB-1).
+ */
+export type Option = { value: string; label: string };
+
+export type LedgerSettings = {
+    active: boolean;
+    start_date: string | null;
+    fiscal_start_month: number;
+    needs_rebuild: boolean;
+    rebuilding: boolean;
+    rebuild_done: number;
+    rebuild_total: number;
+    rebuilt_at: string | null;
+};
+
+const rupiah = new Intl.NumberFormat('id-ID');
+
+export const formatRupiah = (amount: number) => `Rp ${rupiah.format(amount)}`;
+
+export const formatNumber = (amount: number) => rupiah.format(amount);
+
+const dateFormat = new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+});
+
+/** "2026-11-05" → "5 Nov 2026" (tanpa geser zona waktu). */
+export function formatDate(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+
+    return dateFormat.format(new Date(year, month - 1, day));
+}
+
+const monthFormat = new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+});
+
+/** "2026-11-01" → "November 2026". */
+export function formatMonth(value: string): string {
+    const [year, month] = value.split('-').map(Number);
+
+    return monthFormat.format(new Date(year, month - 1, 1));
+}
+
+export const selectClass =
+    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 dark:bg-input/30';
