@@ -1,8 +1,8 @@
 # PRD-007 — Modul Finance (Keuangan): Pembukuan (COA, Jurnal, Laporan ISAK 35)
 
-- **Versi:** 0.3 (2026-11-05: PB-2 dipecah PB-2a/PB-2b; rincian & pembangunan PB-2a, §16)
-- **Versi sebelumnya:** 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
-- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a dibangun 2026-11-05, menunggu uji owner
+- **Versi:** 0.4 (2026-11-05: rincian & pembangunan PB-2b, §17)
+- **Versi sebelumnya:** 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
+- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b dibangun 2026-11-05, menunggu uji owner
 - **Bergantung pada:** PRD-003 (tagihan, potongan, kuitansi), PRD-004 (kas, rekening, kategori, pengeluaran, mutasi), PRD-005 (tabungan, rekening Titipan), PRD-006 (pembayaran online), PRD-000 (pohon lembaga, akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → (3) Midtrans (selesai) → **(4) pembukuan**
 
@@ -243,3 +243,14 @@ Anggaran (RAPBS) & realisasi anggaran, modul aset tetap & penyusutan otomatis, i
 - **Saldo tambahan** (`fn_opening_items`, Pengaturan pembukuan → tab **Saldo awal**, pilih Kas Yayasan / lembaga): akun posting aktif selain akun kas/bank, akun otomatis terkunci, dan Aset neto tanpa pembatasan; posisi debit/kredit; nominal Rp 1 s.d. Rp 999.999.999.999; keterangan ≤ 100. Boleh tambah/ubah/hapus kapan saja (sampai kunci periode PB-4); audit `finance.opening_balance_set`. Halaman menampilkan rancangan jurnal saldo awal (dihitung dari data terbaru) beserta totalnya.
 - **Jurnal manual** (Jurnal → **Catat jurnal manual**, `finance.ledger.manage` tingkat Yayasan): tanggal sejak tanggal mulai s.d. akhir bulan berjalan; uraian 3–200; 2–50 baris (baris kosong diabaikan), tiap baris akun (posting aktif, bukan kas/bank, bukan akun otomatis terkunci), lembaga (Yayasan / lembaga aktif), debit **atau** kredit; total debit = kredit (formulir menampilkan total & selisih, tombol simpan aktif bila seimbang; dicek ulang di server). Tidak bisa diubah; **Batalkan jurnal** di halaman rinciannya (alasan ≤ 200) → BATAL, tetap tampil. Jurnal otomatis hanya batal lewat transaksi sumbernya. Audit `finance.journal_posted|voided`. Susun ulang tidak menyentuh jurnal manual.
 - **Daftar jurnal**: saringan sumber kini memuat Saldo awal & Jurnal manual; rincian jurnal saldo awal menautkan ke tab Saldo awal lembaganya.
+
+## 17. PB-2b Buku besar, neraca saldo, cek kecocokan [ASUMSI — rincian teknis 2026-11-05]
+
+- **Hanya jurnal SAH.** Lingkup sama dengan halaman Jurnal (gabungan / Yayasan pusat / lembaga; izin lembaga → lembaganya saja). Antrean jurnal diproses dulu sebelum laporan tampil; bila antrean/susun ulang masih berjalan tampil pemberitahuan "angka belum final".
+- **Periode**: isian Dari–Sampai (bawaan awal tahun buku berjalan s.d. hari ini), pilihan cepat Bulan ini · Bulan lalu · Tahun buku ini · Tahun buku lalu. Tanggal sebelum tanggal mulai pembukuan dijepit ke tanggal mulai; rentang dibatasi **satu tahun buku** (lewat akhir tahun buku dipotong + keterangan).
+- **Saldo awal periode**: akun aset, liabilitas, aset neto = semua mutasi sebelum tanggal Dari; akun pendapatan & beban mulai dari nol di awal tahun buku — hasil tahun buku sebelumnya dihitung masuk **Aset neto tanpa pembatasan** (pendapatan bertanda "dengan pembatasan" → Aset neto dengan pembatasan), tanpa jurnal tutup buku. **Jurnal saldo awal** (tanggal = tanggal mulai) selalu dihitung sebagai saldo awal, bukan mutasi.
+- **Neraca saldo** (`/keuangan/pembukuan/neraca-saldo`): per akun posting — saldo awal, mutasi debit, mutasi kredit, saldo akhir; dikelompokkan per golongan; saldo ditampilkan menurut saldo normal akun (kurung = berlawanan); akun bersaldo nol disembunyikan (bisa ditampilkan); total saldo debit/kredit & mutasi selalu seimbang; nama akun menautkan ke buku besarnya. Unduh .xlsx (kolom debit/kredit terpisah, akun nol tidak ikut).
+- **Buku besar** (`/keuangan/pembukuan/buku-besar?akun=`): pilih akun posting (bawaan Kas tunai), ringkasan saldo awal/debit/kredit/saldo akhir, baris per jurnal (tanggal, uraian + nomor + sumber, lembaga, debit, kredit, saldo berjalan) 100 per halaman, tautan ke rincian jurnal. Unduh .xlsx seluruh periode.
+- **Cek kecocokan** (`/keuangan/pembukuan/cek-kecocokan`, semua tanggal): (1) saldo akun per rekening kas vs buku kas; (2) Piutang siswa per lembaga vs sisa tagihan (tagihan tidak batal); (3) Utang titipan per lembaga vs total saldo tabungan; (4) RAK gabungan = 0 (izin tingkat Yayasan). Baris yang kedua sisinya nol tidak ditampilkan. Tiap bagian yang selisih menampilkan petunjuk penyebab umum + tautan ke halaman sumber; pengelola mendapat tombol ke Susun ulang jurnal.
+- **Kartu Beranda** "Pembukuan tidak cocok" (pemilik `finance.ledger.manage` tingkat Yayasan): jumlah baris selisih, hanya bila ada selisih dan antrean/susun ulang sudah selesai.
+- **Menu Pembukuan**: Jurnal · Buku besar · Neraca saldo · Cek kecocokan (`finance.ledger.view`) · Pengaturan pembukuan (`finance.ledger.manage`, "Seluruh Yayasan").

@@ -15,6 +15,7 @@ use Modules\Finance\Http\Controllers\ExpenseController;
 use Modules\Finance\Http\Controllers\FeeSettingsController;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\JournalController;
+use Modules\Finance\Http\Controllers\LedgerReportController;
 use Modules\Finance\Http\Controllers\LedgerSettingsController;
 use Modules\Finance\Http\Controllers\MidtransWebhookController;
 use Modules\Finance\Http\Controllers\OnlinePaymentController;
@@ -133,6 +134,12 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/pembukuan/saldo-awal', [LedgerSettingsController::class, 'storeOpening'])->name('finance.opening-items.store');
     Route::patch('keuangan/pembukuan/saldo-awal/{item}', [LedgerSettingsController::class, 'updateOpening'])->whereUuid('item')->name('finance.opening-items.update');
     Route::delete('keuangan/pembukuan/saldo-awal/{item}', [LedgerSettingsController::class, 'destroyOpening'])->whereUuid('item')->name('finance.opening-items.destroy');
+    // Laporan pembukuan (PRD-007 PB-2b).
+    Route::get('keuangan/pembukuan/neraca-saldo', [LedgerReportController::class, 'trialBalance'])->name('finance.trial-balance.index');
+    Route::get('keuangan/pembukuan/neraca-saldo/unduh', [LedgerReportController::class, 'exportTrialBalance'])->middleware('throttle:10,1')->name('finance.trial-balance.export');
+    Route::get('keuangan/pembukuan/buku-besar', [LedgerReportController::class, 'generalLedger'])->name('finance.general-ledger.index');
+    Route::get('keuangan/pembukuan/buku-besar/unduh', [LedgerReportController::class, 'exportGeneralLedger'])->middleware('throttle:10,1')->name('finance.general-ledger.export');
+    Route::get('keuangan/pembukuan/cek-kecocokan', [LedgerReportController::class, 'reconciliation'])->name('finance.ledger-reconciliation.index');
     Route::get('keuangan/pembukuan/pengaturan', [LedgerSettingsController::class, 'index'])->name('finance.ledger-settings.index');
     Route::post('keuangan/pembukuan/akun', [LedgerSettingsController::class, 'storeAccount'])->name('finance.ledger-accounts.store');
     Route::patch('keuangan/pembukuan/akun/{account}', [LedgerSettingsController::class, 'updateAccount'])->whereUuid('account')->name('finance.ledger-accounts.update');

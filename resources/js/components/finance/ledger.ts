@@ -47,3 +47,26 @@ export function formatMonth(value: string): string {
 
 export const selectClass =
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 dark:bg-input/30';
+
+export type LedgerPeriod = {
+    from: string;
+    to: string;
+    fiscal_start: string;
+    fiscal_end: string;
+    start_date: string;
+    clamped: boolean;
+};
+
+export type PeriodPreset = { label: string; from: string; to: string };
+
+/**
+ * Saldo bertanda (+ = debit) ditampilkan menurut saldo normal akun: positif = saldo normal, negatif dalam kurung.
+ */
+export function formatBalance(
+    signed: number,
+    normal: 'DEBIT' | 'KREDIT' | string,
+): string {
+    const value = normal === 'DEBIT' ? signed : -signed;
+
+    return value < 0 ? `(${formatNumber(-value)})` : formatNumber(value);
+}

@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-05
-- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) dibangun 2026-11-05, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `706ec25` — test: naikkan memory_limit phpunit ke 1536M (PB-1 `c602d11`)
+- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) dibangun 2026-11-05, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Commit terakhir:** `03bde32` — feat(finance): PB-2a pembukuan — saldo awal & jurnal manual
 
 ## Keputusan penting
 
@@ -846,11 +846,17 @@
 - Frontend: `pages/finance/ledger-settings.tsx` (tab Akun · Pemetaan · Periode), `pages/finance/journals.tsx`, `pages/finance/journal-show.tsx`, `components/finance/ledger.ts`; menu samping kelompok **Pembukuan** (Jurnal; Pengaturan pembukuan di "Seluruh Yayasan").
 - Test: `tests/Feature/Finance/LedgerTest.php` (5 test).
 
-**PB-2a — Saldo awal & jurnal manual: DIBANGUN (2026-11-05, menunggu uji owner)** — PRD-007 §16
+**PB-2a — Saldo awal & jurnal manual: SELESAI (2026-11-05, commit `03bde32`)** — PRD-007 §16
 
 - Finance: migration `2026_11_05_300017_create_fn_opening_items_table` (saldo tambahan + trigger antrean saldo awal untuk transaksi sebelum tanggal mulai); `JournalProjector` sumber SALDO_AWAL (`openings`, `openingPreview`, `queueOpening`, fase susun ulang); `Application/Ledger/OpeningItems`, `ManualJournals`, `LedgerDate`; `ChartOfAccounts::manualOptions|assertManualAccount|ledgerOrganization`; route `finance.journals.store|void`, `finance.opening-items.store|update|destroy`; audit saldo awal & jurnal manual.
 - Frontend: tab **Saldo awal** di `ledger-settings.tsx`; tombol & formulir **Catat jurnal manual** (`components/finance/manual-journal-form.tsx`) di `journals.tsx`; **Batalkan jurnal** di `journal-show.tsx`.
 - Test: `tests/Feature/Finance/LedgerOpeningTest.php` (3 test); `LedgerTest` disesuaikan (jurnal saldo awal).
+
+**PB-2b — Buku besar, neraca saldo, cek kecocokan: DIBANGUN (2026-11-05, menunggu uji owner)** — PRD-007 §17
+
+- Finance: `Application/Ledger/LedgerReports` (periode satu tahun buku, saldo awal + surplus tahun lalu ke aset neto, neraca saldo, buku besar dengan saldo berjalan, cek kecocokan), `LedgerExport` (.xlsx); `LedgerReportController`; `Concerns/WorksPerLedgerScope` (lingkup bersama, dipakai juga `JournalController`); kartu Beranda `finance.ledger_mismatch`; route `finance.trial-balance.index|export`, `finance.general-ledger.index|export`, `finance.ledger-reconciliation.index`.
+- Frontend: `pages/finance/trial-balance.tsx`, `general-ledger.tsx`, `ledger-reconciliation.tsx`; `components/finance/ledger-filters.tsx`; menu Pembukuan + Buku besar, Neraca saldo, Cek kecocokan.
+- Test: `tests/Feature/Finance/LedgerReportTest.php` (4 test).
 
 ## Perapian tampilan
 
@@ -929,5 +935,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Pembukuan (PRD-007)**: owner menguji PB-2a → PB-2b (buku besar, neraca saldo, cek kecocokan) → PB-3 (laporan ISAK 35) → PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
+2. **Pembukuan (PRD-007)**: owner menguji PB-2b → PB-3 (laporan ISAK 35) → PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

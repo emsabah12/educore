@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Banknote,
     BookOpen,
+    BookOpenCheck,
     BookText,
     Calculator,
     CalendarCog,
@@ -24,12 +25,14 @@ import {
     Landmark,
     FolderTree,
     LayoutGrid,
+    ListChecks,
     Network,
     Percent,
     PiggyBank,
     Plane,
     Receipt,
     ReceiptText,
+    Scale,
     School,
     ScrollText,
     ShieldCheck,
@@ -281,6 +284,24 @@ const journalsNavItem: NavItem = {
     icon: BookText,
 };
 
+const generalLedgerNavItem: NavItem = {
+    title: 'Buku besar',
+    href: '/keuangan/pembukuan/buku-besar',
+    icon: BookOpenCheck,
+};
+
+const trialBalanceNavItem: NavItem = {
+    title: 'Neraca saldo',
+    href: '/keuangan/pembukuan/neraca-saldo',
+    icon: Scale,
+};
+
+const reconciliationNavItem: NavItem = {
+    title: 'Cek kecocokan',
+    href: '/keuangan/pembukuan/cek-kecocokan',
+    icon: ListChecks,
+};
+
 const ledgerSettingsNavItem: NavItem = {
     title: 'Pengaturan pembukuan',
     href: '/keuangan/pembukuan/pengaturan',
@@ -402,6 +423,9 @@ export function AppSidebar() {
             items: [
                 ...when(permissions.includes('finance.ledger.view'), [
                     journalsNavItem,
+                    generalLedgerNavItem,
+                    trialBalanceNavItem,
+                    reconciliationNavItem,
                 ]),
                 ...when(
                     atTenantLevel &&

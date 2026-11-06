@@ -21,6 +21,7 @@ use Modules\Finance\Application\Ledger\LedgerSetup;
 use Modules\Finance\Application\Ledger\ManualJournals;
 use Modules\Finance\Domain\Ledger\JournalSource;
 use Modules\Finance\Domain\Payment\PaymentStatus;
+use Modules\Finance\Http\Controllers\Concerns\WorksPerLedgerScope;
 use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 
 /**
@@ -31,11 +32,8 @@ use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
  */
 final class JournalController
 {
+    use WorksPerLedgerScope;
     use WorksPerOrganization;
-
-    private const SCOPE_ALL = 'semua';
-
-    private const SCOPE_FOUNDATION = 'yayasan';
 
     private const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -46,19 +44,12 @@ final class JournalController
 
     public function index(Request $request, JournalList $list, JournalProjector $projector, LedgerSetup $setup, ManualJournals $manual, ChartOfAccounts $accounts): Response
     {
-        [$foundation, $organizations] = $this->scopes();
+        [$foundation, $organizations] = $this->ledgerScopes();
         $tenantId = $this->tenantId();
         $settings = $setup->settings($tenantId);
         $pending = $settings['active'] ? $projector->processQueue($tenantId) : 0;
 
-        $scopeOptions = [];
-
-        if ($foundation) {
-            $scopeOptions[] = ['value' => self::SCOPE_ALL, 'label' => 'Gabungan seluruh yayasan'];
-            $scopeOptions[] = ['value' => self::SCOPE_FOUNDATION, 'label' => 'Yayasan (pusat)'];
-        }
-
-        $scopeOptions = [...$scopeOptions, ...$organizations];
+        $scopeOptions = $this->ledgerScopeOptions($foundation, $organizations);
         $scope = $this->pick(array_column($scopeOptions, 'value'), $request->query('lingkup'));
         $months = $list->months($tenantId);
         $month = $this->pick($months, $request->query('bulan'), '') ?: null;
@@ -92,11 +83,7 @@ final class JournalController
             'search' => $search,
             'journals' => $list->page(
                 $tenantId,
-                match ($scope) {
-                    null, self::SCOPE_ALL => null,
-                    self::SCOPE_FOUNDATION => '',
-                    default => $scope,
-                },
+                $this->ledgerScopeFilter($scope),
                 $month,
                 $source,
                 $status,
@@ -109,7 +96,7 @@ final class JournalController
 
     public function show(string $journal, JournalList $list, JournalProjector $projector, LedgerSetup $setup): Response
     {
-        [$foundation, $organizations] = $this->scopes();
+        [$foundation, $organizations] = $this->ledgerScopes();
         $tenantId = $this->tenantId();
 
         if ($setup->settings($tenantId)['active']) {
@@ -175,32 +162,6 @@ final class JournalController
         }
 
         return $options;
-    }
-
-    /**
-     * [boleh lingkup Yayasan/gabungan, lembaga terlihat]; tanpa izin sama sekali → 403.
-     *
-     * @return array{0: bool, 1: list<array{value: string, label: string}>}
-     */
-    private function scopes(): array
-    {
-        $foundation = $this->authorization->inspectTarget(FinanceAccess::LEDGER_VIEW, null, null)->allowed();
-        $organizations = [];
-
-        foreach (Organization::query()
-            ->whereIn('id', $this->authorization->visibleNodeIds(FinanceAccess::LEDGER_VIEW))
-            ->where('type', OrganizationType::Lembaga->value)
-            ->where('status', OrganizationStatus::Active->value)
-            ->orderBy('name')
-            ->get() as $organization) {
-            $organizations[] = ['value' => (string) $organization->id, 'label' => (string) $organization->name];
-        }
-
-        if (! $foundation && $organizations === []) {
-            abort(403);
-        }
-
-        return [$foundation, $organizations];
     }
 
     private function monthLabel(string $month): string

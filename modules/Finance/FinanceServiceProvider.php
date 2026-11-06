@@ -3,6 +3,7 @@
 namespace Modules\Finance;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Academic\Contracts\Events\EnrollmentClosed;
 use Modules\Core\Application\Audit\AuditAction;
@@ -23,6 +24,8 @@ use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
+use Modules\Finance\Application\Ledger\LedgerReports;
+use Modules\Finance\Application\Ledger\LedgerSetup;
 use Modules\Finance\Application\Online\HttpMidtransGateway;
 use Modules\Finance\Application\Online\MidtransGateway;
 use Modules\Finance\Application\Online\OnlinePaymentList;
@@ -86,6 +89,9 @@ class FinanceServiceProvider extends ModuleServiceProvider
 
         // Kartu Beranda "Kelebihan bayar online" (PRD-006 §9, MG-3): hanya bila ada yang belum dikembalikan.
         $this->app->make(DashboardCards::class)->register('finance.online_overpaid', fn (): ?array => $this->overpaidCard());
+
+        // Kartu Beranda "Pembukuan tidak cocok" (PRD-007 §9, PB-2b): hanya bila ada selisih.
+        $this->app->make(DashboardCards::class)->register('finance.ledger_mismatch', fn (): ?array => $this->ledgerMismatchCard());
 
         // Kartu Beranda "Titipan tabungan siswa" (PRD-005 §7, TB-2): pemilik finance.savings.view, sesuai cakupannya.
         $this->app->make(DashboardCards::class)->register('finance.savings', fn (): ?array => $this->savingsCard());
@@ -202,6 +208,48 @@ class FinanceServiceProvider extends ModuleServiceProvider
             'value' => $overpaid['count'],
             'description' => Rupiah::format($overpaid['amount']).' perlu dikembalikan ke orang tua.',
             'href' => '/keuangan/pembayaran-online?status='.OnlinePaymentList::FILTER_OVERPAID,
+            'tone' => 'warning',
+        ];
+    }
+
+    /**
+     * Selisih pembukuan vs buku pembantu (cek kecocokan), untuk pengelola pembukuan tingkat Yayasan. Tidak tampil selama
+     * antrean/susun ulang masih berjalan (angka belum final).
+     *
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function ledgerMismatchCard(): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        if ($context === null || ! $this->app->make(AuthorizationService::class)->inspectTarget(FinanceAccess::LEDGER_MANAGE, null, null)->allowed()) {
+            return null;
+        }
+
+        $settings = $this->app->make(LedgerSetup::class)->settings($context->tenantId);
+
+        if (! $settings['active'] || $settings['needs_rebuild'] || $settings['rebuilding'] || DB::table('fn_ledger_queue')->where('tenant_id', $context->tenantId)->exists()) {
+            return null;
+        }
+
+        $count = 0;
+
+        foreach ($this->app->make(LedgerReports::class)->reconciliation($context->tenantId, null) as $row) {
+            if ($row['difference'] !== 0) {
+                $count++;
+            }
+        }
+
+        if ($count === 0) {
+            return null;
+        }
+
+        return [
+            'key' => 'finance.ledger_mismatch',
+            'title' => 'Pembukuan tidak cocok',
+            'value' => $count,
+            'description' => "{$count} saldo pembukuan berbeda dengan buku kas/tagihan/tabungan. Buka Cek kecocokan.",
+            'href' => '/keuangan/pembukuan/cek-kecocokan',
             'tone' => 'warning',
         ];
     }
