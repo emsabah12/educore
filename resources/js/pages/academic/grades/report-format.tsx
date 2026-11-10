@@ -1,5 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { ImageUp, Save } from 'lucide-react';
+import { ImageUp, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ReportHeader } from '@/components/academic/report-header';
 import { selectClass } from '@/components/academic/student-actions';
@@ -21,9 +21,23 @@ type Format = {
     principal_name: string | null;
     witness_title: string | null;
     witness_name: string | null;
+    show_rank: boolean;
     has_logo: boolean;
     configured: boolean;
 };
+
+/** Butir ekstrakurikuler/kepribadian (AC-8d). */
+type ReportItem = {
+    id: string;
+    kind: 'EKSKUL' | 'KEPRIBADIAN';
+    name: string;
+    sort_order: number;
+    descriptions: Record<string, string>;
+    is_active: boolean;
+    used: boolean;
+};
+
+type Level = { letter: string; label: string | null; min: number };
 
 type Props = {
     filters: { lembaga: string | null };
@@ -38,7 +52,12 @@ type Props = {
         role: number;
         name: number;
         logoKilobytes: number;
+        itemName: number;
+        itemDescription: number;
     };
+    items: ReportItem[];
+    /** Skala predikat lembaga (huruf untuk keterangan kepribadian). */
+    predicates: Level[];
 };
 
 const BASE_URL = '/akademik/format-rapor';
@@ -46,7 +65,8 @@ const BASE_URL = '/akademik/format-rapor';
 /**
  * Format rapor per lembaga (PRD-002 §22.5 AC-8c): kop berlogo, judul, sebutan peserta didik,
  * tempat & tanggal Hijriah, penanda tangan. Pratinjau kop berubah langsung saat diketik; semua
- * aturan tetap dicek server.
+ * aturan tetap dicek server. AC-8d: peringkat kelas, daftar ekstrakurikuler & kepribadian (dengan
+ * keterangan otomatis per huruf).
  */
 export default function ReportFormatPage({
     filters,
@@ -54,6 +74,8 @@ export default function ReportFormatPage({
     format,
     logo,
     limits,
+    items,
+    predicates,
 }: Props) {
     return (
         <>
@@ -107,6 +129,25 @@ export default function ReportFormatPage({
                                 terms={options.terms}
                                 limits={limits}
                             />
+                        )}
+
+                        {format && filters.lembaga && (
+                            <>
+                                <ItemsSection
+                                    kind="EKSKUL"
+                                    organizationId={filters.lembaga}
+                                    items={items}
+                                    predicates={predicates}
+                                    limits={limits}
+                                />
+                                <ItemsSection
+                                    kind="KEPRIBADIAN"
+                                    organizationId={filters.lembaga}
+                                    items={items}
+                                    predicates={predicates}
+                                    limits={limits}
+                                />
+                            </>
                         )}
                     </>
                 )}
@@ -310,6 +351,17 @@ function FormatForm({
                             Tampilkan tanggal Hijriah di atas tanggal Masehi
                             (mis. "5 Muharam 1448 H")
                         </label>
+                        <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm sm:col-span-2">
+                            <input
+                                type="checkbox"
+                                name="show_rank"
+                                value="1"
+                                defaultChecked={format.show_rank}
+                                className="size-4"
+                            />
+                            Tampilkan peringkat kelas (dari rata-rata rapor,
+                            mis. "1 dari 12 Santri")
+                        </label>
                     </section>
 
                     <section className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
@@ -402,5 +454,300 @@ function KopPreview({
                 {title.trim() || 'LAPORAN HASIL BELAJAR'}
             </p>
         </div>
+    );
+}
+
+/**
+ * Daftar ekstrakurikuler atau kepribadian lembaga (AC-8d): tambah, ubah (nama, urutan, aktif,
+ * keterangan per huruf untuk kepribadian), hapus bila belum dinilai.
+ */
+function ItemsSection({
+    kind,
+    organizationId,
+    items,
+    predicates,
+    limits,
+}: {
+    kind: ReportItem['kind'];
+    organizationId: string;
+    items: ReportItem[];
+    predicates: Level[];
+    limits: Props['limits'];
+}) {
+    const mine = items.filter((item) => item.kind === kind);
+    const [open, setOpen] = useState<string | null>(null);
+    const personality = kind === 'KEPRIBADIAN';
+    const toggle = (key: string) =>
+        setOpen((current) => (current === key ? null : key));
+
+    return (
+        <section className="space-y-3 rounded-xl border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                    <h2 className="text-base font-medium">
+                        {personality ? 'Kepribadian' : 'Ekstrakurikuler'}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        {personality
+                            ? 'Aspek kepribadian di rapor. Keterangan tampil otomatis menurut huruf yang dipilih wali kelas.'
+                            : 'Kegiatan ekstrakurikuler di rapor. Siswa yang tidak dinilai tertulis "-" (tidak ikut).'}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {personality && (
+                        <Form
+                            action={`${BASE_URL}/${organizationId}/butir/contoh`}
+                            method="post"
+                            options={{ preserveScroll: true }}
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={processing}
+                                >
+                                    Isi contoh 6 aspek
+                                </Button>
+                            )}
+                        </Form>
+                    )}
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={open === 'new' ? 'default' : 'outline'}
+                        onClick={() => toggle('new')}
+                    >
+                        <Plus />
+                        Tambah
+                    </Button>
+                </div>
+            </div>
+
+            {open === 'new' && (
+                <ItemForm
+                    kind={kind}
+                    organizationId={organizationId}
+                    predicates={predicates}
+                    limits={limits}
+                    onDone={() => setOpen(null)}
+                />
+            )}
+
+            {mine.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada. Bagian ini tidak tampil di rapor.
+                </p>
+            ) : (
+                <ul className="divide-y rounded-lg border">
+                    {mine.map((item, index) => (
+                        <li key={item.id} className="space-y-3 px-3 py-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="font-medium">
+                                        {index + 1}. {item.name}
+                                        {!item.is_active && (
+                                            <span className="font-normal text-muted-foreground">
+                                                {' '}
+                                                (nonaktif)
+                                            </span>
+                                        )}
+                                    </p>
+                                    {personality && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {Object.keys(item.descriptions)
+                                                .length === 0
+                                                ? 'Belum ada keterangan'
+                                                : Object.entries(
+                                                      item.descriptions,
+                                                  )
+                                                      .map(
+                                                          ([letter, text]) =>
+                                                              `${letter}: ${text}`,
+                                                      )
+                                                      .join(' · ')}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => toggle(item.id)}
+                                    >
+                                        <Pencil />
+                                        Ubah
+                                    </Button>
+                                    {!item.used && (
+                                        <Form
+                                            action={`${BASE_URL}/butir/${item.id}`}
+                                            method="delete"
+                                            options={{ preserveScroll: true }}
+                                        >
+                                            {({ processing }) => (
+                                                <Button
+                                                    type="submit"
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    disabled={processing}
+                                                    aria-label={`Hapus ${item.name}`}
+                                                >
+                                                    <Trash2 />
+                                                </Button>
+                                            )}
+                                        </Form>
+                                    )}
+                                </div>
+                            </div>
+                            {open === item.id && (
+                                <ItemForm
+                                    kind={kind}
+                                    item={item}
+                                    organizationId={organizationId}
+                                    predicates={predicates}
+                                    limits={limits}
+                                    onDone={() => setOpen(null)}
+                                />
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+/** Tambah butir (tanpa `item`) atau ubah. */
+function ItemForm({
+    kind,
+    item,
+    organizationId,
+    predicates,
+    limits,
+    onDone,
+}: {
+    kind: ReportItem['kind'];
+    item?: ReportItem;
+    organizationId: string;
+    predicates: Level[];
+    limits: Props['limits'];
+    onDone: () => void;
+}) {
+    const key = item?.id ?? `new-${kind}`;
+
+    return (
+        <Form
+            action={
+                item
+                    ? `${BASE_URL}/butir/${item.id}`
+                    : `${BASE_URL}/${organizationId}/butir`
+            }
+            method={item ? 'patch' : 'post'}
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-3 rounded-lg border bg-muted/20 p-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    {!item && <input type="hidden" name="kind" value={kind} />}
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`ri-name-${key}`}>Nama</Label>
+                            <Input
+                                id={`ri-name-${key}`}
+                                name="name"
+                                defaultValue={item?.name ?? ''}
+                                maxLength={limits.itemName}
+                                placeholder={
+                                    kind === 'KEPRIBADIAN'
+                                        ? 'Mis. Kelakuan'
+                                        : 'Mis. Pramuka'
+                                }
+                                required
+                            />
+                            <InputError message={errors.name} />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor={`ri-order-${key}`}>Urutan</Label>
+                            <Input
+                                id={`ri-order-${key}`}
+                                name="sort_order"
+                                type="number"
+                                min={0}
+                                max={999}
+                                defaultValue={item?.sort_order ?? 1}
+                            />
+                        </div>
+                    </div>
+
+                    {kind === 'KEPRIBADIAN' && (
+                        <fieldset className="grid gap-2">
+                            <legend className="mb-1 text-sm font-medium">
+                                Keterangan otomatis per huruf
+                            </legend>
+                            {predicates.map((level) => (
+                                <div
+                                    key={level.letter}
+                                    className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2"
+                                >
+                                    <Label
+                                        htmlFor={`ri-desc-${key}-${level.letter}`}
+                                        className="text-sm"
+                                        title={level.label ?? undefined}
+                                    >
+                                        {level.letter}
+                                    </Label>
+                                    <Input
+                                        id={`ri-desc-${key}-${level.letter}`}
+                                        name={`descriptions[${level.letter}]`}
+                                        defaultValue={
+                                            item?.descriptions[level.letter] ??
+                                            ''
+                                        }
+                                        maxLength={limits.itemDescription}
+                                        placeholder={
+                                            level.label
+                                                ? `Keterangan untuk ${level.label}`
+                                                : 'Keterangan'
+                                        }
+                                    />
+                                </div>
+                            ))}
+                            <InputError message={errors.descriptions} />
+                        </fieldset>
+                    )}
+
+                    {item && (
+                        <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="is_active"
+                                value="1"
+                                defaultChecked={item.is_active}
+                                className="size-4"
+                            />
+                            Aktif (bisa dinilai)
+                        </label>
+                    )}
+
+                    <InputError message={errors.form} />
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="submit" size="sm" disabled={processing}>
+                            <Save />
+                            {processing ? 'Menyimpan…' : 'Simpan'}
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={onDone}
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                </>
+            )}
+        </Form>
     );
 }

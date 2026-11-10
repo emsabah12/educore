@@ -110,6 +110,12 @@ final class AcademicAuditAction
 
     public const REPORT_FORMAT_SAVED = 'academic.report_format_saved';
 
+    public const REPORT_ITEM_SAVED = 'academic.report_item_saved';
+
+    public const REPORT_ITEM_DELETED = 'academic.report_item_deleted';
+
+    public const REPORT_ITEMS_GRADED = 'academic.report_items_graded';
+
     public const DUTY_ROSTER_UPDATED = 'academic.duty_roster_updated';
 
     public const TEACHING_RECORDED = 'academic.teaching_recorded';
@@ -186,6 +192,9 @@ final class AcademicAuditAction
             self::GRADE_SHEET_RULES_APPLIED => 'Aturan nilai mapel diperbarui',
             self::REPORT_NOTES_SAVED => 'Catatan wali kelas di rapor disimpan',
             self::REPORT_FORMAT_SAVED => 'Format rapor lembaga disimpan',
+            self::REPORT_ITEM_SAVED => 'Butir ekstrakurikuler/kepribadian disimpan',
+            self::REPORT_ITEM_DELETED => 'Butir ekstrakurikuler/kepribadian dihapus',
+            self::REPORT_ITEMS_GRADED => 'Nilai ekstrakurikuler & kepribadian disimpan',
             self::DUTY_ROSTER_UPDATED => 'Jadwal piket diubah',
             self::TEACHING_RECORDED => 'Presensi mengajar dicatat',
         ];

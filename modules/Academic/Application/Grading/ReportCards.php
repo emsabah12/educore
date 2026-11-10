@@ -30,6 +30,10 @@ use Modules\HR\Contracts\ActiveEmployees;
  *   huruf membawa hurufnya sebagai predikat (tanpa angka); sebutan predikat ikut dikirim. Jumlah &
  *   rata-rata hanya dari mapel bernilai angka di kelompok yang ikut jumlah & rata-rata. Rata-rata
  *   keseluruhan rapor beraspek = rata-rata dari rata-rata tiap aspek (seperti contoh rapor owner).
+ * - AC-8d (§22.6): ekstrakurikuler (huruf, kosong = tidak ikut) & kepribadian (huruf + keterangan
+ *   otomatis per huruf) per siswa; peringkat kelas dari rata-rata rapor di antara siswa yang masih di
+ *   kelas dan punya rata-rata — urut tanpa nomor kembar (OD owner 2026-11-11): rata-rata ↓, jumlah ↓,
+ *   lalu nama.
  * - Catatan wali kelas maks. 1000 karakter; kosong = dihapus. Audit tanpa isi catatan.
  *
  * Hak akses dicek pemanggil.
@@ -38,7 +42,7 @@ use Modules\HR\Contracts\ActiveEmployees;
  *
  * @phpstan-type AspectGrade array{score: int|null, predicate: string|null, label: string|null}
  * @phpstan-type CardSubject array{name: string, kkm: int, final: float|null, predicate: string|null, label: string|null, description: string|null, aspects: array<string, AspectGrade>, grade_type: string, group: string|null, counts: bool}
- * @phpstan-type Card array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, subjects: list<CardSubject>, total: float|null, average: float|null, aspect_totals: array<string, array{total: int|null, average: float|null}>, attendance: array{S: int, I: int, A: int}, note: string|null}
+ * @phpstan-type Card array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, subjects: list<CardSubject>, total: float|null, average: float|null, aspect_totals: array<string, array{total: int|null, average: float|null}>, attendance: array{S: int, I: int, A: int}, note: string|null, extracurricular: array<string, string|null>, personality: array<string, array{letter: string|null, text: string|null}>, rank: int|null}
  */
 final class ReportCards
 {
@@ -50,13 +54,14 @@ final class ReportCards
         private readonly AttendanceModeSetting $attendanceMode,
         private readonly ActiveEmployees $employees,
         private readonly AuditLogger $audit,
+        private readonly ReportItemGrades $itemGrades,
     ) {}
 
     /**
      * Rapor seluruh siswa kelas (atau satu siswa) pada semester itu.
      *
      * @param  TermOption  $term
-     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null, aspects: list<array{code: string, name: string}>, multi_aspect: bool, grouped: bool, predicates: list<array{letter: string, label: string|null, min: int}>, labels: bool}
+     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null, aspects: list<array{code: string, name: string}>, multi_aspect: bool, grouped: bool, predicates: list<array{letter: string, label: string|null, min: int}>, labels: bool, extracurriculars: list<array{id: string, name: string}>, personalities: list<array{id: string, name: string}>, ranked: int}
      */
     public function build(SchoolClass $class, array $term, ?string $enrollmentId = null): array
     {
@@ -125,11 +130,11 @@ final class ReportCards
         $sheetIds = array_values(array_map(fn (GradeSheet $sheet): string => $sheet->id, $sheets->all()));
         $cards = [];
 
-        foreach ($this->roster->forClass($class->id, $term, $sheetIds) as $student) {
-            if ($enrollmentId !== null && $student['enrollment_id'] !== $enrollmentId) {
-                continue;
-            }
+        $items = $this->itemGrades->items($class, $term['value']);
+        $itemGrades = $this->itemGrades->grades($class->id, $term['value']);
 
+        // Semua siswa dihitung dulu (peringkat butuh sekelas), baru disaring bila satu siswa.
+        foreach ($this->roster->forClass($class->id, $term, $sheetIds) as $student) {
             $lines = [];
             $scores = [];
             $byAspect = [];
@@ -218,7 +223,15 @@ final class ReportCards
                 'aspect_totals' => $aspectTotals,
                 'attendance' => $attendance[$student['enrollment_id']] ?? ['S' => 0, 'I' => 0, 'A' => 0],
                 'note' => $notes[$student['enrollment_id']] ?? null,
-            ];
+            ] + $this->itemsFor($items, $itemGrades[$student['enrollment_id']] ?? []);
+        }
+
+        $ranks = self::ranks($cards);
+        $ranked = count($ranks);
+        $cards = array_map(fn (array $card, int $index): array => array_merge($card, ['rank' => $ranks[$index] ?? null]), $cards, array_keys($cards));
+
+        if ($enrollmentId !== null) {
+            $cards = array_values(array_filter($cards, fn (array $card): bool => $card['enrollment_id'] === $enrollmentId));
         }
 
         $homeroom = $class->homeroom_employee_id === null
@@ -237,7 +250,59 @@ final class ReportCards
             // Skala predikat untuk kotak keterangan (dari lembar final pertama; satu lembaga = satu skala).
             'predicates' => $subjects === [] ? [] : $subjects[0]['rules']->predicates,
             'labels' => $subjects !== [] && $subjects[0]['rules']->hasLabels(),
+            'extracurriculars' => array_values(array_map(fn (array $item): array => ['id' => $item['id'], 'name' => $item['name']], array_filter($items, fn (array $item): bool => $item['kind'] === 'EKSKUL'))),
+            'personalities' => array_values(array_map(fn (array $item): array => ['id' => $item['id'], 'name' => $item['name']], array_filter($items, fn (array $item): bool => $item['kind'] === 'KEPRIBADIAN'))),
+            'ranked' => $ranked,
         ];
+    }
+
+    /**
+     * Ekstrakurikuler & kepribadian satu siswa.
+     *
+     * @param  list<array{id: string, kind: string, name: string, descriptions: array<string, string>}>  $items
+     * @param  array<string, array{letter: string|null, note: string|null}>  $grades
+     * @return array{extracurricular: array<string, string|null>, personality: array<string, array{letter: string|null, text: string|null}>, rank: null}
+     */
+    private function itemsFor(array $items, array $grades): array
+    {
+        $extracurricular = [];
+        $personality = [];
+
+        foreach ($items as $item) {
+            $grade = $grades[$item['id']] ?? ['letter' => null, 'note' => null];
+
+            if ($item['kind'] === 'EKSKUL') {
+                $extracurricular[$item['id']] = $grade['letter'];
+            } else {
+                $personality[$item['id']] = ['letter' => $grade['letter'], 'text' => ReportItemGrades::personalityText($item['descriptions'], $grade['letter'], $grade['note'])];
+            }
+        }
+
+        return ['extracurricular' => $extracurricular, 'personality' => $personality, 'rank' => null];
+    }
+
+    /**
+     * Peringkat siswa yang masih di kelas dan punya rata-rata: urut rata-rata ↓, jumlah ↓, lalu nama;
+     * nomor berurutan tanpa kembar (OD owner 2026-11-11).
+     *
+     * @param  list<array{name: string, left: bool, average: float|null, total: float|null}>  $cards
+     * @return array<int, int> indeks kartu → peringkat
+     */
+    public static function ranks(array $cards): array
+    {
+        $eligible = array_keys(array_filter($cards, fn (array $card): bool => ! $card['left'] && $card['average'] !== null));
+
+        usort($eligible, function (int $a, int $b) use ($cards): int {
+            return [$cards[$b]['average'], $cards[$b]['total'] ?? 0.0, $cards[$a]['name']] <=> [$cards[$a]['average'], $cards[$a]['total'] ?? 0.0, $cards[$b]['name']];
+        });
+
+        $ranks = [];
+
+        foreach ($eligible as $position => $index) {
+            $ranks[$index] = $position + 1;
+        }
+
+        return $ranks;
     }
 
     /**

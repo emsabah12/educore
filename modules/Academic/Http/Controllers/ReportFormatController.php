@@ -11,8 +11,12 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Grading\GradingRules;
+use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Application\Grading\ReportFormats;
+use Modules\Academic\Application\Grading\ReportItems;
 use Modules\Academic\Domain\Grading\Exceptions\GradingException;
+use Modules\Academic\Domain\Grading\ReportItem;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
@@ -20,8 +24,9 @@ use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Tenancy\TenantContext;
 
 /**
- * Halaman Format rapor per lembaga (PRD-002 §22.5 AC-8c). Pilihan lembaga = lembaga aktif yang
- * boleh dikelola kelasnya (academic.classes.manage: Operator Akademik lembaga itu & Admin Yayasan).
+ * Halaman Format rapor per lembaga (PRD-002 §22.5 AC-8c) beserta daftar ekstrakurikuler &
+ * kepribadian (§22.6 AC-8d). Pilihan lembaga = lembaga aktif yang boleh dikelola kelasnya
+ * (academic.classes.manage: Operator Akademik lembaga itu & Admin Yayasan).
  */
 final class ReportFormatController
 {
@@ -30,7 +35,7 @@ final class ReportFormatController
         private readonly AuthorizationService $authorization,
     ) {}
 
-    public function index(Request $request, ReportFormats $formats): Response
+    public function index(Request $request, ReportFormats $formats, ReportItems $items, GradingSetting $grading): Response
     {
         Gate::authorize(AcademicAccess::CLASSES_MANAGE);
 
@@ -48,6 +53,9 @@ final class ReportFormatController
             ],
             'format' => $organizationId === null ? null : $formats->forOrganization($tenantId, $organizationId),
             'logo' => $organizationId === null ? null : $formats->logoDataUri($tenantId, $organizationId),
+            // AC-8d: butir ekstrakurikuler & kepribadian; huruf skala untuk keterangan per huruf.
+            'items' => $organizationId === null ? [] : $items->list($tenantId, $organizationId),
+            'predicates' => $organizationId === null ? [] : $grading->rulesFor($tenantId, $organizationId)->predicates,
             'limits' => [
                 'line' => ReportFormats::LINE_MAX,
                 'title' => ReportFormats::TITLE_MAX,
@@ -55,6 +63,8 @@ final class ReportFormatController
                 'role' => ReportFormats::ROLE_MAX,
                 'name' => ReportFormats::NAME_MAX,
                 'logoKilobytes' => ReportFormats::LOGO_MAX_KILOBYTES,
+                'itemName' => ReportItems::NAME_MAX,
+                'itemDescription' => ReportItems::DESCRIPTION_MAX,
             ],
         ]);
     }
@@ -76,6 +86,7 @@ final class ReportFormatController
             'student_term' => ['required', 'string', 'in:'.implode(',', array_keys(ReportFormats::STUDENT_TERMS))],
             'place' => ['nullable', 'string', 'max:'.ReportFormats::PLACE_MAX],
             'show_hijri' => ['nullable', 'boolean'],
+            'show_rank' => ['nullable', 'boolean'],
             'principal_title' => ['nullable', 'string', 'max:'.ReportFormats::ROLE_MAX],
             'principal_name' => ['nullable', 'string', 'max:'.ReportFormats::NAME_MAX],
             'witness_title' => ['nullable', 'string', 'max:'.ReportFormats::ROLE_MAX],
@@ -107,6 +118,7 @@ final class ReportFormatController
                 'student_term' => $request->string('student_term')->value(),
                 'place' => $request->string('place')->value(),
                 'show_hijri' => $request->boolean('show_hijri'),
+                'show_rank' => $request->boolean('show_rank'),
                 'principal_title' => $request->string('principal_title')->value(),
                 'principal_name' => $request->string('principal_name')->value(),
                 'witness_title' => $request->string('witness_title')->value(),
@@ -117,6 +129,127 @@ final class ReportFormatController
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $changed === [] ? 'Tidak ada data yang berubah.' : "Format rapor {$target->name} disimpan."]);
+
+        return back();
+    }
+
+    // ── Ekstrakurikuler & kepribadian (PRD-002 §22.6 AC-8d) ───────────────────────
+
+    public function storeItem(Request $request, string $organization, ReportItems $items): RedirectResponse
+    {
+        $target = $this->lembaga($organization);
+        $request->validate($this->itemRules() + ['kind' => ['required', 'in:'.ReportItem::EXTRACURRICULAR.','.ReportItem::PERSONALITY]], [], $this->itemAttributes());
+
+        $item = $this->attempt(fn (): ReportItem => $items->create(
+            $this->tenantId(),
+            $target->id,
+            $request->string('kind')->value(),
+            $request->string('name')->value(),
+            $request->integer('sort_order'),
+            (array) $request->input('descriptions', []),
+        ));
+
+        return $this->done("{$item->name} ditambahkan.");
+    }
+
+    public function updateItem(Request $request, string $item, ReportItems $items): RedirectResponse
+    {
+        $target = $this->item($item, $items);
+        $request->validate($this->itemRules() + ['is_active' => ['nullable', 'boolean']], [], $this->itemAttributes());
+
+        $changed = $this->attempt(fn (): array => $items->update(
+            $this->tenantId(),
+            $target->id,
+            $request->string('name')->value(),
+            $request->integer('sort_order'),
+            (array) $request->input('descriptions', []),
+            $request->boolean('is_active'),
+        ));
+
+        return $this->done($changed === [] ? 'Tidak ada data yang berubah.' : 'Butir disimpan.');
+    }
+
+    public function destroyItem(string $item, ReportItems $items): RedirectResponse
+    {
+        $target = $this->item($item, $items);
+        $name = $this->attempt(fn (): string => $items->delete($this->tenantId(), $target->id));
+
+        return $this->done("{$name} dihapus.");
+    }
+
+    public function personalityExamples(string $organization, ReportItems $items): RedirectResponse
+    {
+        $target = $this->lembaga($organization);
+        $added = $items->addPersonalityExamples($this->tenantId(), $target->id);
+
+        return $this->done($added === 0 ? 'Semua aspek kepribadian contoh sudah ada.' : "{$added} aspek kepribadian contoh ditambahkan.");
+    }
+
+    private function lembaga(string $organization): Organization
+    {
+        $target = Str::isUuid($organization) ? Organization::query()->find($organization) : null;
+
+        if (! $target instanceof Organization || $target->type !== OrganizationType::Lembaga) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $target);
+
+        return $target;
+    }
+
+    private function item(string $itemId, ReportItems $items): ReportItem
+    {
+        $item = $items->find($this->tenantId(), $itemId);
+
+        if (! $item instanceof ReportItem) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $item);
+
+        return $item;
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function itemRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:'.ReportItems::NAME_MAX],
+            'sort_order' => ['nullable', 'integer', 'between:0,'.ReportItems::ORDER_MAX],
+            'descriptions' => ['nullable', 'array', 'max:'.GradingRules::MAX_LEVELS],
+            'descriptions.*' => ['nullable', 'string', 'max:'.ReportItems::DESCRIPTION_MAX],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function itemAttributes(): array
+    {
+        return ['name' => 'nama', 'sort_order' => 'urutan', 'descriptions.*' => 'keterangan'];
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $action
+     * @return T
+     */
+    private function attempt(callable $action): mixed
+    {
+        try {
+            return $action();
+        } catch (GradingException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+    }
+
+    private function done(string $message): RedirectResponse
+    {
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return back();
     }

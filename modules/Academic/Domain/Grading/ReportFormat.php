@@ -27,6 +27,7 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property string $student_term SISWA | SANTRI | MURID
  * @property string|null $place
  * @property bool $show_hijri
+ * @property bool $show_rank tampilkan peringkat kelas (AC-8d)
  * @property string $principal_title
  * @property string|null $principal_name
  * @property string|null $witness_title
@@ -58,6 +59,7 @@ class ReportFormat extends Model implements OwnedByOrganization
         'principal_name',
         'witness_title',
         'witness_name',
+        'show_rank',
     ];
 
     /**
@@ -65,7 +67,7 @@ class ReportFormat extends Model implements OwnedByOrganization
      */
     protected function casts(): array
     {
-        return ['show_hijri' => 'boolean'];
+        return ['show_hijri' => 'boolean', 'show_rank' => 'boolean'];
     }
 
     public function newUniqueId(): string

@@ -311,14 +311,15 @@ final class SaveAcademicYear
             ->get()
             ->keyBy('sequence');
 
-        // Semester yang sudah punya nilai atau catatan rapor (AC-5b/d) tidak boleh dihapus.
+        // Semester yang sudah punya nilai, catatan rapor, atau nilai ekstrakurikuler/kepribadian (AC-5b/d, AC-8d) tidak boleh dihapus.
         $graded = Term::query()
             ->withoutGlobalScope('tenant')
             ->where('academic_year_id', $year->id)
             ->where('sequence', '>', count($terms))
             ->where(fn ($used) => $used
                 ->whereExists(fn ($query) => $query->selectRaw('1')->from('ac_grade_sheets as gs')->whereColumn('gs.term_id', 'ac_terms.id'))
-                ->orWhereExists(fn ($query) => $query->selectRaw('1')->from('ac_report_notes as rn')->whereColumn('rn.term_id', 'ac_terms.id')))
+                ->orWhereExists(fn ($query) => $query->selectRaw('1')->from('ac_report_notes as rn')->whereColumn('rn.term_id', 'ac_terms.id'))
+                ->orWhereExists(fn ($query) => $query->selectRaw('1')->from('ac_report_item_grades as rig')->whereColumn('rig.term_id', 'ac_terms.id')))
             ->orderBy('sequence')
             ->first(['name']);
 

@@ -439,13 +439,22 @@
 - Rapor: judul kelompok bernomor + mapel a/b/c, sebutan predikat, kotak Keterangan predikat, mapel huruf tanpa angka; jumlah & rata-rata hanya mapel angka di kelompok yang ikut; rata-rata rapor beraspek = rata-rata dari rata-rata aspek. Leger & portal orang tua ikut (huruf, urutan kelompok, rata-rata hanya kelompok yang ikut).
 - Bukti: 765 test lulus (4 test baru, `SubjectGroupsLetterGradesTest`; test lama disesuaikan ke format `predicates`/`label`); Pint, Larastan, tsc, oxlint, build lulus; uji manual owner lancar.
 
-**AC-8c — Format rapor per lembaga: DIBANGUN (2026-11-11, menunggu uji owner)** — PRD-002 §22.5 (OD-AC-27, OD-AC-28)
+**AC-8c — Format rapor per lembaga: SELESAI (2026-11-11, commit `5d6767c`)** — PRD-002 §22.5 (OD-AC-27, OD-AC-28)
 
 - Migrasi `2026_11_11_200016`: tabel `ac_report_formats` (satu per lembaga: kop 4 baris, logo, judul, sebutan SISWA/SANTRI/MURID, tempat, tanggal Hijriah, jabatan & nama kepala, penanda tangan "Mengetahui").
 - `Domain/Grading/ReportFormat`; `Application/Grading/ReportFormats` (`forOrganization` dengan bawaan, `logoDataUri`, `save` + logo PNG/JPG ≤ 1 MB di disk privat, jenis dari isi file). Audit `academic.report_format_saved`.
 - `ReportFormatController` + halaman `academic/grades/report-format` (pratinjau kop langsung); komponen `components/academic/report-header.tsx`. Tombol **Atur format rapor** di halaman Rapor.
 - Rapor cetak (sekolah, wali kelas, portal orang tua): kop berlogo + judul, "Wali {sebutan}", jabatan kepala, tanggal Hijriah (Umm al-Qura, dihitung browser), penanda tangan "Mengetahui". Lembaga tanpa format → tampilan lama.
-- Bukti: 769 test lulus (4 test baru, `ReportFormatTest`); Pint, Larastan, tsc, oxlint, build lulus.
+- Bukti: 769 test lulus (4 test baru, `ReportFormatTest`); Pint, Larastan, tsc, oxlint, build lulus; uji manual owner lancar.
+
+**AC-8d — Ekstrakurikuler, kepribadian & peringkat kelas: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-002 §22.6 (OD-AC-29, OD-AC-30, OD-AC-31)
+
+- Migrasi `2026_11_11_200017`: `ac_report_items` (butir EKSKUL/KEPRIBADIAN per lembaga, keterangan per huruf), `ac_report_item_grades` (kelas × semester × siswa × butir: huruf + keterangan pengganti), kolom `ac_report_formats.show_rank`.
+- `Domain/Grading/ReportItem`; `Application/Grading/{ReportItems, ReportItemGrades}`; `ReportCards` menambah ekskul, kepribadian, peringkat (`ranks()`: rata-rata ↓, jumlah ↓, nama, tanpa kembar). Audit `REPORT_ITEM_SAVED`, `REPORT_ITEM_DELETED`, `REPORT_ITEMS_GRADED`.
+- Format rapor: bagian **Ekstrakurikuler** & **Kepribadian** (tambah/ubah/hapus/nonaktif, **Isi contoh 6 aspek**), centang **Tampilkan peringkat kelas**.
+- Halaman baru **Ekstrakurikuler & kepribadian** per kelas per semester (`/kelas/{id}/rapor/ekskul-kepribadian`, juga lewat Kelas saya); daftar rapor menampilkan "peringkat X dari N".
+- Rapor cetak: tabel Kegiatan ekstrakurikuler (2 kolom bila > 5), Kepribadian diri, Peringkat kelas. Leger tidak menampilkan peringkat.
+- Bukti: 772 test lulus (3 test baru, `ReportItemsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
@@ -977,12 +986,12 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - Integrasi pihak ketiga (Midtrans) di test: ganti `MidtransGateway` dengan `Tests\Support\FakeMidtransGateway` lewat `app()->instance(...)` dan pasang `Http::preventStrayRequests()` agar tidak ada panggilan ke internet.
 - `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
 - **Server staging owner memakai Docker** (2026-11-10): `compose.staging.yml` dengan container `educore-app` (PHP-FPM, image dari `docker/php`), `educore-web` (nginx), `educore-db` (PostgreSQL); folder proyek di-_bind mount_ ke `/var/www/html`, diakses lewat Cloudflare Tunnel + Nginx Proxy Manager. Semua `php artisan` wajib lewat `docker exec educore-app …` (dari host, host DB `db` tidak dikenal dan cache berisi path host). `public/build` tidak ikut Git: setelah `git pull` wajib `npm run build` di host (tampilan UX-2 sempat tidak muncul karena build terakhir 4 Nov). Urutan lengkap di README §7.7.
-- **CI GitHub (`composer ci:check`) menjalankan `vp check`** (format oxfmt + lint) untuk **semua** file termasuk Markdown di `docs/` dan README, lalu `types:check` dan test. Sebelum push jalankan `npm run check` (atau `npm run check:fix`) di laptop; CI sempat gagal 2026-11-11 karena 11 file (dokumen + beberapa halaman yang diubah massal di UX-1) belum dirapikan formatnya.
+- **CI GitHub (`composer ci:check`) menjalankan `vp check`** (format oxfmt + lint) untuk **semua** file termasuk Markdown di `docs/` dan README, lalu `types:check` dan test. Sebelum push jalankan `npm run check` (atau `npm run check:fix`) di laptop; **peringatan lint juga menggagalkan CI** (`vp check` keluar dengan kode 1), jadi hasilnya harus 0 error dan 0 peringatan. CI sempat gagal 2026-11-11 karena 11 file belum rapi formatnya (commit `754fe11`) dan 2 peringatan tipe di `components/finance/ledger.ts` (commit `4ce7fb5`).
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Penilaian (PRD-002 §22)**: owner menguji AC-8c; sesudahnya AC-8d (ekstrakurikuler, kepribadian, peringkat) — dirinci dulu sebelum dibangun.
+2. **Penilaian (PRD-002 §22)**: uji manual AC-8d oleh owner; sesudahnya opsional: ekskul & kepribadian di halaman nilai anak (portal orang tua).
 3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

@@ -16,6 +16,8 @@ use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\ManageGrades;
 use Modules\Academic\Application\Grading\ReportCards;
 use Modules\Academic\Application\Grading\ReportFormats;
+use Modules\Academic\Application\Grading\ReportItemGrades;
+use Modules\Academic\Application\Grading\ReportItems;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Grading\Exceptions\GradingException;
@@ -75,7 +77,95 @@ final class ReportCardController
         return $this->printPage($request, $this->homeroomClass($class, $myClasses), $grades, $reports, $formats, "/kelas-saya/{$class}/rapor");
     }
 
+    // ── Ekstrakurikuler & kepribadian (PRD-002 §22.6 AC-8d) ───────────────────────
+
+    public function items(Request $request, string $class, ManageGrades $grades, ReportItemGrades $itemGrades): Response
+    {
+        $target = $this->viewableClass($class);
+
+        return $this->itemsPage($request, $target, $grades, $itemGrades, Gate::allows(AcademicAccess::CLASSES_MANAGE, $target), "/kelas/{$target->id}/rapor");
+    }
+
+    public function saveItems(Request $request, string $class, ManageGrades $grades, ReportItemGrades $itemGrades): RedirectResponse
+    {
+        $target = $this->viewableClass($class);
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $target);
+
+        return $this->storeItems($request, $target, $grades, $itemGrades, "/kelas/{$target->id}/rapor");
+    }
+
+    public function itemsMine(Request $request, string $class, MyClasses $myClasses, ManageGrades $grades, ReportItemGrades $itemGrades): Response
+    {
+        $target = $this->homeroomClass($class, $myClasses);
+
+        return $this->itemsPage($request, $target, $grades, $itemGrades, true, "/kelas-saya/{$target->id}/rapor");
+    }
+
+    public function saveItemsMine(Request $request, string $class, MyClasses $myClasses, ManageGrades $grades, ReportItemGrades $itemGrades): RedirectResponse
+    {
+        $target = $this->homeroomClass($class, $myClasses);
+
+        return $this->storeItems($request, $target, $grades, $itemGrades, "/kelas-saya/{$target->id}/rapor");
+    }
+
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    private function itemsPage(Request $request, SchoolClass $class, ManageGrades $grades, ReportItemGrades $itemGrades, bool $canEdit, string $reportUrl): Response
+    {
+        $year = $this->yearOf($class);
+        $terms = $grades->terms($class);
+        $term = ManageGrades::pickTerm($terms, $request->query('semester'));
+
+        return Inertia::render('academic/grades/report-items', [
+            'class' => $this->classInfo($class, $year),
+            'terms' => array_map(fn (array $option): array => ['value' => $option['value'], 'label' => $option['label']], $terms),
+            'term' => $term,
+            'sheet' => $term === null ? null : $itemGrades->sheet($class, $term),
+            'canEdit' => $canEdit && ! ManageClasses::isPastYear($year),
+            'noteMax' => ReportItems::DESCRIPTION_MAX,
+            'baseUrl' => "{$reportUrl}/ekskul-kepribadian",
+            'backUrl' => $reportUrl,
+            'formatUrl' => Gate::allows(AcademicAccess::CLASSES_MANAGE, $class) ? "/akademik/format-rapor?lembaga={$class->organization_id}" : null,
+        ]);
+    }
+
+    private function storeItems(Request $request, SchoolClass $class, ManageGrades $grades, ReportItemGrades $itemGrades, string $reportUrl): RedirectResponse
+    {
+        $request->validate([
+            'semester' => ['required', 'uuid'],
+            'grades' => ['required', 'array', 'max:'.ReportItemGrades::MAX_STUDENTS],
+            'grades.*' => ['array'],
+        ], ['semester.required' => 'Pilih semester.', 'grades.required' => 'Belum ada nilai yang diisi.']);
+
+        $term = null;
+
+        foreach ($grades->terms($class) as $option) {
+            if ($option['value'] === $request->string('semester')->value()) {
+                $term = $option;
+            }
+        }
+
+        if ($term === null) {
+            throw ValidationException::withMessages(['semester' => 'Semester tidak ditemukan di tahun ajaran kelas ini.']);
+        }
+
+        /** @var array<string, mixed> $entries */
+        $entries = [];
+
+        foreach ((array) $request->input('grades', []) as $enrollmentId => $values) {
+            $entries[(string) $enrollmentId] = $values;
+        }
+
+        try {
+            $count = $itemGrades->save($class, $term, $entries);
+        } catch (GradingException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Nilai ekstrakurikuler & kepribadian disimpan ({$count} siswa)."]);
+
+        return redirect()->to("{$reportUrl}/ekskul-kepribadian?semester={$term['value']}");
+    }
 
     private function page(Request $request, SchoolClass $class, ManageGrades $grades, ReportCards $reports, bool $canEditNotes, string $baseUrl, string $backUrl, string $backLabel): Response
     {
@@ -95,6 +185,7 @@ final class ReportCardController
                 'average' => $card['average'],
                 'attendance' => $card['attendance'],
                 'note' => $card['note'],
+                'rank' => $card['rank'],
             ];
         }
 
@@ -112,7 +203,16 @@ final class ReportCardController
             'backLabel' => $backLabel,
             // Pengatur format rapor lembaga (AC-8c): pengelola kelas di lembaga itu.
             'formatUrl' => Gate::allows(AcademicAccess::CLASSES_MANAGE, $class) ? "/akademik/format-rapor?lembaga={$class->organization_id}" : null,
+            // AC-8d: peringkat (bila lembaga menampilkannya) & tautan isian ekstrakurikuler/kepribadian.
+            'showRank' => $this->showRank($class),
+            'ranked' => $report['ranked'] ?? 0,
+            'itemsUrl' => "{$baseUrl}/ekskul-kepribadian",
         ]);
+    }
+
+    private function showRank(SchoolClass $class): bool
+    {
+        return (bool) DB::table('ac_report_formats')->where('organization_id', $class->organization_id)->value('show_rank');
     }
 
     private function printPage(Request $request, SchoolClass $class, ManageGrades $grades, ReportCards $reports, ReportFormats $formats, string $backUrl): Response

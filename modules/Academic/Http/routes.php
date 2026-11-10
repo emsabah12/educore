@@ -110,6 +110,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::delete('akademik/mapel/{subject}', [SubjectController::class, 'destroy'])->whereUuid('subject')->name('academic.subjects.destroy');
     Route::get('akademik/format-rapor', [ReportFormatController::class, 'index'])->name('academic.report-formats.index');
     Route::post('akademik/format-rapor/{organization}', [ReportFormatController::class, 'update'])->whereUuid('organization')->name('academic.report-formats.update');
+    Route::post('akademik/format-rapor/{organization}/butir', [ReportFormatController::class, 'storeItem'])->whereUuid('organization')->name('academic.report-items.store');
+    Route::post('akademik/format-rapor/{organization}/butir/contoh', [ReportFormatController::class, 'personalityExamples'])->whereUuid('organization')->name('academic.report-items.examples');
+    Route::patch('akademik/format-rapor/butir/{item}', [ReportFormatController::class, 'updateItem'])->whereUuid('item')->name('academic.report-items.update');
+    Route::delete('akademik/format-rapor/butir/{item}', [ReportFormatController::class, 'destroyItem'])->whereUuid('item')->name('academic.report-items.destroy');
     Route::post('akademik/mapel/kelompok', [SubjectController::class, 'storeGroup'])->name('academic.subject-groups.store');
     Route::patch('akademik/mapel/kelompok/{group}', [SubjectController::class, 'updateGroup'])->whereUuid('group')->name('academic.subject-groups.update');
     Route::delete('akademik/mapel/kelompok/{group}', [SubjectController::class, 'destroyGroup'])->whereUuid('group')->name('academic.subject-groups.destroy');
@@ -192,9 +196,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('kelas/{class}/rapor', [ReportCardController::class, 'index'])->whereUuid('class')->name('academic.reports.index');
     Route::post('kelas/{class}/rapor/catatan', [ReportCardController::class, 'saveNotes'])->whereUuid('class')->name('academic.reports.notes');
     Route::get('kelas/{class}/rapor/cetak', [ReportCardController::class, 'print'])->whereUuid('class')->name('academic.reports.print');
+    Route::get('kelas/{class}/rapor/ekskul-kepribadian', [ReportCardController::class, 'items'])->whereUuid('class')->name('academic.reports.items');
+    Route::post('kelas/{class}/rapor/ekskul-kepribadian', [ReportCardController::class, 'saveItems'])->whereUuid('class')->name('academic.reports.items.save');
     Route::get('kelas-saya/{class}/rapor', [ReportCardController::class, 'indexMine'])->whereUuid('class')->name('academic.my-reports.index');
     Route::post('kelas-saya/{class}/rapor/catatan', [ReportCardController::class, 'saveNotesMine'])->whereUuid('class')->name('academic.my-reports.notes');
     Route::get('kelas-saya/{class}/rapor/cetak', [ReportCardController::class, 'printMine'])->whereUuid('class')->name('academic.my-reports.print');
+    Route::get('kelas-saya/{class}/rapor/ekskul-kepribadian', [ReportCardController::class, 'itemsMine'])->whereUuid('class')->name('academic.my-reports.items');
+    Route::post('kelas-saya/{class}/rapor/ekskul-kepribadian', [ReportCardController::class, 'saveItemsMine'])->whereUuid('class')->name('academic.my-reports.items.save');
     Route::get('kelas-saya/{class}/rekap-presensi', [AttendanceController::class, 'recapMine'])->whereUuid('class')->name('academic.my-attendance.recap');
 
     // Proses akhir tahun per kelas (AC-2): naik, tinggal kelas, lulus. Kelola: academic.classes.manage

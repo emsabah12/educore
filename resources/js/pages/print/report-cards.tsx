@@ -43,7 +43,15 @@ type Card = {
     >;
     attendance: { S: number; I: number; A: number };
     note: string | null;
+    /** AC-8d: huruf per ekstrakurikuler (null = tidak ikut). */
+    extracurricular: Record<string, string | null>;
+    /** AC-8d: huruf & keterangan per aspek kepribadian. */
+    personality: Record<string, { letter: string | null; text: string | null }>;
+    /** AC-8d: peringkat kelas (null = tidak diperingkat). */
+    rank: number | null;
 };
+
+type NamedItem = { id: string; name: string };
 
 type Props = {
     class: {
@@ -65,6 +73,10 @@ type Props = {
         grouped: boolean;
         predicates: { letter: string; label: string | null; min: number }[];
         labels: boolean;
+        extracurriculars: NamedItem[];
+        personalities: NamedItem[];
+        /** Jumlah siswa yang diperingkat. */
+        ranked: number;
     };
     /** Format rapor lembaga (AC-8c). */
     format: ReportFormat;
@@ -82,6 +94,7 @@ type ReportFormat = {
     principal_name: string | null;
     witness_title: string | null;
     witness_name: string | null;
+    show_rank: boolean;
     configured: boolean;
     logo: string | null;
 };
@@ -445,33 +458,58 @@ export default function PrintReportCards({
                             </p>
                         )}
 
+                        <ItemTables card={card} report={report} />
+
                         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4">
-                            <table className="h-fit w-full border-collapse text-left">
-                                <thead>
-                                    <tr className="bg-gray-100">
-                                        <Th colSpan={2}>Ketidakhadiran</Th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(
-                                        [
-                                            ['Sakit', card.attendance.S],
-                                            ['Izin', card.attendance.I],
-                                            [
-                                                'Tanpa keterangan',
-                                                card.attendance.A,
-                                            ],
-                                        ] as const
-                                    ).map(([label, value]) => (
-                                        <tr key={label}>
-                                            <Td>{label}</Td>
-                                            <Td className="text-right whitespace-nowrap">
-                                                {value} {report.attendance_kind}
-                                            </Td>
+                            <div className="space-y-2">
+                                <table className="h-fit w-full border-collapse text-left">
+                                    <thead>
+                                        <tr className="bg-gray-100">
+                                            <Th colSpan={2}>Ketidakhadiran</Th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {(
+                                            [
+                                                ['Sakit', card.attendance.S],
+                                                ['Izin', card.attendance.I],
+                                                [
+                                                    'Tanpa keterangan',
+                                                    card.attendance.A,
+                                                ],
+                                            ] as const
+                                        ).map(([label, value]) => (
+                                            <tr key={label}>
+                                                <Td>{label}</Td>
+                                                <Td className="text-right whitespace-nowrap">
+                                                    {value}{' '}
+                                                    {report.attendance_kind}
+                                                </Td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {format.show_rank && card.rank !== null && (
+                                    <table className="w-full border-collapse text-left">
+                                        <tbody>
+                                            <tr>
+                                                <Td className="bg-gray-100 font-semibold whitespace-nowrap">
+                                                    Peringkat kelas
+                                                </Td>
+                                                <Td className="text-right whitespace-nowrap">
+                                                    {card.rank} dari{' '}
+                                                    {report.ranked}{' '}
+                                                    {
+                                                        TERM_LABEL[
+                                                            format.student_term
+                                                        ]
+                                                    }
+                                                </Td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
                             <div className="border border-black">
                                 <p className="border-b border-black bg-gray-100 px-2 py-1 font-semibold">
                                     Catatan wali kelas
@@ -516,6 +554,92 @@ export default function PrintReportCards({
                     </article>
                 ))}
             </div>
+        </>
+    );
+}
+
+/**
+ * Ekstrakurikuler & kepribadian (AC-8d). Bagian tanpa butir tidak tampil; ekstrakurikuler tanpa huruf
+ * = "-" (tidak ikut). Lebih dari 5 kegiatan dibagi dua kolom agar rapor tetap satu halaman.
+ */
+function ItemTables({ card, report }: { card: Card; report: Props['report'] }) {
+    const activities = report.extracurriculars;
+    const half =
+        activities.length > 5
+            ? Math.ceil(activities.length / 2)
+            : activities.length;
+    const columns =
+        activities.length > 5
+            ? [activities.slice(0, half), activities.slice(half)]
+            : [activities];
+
+    return (
+        <>
+            {activities.length > 0 && (
+                <div
+                    className={
+                        columns.length > 1 ? 'grid grid-cols-2 gap-4' : ''
+                    }
+                >
+                    {columns.map((column, columnIndex) => (
+                        <table
+                            key={columnIndex}
+                            className="h-fit w-full border-collapse text-left"
+                        >
+                            <thead>
+                                <tr className="bg-gray-100">
+                                    <Th className="w-10 text-center">No</Th>
+                                    <Th>Kegiatan ekstrakurikuler</Th>
+                                    <Th className="w-16 text-center">Pred</Th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {column.map((item, index) => (
+                                    <tr key={item.id}>
+                                        <Td className="text-center">
+                                            {columnIndex * half + index + 1}
+                                        </Td>
+                                        <Td>{item.name}</Td>
+                                        <Td className="text-center">
+                                            {card.extracurricular[item.id] ??
+                                                '-'}
+                                        </Td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ))}
+                </div>
+            )}
+
+            {report.personalities.length > 0 && (
+                <table className="w-full border-collapse text-left">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <Th className="w-10 text-center">No</Th>
+                            <Th>Kepribadian diri</Th>
+                            <Th className="w-16 text-center">Pred</Th>
+                            <Th>Keterangan</Th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {report.personalities.map((item, index) => {
+                            const grade = card.personality[item.id];
+
+                            return (
+                                <tr key={item.id}>
+                                    <Td className="text-center">{index + 1}</Td>
+                                    <Td>{item.name}</Td>
+                                    <Td className="text-center">
+                                        {grade?.letter ?? '-'}
+                                    </Td>
+                                    <Td>{grade?.text ?? ''}</Td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            )}
         </>
     );
 }

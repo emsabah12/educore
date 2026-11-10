@@ -25,10 +25,11 @@ use Modules\Core\Application\Audit\AuditLogger;
  * - Penanda tangan "Mengetahui" opsional: jabatan (maks. 60) + nama (maks. 100); nama tanpa
  *   jabatan ditolak.
  * - Lembaga tanpa format → bawaan (tampilan rapor sebelum AC-8c).
+ * - Tampilkan peringkat kelas (ya/tidak, AC-8d).
  *
  * Hak akses (academic.classes.manage di lembaga) dicek pemanggil.
  *
- * @phpstan-type FormatData array{header_lines: list<string|null>, title: string, student_term: string, place: string|null, show_hijri: bool, principal_title: string, principal_name: string|null, witness_title: string|null, witness_name: string|null, has_logo: bool, configured: bool}
+ * @phpstan-type FormatData array{header_lines: list<string|null>, title: string, student_term: string, place: string|null, show_hijri: bool, principal_title: string, principal_name: string|null, witness_title: string|null, witness_name: string|null, show_rank: bool, has_logo: bool, configured: bool}
  */
 final class ReportFormats
 {
@@ -77,6 +78,7 @@ final class ReportFormats
                 'principal_name' => null,
                 'witness_title' => null,
                 'witness_name' => null,
+                'show_rank' => false,
                 'has_logo' => false,
                 'configured' => false,
             ];
@@ -92,6 +94,7 @@ final class ReportFormats
             'principal_name' => $format->principal_name,
             'witness_title' => $format->witness_title,
             'witness_name' => $format->witness_name,
+            'show_rank' => $format->show_rank,
             'has_logo' => $format->logo_path !== null,
             'configured' => true,
         ];
@@ -116,7 +119,7 @@ final class ReportFormats
     /**
      * Simpan format lembaga; logo baru menggantikan yang lama, `$removeLogo` menghapusnya.
      *
-     * @param  array{header_lines: list<string|null>, title: string|null, student_term: string, place: string|null, show_hijri: bool, principal_title: string|null, principal_name: string|null, witness_title: string|null, witness_name: string|null}  $input
+     * @param  array{header_lines: list<string|null>, title: string|null, student_term: string, place: string|null, show_hijri: bool, principal_title: string|null, principal_name: string|null, witness_title: string|null, witness_name: string|null, show_rank?: bool}  $input
      * @return list<string> field yang berubah
      *
      * @throws GradingException
@@ -181,7 +184,7 @@ final class ReportFormats
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
     /**
-     * @param  array{header_lines: list<string|null>, title: string|null, student_term: string, place: string|null, show_hijri: bool, principal_title: string|null, principal_name: string|null, witness_title: string|null, witness_name: string|null}  $input
+     * @param  array{header_lines: list<string|null>, title: string|null, student_term: string, place: string|null, show_hijri: bool, principal_title: string|null, principal_name: string|null, witness_title: string|null, witness_name: string|null, show_rank?: bool}  $input
      * @return array<string, string|bool|null>
      *
      * @throws GradingException
@@ -233,6 +236,7 @@ final class ReportFormats
 
         $values['student_term'] = $input['student_term'];
         $values['show_hijri'] = $input['show_hijri'];
+        $values['show_rank'] = $input['show_rank'] ?? false;
 
         return $values;
     }

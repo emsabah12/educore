@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 3.0 (2026-11-11: AC-8c format rapor per lembaga disetujui & dibangun — §22.5; OD-AC-27, OD-AC-28)
-- **Versi sebelumnya:** 2.8 (AC-8b kelompok mapel, skala predikat, nilai huruf — §22.4; OD-AC-25, OD-AC-26), 2.6 (AC-8 Penilaian & rapor per lembaga — rincian AC-8a aspek penilaian, §22; OD-AC-11 direvisi), 2.5 (tombol modul lain di detail anak — Tagihan dari Keuangan, §21.3; kontrak `GuardianChildren`), 2.4 (AC-7b — presensi, nilai final, rapor anak, §21.3), 2.3 (HP orang tua/wali unik & pencarian nama/HP, §21.5), 2.2 (rincian AC-7, §21; AC-7a), 2.1 (AC-6c — rekap presensi mengajar bulanan, §20.4), 2.0 (AC-6b-2 — tugas pengganti, presensi siswa oleh pengganti, catatan otomatis), 1.9 (AC-1g-b — kolom NIK di impor siswa), 1.8 (AC-1g-a — NIK siswa & orang tua/wali di form), 1.7 (OD-AC-02 direvisi — NIK siswa & orang tua/wali disimpan, opsional), 1.6 (rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7), 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a SELESAI (`a69c50a`), AC-6b-1 SELESAI (`443a98d`), AC-6b-2 & AC-6c dibangun 2026-10-24; **AC-1g SELESAI (2026-10-24, commit `6360f6a`)**; **AC-7 dirinci & disetujui (§21, 2026-10-28)**: **AC-7 SELESAI (2026-10-28)** — AC-7a `db7f755` + `1e17de5`, AC-7b `b51efe5`; **AC-8 dirinci (§22, 2026-11-10)**: AC-8a & AC-8b selesai (2026-11-11), AC-8c dibangun 2026-11-11 (menunggu uji owner); ekspor Dapodik/EMIS, PPDB, asrama hanya digariskan
+- **Versi:** 3.2 (2026-11-11: AC-8d ekstrakurikuler, kepribadian, peringkat kelas disetujui & dibangun — §22.6; OD-AC-29 s.d. OD-AC-31)
+- **Versi sebelumnya:** 3.1 (usulan rincian AC-8d), 3.0 (AC-8c format rapor per lembaga — §22.5; OD-AC-27, OD-AC-28), 2.8 (AC-8b kelompok mapel, skala predikat, nilai huruf — §22.4; OD-AC-25, OD-AC-26), 2.6 (AC-8 Penilaian & rapor per lembaga — rincian AC-8a aspek penilaian, §22; OD-AC-11 direvisi), 2.5 (tombol modul lain di detail anak — Tagihan dari Keuangan, §21.3; kontrak `GuardianChildren`), 2.4 (AC-7b — presensi, nilai final, rapor anak, §21.3), 2.3 (HP orang tua/wali unik & pencarian nama/HP, §21.5), 2.2 (rincian AC-7, §21; AC-7a), 2.1 (AC-6c — rekap presensi mengajar bulanan, §20.4), 2.0 (AC-6b-2 — tugas pengganti, presensi siswa oleh pengganti, catatan otomatis), 1.9 (AC-1g-b — kolom NIK di impor siswa), 1.8 (AC-1g-a — NIK siswa & orang tua/wali di form), 1.7 (OD-AC-02 direvisi — NIK siswa & orang tua/wali disimpan, opsional), 1.6 (rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7), 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a SELESAI (`a69c50a`), AC-6b-1 SELESAI (`443a98d`), AC-6b-2 & AC-6c dibangun 2026-10-24; **AC-1g SELESAI (2026-10-24, commit `6360f6a`)**; **AC-7 dirinci & disetujui (§21, 2026-10-28)**: **AC-7 SELESAI (2026-10-28)** — AC-7a `db7f755` + `1e17de5`, AC-7b `b51efe5`; **AC-8 dirinci (§22, 2026-11-10)**: AC-8a–AC-8c selesai (2026-11-11), rincian AC-8d menunggu persetujuan; ekspor Dapodik/EMIS, PPDB, asrama hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -706,16 +706,19 @@ Latar: lembaga seperti MDA/pesantren menilai satu mapel dari **dua sisi** — uj
 
 ### 22.1 Keputusan owner
 
-| ID       | Topik                    | Keputusan                                                                                                                                            |
-| -------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-AC-21 | Format rapor             | Merevisi OD-AC-11: penilaian & rapor **bisa diatur per lembaga** (aturan berjenjang `academic.grading`), dibangun bertahap AC-8a–AC-8d [OWNER]       |
-| OD-AC-22 | Nilai akhir mapel        | **Rata-rata biasa** dari nilai aspek yang dipakai mapel itu (seperti contoh: (98 + 75) ÷ 2 = 86,5), tanpa bobot antar-aspek [OWNER]                  |
-| OD-AC-23 | Nilai huruf              | **Ada**: kegiatan di luar kelas/ekstra dinilai huruf langsung tanpa angka → dirinci di AC-8b/AC-8d [OWNER]                                           |
-| OD-AC-24 | Cakupan tahap pertama    | **AC-8a saja** (aspek penilaian per mapel; lembar nilai, leger, rapor menampilkan per aspek); AC-8b–AC-8d menyusul [OWNER]                           |
-| OD-AC-25 | Rata-rata rapor beraspek | **Rata-rata dari rata-rata tiap aspek** (contoh: (90,4 + 75,0) ÷ 2 = 82,7), bukan rata-rata kolom Rata-rata semua mapel [OWNER, 2026-11-10]          |
-| OD-AC-26 | Jumlah & rata-rata rapor | Hanya dari mapel bernilai angka di kelompok yang **ikut jumlah & rata-rata**; angka jumlah di contoh rapor owner dihitung manual [OWNER, 2026-11-10] |
-| OD-AC-27 | Pengatur format rapor    | **Operator Akademik tiap lembaga dan Admin Yayasan** (`academic.classes.manage` di lembaga itu) [OWNER, 2026-11-11]                                  |
-| OD-AC-28 | Logo kop rapor           | **Dibuat di AC-8c** (unggah PNG/JPG) [OWNER, 2026-11-11]                                                                                             |
+| ID       | Topik                        | Keputusan                                                                                                                                            |
+| -------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-21 | Format rapor                 | Merevisi OD-AC-11: penilaian & rapor **bisa diatur per lembaga** (aturan berjenjang `academic.grading`), dibangun bertahap AC-8a–AC-8d [OWNER]       |
+| OD-AC-22 | Nilai akhir mapel            | **Rata-rata biasa** dari nilai aspek yang dipakai mapel itu (seperti contoh: (98 + 75) ÷ 2 = 86,5), tanpa bobot antar-aspek [OWNER]                  |
+| OD-AC-23 | Nilai huruf                  | **Ada**: kegiatan di luar kelas/ekstra dinilai huruf langsung tanpa angka → dirinci di AC-8b/AC-8d [OWNER]                                           |
+| OD-AC-24 | Cakupan tahap pertama        | **AC-8a saja** (aspek penilaian per mapel; lembar nilai, leger, rapor menampilkan per aspek); AC-8b–AC-8d menyusul [OWNER]                           |
+| OD-AC-25 | Rata-rata rapor beraspek     | **Rata-rata dari rata-rata tiap aspek** (contoh: (90,4 + 75,0) ÷ 2 = 82,7), bukan rata-rata kolom Rata-rata semua mapel [OWNER, 2026-11-10]          |
+| OD-AC-26 | Jumlah & rata-rata rapor     | Hanya dari mapel bernilai angka di kelompok yang **ikut jumlah & rata-rata**; angka jumlah di contoh rapor owner dihitung manual [OWNER, 2026-11-10] |
+| OD-AC-27 | Pengatur format rapor        | **Operator Akademik tiap lembaga dan Admin Yayasan** (`academic.classes.manage` di lembaga itu) [OWNER, 2026-11-11]                                  |
+| OD-AC-28 | Logo kop rapor               | **Dibuat di AC-8c** (unggah PNG/JPG) [OWNER, 2026-11-11]                                                                                             |
+| OD-AC-29 | Pengisi ekskul & kepribadian | **Wali kelas** dan **pengelola kelas** (Operator Akademik lembaga/Admin Yayasan) [OWNER, 2026-11-11]                                                 |
+| OD-AC-30 | Peringkat kelas              | **Urut tanpa kembar** (1, 2, 3): rata-rata rapor ↓, lalu jumlah ↓, lalu nama A–Z [OWNER, 2026-11-11]                                                 |
+| OD-AC-31 | Keterangan kepribadian       | **Otomatis per huruf** (diatur per butir per huruf di Format rapor); boleh diganti per siswa [OWNER, 2026-11-11]                                     |
 
 ### 22.2 Tahapan AC-8
 
@@ -832,3 +835,39 @@ Acuan contoh rapor owner: kop berlogo (nama pondok, nama madrasah, alamat, kode 
 - Halaman Rapor menampilkan tombol **Atur format rapor** bagi pengelola kelas di lembaga itu.
 
 **Di luar AC-8c**: stempel/tanda tangan gambar, catatan kaki rapor (mis. "SKBM"), format kertas selain A4, tahun pelajaran Hijriah otomatis (nama tahun ajaran sudah bisa "1447/1448"); ekstrakurikuler, kepribadian, peringkat kelas (AC-8d).
+
+### 22.6 AC-8d Ekstrakurikuler, kepribadian & peringkat kelas [DISETUJUI OWNER 2026-11-11 — OD-AC-29 s.d. OD-AC-31]
+
+Acuan contoh rapor owner: bagian **Kegiatan ekstrakurikuler** (daftar a–j dengan kolom Pred: huruf atau "-" bila tidak ikut), **Kepribadian diri** (Kelakuan, Kerajinan, Kerapihan, Kebersihan, Kedisiplinan, Ketaatan — huruf + keterangan, mis. "Kepribadian baik, sopan, dan jujur"), **Jumlah presensi** (sudah ada, AC-5d), dan **Peringkat kelas** ("1 dari 12 Santri").
+
+**Daftar butir per lembaga**
+
+- **Tabel `ac_report_items`**: per lembaga — jenis **EKSKUL** atau **KEPRIBADIAN**, nama (maks. 60, unik per lembaga & jenis), urutan, **keterangan per huruf** (khusus kepribadian, maks. 100 per huruf, mis. Kelakuan B → "Kepribadian baik, sopan, dan jujur"; OD-AC-31), aktif/nonaktif. Hapus hanya bila belum pernah dinilai; selain itu nonaktifkan.
+- Dikelola di halaman **Format rapor** (AC-8c), bagian baru **Ekstrakurikuler** dan **Kepribadian**, oleh pemegang `academic.classes.manage` di lembaga itu. Tombol **Isi contoh 6 aspek** mengisi butir kepribadian seperti contoh rapor beserta keterangan A–E (nama yang sudah ada dilewati).
+- Lembaga tanpa butir → bagian itu tidak tampil di rapor.
+
+**Penilaian per siswa**
+
+- **Tabel `ac_report_item_grades`**: kelas × semester × pendaftaran siswa × butir — huruf (dari skala predikat lembaga, AC-8b) dan keterangan pengganti (kepribadian, maks. 100; kosong = keterangan otomatis menurut huruf).
+- Ekstrakurikuler tanpa huruf = siswa **tidak ikut** → "-" di rapor.
+- Diisi di halaman baru **Ekstrakurikuler & kepribadian** per kelas per semester (tabel siswa × butir, simpan sekaligus), dibuka dari halaman Rapor. Pengisi: **wali kelas** (Kelas saya) dan **pengelola kelas** (Operator Akademik/Admin Yayasan) — sama seperti catatan wali kelas (OD-AC-29). Kelas tahun lewat hanya dibaca. Audit `REPORT_ITEMS_GRADED` (kelas, semester, jumlah siswa; tanpa isi nilai). Semester yang sudah punya nilai ekskul/kepribadian tidak bisa dihapus.
+
+**Peringkat kelas**
+
+- Pilihan **Tampilkan peringkat kelas** (ya/tidak) di Format rapor.
+- Dihitung otomatis dari **rata-rata rapor** (OD-AC-25: rapor beraspek = rata-rata dari rata-rata aspek) di antara siswa kelas itu yang punya rata-rata pada semester tersebut; siswa yang keluar dari kelas tidak ikut. Peringkat **urut tanpa kembar** (OD-AC-30): rata-rata ↓, jumlah ↓, nama A–Z.
+- Rapor menulis "{peringkat} dari {jumlah} {sebutan}" (mis. "1 dari 12 Santri"); daftar rapor juga menampilkan "peringkat X dari N" bila pilihan aktif. Leger **tidak** menampilkan peringkat (keputusan saat membangun: leger tetap data mentah nilai).
+
+**Rapor cetak**
+
+- Di bawah tabel nilai: tabel **Kegiatan ekstrakurikuler** (dua kolom berdampingan bila butir > 5: nama · predikat) dan tabel **Kepribadian diri** (nama · huruf · keterangan); di bawah kotak **Ketidakhadiran** ada **Peringkat kelas**. Layout tetap muat satu halaman A4 untuk ±20 mapel [ASUMSI].
+- Portal orang tua (AC-7b): rapor cetak sama (data ekskul, kepribadian & peringkat ikut terbawa). Tampilan ekskul/kepribadian di halaman nilai anak **belum** dibuat — kandidat tahap berikut.
+
+**Teknis (dibangun)**
+
+- Migrasi `2026_11_11_200017_create_ac_report_items_tables` (`ac_report_items`, `ac_report_item_grades`, kolom `ac_report_formats.show_rank`).
+- `Application/Grading/ReportItems` (kelola butir), `ReportItemGrades` (lembar & simpan nilai), `ReportCards` (ekskul, kepribadian, `ranks()`).
+- Rute: `POST akademik/format-rapor/{organization}/butir`, `POST …/butir/contoh`, `PATCH|DELETE akademik/format-rapor/butir/{item}`, `GET|POST kelas/{class}/rapor/ekskul-kepribadian`, `GET|POST kelas-saya/{class}/rapor/ekskul-kepribadian`.
+- Halaman: `academic/grades/report-items`, bagian baru di `academic/grades/report-format`, tabel baru di `print/report-cards`.
+
+**Di luar AC-8d**: prestasi, catatan per ekstrakurikuler, nilai ekstrakurikuler oleh pembina kegiatan (bukan wali kelas), peringkat paralel antar-kelas, deskripsi sikap Kurikulum Merdeka.

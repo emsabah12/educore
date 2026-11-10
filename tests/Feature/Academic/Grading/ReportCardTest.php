@@ -116,7 +116,7 @@ test('daftar rapor: hanya mapel final, rata-rata & presensi semester; catatan wa
             ->where('canEditNotes', true)
             ->where('students.0', [
                 'enrollment_id' => $this->ahmad, 'name' => 'Ahmad Fauzi', 'nisn' => null, 'left' => false,
-                'graded' => 1, 'average' => 80, 'attendance' => ['S' => 1, 'I' => 1, 'A' => 0], 'note' => null,
+                'graded' => 1, 'average' => 80, 'attendance' => ['S' => 1, 'I' => 1, 'A' => 0], 'note' => null, 'rank' => 1,
             ])
             ->where('students.1.attendance', ['S' => 0, 'I' => 0, 'A' => 1]),
         );

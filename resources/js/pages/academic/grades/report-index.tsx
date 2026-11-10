@@ -5,6 +5,7 @@ import {
     LayoutTemplate,
     Printer,
     Save,
+    Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 import { selectClass } from '@/components/academic/student-actions';
@@ -25,6 +26,8 @@ type Student = {
     average: number | null;
     attendance: { S: number; I: number; A: number };
     note: string | null;
+    /** Peringkat kelas (AC-8d); null bila belum punya rata-rata atau sudah keluar. */
+    rank: number | null;
 };
 
 type Props = {
@@ -41,6 +44,11 @@ type Props = {
     backLabel: string;
     /** Halaman format rapor lembaga (AC-8c); null bila tidak boleh mengatur. */
     formatUrl: string | null;
+    /** AC-8d: tampilkan peringkat (pilihan Format rapor) dan jumlah siswa berperingkat. */
+    showRank: boolean;
+    ranked: number;
+    /** Halaman isian ekstrakurikuler & kepribadian kelas ini. */
+    itemsUrl: string;
 };
 
 /**
@@ -118,6 +126,14 @@ export default function ReportIndex(props: Props) {
                                     </Link>
                                 </Button>
                             )}
+                            <Button asChild variant="outline">
+                                <Link
+                                    href={`${props.itemsUrl}?semester=${term.value}`}
+                                >
+                                    <Sparkles />
+                                    Ekstrakurikuler & kepribadian
+                                </Link>
+                            </Button>
                             {props.formatUrl && (
                                 <Button asChild variant="outline">
                                     <Link href={props.formatUrl}>
@@ -160,6 +176,8 @@ function NotesForm({
     canEditNotes,
     noteMax,
     baseUrl,
+    showRank,
+    ranked,
 }: Props & { term: NonNullable<Props['term']> }) {
     const [notes, setNotes] = useState<Record<string, string>>(() =>
         Object.fromEntries(
@@ -195,6 +213,9 @@ function NotesForm({
                                 · S {student.attendance.S} · I{' '}
                                 {student.attendance.I} · A{' '}
                                 {student.attendance.A}
+                                {showRank &&
+                                    student.rank !== null &&
+                                    ` · peringkat ${student.rank} dari ${ranked}`}
                             </p>
                         </div>
                         <Button size="sm" variant="outline" asChild>
