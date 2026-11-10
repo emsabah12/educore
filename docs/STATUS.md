@@ -419,6 +419,17 @@
 
 **AC-5 Penilaian & rapor SELESAI (2026-10-22).**
 
+**AC-8a — Aspek penilaian (Tulis & Praktik): DIBANGUN (2026-11-10, menunggu uji owner)** — PRD-002 §22 (OD-AC-21 s.d. OD-AC-24)
+
+- `GradingRules` memakai **aspek** (1–3, masing-masing 1–6 komponen berbobot = 100; kode komponen unik di seluruh aturan); format lama `components` dibaca sebagai satu aspek `NILAI`. `forAspects`, `hasAspects`, `components()`.
+- Migrasi `2026_11_10_200014`: `ac_subjects.grading_aspects` (jsonb, null = semua aspek) dan `ac_grades.final_score` → `numeric(4,1)`.
+- `ManageGrades`: salinan aturan lembar = aturan lembaga dibatasi aspek mapel (`currentRules`); `aspectScores` (bulat per aspek) dan `finalScore` (rata-rata aspek, 1 desimal, setengah ke atas); nilai aspek dihitung, tidak disimpan.
+- Form Aturan penilaian: tambah/hapus aspek, tombol **Isi contoh: Tulis + Praktik**; `CalendarController::assignGrading` menerima `aspects` (dan `components` lama).
+- Mata pelajaran: pilihan **Aspek yang dinilai** (hanya bila lembaga beraspek) + keterangan "Dinilai: …" di daftar.
+- Lembar nilai: komponen dikelompokkan per aspek dengan nilai aspek langsung terhitung; nilai akhir 1 desimal. Leger: nilai akhir desimal, unduhan .xlsx lembar kedua **Per aspek**. Rapor cetak: kolom Angka/Predikat per aspek + Rata-rata, baris Jumlah & Rata-rata per aspek, deskripsi di bawah tabel. Portal orang tua (Nilai): nilai per aspek.
+- Helper bersama di layar: `resources/js/components/academic/grading.ts` (hitungan sama dengan server).
+- Bukti: 4 test baru (`GradingAspectsTest`); test lama disesuaikan (format aturan `aspects`, nilai akhir desimal).
+
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
 **AC-6a — Jadwal piket & presensi mengajar: SELESAI (2026-10-23, commit `a69c50a`)**
@@ -953,5 +964,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Pembukuan (PRD-007)**: owner menguji PB-3 → PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
-3. Sesudah Keuangan: AC-8 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).
+2. **Tampilan & penilaian**: owner menguji UX-2 (tema Materio) dan AC-8a (aspek penilaian). Sesudahnya AC-8b (kelompok mapel, skala predikat 5 tingkat, nilai huruf), AC-8c (kop & penanda tangan rapor, tanggal Hijriah), AC-8d (ekstrakurikuler, kepribadian, peringkat) — PRD-002 §22.
+3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
+4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

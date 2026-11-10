@@ -149,7 +149,7 @@ test('halaman cetak: satu siswa atau sekelas; nilai, predikat, deskripsi, presen
         ->assertInertia(fn (Assert $page) => $page
             ->component('print/report-cards')
             ->has('report.cards', 1)
-            ->where('report.cards.0.subjects', [['name' => 'Fiqih', 'kkm' => 75, 'final' => 80, 'predicate' => 'B', 'description' => 'Baik']])
+            ->where('report.cards.0.subjects', [['name' => 'Fiqih', 'kkm' => 75, 'final' => 80, 'predicate' => 'B', 'description' => 'Baik', 'aspects' => ['NILAI' => ['score' => 80, 'predicate' => 'B']]]])
             ->where('report.cards.0.total', 80)
             ->where('report.cards.0.attendance', ['S' => 1, 'I' => 1, 'A' => 0])
             ->where('report.cards.0.note', 'Rajin.')

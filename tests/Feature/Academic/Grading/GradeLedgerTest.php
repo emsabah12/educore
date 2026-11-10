@@ -147,7 +147,7 @@ test('leger: nilai akhir per mapel, rata-rata siswa/mapel/kelas, jumlah di bawah
             ->where('term.value', $this->term->id)
             ->where('sheetBase', '/kelas/mapel')
             ->where('ledger.final_count', 1)
-            ->where('ledger.subjects.0', ['id' => $this->subjects['Akidah'], 'name' => 'Akidah', 'code' => null, 'status' => 'DRAFT', 'kkm' => 75])
+            ->where('ledger.subjects.0', ['id' => $this->subjects['Akidah'], 'name' => 'Akidah', 'code' => null, 'status' => 'DRAFT', 'kkm' => 75, 'aspects' => [['code' => 'NILAI', 'name' => 'Nilai']]])
             ->where('ledger.subjects.1.status', 'FINAL')
             ->where('ledger.subjects.1.code', 'FQH')
             ->where('ledger.subjects.2.status', 'BELUM')

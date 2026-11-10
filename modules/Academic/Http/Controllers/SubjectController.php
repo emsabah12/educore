@@ -10,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
+use Modules\Academic\Application\Grading\GradingRules;
+use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Application\Subject\ManageSubjects;
 use Modules\Academic\Application\Subject\SubjectData;
 use Modules\Academic\Application\Subject\SubjectDirectory;
@@ -23,7 +25,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 
 /**
  * Halaman Mata pelajaran (PRD-002 §16 AC-3a): daftar per lembaga, tambah, ubah,
- * nonaktifkan/aktifkan kembali, hapus.
+ * nonaktifkan/aktifkan kembali, hapus; aspek yang dinilai per mapel (§22 AC-8a).
  *
  * Melihat: `academic.students.view` di lembaga itu. Mengelola: `academic.classes.manage` di lembaga
  * mapel (Gate dengan datanya: di luar cakupan 404, tanpa izin 403).
@@ -35,7 +37,7 @@ final class SubjectController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, SubjectDirectory $directory): Response
+    public function index(Request $request, SubjectDirectory $directory, GradingSetting $grading): Response
     {
         Gate::authorize(AcademicAccess::STUDENTS_VIEW);
 
@@ -43,12 +45,18 @@ final class SubjectController
         $allowed = array_column($organizations, 'value');
         $requested = $request->query('lembaga');
         $organizationId = is_string($requested) && in_array($requested, $allowed, true) ? $requested : ($allowed[0] ?? null);
+        $rules = $organizationId === null ? null : $grading->rulesFor($this->tenantId(), $organizationId);
 
         return Inertia::render('academic/subjects/index', [
             'filters' => ['lembaga' => $organizationId],
             'options' => ['organizations' => $organizations],
             'subjects' => $organizationId === null ? [] : $directory->list($this->tenantId(), $organizationId),
             'canManage' => $organizationId !== null && $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $organizationId),
+            // Aspek penilaian lembaga ini (AC-8a); pilihan per mapel hanya muncul bila lebih dari satu.
+            'aspects' => $rules === null || ! $rules->hasAspects() ? [] : array_map(
+                fn (array $aspect): array => ['code' => $aspect['code'], 'name' => $aspect['name']],
+                $rules->aspects,
+            ),
         ]);
     }
 
@@ -149,6 +157,8 @@ final class SubjectController
             code: SubjectData::cleanCode($request->input('code')),
             gradeMin: SubjectData::cleanGrade($request->input('grade_min')),
             gradeMax: SubjectData::cleanGrade($request->input('grade_max')),
+            setsAspects: $request->boolean('grading_aspects_set'),
+            gradingAspects: SubjectData::cleanAspects($request->input('grading_aspects')),
         );
     }
 
@@ -191,6 +201,9 @@ final class SubjectController
             'code' => ['nullable', 'string', 'max:'.ManageSubjects::CODE_MAX_LENGTH],
             'grade_min' => ['nullable', 'integer', 'between:1,12'],
             'grade_max' => ['nullable', 'integer', 'between:1,12'],
+            'grading_aspects_set' => ['nullable', 'boolean'],
+            'grading_aspects' => ['nullable', 'array', 'max:'.GradingRules::MAX_ASPECTS],
+            'grading_aspects.*' => ['string', 'max:10'],
         ];
     }
 
@@ -218,6 +231,7 @@ final class SubjectController
             'grade_min' => 'tingkat dari',
             'grade_max' => 'tingkat sampai',
             'organization_id' => 'lembaga',
+            'grading_aspects' => 'aspek yang dinilai',
         ];
     }
 }

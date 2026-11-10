@@ -1,6 +1,11 @@
 import { Form } from '@inertiajs/react';
-import { Copy, Lock, Plus, Trash2 } from 'lucide-react';
+import { Copy, Layers, Lock, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type {
+    GradingComponent as Component,
+    GradingRules as RulesValue,
+} from '@/components/academic/grading';
+import { DEFAULT_ASPECT_CODE } from '@/components/academic/grading';
 import type { Option } from '@/components/academic/student-actions';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
@@ -12,18 +17,37 @@ import { Label } from '@/components/ui/label';
 
 /*
  * Bagian "Aturan penilaian" di halaman Kalender akademik (PRD-002 §19 AC-5a): KKM, komponen nilai &
- * bobot, batas predikat per jenjang/lembaga. Hanya Admin Yayasan; pola sama dengan Mode presensi.
- * Semua aturan dicek server; jumlah bobot di sini hanya bantuan.
+ * bobot, batas predikat per jenjang/lembaga; aspek penilaian (mis. Tulis & Praktik) dengan komponen
+ * masing-masing (§22 AC-8a). Hanya Admin Yayasan; pola sama dengan Mode presensi. Semua aturan dicek
+ * server; jumlah bobot di sini hanya bantuan.
  */
 
-type Component = { code: string; name: string; weight: number };
+type ComponentRow = Component & { key: number };
 
-type RulesValue = {
-    kkm: number;
-    grade_a: number;
-    grade_b: number;
-    components: Component[];
+type AspectRow = {
+    key: number;
+    code: string;
+    name: string;
+    rows: ComponentRow[];
 };
+
+/** Isi cepat dua aspek seperti rapor madrasah: ujian tulis & ujian praktik. */
+const WRITTEN_AND_PRACTICE: Omit<AspectRow, 'key'>[] = [
+    {
+        code: 'TULIS',
+        name: 'Pengetahuan & pemahaman konsep',
+        rows: [
+            { key: 0, code: 'HARIAN', name: 'Nilai harian', weight: 40 },
+            { key: 1, code: 'PTS', name: 'Ujian tengah semester', weight: 30 },
+            { key: 2, code: 'PAS', name: 'Ujian akhir semester', weight: 30 },
+        ],
+    },
+    {
+        code: 'PRAKTIK',
+        name: 'Praktik / keterampilan',
+        rows: [{ key: 3, code: 'PRAKTIK', name: 'Ujian praktik', weight: 100 }],
+    },
+];
 
 export type Grading = {
     rules: {
@@ -36,6 +60,7 @@ export type Grading = {
     usage: { id: string; name: string; summary: string; source: string }[];
     defaults: RulesValue;
     maxComponents: number;
+    maxAspects: number;
 };
 
 export function GradingSection({
@@ -56,7 +81,7 @@ export function GradingSection({
             <Heading
                 variant="small"
                 title="Aturan penilaian"
-                description="KKM, komponen nilai beserta bobotnya, dan batas predikat. Nilai akhir = jumlah (nilai komponen × bobot) ÷ 100. Bawaan: KKM 75, Nilai harian 40%, PTS 30%, PAS 30%."
+                description="KKM, komponen nilai beserta bobotnya, dan batas predikat. Nilai = jumlah (nilai komponen × bobot) ÷ 100. Lembaga yang menilai dari beberapa sisi (mis. ujian tulis & praktik) bisa memakai aspek: tiap aspek punya komponen sendiri, nilai akhir = rata-rata aspek. Bawaan: KKM 75, Nilai harian 40%, PTS 30%, PAS 30%."
             />
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -65,6 +90,7 @@ export function GradingSection({
                         key={base.key}
                         initial={base.value}
                         maxComponents={data.maxComponents}
+                        maxAspects={data.maxAspects}
                         options={options}
                     />
                 </div>
@@ -154,32 +180,85 @@ export function GradingSection({
 function GradingForm({
     initial,
     maxComponents,
+    maxAspects,
     options,
 }: {
     initial: RulesValue;
     maxComponents: number;
+    maxAspects: number;
     options: { jenjang: Option[]; organizations: Option[] };
 }) {
     const [target, setTarget] = useState<'jenjang' | 'lembaga'>('jenjang');
     // Kunci baris tetap saat baris lain dihapus, agar isian tidak bergeser.
-    const [rows, setRows] = useState<(Component & { key: number })[]>(() =>
-        initial.components.map((component, index) => ({
-            ...component,
-            key: index,
-        })),
-    );
-    const [nextKey, setNextKey] = useState(initial.components.length);
-    const total = rows.reduce(
-        (sum, row) => sum + (Number.isFinite(row.weight) ? row.weight : 0),
-        0,
-    );
+    const [nextKey, setNextKey] = useState(1000);
+    const [aspects, setAspects] = useState<AspectRow[]>(() => {
+        let key = 0;
 
-    const update = (key: number, change: Partial<Component>) =>
-        setRows((current) =>
-            current.map((row) =>
-                row.key === key ? { ...row, ...change } : row,
+        return initial.aspects.map((aspect, index) => ({
+            key: index,
+            code: aspect.code,
+            name: aspect.name,
+            rows: aspect.components.map((component) => ({
+                ...component,
+                key: key++,
+            })),
+        }));
+    });
+    const multiple = aspects.length > 1;
+
+    const newKey = () => {
+        setNextKey((key) => key + 1);
+
+        return nextKey;
+    };
+
+    const updateAspect = (key: number, change: Partial<AspectRow>) =>
+        setAspects((current) =>
+            current.map((aspect) =>
+                aspect.key === key ? { ...aspect, ...change } : aspect,
             ),
         );
+
+    const addAspect = () => {
+        const key = newKey();
+
+        setAspects((current) => [
+            // Aspek bawaan "Nilai" diberi nama agar bisa dibedakan.
+            ...current.map((aspect) =>
+                aspect.code === DEFAULT_ASPECT_CODE && current.length === 1
+                    ? { ...aspect, code: 'TULIS', name: 'Pengetahuan' }
+                    : aspect,
+            ),
+            {
+                key,
+                code: '',
+                name: '',
+                rows: [
+                    {
+                        key: key + 500,
+                        code: '',
+                        name: '',
+                        weight: 100,
+                    },
+                ],
+            },
+        ]);
+        setNextKey((value) => value + 1);
+    };
+
+    const fillWrittenAndPractice = () => {
+        setAspects(
+            WRITTEN_AND_PRACTICE.map((aspect, index) => ({
+                ...aspect,
+                key: nextKey + index,
+                rows: aspect.rows.map((row) => ({
+                    ...row,
+                    key: nextKey + 10 + row.key,
+                })),
+            })),
+        );
+        setNextKey((key) => key + 20);
+    };
 
     return (
         <Form
@@ -312,147 +391,69 @@ function GradingForm({
                         KKM.
                     </p>
 
-                    <fieldset className="space-y-2">
-                        <legend className="text-sm font-medium">
-                            Komponen nilai
-                        </legend>
-                        {rows.map((row, index) => (
-                            <div
-                                key={row.key}
-                                className="grid grid-cols-[minmax(0,1fr)_5rem_auto] items-end gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_5rem_auto]"
-                            >
-                                <div className="col-span-3 grid gap-1 sm:col-span-1">
-                                    <Label
-                                        htmlFor={`grading-code-${row.key}`}
-                                        className="text-xs"
-                                    >
-                                        Kode
-                                    </Label>
-                                    <Input
-                                        id={`grading-code-${row.key}`}
-                                        name={`components[${index}][code]`}
-                                        value={row.code}
-                                        maxLength={10}
-                                        onChange={(event) =>
-                                            update(row.key, {
-                                                code: event.target.value.toUpperCase(),
-                                            })
-                                        }
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label
-                                        htmlFor={`grading-name-${row.key}`}
-                                        className="text-xs"
-                                    >
-                                        Nama
-                                    </Label>
-                                    <Input
-                                        id={`grading-name-${row.key}`}
-                                        name={`components[${index}][name]`}
-                                        value={row.name}
-                                        maxLength={50}
-                                        onChange={(event) =>
-                                            update(row.key, {
-                                                name: event.target.value,
-                                            })
-                                        }
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label
-                                        htmlFor={`grading-weight-${row.key}`}
-                                        className="text-xs"
-                                    >
-                                        Bobot %
-                                    </Label>
-                                    <Input
-                                        id={`grading-weight-${row.key}`}
-                                        name={`components[${index}][weight]`}
-                                        type="number"
-                                        min={1}
-                                        max={100}
-                                        step={1}
-                                        value={
-                                            Number.isFinite(row.weight)
-                                                ? row.weight
-                                                : ''
-                                        }
-                                        onChange={(event) =>
-                                            update(row.key, {
-                                                weight: Number.parseInt(
-                                                    event.target.value,
-                                                    10,
-                                                ),
-                                            })
-                                        }
-                                        required
-                                    />
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    aria-label={`Hapus komponen ${row.name || index + 1}`}
-                                    disabled={rows.length <= 1}
-                                    onClick={() =>
-                                        setRows((current) =>
-                                            current.filter(
-                                                (item) => item.key !== row.key,
-                                            ),
-                                        )
-                                    }
-                                >
-                                    <Trash2 />
-                                </Button>
-                            </div>
+                    <div className="space-y-3">
+                        {aspects.map((aspect, aspectIndex) => (
+                            <AspectFields
+                                key={aspect.key}
+                                aspect={aspect}
+                                index={aspectIndex}
+                                multiple={multiple}
+                                maxComponents={maxComponents}
+                                newKey={newKey}
+                                onChange={(change) =>
+                                    updateAspect(aspect.key, change)
+                                }
+                                onRemove={() =>
+                                    setAspects((current) =>
+                                        current.filter(
+                                            (item) => item.key !== aspect.key,
+                                        ),
+                                    )
+                                }
+                            />
                         ))}
 
-                        <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex sm:flex-wrap">
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={rows.length >= maxComponents}
-                                onClick={() => {
-                                    setRows((current) => [
-                                        ...current,
-                                        {
-                                            key: nextKey,
-                                            code: '',
-                                            name: '',
-                                            weight: 0,
-                                        },
-                                    ]);
-                                    setNextKey((key) => key + 1);
-                                }}
+                                disabled={aspects.length >= maxAspects}
+                                onClick={addAspect}
                             >
-                                <Plus />
-                                Tambah komponen
+                                <Layers />
+                                Tambah aspek
                             </Button>
-                            <span
-                                className={
-                                    'text-sm font-medium tabular-nums ' +
-                                    (total === 100
-                                        ? 'text-emerald-700 dark:text-emerald-300'
-                                        : 'text-red-600 dark:text-red-400')
-                                }
-                            >
-                                Jumlah bobot: {total}%
-                                {total !== 100 && ' (harus 100%)'}
-                            </span>
+                            {!multiple && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={fillWrittenAndPractice}
+                                >
+                                    Isi contoh: Tulis + Praktik
+                                </Button>
+                            )}
                         </div>
+                        {multiple && (
+                            <p className="text-xs text-muted-foreground">
+                                Nilai akhir mapel = rata-rata nilai aspek yang
+                                dinilai pada mapel itu. Aspek per mapel diatur
+                                di menu Mata pelajaran.
+                            </p>
+                        )}
                         <InputError
                             message={
+                                errors.aspects ??
                                 errors.components ??
-                                Object.entries(errors).find(([field]) =>
-                                    field.startsWith('components.'),
+                                Object.entries(errors).find(
+                                    ([field]) =>
+                                        field.startsWith('aspects.') ||
+                                        field.startsWith('components.'),
                                 )?.[1]
                             }
                         />
-                    </fieldset>
+                    </div>
 
                     <label className="flex cursor-pointer items-start gap-2 text-sm">
                         <input
@@ -471,5 +472,244 @@ function GradingForm({
                 </>
             )}
         </Form>
+    );
+}
+
+/** Satu aspek: kode & nama (hanya bila lebih dari satu aspek) dan daftar komponennya. */
+function AspectFields({
+    aspect,
+    index,
+    multiple,
+    maxComponents,
+    newKey,
+    onChange,
+    onRemove,
+}: {
+    aspect: AspectRow;
+    index: number;
+    multiple: boolean;
+    maxComponents: number;
+    newKey: () => number;
+    onChange: (change: Partial<AspectRow>) => void;
+    onRemove: () => void;
+}) {
+    const { rows } = aspect;
+    const prefix = `aspects[${index}]`;
+    const total = rows.reduce(
+        (sum, row) => sum + (Number.isFinite(row.weight) ? row.weight : 0),
+        0,
+    );
+
+    const update = (key: number, change: Partial<Component>) =>
+        onChange({
+            rows: rows.map((row) =>
+                row.key === key ? { ...row, ...change } : row,
+            ),
+        });
+
+    return (
+        <fieldset
+            className={
+                'space-y-2 ' + (multiple ? 'rounded-lg bg-muted/40 p-3' : '')
+            }
+        >
+            {multiple ? (
+                <>
+                    <legend className="sr-only">Aspek {index + 1}</legend>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto]">
+                        <div className="col-span-2 grid gap-1 sm:col-span-1">
+                            <Label
+                                htmlFor={`aspect-code-${aspect.key}`}
+                                className="text-xs"
+                            >
+                                Kode aspek
+                            </Label>
+                            <Input
+                                id={`aspect-code-${aspect.key}`}
+                                name={`${prefix}[code]`}
+                                value={aspect.code}
+                                maxLength={10}
+                                onChange={(event) =>
+                                    onChange({
+                                        code: event.target.value.toUpperCase(),
+                                    })
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-1">
+                            <Label
+                                htmlFor={`aspect-name-${aspect.key}`}
+                                className="text-xs"
+                            >
+                                Nama aspek (judul kolom rapor)
+                            </Label>
+                            <Input
+                                id={`aspect-name-${aspect.key}`}
+                                name={`${prefix}[name]`}
+                                value={aspect.name}
+                                maxLength={50}
+                                onChange={(event) =>
+                                    onChange({ name: event.target.value })
+                                }
+                                required
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label={`Hapus aspek ${aspect.name || index + 1}`}
+                            onClick={onRemove}
+                        >
+                            <Trash2 />
+                        </Button>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <legend className="text-sm font-medium">
+                        Komponen nilai
+                    </legend>
+                    <input
+                        type="hidden"
+                        name={`${prefix}[code]`}
+                        value={aspect.code}
+                    />
+                    <input
+                        type="hidden"
+                        name={`${prefix}[name]`}
+                        value={aspect.name}
+                    />
+                </>
+            )}
+
+            {rows.map((row, rowIndex) => (
+                <div
+                    key={row.key}
+                    className="grid grid-cols-[minmax(0,1fr)_5rem_auto] items-end gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_5rem_auto]"
+                >
+                    <div className="col-span-3 grid gap-1 sm:col-span-1">
+                        <Label
+                            htmlFor={`grading-code-${row.key}`}
+                            className="text-xs"
+                        >
+                            Kode
+                        </Label>
+                        <Input
+                            id={`grading-code-${row.key}`}
+                            name={`${prefix}[components][${rowIndex}][code]`}
+                            value={row.code}
+                            maxLength={10}
+                            onChange={(event) =>
+                                update(row.key, {
+                                    code: event.target.value.toUpperCase(),
+                                })
+                            }
+                            required
+                        />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label
+                            htmlFor={`grading-name-${row.key}`}
+                            className="text-xs"
+                        >
+                            Nama
+                        </Label>
+                        <Input
+                            id={`grading-name-${row.key}`}
+                            name={`${prefix}[components][${rowIndex}][name]`}
+                            value={row.name}
+                            maxLength={50}
+                            onChange={(event) =>
+                                update(row.key, { name: event.target.value })
+                            }
+                            required
+                        />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label
+                            htmlFor={`grading-weight-${row.key}`}
+                            className="text-xs"
+                        >
+                            Bobot %
+                        </Label>
+                        <Input
+                            id={`grading-weight-${row.key}`}
+                            name={`${prefix}[components][${rowIndex}][weight]`}
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={
+                                Number.isFinite(row.weight) ? row.weight : ''
+                            }
+                            onChange={(event) =>
+                                update(row.key, {
+                                    weight: Number.parseInt(
+                                        event.target.value,
+                                        10,
+                                    ),
+                                })
+                            }
+                            required
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={`Hapus komponen ${row.name || rowIndex + 1}`}
+                        disabled={rows.length <= 1}
+                        onClick={() =>
+                            onChange({
+                                rows: rows.filter(
+                                    (item) => item.key !== row.key,
+                                ),
+                            })
+                        }
+                    >
+                        <Trash2 />
+                    </Button>
+                </div>
+            ))}
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={rows.length >= maxComponents}
+                    onClick={() =>
+                        onChange({
+                            rows: [
+                                ...rows,
+                                {
+                                    key: newKey(),
+                                    code: '',
+                                    name: '',
+                                    weight: 0,
+                                },
+                            ],
+                        })
+                    }
+                >
+                    <Plus />
+                    Tambah komponen
+                </Button>
+                <span
+                    className={
+                        'text-sm font-medium tabular-nums ' +
+                        (total === 100
+                            ? 'text-emerald-700 dark:text-emerald-300'
+                            : 'text-red-600 dark:text-red-400')
+                    }
+                >
+                    Jumlah bobot
+                    {multiple && aspect.name ? ` ${aspect.name}` : ''}: {total}%
+                    {total !== 100 && ' (harus 100%)'}
+                </span>
+            </div>
+        </fieldset>
     );
 }

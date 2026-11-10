@@ -212,6 +212,9 @@ final class CalendarController
     {
         $this->authorize();
 
+        // Form baru mengirim `aspects` (AC-8a); `components` (satu aspek, format AC-5a) tetap diterima.
+        $byAspects = $request->has('aspects');
+
         $validated = $request->validate([
             'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
             'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
@@ -219,15 +222,31 @@ final class CalendarController
             'kkm' => ['required', 'integer', 'between:0,100'],
             'grade_a' => ['required', 'integer', 'between:0,100'],
             'grade_b' => ['required', 'integer', 'between:0,100'],
-            'components' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_COMPONENTS],
-            'components.*' => ['array'],
-            'components.*.code' => ['required', 'string', 'max:10'],
-            'components.*.name' => ['required', 'string', 'max:'.GradingRules::NAME_MAX_LENGTH],
-            'components.*.weight' => ['required', 'integer', 'between:1,100'],
+            ...($byAspects ? [
+                'aspects' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_ASPECTS],
+                'aspects.*' => ['array'],
+                'aspects.*.code' => ['required', 'string', 'max:10'],
+                'aspects.*.name' => ['required', 'string', 'max:'.GradingRules::NAME_MAX_LENGTH],
+                'aspects.*.components' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_COMPONENTS],
+                'aspects.*.components.*' => ['array'],
+                'aspects.*.components.*.code' => ['required', 'string', 'max:10'],
+                'aspects.*.components.*.name' => ['required', 'string', 'max:'.GradingRules::NAME_MAX_LENGTH],
+                'aspects.*.components.*.weight' => ['required', 'integer', 'between:1,100'],
+            ] : [
+                'components' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_COMPONENTS],
+                'components.*' => ['array'],
+                'components.*.code' => ['required', 'string', 'max:10'],
+                'components.*.name' => ['required', 'string', 'max:'.GradingRules::NAME_MAX_LENGTH],
+                'components.*.weight' => ['required', 'integer', 'between:1,100'],
+            ]),
             'enforced' => ['nullable', 'boolean'],
         ], [
             'jenjang.required_if' => 'Pilih jenjang.',
             'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'aspects.required' => 'Isi minimal satu aspek penilaian.',
+            'aspects.max' => 'Paling banyak '.GradingRules::MAX_ASPECTS.' aspek penilaian.',
+            'aspects.*.components.required' => 'Isi minimal satu komponen nilai di tiap aspek.',
+            'aspects.*.components.max' => 'Paling banyak '.GradingRules::MAX_COMPONENTS.' komponen nilai per aspek.',
             'components.required' => 'Isi minimal satu komponen nilai.',
             'components.max' => 'Paling banyak '.GradingRules::MAX_COMPONENTS.' komponen nilai.',
         ], [
@@ -236,27 +255,42 @@ final class CalendarController
             'kkm' => 'KKM',
             'grade_a' => 'batas predikat A',
             'grade_b' => 'batas predikat B',
+            'aspects.*.code' => 'kode aspek',
+            'aspects.*.name' => 'nama aspek',
+            'aspects.*.components.*.code' => 'kode komponen',
+            'aspects.*.components.*.name' => 'nama komponen',
+            'aspects.*.components.*.weight' => 'bobot',
             'components.*.code' => 'kode komponen',
             'components.*.name' => 'nama komponen',
             'components.*.weight' => 'bobot',
         ]);
 
-        $components = [];
+        $rawAspects = $byAspects
+            ? array_values((array) $validated['aspects'])
+            : [['code' => GradingRules::DEFAULT_ASPECT_CODE, 'name' => GradingRules::DEFAULT_ASPECT_NAME, 'components' => $validated['components']]];
+        $aspects = [];
 
-        foreach (array_values((array) $validated['components']) as $component) {
-            $component = (array) $component;
-            $components[] = [
-                'code' => mb_strtoupper(trim((string) $component['code'])),
-                'name' => (string) preg_replace('/\s+/u', ' ', trim((string) $component['name'])),
-                'weight' => (int) $component['weight'],
-            ];
+        foreach ($rawAspects as $aspect) {
+            $aspect = (array) $aspect;
+            $components = [];
+
+            foreach (array_values((array) $aspect['components']) as $component) {
+                $component = (array) $component;
+                $components[] = [
+                    'code' => mb_strtoupper(trim((string) $component['code'])),
+                    'name' => self::cleanText($component['name']),
+                    'weight' => (int) $component['weight'],
+                ];
+            }
+
+            $aspects[] = ['code' => mb_strtoupper(trim((string) $aspect['code'])), 'name' => self::cleanText($aspect['name']), 'components' => $components];
         }
 
-        $value = ['kkm' => (int) $validated['kkm'], 'grade_a' => (int) $validated['grade_a'], 'grade_b' => (int) $validated['grade_b'], 'components' => $components];
+        $value = ['kkm' => (int) $validated['kkm'], 'grade_a' => (int) $validated['grade_a'], 'grade_b' => (int) $validated['grade_b'], 'aspects' => $aspects];
         $problem = GradingRules::problem($value);
 
         if ($problem !== null) {
-            throw ValidationException::withMessages(['components' => $problem]);
+            throw ValidationException::withMessages([$byAspects ? 'aspects' : 'components' => $problem]);
         }
 
         $byJenjang = $validated['target'] === 'jenjang';
@@ -273,6 +307,12 @@ final class CalendarController
         }
 
         return $this->done('Aturan penilaian disimpan.');
+    }
+
+    /** Spasi ganda dirapikan: "  Ujian   tulis " → "Ujian tulis". */
+    private static function cleanText(mixed $value): string
+    {
+        return (string) preg_replace('/\s+/u', ' ', trim((string) $value));
     }
 
     /**

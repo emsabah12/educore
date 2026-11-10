@@ -25,6 +25,7 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property int|null $grade_min
  * @property int|null $grade_max
  * @property bool $is_active
+ * @property list<string>|null $grading_aspects kode aspek penilaian yang dinilai (null = semua; PRD-002 §22 AC-8a)
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Organization $organization
@@ -43,6 +44,7 @@ class Subject extends Model implements OwnedByOrganization
         'code',
         'grade_min',
         'grade_max',
+        'grading_aspects',
         'is_active',
     ];
 
@@ -62,6 +64,7 @@ class Subject extends Model implements OwnedByOrganization
             'grade_min' => 'integer',
             'grade_max' => 'integer',
             'is_active' => 'boolean',
+            'grading_aspects' => 'array',
         ];
     }
 

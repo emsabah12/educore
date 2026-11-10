@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { formatScore } from '@/components/academic/grading';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +12,7 @@ type Line = {
     final: number | null;
     predicate: string | null;
     description: string | null;
+    aspects: Record<string, { score: number | null; predicate: string | null }>;
 };
 
 type Props = {
@@ -24,12 +26,14 @@ type Props = {
     attendance: { S: number; I: number; A: number } | null;
     attendanceKind: 'hari' | 'pertemuan';
     pending: string[];
+    /** Aspek penilaian (AC-8a); kosong bila lembaga hanya punya satu aspek. */
+    aspects: { code: string; name: string }[];
     canPrint: boolean;
 };
 
 /**
  * Nilai & rapor anak (PRD-002 §21.3, AC-7b): hanya nilai yang sudah FINAL; rapor bisa dicetak bila
- * semua mapel sudah final. Hanya baca.
+ * semua mapel sudah final. Hanya baca. Lembaga beraspek: nilai tiap aspek ikut tampil (§22 AC-8a).
  */
 export default function ChildGrades({
     student,
@@ -42,6 +46,7 @@ export default function ChildGrades({
     attendance,
     attendanceKind,
     pending,
+    aspects,
     canPrint,
 }: Props) {
     const visit = (params: Record<string, string>) =>
@@ -133,13 +138,35 @@ export default function ChildGrades({
                                                                             : '')
                                                                     }
                                                                 >
-                                                                    {line.final}
+                                                                    {formatScore(
+                                                                        line.final,
+                                                                        aspects.length >
+                                                                            0
+                                                                            ? 1
+                                                                            : 0,
+                                                                    )}
                                                                 </span>{' '}
                                                                 {line.predicate}
                                                             </>
                                                         )}
                                                     </span>
                                                 </div>
+                                                {aspects.length > 0 && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {aspects
+                                                            .map((aspect) => {
+                                                                const grade =
+                                                                    line
+                                                                        .aspects[
+                                                                        aspect
+                                                                            .code
+                                                                    ];
+
+                                                                return `${aspect.name}: ${grade?.score === null || grade === undefined ? '–' : `${grade.score} ${grade.predicate ?? ''}`}`;
+                                                            })
+                                                            .join(' · ')}
+                                                    </p>
+                                                )}
                                                 <p className="text-xs text-muted-foreground">
                                                     KKM {line.kkm}
                                                     {line.description &&
@@ -156,7 +183,9 @@ export default function ChildGrades({
                                             Rata-rata nilai final
                                         </dt>
                                         <dd className="text-sm">
-                                            {average ?? '–'}
+                                            {average === null
+                                                ? '–'
+                                                : formatScore(average)}
                                         </dd>
                                     </div>
                                     <div>

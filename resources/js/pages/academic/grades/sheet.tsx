@@ -8,6 +8,16 @@ import {
     Save,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { GradingRules as Rules } from '@/components/academic/grading';
+import {
+    allComponents,
+    aspectScore,
+    finalScore,
+    formatScore,
+    parseScore,
+    predicate,
+    showsAspects,
+} from '@/components/academic/grading';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -18,15 +28,6 @@ import { Label } from '@/components/ui/label';
 
 type Option = { value: string; label: string };
 
-type Component = { code: string; name: string; weight: number };
-
-type Rules = {
-    kkm: number;
-    grade_a: number;
-    grade_b: number;
-    components: Component[];
-};
-
 type Student = {
     enrollment_id: string;
     student_id: string;
@@ -36,6 +37,7 @@ type Student = {
     student_number: string | null;
     left: boolean;
     scores: Record<string, number | null>;
+    aspects: Record<string, number | null>;
     final: number | null;
     predicate: string | null;
     description: string | null;
@@ -66,69 +68,36 @@ type Props = {
 
 type Draft = { scores: Record<string, string>; description: string };
 
-const SCORE_PATTERN = /^\d{1,3}([.,]\d{1,2})?$/;
-
 const stampFormat = new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
     timeStyle: 'short',
 });
 
-/** "82,5" atau "82.5" → 82.5; kosong/tidak sah → null. */
-function parseScore(value: string): number | null {
-    const text = value.trim();
-
-    if (text === '' || !SCORE_PATTERN.test(text)) {
-        return null;
-    }
-
-    const score = Number(text.replace(',', '.'));
-
-    return score <= 100 ? score : null;
-}
-
 function isInvalid(value: string): boolean {
     return value.trim() !== '' && parseScore(value) === null;
 }
 
-/** Sama dengan server: Σ nilai × bobot ÷ 100 dalam perseratus, dibulatkan setengah ke atas. */
-function finalScore(
-    rules: Rules,
-    scores: Record<string, string>,
-): number | null {
-    let sum = 0;
-
-    for (const component of rules.components) {
-        const score = parseScore(scores[component.code] ?? '');
-
-        if (score === null) {
-            return null;
-        }
-
-        sum += Math.round(score * 100) * component.weight;
-    }
-
-    return Math.floor((sum + 5000) / 10000);
-}
-
-function predicate(rules: Rules, score: number): string {
-    if (score >= rules.grade_a) {
-        return 'A';
-    }
-
-    if (score >= rules.grade_b) {
-        return 'B';
-    }
-
-    return score >= rules.kkm ? 'C' : 'D';
-}
-
 function showScore(value: number | null): string {
-    return value === null ? '' : value.toLocaleString('id-ID');
+    return formatScore(value);
+}
+
+/** Ringkasan bobot: "UTS 50%, UAS 50%" per aspek. */
+function weights(rules: Rules): string {
+    return rules.aspects
+        .map((aspect) => {
+            const parts = aspect.components
+                .map((component) => `${component.name} ${component.weight}%`)
+                .join(', ');
+
+            return showsAspects(rules) ? `${aspect.name}: ${parts}` : parts;
+        })
+        .join(' · ');
 }
 
 /**
- * Lembar nilai satu mapel kelas per semester (PRD-002 §19 AC-5b). Nilai akhir & predikat dihitung
- * langsung saat diketik; server tetap menghitung ulang dan memeriksa semua aturan.
+ * Lembar nilai satu mapel kelas per semester (PRD-002 §19 AC-5b). Lembaga beraspek (§22 AC-8a):
+ * komponen dikelompokkan per aspek, nilai akhir = rata-rata aspek. Nilai aspek, nilai akhir &
+ * predikat dihitung langsung saat diketik; server tetap menghitung ulang dan memeriksa semua aturan.
  */
 export default function GradeSheet(props: Props) {
     const { class: item, subject, terms, term, sheet, baseUrl } = props;
@@ -197,14 +166,17 @@ export default function GradeSheet(props: Props) {
                                     KKM {sheet.rules.kkm} · A ≥{' '}
                                     {sheet.rules.grade_a}, B ≥{' '}
                                     {sheet.rules.grade_b}, C ≥ {sheet.rules.kkm}
-                                    , D di bawahnya ·{' '}
-                                    {sheet.rules.components
-                                        .map(
-                                            (component) =>
-                                                `${component.name} ${component.weight}%`,
-                                        )
-                                        .join(', ')}
+                                    , D di bawahnya · {weights(sheet.rules)}
                                 </p>
+                                {sheet.rules.aspects.length > 1 && (
+                                    <p className="text-muted-foreground">
+                                        Nilai akhir = rata-rata nilai{' '}
+                                        {sheet.rules.aspects
+                                            .map((aspect) => aspect.name)
+                                            .join(' dan ')}
+                                        .
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -425,7 +397,7 @@ function SheetForm({
                     student.enrollment_id,
                     {
                         scores: Object.fromEntries(
-                            rules.components.map((component) => [
+                            allComponents(rules).map((component) => [
                                 component.code,
                                 showScore(
                                     student.scores[component.code] ?? null,
@@ -458,7 +430,7 @@ function SheetForm({
         }));
 
     const invalid = students.some((student) =>
-        rules.components.some((component) =>
+        allComponents(rules).some((component) =>
             isInvalid(values[student.enrollment_id].scores[component.code]),
         ),
     );
@@ -515,61 +487,77 @@ function SheetForm({
                                             />
                                         </div>
 
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
-                                            {rules.components.map(
-                                                (component) => {
-                                                    const id = `g-${student.enrollment_id}-${component.code}`;
-                                                    const value =
-                                                        draft.scores[
-                                                            component.code
-                                                        ];
+                                        {rules.aspects.map((aspect) => (
+                                            <AspectGroup
+                                                key={aspect.code}
+                                                rules={rules}
+                                                aspect={aspect}
+                                                score={aspectScore(
+                                                    aspect,
+                                                    draft.scores,
+                                                )}
+                                            >
+                                                {aspect.components.map(
+                                                    (component) => {
+                                                        const id = `g-${student.enrollment_id}-${component.code}`;
+                                                        const value =
+                                                            draft.scores[
+                                                                component.code
+                                                            ];
 
-                                                    return (
-                                                        <div
-                                                            key={component.code}
-                                                            className="grid gap-1"
-                                                        >
-                                                            <Label
-                                                                htmlFor={id}
-                                                                className="text-xs"
-                                                                title={
-                                                                    component.name
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    component.code
                                                                 }
+                                                                className="grid gap-1"
                                                             >
-                                                                {component.code}{' '}
-                                                                <span className="text-muted-foreground">
-                                                                    {
-                                                                        component.weight
+                                                                <Label
+                                                                    htmlFor={id}
+                                                                    className="text-xs"
+                                                                    title={
+                                                                        component.name
                                                                     }
-                                                                    %
-                                                                </span>
-                                                            </Label>
-                                                            <Input
-                                                                id={id}
-                                                                name={`grades[${student.enrollment_id}][scores][${component.code}]`}
-                                                                inputMode="decimal"
-                                                                autoComplete="off"
-                                                                value={value}
-                                                                aria-invalid={isInvalid(
-                                                                    value,
-                                                                )}
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    setScore(
-                                                                        student.enrollment_id,
-                                                                        component.code,
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                            />
-                                                        </div>
-                                                    );
-                                                },
-                                            )}
-                                        </div>
+                                                                >
+                                                                    {
+                                                                        component.code
+                                                                    }{' '}
+                                                                    <span className="text-muted-foreground">
+                                                                        {
+                                                                            component.weight
+                                                                        }
+                                                                        %
+                                                                    </span>
+                                                                </Label>
+                                                                <Input
+                                                                    id={id}
+                                                                    name={`grades[${student.enrollment_id}][scores][${component.code}]`}
+                                                                    inputMode="decimal"
+                                                                    autoComplete="off"
+                                                                    value={
+                                                                        value
+                                                                    }
+                                                                    aria-invalid={isInvalid(
+                                                                        value,
+                                                                    )}
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        setScore(
+                                                                            student.enrollment_id,
+                                                                            component.code,
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        );
+                                                    },
+                                                )}
+                                            </AspectGroup>
+                                        ))}
 
                                         <Input
                                             aria-label={`Deskripsi ${student.name}`}
@@ -706,23 +694,31 @@ function ReadOnly({ sheet }: { sheet: NonNullable<Props['sheet']> }) {
                         </div>
                         <FinalBadge rules={rules} score={student.final} />
                     </div>
-                    <dl className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2 text-sm">
-                        {rules.components.map((component) => (
-                            <div
-                                key={component.code}
-                                className="rounded-md bg-muted/50 px-2 py-1"
-                            >
-                                <dt className="text-xs text-muted-foreground">
-                                    {component.code} {component.weight}%
-                                </dt>
-                                <dd className="tabular-nums">
-                                    {showScore(
-                                        student.scores[component.code] ?? null,
-                                    ) || '—'}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
+                    {rules.aspects.map((aspect) => (
+                        <AspectGroup
+                            key={aspect.code}
+                            rules={rules}
+                            aspect={aspect}
+                            score={student.aspects[aspect.code] ?? null}
+                        >
+                            {aspect.components.map((component) => (
+                                <div
+                                    key={component.code}
+                                    className="rounded-md bg-muted/50 px-2 py-1 text-sm"
+                                >
+                                    <p className="text-xs text-muted-foreground">
+                                        {component.code} {component.weight}%
+                                    </p>
+                                    <p className="tabular-nums">
+                                        {showScore(
+                                            student.scores[component.code] ??
+                                                null,
+                                        ) || '—'}
+                                    </p>
+                                </div>
+                            ))}
+                        </AspectGroup>
+                    ))}
                     {student.description && (
                         <p className="text-sm break-words text-muted-foreground">
                             {student.description}
@@ -731,6 +727,47 @@ function ReadOnly({ sheet }: { sheet: NonNullable<Props['sheet']> }) {
                 </li>
             ))}
         </ul>
+    );
+}
+
+/**
+ * Isian komponen satu aspek. Aturan beraspek → diberi judul nama aspek & nilai aspeknya; aturan
+ * satu aspek bawaan → kotak komponen saja seperti sebelumnya.
+ */
+function AspectGroup({
+    rules,
+    aspect,
+    score,
+    children,
+}: {
+    rules: Rules;
+    aspect: Rules['aspects'][number];
+    score: number | null;
+    children: React.ReactNode;
+}) {
+    const grid = (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
+            {children}
+        </div>
+    );
+
+    if (!showsAspects(rules)) {
+        return grid;
+    }
+
+    return (
+        <fieldset className="space-y-2 rounded-lg bg-muted/40 p-3">
+            <legend className="sr-only">{aspect.name}</legend>
+            <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-medium">{aspect.name}</span>
+                <span className="text-muted-foreground tabular-nums">
+                    {score === null
+                        ? 'Nilai: —'
+                        : `Nilai: ${score} · ${predicate(rules, score)}`}
+                </span>
+            </p>
+            {grid}
+        </fieldset>
     );
 }
 
@@ -754,7 +791,8 @@ function FinalBadge({ rules, score }: { rules: Rules; score: number | null }) {
                     : 'bg-muted')
             }
         >
-            Akhir {score} · {predicate(rules, score)}
+            Akhir {formatScore(score, rules.aspects.length > 1 ? 1 : 0)} ·{' '}
+            {predicate(rules, score)}
             {below && ' · di bawah KKM'}
         </span>
     );

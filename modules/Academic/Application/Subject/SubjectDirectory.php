@@ -9,7 +9,7 @@ use Modules\Academic\Domain\Subject\Subject;
  * Daftar mata pelajaran per lembaga (PRD-002 §16 AC-3a). Pemanggil WAJIB sudah memastikan
  * lembaganya terlihat oleh pengguna.
  *
- * @phpstan-type SubjectRow array{id: string, name: string, code: string|null, grade_min: int|null, grade_max: int|null, grades: string, is_active: bool, deletable: bool}
+ * @phpstan-type SubjectRow array{id: string, name: string, code: string|null, grade_min: int|null, grade_max: int|null, grades: string, is_active: bool, deletable: bool, grading_aspects: list<string>|null}
  */
 final class SubjectDirectory
 {
@@ -48,6 +48,7 @@ final class SubjectDirectory
                 'grades' => ManageSubjects::gradeLabel($subject->grade_min, $subject->grade_max),
                 'is_active' => $subject->is_active,
                 'deletable' => ! in_array($subject->id, $used, true),
+                'grading_aspects' => $subject->grading_aspects,
             ];
         }
 

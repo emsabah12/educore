@@ -7,6 +7,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
+use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Domain\Subject\Exceptions\SubjectException;
 use Modules\Academic\Domain\Subject\Subject;
 use Modules\Core\Application\Audit\AuditLogger;
@@ -21,6 +22,8 @@ use Modules\Core\Domain\Organization\OrganizationType;
  * - Kode singkat opsional (maks. 20, disimpan huruf besar), unik per lembaga.
  * - Rentang tingkat: keduanya kosong = semua tingkat; bila diisi keduanya 1–12 dan min ≤ maks.
  * - Nonaktif = tidak bisa dipilih untuk kelas; hapus hanya bila belum pernah dipakai di kelas (AC-3b).
+ * - Aspek yang dinilai (§22 AC-8a): minimal satu aspek dari aturan penilaian yang berlaku di lembaga
+ *   mapel; semua aspek dicentang = disimpan null (ikut aturan, termasuk aspek yang ditambah kelak).
  *
  * Hak akses (academic.classes.manage di lembaga mapel) dicek pemanggil lewat Gate.
  */
@@ -32,6 +35,7 @@ final class ManageSubjects
 
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly GradingSetting $grading,
     ) {}
 
     /**
@@ -53,6 +57,7 @@ final class ManageSubjects
                 'code' => $data->code,
                 'grade_min' => $data->gradeMin,
                 'grade_max' => $data->gradeMax,
+                'grading_aspects' => $this->aspectsFor($tenantId, $organization->id, $data, null),
             ]);
             $subject->save();
 
@@ -92,6 +97,7 @@ final class ManageSubjects
                 'code' => $data->code,
                 'grade_min' => $data->gradeMin,
                 'grade_max' => $data->gradeMax,
+                'grading_aspects' => $this->aspectsFor($tenantId, $subject->organization_id, $data, $subject->grading_aspects),
             ]);
             $changed = array_keys($subject->getDirty());
 
@@ -235,6 +241,38 @@ final class ManageSubjects
         if ($data->code !== null && (clone $base)->whereRaw('upper(code) = upper(?)', [$data->code])->exists()) {
             throw SubjectException::duplicateCode($data->code);
         }
+    }
+
+    /**
+     * Aspek penilaian yang disimpan: tidak diubah bila form tidak mengirimnya; selain itu harus ada di
+     * aturan yang berlaku; semua aspek → null.
+     *
+     * @param  list<string>|null  $current
+     * @return list<string>|null
+     *
+     * @throws SubjectException
+     */
+    private function aspectsFor(string $tenantId, string $organizationId, SubjectData $data, ?array $current): ?array
+    {
+        if (! $data->setsAspects) {
+            return $current;
+        }
+
+        $available = $this->grading->rulesFor($tenantId, $organizationId)->aspectCodes();
+
+        if ($data->gradingAspects === []) {
+            throw SubjectException::make('grading_aspects', 'Pilih minimal satu aspek yang dinilai.');
+        }
+
+        $unknown = array_diff($data->gradingAspects, $available);
+
+        if ($unknown !== []) {
+            throw SubjectException::make('grading_aspects', 'Aspek '.implode(', ', $unknown).' tidak ada di aturan penilaian lembaga ini. Muat ulang halaman.');
+        }
+
+        $chosen = array_values(array_filter($available, fn (string $code): bool => in_array($code, $data->gradingAspects, true)));
+
+        return count($chosen) === count($available) ? null : $chosen;
     }
 
     private function assertValidInput(SubjectData $data): void

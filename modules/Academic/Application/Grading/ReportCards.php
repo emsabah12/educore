@@ -22,14 +22,18 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Presensi = rekap S/I/A semester itu dari presensi harian; lembaga yang memakai presensi per
  *   pertemuan memakai rekap pertemuan [ASUMSI].
  * - Jumlah & rata-rata nilai rapor dari mapel final yang punya nilai [ASUMSI].
+ * - Aspek penilaian (§22 AC-8a): tiap mapel membawa nilai & predikat per aspek dari salinan aturan
+ *   lembarnya; daftar aspek rapor = gabungan aspek semua mapel final (urutan kemunculan). Lebih dari
+ *   satu aspek → rapor menampilkan kolom per aspek, plus jumlah & rata-rata per aspek.
  * - Catatan wali kelas maks. 1000 karakter; kosong = dihapus. Audit tanpa isi catatan.
  *
  * Hak akses dicek pemanggil.
  *
  * @phpstan-import-type TermOption from ManageGrades
  *
- * @phpstan-type CardSubject array{name: string, kkm: int, final: int|null, predicate: string|null, description: string|null}
- * @phpstan-type Card array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, subjects: list<CardSubject>, total: int|null, average: float|null, attendance: array{S: int, I: int, A: int}, note: string|null}
+ * @phpstan-type AspectGrade array{score: int|null, predicate: string|null}
+ * @phpstan-type CardSubject array{name: string, kkm: int, final: float|null, predicate: string|null, description: string|null, aspects: array<string, AspectGrade>}
+ * @phpstan-type Card array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, subjects: list<CardSubject>, total: float|null, average: float|null, aspect_totals: array<string, array{total: int|null, average: float|null}>, attendance: array{S: int, I: int, A: int}, note: string|null}
  */
 final class ReportCards
 {
@@ -47,7 +51,7 @@ final class ReportCards
      * Rapor seluruh siswa kelas (atau satu siswa) pada semester itu.
      *
      * @param  TermOption  $term
-     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null}
+     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null, aspects: list<array{code: string, name: string}>, multi_aspect: bool}
      */
     public function build(SchoolClass $class, array $term, ?string $enrollmentId = null): array
     {
@@ -60,6 +64,7 @@ final class ReportCards
 
         $subjects = [];
         $pending = [];
+        $aspects = [];
 
         $rows = DB::table('ac_class_subjects as cs')
             ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
@@ -71,7 +76,12 @@ final class ReportCards
             $sheet = $sheets->get((string) $row->id);
 
             if ($sheet instanceof GradeSheet && $sheet->isFinal()) {
-                $subjects[] = ['sheet_id' => $sheet->id, 'name' => (string) $row->name, 'rules' => GradingRules::fromValue($sheet->rules)];
+                $rules = GradingRules::fromValue($sheet->rules);
+                $subjects[] = ['sheet_id' => $sheet->id, 'name' => (string) $row->name, 'rules' => $rules];
+
+                foreach ($rules->aspects as $aspect) {
+                    $aspects[$aspect['code']] ??= ['code' => $aspect['code'], 'name' => $aspect['name']];
+                }
             } else {
                 $pending[] = (string) $row->name;
             }
@@ -82,9 +92,17 @@ final class ReportCards
         if ($subjects !== []) {
             $query = DB::table('ac_grades')->whereIn('sheet_id', array_column($subjects, 'sheet_id'));
 
-            foreach ($query->get(['sheet_id', 'enrollment_id', 'final_score', 'description']) as $grade) {
+            foreach ($query->get(['sheet_id', 'enrollment_id', 'scores', 'final_score', 'description']) as $grade) {
+                $decoded = json_decode((string) $grade->scores, true);
+                $scores = [];
+
+                foreach (is_array($decoded) ? $decoded : [] as $code => $value) {
+                    $scores[(string) $code] = is_int($value) || is_float($value) ? (float) $value : null;
+                }
+
                 $grades[(string) $grade->enrollment_id][(string) $grade->sheet_id] = [
-                    'final' => $grade->final_score === null ? null : (int) $grade->final_score,
+                    'final' => ManageGrades::storedFinal($grade->final_score),
+                    'scores' => $scores,
                     'description' => $grade->description === null ? null : (string) $grade->description,
                 ];
             }
@@ -103,28 +121,48 @@ final class ReportCards
 
             $lines = [];
             $scores = [];
+            $byAspect = [];
 
             foreach ($subjects as $subject) {
                 $grade = $grades[$student['enrollment_id']][$subject['sheet_id']] ?? null;
                 $final = $grade['final'] ?? null;
+                $rules = $subject['rules'];
+                $aspectGrades = [];
 
                 if ($final !== null) {
                     $scores[] = $final;
                 }
 
+                foreach ($grade === null ? [] : ManageGrades::aspectScores($rules, $grade['scores']) as $code => $score) {
+                    $aspectGrades[$code] = ['score' => $score, 'predicate' => $score === null ? null : $rules->predicate($score)];
+
+                    if ($score !== null) {
+                        $byAspect[$code][] = $score;
+                    }
+                }
+
                 $lines[] = [
                     'name' => $subject['name'],
-                    'kkm' => $subject['rules']->kkm,
+                    'kkm' => $rules->kkm,
                     'final' => $final,
-                    'predicate' => $final === null ? null : $subject['rules']->predicate($final),
+                    'predicate' => $final === null ? null : $rules->predicate($final),
                     'description' => $grade['description'] ?? null,
+                    'aspects' => $aspectGrades,
                 ];
+            }
+
+            $aspectTotals = [];
+
+            foreach (array_keys($aspects) as $code) {
+                $values = $byAspect[$code] ?? [];
+                $aspectTotals[$code] = ['total' => $values === [] ? null : array_sum($values), 'average' => GradeLedger::average($values)];
             }
 
             $cards[] = $student + [
                 'subjects' => $lines,
-                'total' => $scores === [] ? null : array_sum($scores),
+                'total' => $scores === [] ? null : round(array_sum($scores), 1),
                 'average' => GradeLedger::average($scores),
+                'aspect_totals' => $aspectTotals,
                 'attendance' => $attendance[$student['enrollment_id']] ?? ['S' => 0, 'I' => 0, 'A' => 0],
                 'note' => $notes[$student['enrollment_id']] ?? null,
             ];
@@ -140,6 +178,8 @@ final class ReportCards
             'final_subjects' => count($subjects),
             'attendance_kind' => $lesson ? 'pertemuan' : 'hari',
             'homeroom' => $homeroom,
+            'aspects' => array_values($aspects),
+            'multi_aspect' => count($aspects) > 1,
         ];
     }
 

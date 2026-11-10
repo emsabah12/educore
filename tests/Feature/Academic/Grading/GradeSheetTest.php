@@ -154,7 +154,7 @@ test('operator menyimpan nilai: nilai akhir & predikat dihitung, komponen kosong
     nlsSave($this, $this->admin, 'academic.grades.store', $this->fiqih, $this->term->id, [$this->budi => ['80', '80.555', '80']])
         ->assertSessionHasErrors(['grades' => 'Penilaian tengah semester untuk Budi Santoso harus angka 0–100 (paling banyak 2 angka di belakang koma).']);
 
-    expect(ManageGrades::finalScore(app(GradingSetting::class)->rulesFor($this->tenant->id, $this->ma), ['HARIAN' => 74.5, 'PTS' => 74.5, 'PAS' => 74.5]))->toBe(75);
+    expect(ManageGrades::finalScore(app(GradingSetting::class)->rulesFor($this->tenant->id, $this->ma), ['HARIAN' => 74.5, 'PTS' => 74.5, 'PAS' => 74.5]))->toBe(75.0);
 });
 
 test('finalkan: wajib lengkap; sesudah final tidak bisa diubah; operator membuka kembali dengan alasan', function () {

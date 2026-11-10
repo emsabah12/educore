@@ -24,13 +24,18 @@ type SubjectRow = {
     grades: string;
     is_active: boolean;
     deletable: boolean;
+    grading_aspects: string[] | null;
 };
+
+type Aspect = { code: string; name: string };
 
 type Props = {
     filters: { lembaga: string | null };
     options: { organizations: Option[] };
     subjects: SubjectRow[];
     canManage: boolean;
+    /** Aspek penilaian lembaga (AC-8a); kosong bila lembaga hanya punya satu aspek. */
+    aspects: Aspect[];
 };
 
 type OpenAction =
@@ -47,13 +52,15 @@ const GRADE_OPTIONS: Option[] = Array.from({ length: 12 }, (_, index) => ({
 
 /**
  * Mata pelajaran per lembaga (PRD-002 §16 AC-3a). Aksi hanya untuk pemegang izin kelola kelas di
- * lembaga itu; semua aturan tetap dicek server.
+ * lembaga itu; semua aturan tetap dicek server. Lembaga beraspek: tiap mapel memilih aspek yang
+ * dinilai (§22 AC-8a).
  */
 export default function Subjects({
     filters,
     options,
     subjects,
     canManage,
+    aspects,
 }: Props) {
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
@@ -134,6 +141,7 @@ export default function Subjects({
                                 {isOpen('create') && (
                                     <SubjectForm
                                         organizationId={filters.lembaga ?? ''}
+                                        aspects={aspects}
                                         onDone={close}
                                     />
                                 )}
@@ -178,6 +186,25 @@ export default function Subjects({
                                                 </span>
                                                 <span className="text-sm">
                                                     {subject.grades}
+                                                    {aspects.length > 1 && (
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            Dinilai:{' '}
+                                                            {aspects
+                                                                .filter(
+                                                                    (aspect) =>
+                                                                        subject.grading_aspects ===
+                                                                            null ||
+                                                                        subject.grading_aspects.includes(
+                                                                            aspect.code,
+                                                                        ),
+                                                                )
+                                                                .map(
+                                                                    (aspect) =>
+                                                                        aspect.name,
+                                                                )
+                                                                .join(', ')}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
 
@@ -237,6 +264,7 @@ export default function Subjects({
                                                 isOpen('edit', subject.id) && (
                                                     <SubjectForm
                                                         subject={subject}
+                                                        aspects={aspects}
                                                         onDone={close}
                                                     />
                                                 )}
@@ -278,12 +306,15 @@ export default function Subjects({
 function SubjectForm({
     subject,
     organizationId,
+    aspects,
     onDone,
 }: {
     subject?: SubjectRow;
     organizationId?: string;
+    aspects: Aspect[];
     onDone: () => void;
 }) {
+    const chosen = subject?.grading_aspects ?? null;
     const key = subject?.id ?? 'new';
 
     return (
@@ -375,6 +406,44 @@ function SubjectForm({
                             }
                         />
                     </Field>
+                    {aspects.length > 1 && (
+                        <fieldset className="grid gap-1.5 sm:col-span-2">
+                            <legend className="mb-1.5 text-sm font-medium">
+                                Aspek yang dinilai
+                            </legend>
+                            <input
+                                type="hidden"
+                                name="grading_aspects_set"
+                                value="1"
+                            />
+                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                {aspects.map((aspect) => (
+                                    <label
+                                        key={aspect.code}
+                                        className="flex min-h-10 cursor-pointer items-center gap-2 text-sm"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            name="grading_aspects[]"
+                                            value={aspect.code}
+                                            defaultChecked={
+                                                chosen === null ||
+                                                chosen.includes(aspect.code)
+                                            }
+                                            className="size-4"
+                                        />
+                                        {aspect.name}
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Mis. mapel yang hanya diuji praktik: centang
+                                aspek praktik saja. Nilai akhir = rata-rata
+                                aspek yang dicentang.
+                            </p>
+                            <InputError message={errors.grading_aspects} />
+                        </fieldset>
+                    )}
                 </>
             )}
         </ActionForm>

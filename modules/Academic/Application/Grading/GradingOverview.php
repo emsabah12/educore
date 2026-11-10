@@ -18,9 +18,9 @@ use Modules\Core\Domain\Settings\ScopedSetting;
  * aturan yang berlaku di tiap lembaga aktif, dan penyimpanannya. Hanya Admin Yayasan (dicek
  * pemanggil, sama dengan Mode presensi); hak akses, kunci dari atas, dan audit tetap lewat Core.
  *
- * @phpstan-import-type Component from GradingRules
+ * @phpstan-import-type RulesArray from GradingRules
  *
- * @phpstan-type GradingRuleRow array{id: string, target: string, summary: string, enforced: bool, value: array{kkm: int, grade_a: int, grade_b: int, components: list<Component>}}
+ * @phpstan-type GradingRuleRow array{id: string, target: string, summary: string, enforced: bool, value: RulesArray}
  * @phpstan-type GradingUsage array{id: string, name: string, summary: string, source: string}
  */
 final class GradingOverview
@@ -31,7 +31,7 @@ final class GradingOverview
     ) {}
 
     /**
-     * @return array{rules: list<GradingRuleRow>, usage: list<GradingUsage>, defaults: array{kkm: int, grade_a: int, grade_b: int, components: list<Component>}, maxComponents: int}
+     * @return array{rules: list<GradingRuleRow>, usage: list<GradingUsage>, defaults: RulesArray, maxComponents: int, maxAspects: int}
      */
     public function build(string $tenantId): array
     {
@@ -40,6 +40,7 @@ final class GradingOverview
             'usage' => $this->usage($tenantId),
             'defaults' => GradingRules::defaults()->toArray(),
             'maxComponents' => GradingRules::MAX_COMPONENTS,
+            'maxAspects' => GradingRules::MAX_ASPECTS,
         ];
     }
 

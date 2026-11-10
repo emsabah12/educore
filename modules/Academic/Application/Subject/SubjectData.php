@@ -3,7 +3,8 @@
 namespace Modules\Academic\Application\Subject;
 
 /**
- * Isian mata pelajaran (PRD-002 §16 AC-3a): nama, kode singkat (opsional), rentang tingkat (opsional).
+ * Isian mata pelajaran (PRD-002 §16 AC-3a): nama, kode singkat (opsional), rentang tingkat (opsional),
+ * dan aspek penilaian yang dinilai (§22 AC-8a; hanya diubah bila `$setsAspects`).
  */
 final readonly class SubjectData
 {
@@ -12,7 +13,32 @@ final readonly class SubjectData
         public ?string $code,
         public ?int $gradeMin,
         public ?int $gradeMax,
+        public bool $setsAspects = false,
+        /** @var list<string> */
+        public array $gradingAspects = [],
     ) {}
+
+    /**
+     * Kode aspek dari form: huruf besar, tanpa spasi, tanpa duplikat.
+     *
+     * @return list<string>
+     */
+    public static function cleanAspects(mixed $value): array
+    {
+        $codes = [];
+
+        foreach (is_array($value) ? $value : [] as $code) {
+            if (is_string($code)) {
+                $code = mb_strtoupper(trim($code));
+
+                if ($code !== '' && ! in_array($code, $codes, true)) {
+                    $codes[] = $code;
+                }
+            }
+        }
+
+        return $codes;
+    }
 
     /**
      * Nama dengan spasi ganda dirapikan: "  Bahasa   Arab " → "Bahasa Arab".

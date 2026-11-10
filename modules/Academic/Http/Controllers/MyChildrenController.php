@@ -128,6 +128,8 @@ final class MyChildrenController
             'attendance' => $card['attendance'] ?? null,
             'attendanceKind' => $report['attendance_kind'] ?? 'hari',
             'pending' => $report['pending'] ?? [],
+            // Aspek penilaian (AC-8a): kolom per aspek hanya bila lebih dari satu.
+            'aspects' => ($report['multi_aspect'] ?? false) ? $report['aspects'] : [],
             'canPrint' => $canPrint,
         ]);
     }

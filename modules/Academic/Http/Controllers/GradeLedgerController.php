@@ -95,7 +95,7 @@ final class GradeLedgerController
             abort(500, 'File leger tidak bisa dibuat.');
         }
 
-        $ledger->write($ledger->build($class, $term), $path);
+        $ledger->write($ledger->build($class, $term, withAspects: true), $path);
         $year = (string) AcademicYear::query()->withoutGlobalScope('tenant')->whereKey($class->academic_year_id)->value('name');
 
         return response()

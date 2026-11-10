@@ -20,13 +20,17 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 
 /**
- * Lembar nilai satu mapel kelas per semester (PRD-002 §19 AC-5b).
+ * Lembar nilai satu mapel kelas per semester (PRD-002 §19 AC-5b, aspek penilaian §22 AC-8a).
  *
- * Aturan [OWNER + ASUMSI disetujui, 2026-10-22]:
- * - Nilai per komponen 0–100 (maks. 2 desimal, boleh kosong); nilai akhir = Σ nilai × bobot ÷ 100,
- *   dibulatkan ke bilangan bulat terdekat (setengah ke atas); kosong bila ada komponen kosong.
- * - Lembar menyimpan salinan aturan penilaian saat pertama kali disimpan; aturan yang berubah
- *   sesudahnya tidak mengubah lembar, kecuali operator menekan "Terapkan aturan terbaru" (DRAFT).
+ * Aturan [OWNER + ASUMSI disetujui, 2026-10-22 & 2026-11-10]:
+ * - Nilai per komponen 0–100 (maks. 2 desimal, boleh kosong).
+ * - Nilai aspek = Σ nilai komponen aspek itu × bobot ÷ 100, dibulatkan ke bilangan bulat terdekat
+ *   (setengah ke atas); kosong bila ada komponen aspek itu yang kosong.
+ * - Nilai akhir = rata-rata nilai aspek yang dinilai pada mapel itu, 1 desimal (setengah ke atas);
+ *   kosong bila ada aspek yang kosong. Aturan satu aspek → sama dengan nilai aspeknya (85 → 85,0).
+ * - Lembar menyimpan salinan aturan penilaian (hanya aspek yang dinilai pada mapel itu) saat
+ *   pertama kali disimpan; aturan/aspek yang berubah sesudahnya tidak mengubah lembar, kecuali
+ *   operator menekan "Terapkan aturan terbaru" (DRAFT).
  * - Siswa = yang pernah tercatat di kelas pada semester itu (+ yang sudah punya nilai). Yang keluar
  *   dari kelas sebelum semester berakhir ditandai dan tidak wajib dinilai untuk Finalkan.
  * - FINAL = hanya dibaca; dibuka kembali hanya oleh pengelola kelas (alasan wajib).
@@ -34,11 +38,11 @@ use Modules\Core\Support\BusinessClock;
  *
  * Hak akses (pengelola kelas atau guru pengampu mapel itu) dicek pemanggil.
  *
- * @phpstan-import-type Component from GradingRules
+ * @phpstan-import-type RulesArray from GradingRules
  *
  * @phpstan-type TermOption array{value: string, label: string, start: string, end: string}
- * @phpstan-type GradeRow array{enrollment_id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, scores: array<string, float|null>, final: int|null, predicate: string|null, description: string|null}
- * @phpstan-type SheetData array{status: string, rules: array{kkm: int, grade_a: int, grade_b: int, components: list<Component>}, outdated: bool, finalized: array{by: string|null, at: string}|null, students: list<GradeRow>, complete: int, required: int}
+ * @phpstan-type GradeRow array{enrollment_id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, scores: array<string, float|null>, aspects: array<string, int|null>, final: float|null, predicate: string|null, description: string|null}
+ * @phpstan-type SheetData array{status: string, rules: RulesArray, outdated: bool, finalized: array{by: string|null, at: string}|null, students: list<GradeRow>, complete: int, required: int}
  */
 final class ManageGrades
 {
@@ -120,7 +124,7 @@ final class ManageGrades
     public function sheet(ClassSubject $row, array $term): array
     {
         $sheet = $this->findSheet($row->id, $term['value']);
-        $current = $this->grading->rulesFor($row->tenant_id, $row->organization_id);
+        $current = $this->currentRules($row);
         $rules = $sheet === null ? $current : GradingRules::fromValue($sheet->rules);
         $saved = $sheet === null ? [] : $this->savedGrades($sheet->id);
         $students = [];
@@ -131,7 +135,7 @@ final class ManageGrades
             $grade = $saved[$student['enrollment_id']] ?? null;
             $scores = [];
 
-            foreach ($rules->components as $component) {
+            foreach ($rules->components() as $component) {
                 $scores[$component['code']] = $grade['scores'][$component['code']] ?? null;
             }
 
@@ -141,6 +145,7 @@ final class ManageGrades
 
             $students[] = $student + [
                 'scores' => $scores,
+                'aspects' => self::aspectScores($rules, $scores),
                 'final' => $final,
                 'predicate' => $final === null ? null : $rules->predicate($final),
                 'description' => $grade['description'] ?? null,
@@ -211,7 +216,7 @@ final class ManageGrades
                     'class_subject_id' => $row->id,
                     'term_id' => $term['value'],
                     'status' => GradeSheet::DRAFT,
-                    'rules' => $this->grading->rulesFor($tenantId, $class->organization_id)->toArray(),
+                    'rules' => $this->currentRules($row)->toArray(),
                 ]);
                 $sheet->save();
             }
@@ -355,8 +360,8 @@ final class ManageGrades
     }
 
     /**
-     * Ganti salinan aturan lembar DRAFT dengan aturan yang berlaku sekarang. Nilai komponen yang
-     * kodenya sama dipertahankan; nilai akhir dihitung ulang.
+     * Ganti salinan aturan lembar DRAFT dengan aturan yang berlaku sekarang (termasuk aspek mapel
+     * yang terbaru). Nilai komponen yang kodenya sama dipertahankan; nilai akhir dihitung ulang.
      *
      * @return int jumlah siswa yang nilainya dihitung ulang
      *
@@ -373,7 +378,7 @@ final class ManageGrades
             }
 
             $before = GradingRules::fromValue($sheet->rules);
-            $after = $this->grading->rulesFor($tenantId, $class->organization_id);
+            $after = $this->currentRules($row);
 
             if ($before->toArray() === $after->toArray()) {
                 throw GradingException::make('form', 'Aturan nilai ini sudah sama dengan aturan terbaru.');
@@ -387,7 +392,7 @@ final class ManageGrades
             foreach ($this->savedGrades($sheet->id) as $enrollmentId => $grade) {
                 $scores = [];
 
-                foreach ($after->components as $component) {
+                foreach ($after->components() as $component) {
                     $scores[$component['code']] = $grade['scores'][$component['code']] ?? null;
                 }
 
@@ -413,26 +418,77 @@ final class ManageGrades
     }
 
     /**
-     * Nilai akhir = Σ nilai × bobot ÷ 100, dibulatkan setengah ke atas; null bila ada komponen kosong.
-     * Dihitung dalam bilangan bulat (perseratus) agar tidak ada galat pembulatan desimal.
+     * Aturan yang berlaku sekarang untuk mapel kelas ini: aturan lembaga, hanya aspek yang dinilai
+     * pada mapelnya (AC-8a).
+     */
+    public function currentRules(ClassSubject $row): GradingRules
+    {
+        $raw = DB::table('ac_subjects')->where('id', $row->subject_id)->value('grading_aspects');
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $codes = is_array($decoded) ? array_values(array_filter($decoded, 'is_string')) : null;
+
+        return $this->grading->rulesFor($row->tenant_id, $row->organization_id)->forAspects($codes);
+    }
+
+    /**
+     * Nilai tiap aspek = Σ nilai × bobot ÷ 100, dibulatkan setengah ke atas; null bila ada komponen
+     * aspek itu yang kosong. Dihitung dalam bilangan bulat (perseratus) agar tidak ada galat
+     * pembulatan desimal.
+     *
+     * @param  array<string, float|null>  $scores
+     * @return array<string, int|null> kode aspek => nilai
+     */
+    public static function aspectScores(GradingRules $rules, array $scores): array
+    {
+        $result = [];
+
+        foreach ($rules->aspects as $aspect) {
+            $sum = 0;
+
+            foreach ($aspect['components'] as $component) {
+                $score = $scores[$component['code']] ?? null;
+
+                if ($score === null) {
+                    $sum = null;
+
+                    break;
+                }
+
+                $sum += (int) round($score * 100) * $component['weight'];
+            }
+
+            $result[$aspect['code']] = $sum === null ? null : intdiv($sum + 5000, 10000);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Nilai akhir = rata-rata nilai aspek, 1 desimal (setengah ke atas); null bila ada aspek kosong.
      *
      * @param  array<string, float|null>  $scores
      */
-    public static function finalScore(GradingRules $rules, array $scores): ?int
+    public static function finalScore(GradingRules $rules, array $scores): ?float
     {
-        $sum = 0;
+        $aspects = self::aspectScores($rules, $scores);
 
-        foreach ($rules->components as $component) {
-            $score = $scores[$component['code']] ?? null;
-
-            if ($score === null) {
-                return null;
-            }
-
-            $sum += (int) round($score * 100) * $component['weight'];
+        if ($aspects === [] || in_array(null, $aspects, true)) {
+            return null;
         }
 
-        return intdiv($sum + 5000, 10000);
+        $count = count($aspects);
+        // Persepuluhan dari Σ ÷ n, dibulatkan setengah ke atas, dalam bilangan bulat.
+        $tenths = intdiv(array_sum($aspects) * 20 + $count, 2 * $count);
+
+        return $tenths / 10;
+    }
+
+    /**
+     * Nilai akhir dari kolom database (numeric → string) menjadi angka 1 desimal.
+     */
+    public static function storedFinal(mixed $value): ?float
+    {
+        return $value === null ? null : round((float) $value, 1);
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
@@ -447,7 +503,7 @@ final class ManageGrades
         $input = is_array($input) ? $input : [];
         $scores = [];
 
-        foreach ($rules->components as $component) {
+        foreach ($rules->components() as $component) {
             $raw = $input[$component['code']] ?? null;
             $text = is_int($raw) || is_float($raw) ? (string) $raw : (is_string($raw) ? str_replace(',', '.', trim($raw)) : '');
 
@@ -534,7 +590,7 @@ final class ManageGrades
     }
 
     /**
-     * @return array<string, array{scores: array<string, float|null>, final: int|null, description: string|null}>
+     * @return array<string, array{scores: array<string, float|null>, final: float|null, description: string|null}>
      */
     private function savedGrades(string $sheetId): array
     {
@@ -550,7 +606,7 @@ final class ManageGrades
 
             $saved[(string) $grade->enrollment_id] = [
                 'scores' => $scores,
-                'final' => $grade->final_score === null ? null : (int) $grade->final_score,
+                'final' => self::storedFinal($grade->final_score),
                 'description' => $grade->description === null ? null : (string) $grade->description,
             ];
         }
