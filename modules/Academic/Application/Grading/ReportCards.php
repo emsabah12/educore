@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Modules\Academic\Application\Attendance\AttendanceModeSetting;
 use Modules\Academic\Application\Audit\AcademicAuditAction;
 use Modules\Academic\Application\Classroom\ManageClasses;
+use Modules\Academic\Application\Subject\SubjectOrder;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Grading\Exceptions\GradingException;
@@ -25,14 +26,18 @@ use Modules\HR\Contracts\ActiveEmployees;
  * - Aspek penilaian (§22 AC-8a): tiap mapel membawa nilai & predikat per aspek dari salinan aturan
  *   lembarnya; daftar aspek rapor = gabungan aspek semua mapel final (urutan kemunculan). Lebih dari
  *   satu aspek → rapor menampilkan kolom per aspek, plus jumlah & rata-rata per aspek.
+ * - AC-8b (§22.4): mapel urut kelompok → urutan → nama dan membawa nama kelompoknya; mapel bernilai
+ *   huruf membawa hurufnya sebagai predikat (tanpa angka); sebutan predikat ikut dikirim. Jumlah &
+ *   rata-rata hanya dari mapel bernilai angka di kelompok yang ikut jumlah & rata-rata. Rata-rata
+ *   keseluruhan rapor beraspek = rata-rata dari rata-rata tiap aspek (seperti contoh rapor owner).
  * - Catatan wali kelas maks. 1000 karakter; kosong = dihapus. Audit tanpa isi catatan.
  *
  * Hak akses dicek pemanggil.
  *
  * @phpstan-import-type TermOption from ManageGrades
  *
- * @phpstan-type AspectGrade array{score: int|null, predicate: string|null}
- * @phpstan-type CardSubject array{name: string, kkm: int, final: float|null, predicate: string|null, description: string|null, aspects: array<string, AspectGrade>}
+ * @phpstan-type AspectGrade array{score: int|null, predicate: string|null, label: string|null}
+ * @phpstan-type CardSubject array{name: string, kkm: int, final: float|null, predicate: string|null, label: string|null, description: string|null, aspects: array<string, AspectGrade>, grade_type: string, group: string|null, counts: bool}
  * @phpstan-type Card array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, subjects: list<CardSubject>, total: float|null, average: float|null, aspect_totals: array<string, array{total: int|null, average: float|null}>, attendance: array{S: int, I: int, A: int}, note: string|null}
  */
 final class ReportCards
@@ -51,7 +56,7 @@ final class ReportCards
      * Rapor seluruh siswa kelas (atau satu siswa) pada semester itu.
      *
      * @param  TermOption  $term
-     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null, aspects: list<array{code: string, name: string}>, multi_aspect: bool}
+     * @return array{cards: list<Card>, pending: list<string>, final_subjects: int, attendance_kind: string, homeroom: string|null, aspects: list<array{code: string, name: string}>, multi_aspect: bool, grouped: bool, predicates: list<array{letter: string, label: string|null, min: int}>, labels: bool}
      */
     public function build(SchoolClass $class, array $term, ?string $enrollmentId = null): array
     {
@@ -66,18 +71,23 @@ final class ReportCards
         $pending = [];
         $aspects = [];
 
-        $rows = DB::table('ac_class_subjects as cs')
-            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
-            ->where('cs.class_id', $class->id)
-            ->orderByRaw('lower(s.name)')
-            ->get(['cs.id', 's.name']);
+        $rows = SubjectOrder::apply(
+            DB::table('ac_class_subjects as cs')->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')->where('cs.class_id', $class->id),
+        )->get(['cs.id', 's.name', 'sg.name as group_name', 'sg.counts_in_totals']);
 
         foreach ($rows as $row) {
             $sheet = $sheets->get((string) $row->id);
 
             if ($sheet instanceof GradeSheet && $sheet->isFinal()) {
                 $rules = GradingRules::fromValue($sheet->rules);
-                $subjects[] = ['sheet_id' => $sheet->id, 'name' => (string) $row->name, 'rules' => $rules];
+                $subjects[] = [
+                    'sheet_id' => $sheet->id,
+                    'name' => (string) $row->name,
+                    'rules' => $rules,
+                    'letter' => $sheet->isLetter(),
+                    'group' => $row->group_name === null ? null : (string) $row->group_name,
+                    'counts' => $row->group_name === null || (bool) $row->counts_in_totals,
+                ];
 
                 foreach ($rules->aspects as $aspect) {
                     $aspects[$aspect['code']] ??= ['code' => $aspect['code'], 'name' => $aspect['name']];
@@ -92,7 +102,7 @@ final class ReportCards
         if ($subjects !== []) {
             $query = DB::table('ac_grades')->whereIn('sheet_id', array_column($subjects, 'sheet_id'));
 
-            foreach ($query->get(['sheet_id', 'enrollment_id', 'scores', 'final_score', 'description']) as $grade) {
+            foreach ($query->get(['sheet_id', 'enrollment_id', 'scores', 'letters', 'final_score', 'description']) as $grade) {
                 $decoded = json_decode((string) $grade->scores, true);
                 $scores = [];
 
@@ -103,6 +113,7 @@ final class ReportCards
                 $grades[(string) $grade->enrollment_id][(string) $grade->sheet_id] = [
                     'final' => ManageGrades::storedFinal($grade->final_score),
                     'scores' => $scores,
+                    'letters' => ManageGrades::decodeLetters($grade->letters),
                     'description' => $grade->description === null ? null : (string) $grade->description,
                 ];
             }
@@ -125,43 +136,85 @@ final class ReportCards
 
             foreach ($subjects as $subject) {
                 $grade = $grades[$student['enrollment_id']][$subject['sheet_id']] ?? null;
-                $final = $grade['final'] ?? null;
                 $rules = $subject['rules'];
                 $aspectGrades = [];
 
-                if ($final !== null) {
+                if ($subject['letter']) {
+                    // Nilai huruf: hurufnya sekaligus predikat; tidak masuk jumlah & rata-rata.
+                    $letters = ManageGrades::lettersFor($rules, $grade['letters'] ?? []);
+
+                    foreach ($letters as $code => $letter) {
+                        $aspectGrades[$code] = ['score' => null, 'predicate' => $letter, 'label' => $letter === null ? null : $rules->labelOf($letter)];
+                    }
+
+                    $filled = array_values(array_filter($letters, fn (?string $letter): bool => $letter !== null));
+                    $single = count($filled) === 1 ? $filled[0] : null;
+
+                    $lines[] = [
+                        'name' => $subject['name'],
+                        'kkm' => $rules->kkm,
+                        'final' => null,
+                        'predicate' => $filled === [] ? null : implode(' / ', $filled),
+                        'label' => $single === null ? null : $rules->labelOf($single),
+                        'description' => $grade['description'] ?? null,
+                        'aspects' => $aspectGrades,
+                        'grade_type' => 'LETTER',
+                        'group' => $subject['group'],
+                        'counts' => false,
+                    ];
+
+                    continue;
+                }
+
+                $final = $grade['final'] ?? null;
+
+                if ($final !== null && $subject['counts']) {
                     $scores[] = $final;
                 }
 
                 foreach ($grade === null ? [] : ManageGrades::aspectScores($rules, $grade['scores']) as $code => $score) {
-                    $aspectGrades[$code] = ['score' => $score, 'predicate' => $score === null ? null : $rules->predicate($score)];
+                    $predicate = $score === null ? null : $rules->predicate($score);
+                    $aspectGrades[$code] = ['score' => $score, 'predicate' => $predicate, 'label' => $predicate === null ? null : $rules->labelOf($predicate)];
 
-                    if ($score !== null) {
+                    if ($score !== null && $subject['counts']) {
                         $byAspect[$code][] = $score;
                     }
                 }
+
+                $predicate = $final === null ? null : $rules->predicate($final);
 
                 $lines[] = [
                     'name' => $subject['name'],
                     'kkm' => $rules->kkm,
                     'final' => $final,
-                    'predicate' => $final === null ? null : $rules->predicate($final),
+                    'predicate' => $predicate,
+                    'label' => $predicate === null ? null : $rules->labelOf($predicate),
                     'description' => $grade['description'] ?? null,
                     'aspects' => $aspectGrades,
+                    'grade_type' => 'NUMBER',
+                    'group' => $subject['group'],
+                    'counts' => $subject['counts'],
                 ];
             }
 
             $aspectTotals = [];
+            $aspectAverages = [];
 
             foreach (array_keys($aspects) as $code) {
                 $values = $byAspect[$code] ?? [];
-                $aspectTotals[$code] = ['total' => $values === [] ? null : array_sum($values), 'average' => GradeLedger::average($values)];
+                $average = GradeLedger::average($values);
+                $aspectTotals[$code] = ['total' => $values === [] ? null : array_sum($values), 'average' => $average];
+
+                if ($average !== null) {
+                    $aspectAverages[] = $average;
+                }
             }
 
             $cards[] = $student + [
                 'subjects' => $lines,
                 'total' => $scores === [] ? null : round(array_sum($scores), 1),
-                'average' => GradeLedger::average($scores),
+                // Rapor beraspek: rata-rata dari rata-rata tiap aspek (OD owner 2026-11-10).
+                'average' => count($aspects) > 1 ? GradeLedger::average($aspectAverages) : GradeLedger::average($scores),
                 'aspect_totals' => $aspectTotals,
                 'attendance' => $attendance[$student['enrollment_id']] ?? ['S' => 0, 'I' => 0, 'A' => 0],
                 'note' => $notes[$student['enrollment_id']] ?? null,
@@ -180,6 +233,10 @@ final class ReportCards
             'homeroom' => $homeroom,
             'aspects' => array_values($aspects),
             'multi_aspect' => count($aspects) > 1,
+            'grouped' => array_filter(array_column($subjects, 'group')) !== [],
+            // Skala predikat untuk kotak keterangan (dari lembar final pertama; satu lembaga = satu skala).
+            'predicates' => $subjects === [] ? [] : $subjects[0]['rules']->predicates,
+            'labels' => $subjects !== [] && $subjects[0]['rules']->hasLabels(),
         ];
     }
 

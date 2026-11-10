@@ -155,6 +155,7 @@ final class GradeController
             'grades' => ['required', 'array', 'max:'.ManageGrades::MAX_STUDENTS],
             'grades.*' => ['array'],
             'grades.*.scores' => ['nullable', 'array'],
+            'grades.*.letters' => ['nullable', 'array'],
             'grades.*.description' => ['nullable', 'string', 'max:'.ManageGrades::DESCRIPTION_MAX_LENGTH],
         ], [
             'grades.required' => 'Belum ada nilai yang diisi.',
@@ -164,12 +165,12 @@ final class GradeController
 
         $termId = $this->termId($request);
 
-        /** @var array<string, array{scores: mixed, description: mixed}> $entries */
+        /** @var array<string, array{scores: mixed, letters?: mixed, description: mixed}> $entries */
         $entries = [];
 
         foreach ((array) $request->input('grades', []) as $enrollmentId => $entry) {
             $entry = (array) $entry;
-            $entries[(string) $enrollmentId] = ['scores' => $entry['scores'] ?? [], 'description' => $entry['description'] ?? null];
+            $entries[(string) $enrollmentId] = ['scores' => $entry['scores'] ?? [], 'letters' => $entry['letters'] ?? [], 'description' => $entry['description'] ?? null];
         }
 
         $result = $this->attempt(fn (): array => $grades->save($this->tenantId(), $row->id, $termId, $entries));

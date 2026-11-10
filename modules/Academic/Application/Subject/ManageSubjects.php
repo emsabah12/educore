@@ -24,6 +24,9 @@ use Modules\Core\Domain\Organization\OrganizationType;
  * - Nonaktif = tidak bisa dipilih untuk kelas; hapus hanya bila belum pernah dipakai di kelas (AC-3b).
  * - Aspek yang dinilai (§22 AC-8a): minimal satu aspek dari aturan penilaian yang berlaku di lembaga
  *   mapel; semua aspek dicentang = disimpan null (ikut aturan, termasuk aspek yang ditambah kelak).
+ * - Kelompok (opsional, harus kelompok di lembaga yang sama), urutan 0–999 (opsional), jenis nilai
+ *   Angka/Huruf (§22.4 AC-8b). Jenis nilai baru berlaku untuk lembar nilai baru (lembar lama lewat
+ *   "Terapkan aturan terbaru").
  *
  * Hak akses (academic.classes.manage di lembaga mapel) dicek pemanggil lewat Gate.
  */
@@ -59,6 +62,7 @@ final class ManageSubjects
                 'grade_max' => $data->gradeMax,
                 'grading_aspects' => $this->aspectsFor($tenantId, $organization->id, $data, null),
             ]);
+            $this->fillGrouping($subject, $organization->id, $data);
             $subject->save();
 
             $this->audit->record(
@@ -99,6 +103,7 @@ final class ManageSubjects
                 'grade_max' => $data->gradeMax,
                 'grading_aspects' => $this->aspectsFor($tenantId, $subject->organization_id, $data, $subject->grading_aspects),
             ]);
+            $this->fillGrouping($subject, $subject->organization_id, $data);
             $changed = array_keys($subject->getDirty());
 
             if ($changed === []) {
@@ -273,6 +278,32 @@ final class ManageSubjects
         $chosen = array_values(array_filter($available, fn (string $code): bool => in_array($code, $data->gradingAspects, true)));
 
         return count($chosen) === count($available) ? null : $chosen;
+    }
+
+    /**
+     * Kelompok, urutan, jenis nilai — hanya bila form mengirimnya.
+     *
+     * @throws SubjectException
+     */
+    private function fillGrouping(Subject $subject, string $organizationId, SubjectData $data): void
+    {
+        if (! $data->setsGrouping) {
+            return;
+        }
+
+        if ($data->groupId !== null && ! DB::table('ac_subject_groups')->where('id', $data->groupId)->where('organization_id', $organizationId)->exists()) {
+            throw SubjectException::make('group_id', 'Kelompok tidak ditemukan di lembaga ini. Muat ulang halaman.');
+        }
+
+        if ($data->sortOrder !== null && ($data->sortOrder < 0 || $data->sortOrder > ManageSubjectGroups::ORDER_MAX)) {
+            throw SubjectException::make('sort_order', 'Urutan harus angka 0–'.ManageSubjectGroups::ORDER_MAX.'.');
+        }
+
+        if (! in_array($data->gradeType, [Subject::NUMBER, Subject::LETTER], true)) {
+            throw SubjectException::make('grade_type', 'Pilih jenis nilai: angka atau huruf.');
+        }
+
+        $subject->fill(['group_id' => $data->groupId, 'sort_order' => $data->sortOrder, 'grade_type' => $data->gradeType]);
     }
 
     private function assertValidInput(SubjectData $data): void

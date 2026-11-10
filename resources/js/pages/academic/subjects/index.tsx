@@ -1,5 +1,12 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import {
+    FolderTree,
+    Pencil,
+    Plus,
+    Power,
+    PowerOff,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { Option } from '@/components/academic/student-actions';
 import {
@@ -25,9 +32,21 @@ type SubjectRow = {
     is_active: boolean;
     deletable: boolean;
     grading_aspects: string[] | null;
+    group_id: string | null;
+    group: string | null;
+    sort_order: number | null;
+    grade_type: 'NUMBER' | 'LETTER';
 };
 
 type Aspect = { code: string; name: string };
+
+type GroupRow = {
+    id: string;
+    name: string;
+    sort_order: number;
+    counts_in_totals: boolean;
+    subject_count: number;
+};
 
 type Props = {
     filters: { lembaga: string | null };
@@ -36,12 +55,17 @@ type Props = {
     canManage: boolean;
     /** Aspek penilaian lembaga (AC-8a); kosong bila lembaga hanya punya satu aspek. */
     aspects: Aspect[];
+    /** Kelompok mapel lembaga (AC-8b). */
+    groups: GroupRow[];
 };
 
 type OpenAction =
     | { kind: 'create' }
     | { kind: 'edit'; id: string }
-    | { kind: 'delete'; id: string };
+    | { kind: 'delete'; id: string }
+    | { kind: 'group-create' }
+    | { kind: 'group-edit'; id: string }
+    | { kind: 'group-delete'; id: string };
 
 const BASE_URL = '/akademik/mapel';
 
@@ -53,7 +77,7 @@ const GRADE_OPTIONS: Option[] = Array.from({ length: 12 }, (_, index) => ({
 /**
  * Mata pelajaran per lembaga (PRD-002 §16 AC-3a). Aksi hanya untuk pemegang izin kelola kelas di
  * lembaga itu; semua aturan tetap dicek server. Lembaga beraspek: tiap mapel memilih aspek yang
- * dinilai (§22 AC-8a).
+ * dinilai (§22 AC-8a). Kelompok mapel, urutan & jenis nilai angka/huruf (§22.4 AC-8b).
  */
 export default function Subjects({
     filters,
@@ -61,6 +85,7 @@ export default function Subjects({
     subjects,
     canManage,
     aspects,
+    groups,
 }: Props) {
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
@@ -142,11 +167,21 @@ export default function Subjects({
                                     <SubjectForm
                                         organizationId={filters.lembaga ?? ''}
                                         aspects={aspects}
+                                        groups={groups}
                                         onDone={close}
                                     />
                                 )}
                             </div>
                         )}
+
+                        <GroupSection
+                            groups={groups}
+                            organizationId={filters.lembaga ?? ''}
+                            canManage={canManage}
+                            isOpen={isOpen}
+                            toggle={toggle}
+                            close={close}
+                        />
 
                         {subjects.length === 0 ? (
                             <EmptyState text="Belum ada mata pelajaran di lembaga ini." />
@@ -172,6 +207,20 @@ export default function Subjects({
                                                         <Badge variant="outline">
                                                             Nonaktif
                                                         </Badge>
+                                                    )}
+                                                    {subject.grade_type ===
+                                                        'LETTER' && (
+                                                        <Badge variant="secondary">
+                                                            Nilai huruf
+                                                        </Badge>
+                                                    )}
+                                                    {subject.group && (
+                                                        <span className="w-full text-xs text-muted-foreground">
+                                                            {subject.group}
+                                                            {subject.sort_order !==
+                                                                null &&
+                                                                ` · urutan ${subject.sort_order}`}
+                                                        </span>
                                                     )}
                                                 </div>
                                                 <span className="text-sm">
@@ -265,6 +314,7 @@ export default function Subjects({
                                                     <SubjectForm
                                                         subject={subject}
                                                         aspects={aspects}
+                                                        groups={groups}
                                                         onDone={close}
                                                     />
                                                 )}
@@ -307,11 +357,13 @@ function SubjectForm({
     subject,
     organizationId,
     aspects,
+    groups,
     onDone,
 }: {
     subject?: SubjectRow;
     organizationId?: string;
     aspects: Aspect[];
+    groups: GroupRow[];
     onDone: () => void;
 }) {
     const chosen = subject?.grading_aspects ?? null;
@@ -406,6 +458,59 @@ function SubjectForm({
                             }
                         />
                     </Field>
+                    <Field
+                        id={`s-group-${key}`}
+                        label="Kelompok"
+                        error={errors.group_id}
+                    >
+                        <SelectOptions
+                            id={`s-group-${key}`}
+                            name="group_id"
+                            options={groups.map((group) => ({
+                                value: group.id,
+                                label: group.name,
+                            }))}
+                            placeholder={
+                                groups.length === 0
+                                    ? 'Belum ada kelompok'
+                                    : 'Tanpa kelompok'
+                            }
+                            defaultValue={subject?.group_id ?? ''}
+                        />
+                    </Field>
+                    <Field
+                        id={`s-order-${key}`}
+                        label="Urutan di rapor"
+                        error={errors.sort_order}
+                    >
+                        <Input
+                            id={`s-order-${key}`}
+                            name="sort_order"
+                            type="number"
+                            min={0}
+                            max={999}
+                            step={1}
+                            defaultValue={subject?.sort_order ?? ''}
+                            placeholder="Opsional, mis. 1"
+                        />
+                    </Field>
+                    <Field
+                        id={`s-type-${key}`}
+                        label="Jenis nilai"
+                        error={errors.grade_type}
+                    >
+                        <select
+                            id={`s-type-${key}`}
+                            name="grade_type"
+                            className={selectClass}
+                            defaultValue={subject?.grade_type ?? 'NUMBER'}
+                        >
+                            <option value="NUMBER">Angka 0–100</option>
+                            <option value="LETTER">
+                                Huruf (pilih dari skala predikat)
+                            </option>
+                        </select>
+                    </Field>
                     {aspects.length > 1 && (
                         <fieldset className="grid gap-1.5 sm:col-span-2">
                             <legend className="mb-1.5 text-sm font-medium">
@@ -444,6 +549,228 @@ function SubjectForm({
                             <InputError message={errors.grading_aspects} />
                         </fieldset>
                     )}
+                </>
+            )}
+        </ActionForm>
+    );
+}
+
+/**
+ * Kelompok mapel lembaga (AC-8b): urutan & penomoran di rapor, ikut jumlah & rata-rata atau tidak.
+ */
+function GroupSection({
+    groups,
+    organizationId,
+    canManage,
+    isOpen,
+    toggle,
+    close,
+}: {
+    groups: GroupRow[];
+    organizationId: string;
+    canManage: boolean;
+    isOpen: (kind: OpenAction['kind'], id?: string) => boolean;
+    toggle: (next: OpenAction) => void;
+    close: () => void;
+}) {
+    if (groups.length === 0 && !canManage) {
+        return null;
+    }
+
+    return (
+        <section className="space-y-3 rounded-xl border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                    <h2 className="flex items-center gap-2 text-base font-medium">
+                        <FolderTree className="size-4 text-primary" />
+                        Kelompok mapel
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        Mis. Pelajaran Madrasah, Pelajaran Kepesantrenan. Rapor
+                        menomori kelompok (1, 2, 3) dan mapel di dalamnya (a, b,
+                        c). Tanpa kelompok, mapel urut nama.
+                    </p>
+                </div>
+                {canManage && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={isOpen('group-create') ? 'default' : 'outline'}
+                        onClick={() => toggle({ kind: 'group-create' })}
+                    >
+                        <Plus />
+                        Tambah kelompok
+                    </Button>
+                )}
+            </div>
+
+            {isOpen('group-create') && (
+                <GroupForm organizationId={organizationId} onDone={close} />
+            )}
+
+            {groups.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Belum ada kelompok.
+                </p>
+            ) : (
+                <ul className="divide-y rounded-lg border">
+                    {groups.map((group, index) => (
+                        <li key={group.id} className="space-y-3 px-3 py-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="font-medium">
+                                        {index + 1}. {group.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Urutan {group.sort_order} ·{' '}
+                                        {group.subject_count} mapel ·{' '}
+                                        {group.counts_in_totals
+                                            ? 'ikut jumlah & rata-rata rapor'
+                                            : 'tidak ikut jumlah & rata-rata rapor'}
+                                    </p>
+                                </div>
+                                {canManage && (
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                toggle({
+                                                    kind: 'group-edit',
+                                                    id: group.id,
+                                                })
+                                            }
+                                        >
+                                            <Pencil />
+                                            Ubah
+                                        </Button>
+                                        {group.subject_count === 0 && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={
+                                                    isOpen(
+                                                        'group-delete',
+                                                        group.id,
+                                                    )
+                                                        ? 'destructive'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    toggle({
+                                                        kind: 'group-delete',
+                                                        id: group.id,
+                                                    })
+                                                }
+                                            >
+                                                <Trash2 />
+                                                Hapus
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {isOpen('group-edit', group.id) && (
+                                <GroupForm group={group} onDone={close} />
+                            )}
+                            {isOpen('group-delete', group.id) && (
+                                <ActionForm
+                                    title={`Hapus kelompok ${group.name}`}
+                                    action={`${BASE_URL}/kelompok/${group.id}`}
+                                    method="delete"
+                                    errorBag="deleteGroup"
+                                    submitLabel="Hapus kelompok"
+                                    destructive
+                                    onDone={close}
+                                    note="Kelompok ini belum dipakai mata pelajaran."
+                                >
+                                    {() => null}
+                                </ActionForm>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+/** Tambah kelompok (tanpa `group`) atau ubah. */
+function GroupForm({
+    group,
+    organizationId,
+    onDone,
+}: {
+    group?: GroupRow;
+    organizationId?: string;
+    onDone: () => void;
+}) {
+    const key = group?.id ?? 'new';
+
+    return (
+        <ActionForm
+            title={group ? `Ubah ${group.name}` : 'Tambah kelompok mapel'}
+            action={
+                group
+                    ? `${BASE_URL}/kelompok/${group.id}`
+                    : `${BASE_URL}/kelompok`
+            }
+            method={group ? 'patch' : 'post'}
+            errorBag={group ? 'editGroup' : 'createGroup'}
+            submitLabel={group ? 'Simpan kelompok' : 'Tambah kelompok'}
+            onDone={onDone}
+        >
+            {(errors) => (
+                <>
+                    {!group && (
+                        <input
+                            type="hidden"
+                            name="organization_id"
+                            value={organizationId}
+                        />
+                    )}
+                    <Field
+                        id={`g-name-${key}`}
+                        label="Nama kelompok"
+                        required
+                        error={errors.name}
+                    >
+                        <Input
+                            id={`g-name-${key}`}
+                            name="name"
+                            defaultValue={group?.name ?? ''}
+                            maxLength={60}
+                            placeholder="Mis. Pelajaran Madrasah"
+                            required
+                        />
+                    </Field>
+                    <Field
+                        id={`g-order-${key}`}
+                        label="Urutan"
+                        error={errors.sort_order}
+                    >
+                        <Input
+                            id={`g-order-${key}`}
+                            name="sort_order"
+                            type="number"
+                            min={0}
+                            max={999}
+                            step={1}
+                            defaultValue={group?.sort_order ?? 1}
+                        />
+                    </Field>
+                    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm sm:col-span-2">
+                        <input
+                            type="checkbox"
+                            name="counts_in_totals"
+                            value="1"
+                            defaultChecked={group?.counts_in_totals ?? true}
+                            className="size-4"
+                        />
+                        Nilai mapel di kelompok ini ikut jumlah & rata-rata
+                        rapor
+                    </label>
                 </>
             )}
         </ActionForm>

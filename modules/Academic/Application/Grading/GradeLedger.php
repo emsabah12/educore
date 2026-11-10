@@ -4,6 +4,7 @@ namespace Modules\Academic\Application\Grading;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\Academic\Application\Subject\SubjectOrder;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Grading\GradeSheet;
 use OpenSpout\Common\Entity\Cell;
@@ -22,14 +23,17 @@ use OpenSpout\Writer\XLSX\Writer;
  * - Siswa = yang pernah tercatat di kelas pada semester itu + yang sudah punya nilai di kelas itu.
  * - Nilai akhir bisa 1 desimal (rata-rata aspek, §22 AC-8a). Unduhan .xlsx mendapat lembar "Per
  *   aspek" bila ada mapel yang dinilai lebih dari satu aspek atau aspek antar-mapel berbeda.
+ * - Kelompok mapel (§22.4 AC-8b): kolom mapel urut kelompok → urutan → nama; mapel bernilai huruf
+ *   berisi hurufnya (aspek digabung "A / B"); rata-rata hanya dari mapel bernilai angka di kelompok
+ *   yang ikut jumlah & rata-rata; hitungan di bawah KKM dari semua mapel bernilai angka.
  *
  * Hak akses dicek pemanggil.
  *
  * @phpstan-import-type TermOption from ManageGrades
  *
  * @phpstan-type LedgerAspect array{code: string, name: string}
- * @phpstan-type LedgerSubject array{id: string, name: string, code: string|null, status: string, kkm: int, aspects: list<LedgerAspect>}
- * @phpstan-type LedgerStudent array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, grades: array<string, float|null>, aspect_grades: array<string, array<string, int|null>>, average: float|null, below: int}
+ * @phpstan-type LedgerSubject array{id: string, name: string, code: string|null, status: string, kkm: int, aspects: list<LedgerAspect>, grade_type: string, group: string|null, counts: bool}
+ * @phpstan-type LedgerStudent array{enrollment_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, grades: array<string, float|string|null>, aspect_grades: array<string, array<string, int|string|null>>, average: float|null, below: int}
  * @phpstan-type Ledger array{subjects: list<LedgerSubject>, students: list<LedgerStudent>, subject_averages: array<string, float|null>, class_average: float|null, final_count: int, multi_aspect: bool}
  */
 final class GradeLedger
@@ -60,11 +64,9 @@ final class GradeLedger
         $multiAspect = false;
         $finalCount = 0;
 
-        $rows = DB::table('ac_class_subjects as cs')
-            ->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')
-            ->where('cs.class_id', $class->id)
-            ->orderByRaw('lower(s.name)')
-            ->get(['cs.id', 's.name', 's.code', 's.grading_aspects']);
+        $rows = SubjectOrder::apply(
+            DB::table('ac_class_subjects as cs')->join('ac_subjects as s', 's.id', '=', 'cs.subject_id')->where('cs.class_id', $class->id),
+        )->get(['cs.id', 's.name', 's.code', 's.grading_aspects', 's.grade_type', 'sg.name as group_name', 'sg.counts_in_totals']);
 
         foreach ($rows as $row) {
             $sheet = $sheets->get((string) $row->id);
@@ -88,8 +90,13 @@ final class GradeLedger
                 'status' => $status,
                 'kkm' => $rules->kkm,
                 'aspects' => array_map(fn (array $aspect): array => ['code' => $aspect['code'], 'name' => $aspect['name']], $rules->aspects),
+                'grade_type' => $sheet instanceof GradeSheet ? $sheet->grade_type : ((string) $row->grade_type === 'LETTER' ? 'LETTER' : 'NUMBER'),
+                'group' => $row->group_name === null ? null : (string) $row->group_name,
+                'counts' => $row->group_name === null || (bool) $row->counts_in_totals,
             ];
         }
+
+        $typeBySubject = array_column($subjects, 'grade_type', 'id');
 
         // Nilai akhir (dan nilai aspek bila diminta) per siswa per mapel kelas.
         $finals = [];
@@ -100,11 +107,23 @@ final class GradeLedger
             $grades = DB::table('ac_grades as g')
                 ->join('ac_grade_sheets as gs', 'gs.id', '=', 'g.sheet_id')
                 ->whereIn('g.sheet_id', $sheetIds)
-                ->get(['g.enrollment_id', 'gs.class_subject_id', 'g.final_score', 'g.scores']);
+                ->get(['g.enrollment_id', 'gs.class_subject_id', 'g.final_score', 'g.scores', 'g.letters']);
 
             foreach ($grades as $grade) {
                 $enrollment = (string) $grade->enrollment_id;
                 $subjectId = (string) $grade->class_subject_id;
+
+                if (($typeBySubject[$subjectId] ?? 'NUMBER') === 'LETTER' && isset($rulesBySubject[$subjectId])) {
+                    $letters = ManageGrades::lettersFor($rulesBySubject[$subjectId], ManageGrades::decodeLetters($grade->letters));
+                    $finals[$enrollment][$subjectId] = in_array(null, $letters, true) ? null : implode(' / ', $letters);
+
+                    if ($withAspects) {
+                        $aspectGrades[$enrollment][$subjectId] = $letters;
+                    }
+
+                    continue;
+                }
+
                 $finals[$enrollment][$subjectId] = ManageGrades::storedFinal($grade->final_score);
 
                 if ($withAspects && isset($rulesBySubject[$subjectId])) {
@@ -133,11 +152,14 @@ final class GradeLedger
                 $score = $finals[$student['enrollment_id']][$subject['id']] ?? null;
                 $grades[$subject['id']] = $score;
 
-                if ($score !== null) {
-                    $mine[] = $score;
-                    $classScores[] = $score;
+                if (is_float($score)) {
                     $subjectTotals[$subject['id']][] = $score;
                     $below += $score < $subject['kkm'] ? 1 : 0;
+
+                    if ($subject['counts']) {
+                        $mine[] = $score;
+                        $classScores[] = $score;
+                    }
                 }
             }
 
@@ -188,7 +210,7 @@ final class GradeLedger
                 GradeSheet::DRAFT => ' (draf)',
                 default => ' (belum ada)',
             };
-            $kkmRow[] = $subject['kkm'];
+            $kkmRow[] = $subject['grade_type'] === 'LETTER' ? '' : $subject['kkm'];
         }
 
         $header = array_merge($header, ['Rata-rata', 'Di bawah KKM']);

@@ -122,7 +122,8 @@ test('aturan beraspek: tersimpan per lembaga dengan ringkasan per aspek; bobot p
     $rules = app(GradingSetting::class)->rulesFor($this->tenant->id, $this->ma);
 
     expect($rules->toArray())->toBe([
-        'kkm' => 60, 'grade_a' => 90, 'grade_b' => 80,
+        'kkm' => 60,
+        'predicates' => [['letter' => 'A', 'label' => null, 'min' => 90], ['letter' => 'B', 'label' => null, 'min' => 80], ['letter' => 'C', 'label' => null, 'min' => 60], ['letter' => 'D', 'label' => null, 'min' => 0]],
         'aspects' => [
             ['code' => 'TULIS', 'name' => 'Pengetahuan', 'components' => [
                 ['code' => 'UTS', 'name' => 'Ujian tengah', 'weight' => 50],
@@ -230,7 +231,7 @@ test('lembar nilai beraspek: nilai aspek & rata-rata 1 desimal; mapel praktik sa
         ->post(route('academic.grades.finalize', ['classSubject' => $this->rows['Mutholaah']]), ['semester' => $this->term->id])
         ->assertSessionHasNoErrors();
 
-    $three = new GradingRules(75, 90, 80, [
+    $three = new GradingRules(75, GradingRules::legacyScale(75, 90, 80), [
         ['code' => 'A', 'name' => 'A', 'components' => [['code' => 'X', 'name' => 'X', 'weight' => 100]]],
         ['code' => 'B', 'name' => 'B', 'components' => [['code' => 'Y', 'name' => 'Y', 'weight' => 100]]],
         ['code' => 'C', 'name' => 'C', 'components' => [['code' => 'Z', 'name' => 'Z', 'weight' => 100]]],
@@ -263,13 +264,14 @@ test('rapor, leger & unduhan: kolom per aspek, aspek yang tidak dinilai kosong, 
             ->where('report.multi_aspect', true)
             ->where('report.aspects', [['code' => 'PRAKTIK', 'name' => 'Praktik'], ['code' => 'TULIS', 'name' => 'Pengetahuan']])
             ->where('report.cards.0.subjects.0.name', 'Mutholaah')
-            ->where('report.cards.0.subjects.0.aspects', ['PRAKTIK' => ['score' => 75, 'predicate' => 'C']])
+            ->where('report.cards.0.subjects.0.aspects', ['PRAKTIK' => ['score' => 75, 'predicate' => 'C', 'label' => null]])
             ->where('report.cards.0.subjects.0.final', 75)
-            ->where('report.cards.0.subjects.1.aspects', ['TULIS' => ['score' => 98, 'predicate' => 'A'], 'PRAKTIK' => ['score' => 75, 'predicate' => 'C']])
+            ->where('report.cards.0.subjects.1.aspects', ['TULIS' => ['score' => 98, 'predicate' => 'A', 'label' => null], 'PRAKTIK' => ['score' => 75, 'predicate' => 'C', 'label' => null]])
             ->where('report.cards.0.subjects.1.final', 86.5)
             ->where('report.cards.0.subjects.1.predicate', 'B')
             ->where('report.cards.0.total', 161.5)
-            ->where('report.cards.0.average', 80.8)
+            // Rata-rata rapor beraspek = rata-rata dari rata-rata aspek: (75 + 98) ÷ 2.
+            ->where('report.cards.0.average', 86.5)
             ->where('report.cards.0.aspect_totals', ['PRAKTIK' => ['total' => 150, 'average' => 75], 'TULIS' => ['total' => 98, 'average' => 98]]),
         );
 

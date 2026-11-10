@@ -212,16 +212,26 @@ final class CalendarController
     {
         $this->authorize();
 
-        // Form baru mengirim `aspects` (AC-8a); `components` (satu aspek, format AC-5a) tetap diterima.
+        // Form baru mengirim `aspects` (AC-8a) & `predicates` (AC-8b); `components` dan batas A/B
+        // (format AC-5a) tetap diterima.
         $byAspects = $request->has('aspects');
+        $byScale = $request->has('predicates');
 
         $validated = $request->validate([
             'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
             'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
             'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
             'kkm' => ['required', 'integer', 'between:0,100'],
-            'grade_a' => ['required', 'integer', 'between:0,100'],
-            'grade_b' => ['required', 'integer', 'between:0,100'],
+            ...($byScale ? [
+                'predicates' => ['required', 'array', 'min:'.GradingRules::MIN_LEVELS, 'max:'.GradingRules::MAX_LEVELS],
+                'predicates.*' => ['array'],
+                'predicates.*.letter' => ['required', 'string', 'max:2'],
+                'predicates.*.label' => ['nullable', 'string', 'max:'.GradingRules::LABEL_MAX_LENGTH],
+                'predicates.*.min' => ['nullable', 'integer', 'between:0,100'],
+            ] : [
+                'grade_a' => ['required', 'integer', 'between:0,100'],
+                'grade_b' => ['required', 'integer', 'between:0,100'],
+            ]),
             ...($byAspects ? [
                 'aspects' => ['required', 'array', 'min:1', 'max:'.GradingRules::MAX_ASPECTS],
                 'aspects.*' => ['array'],
@@ -249,12 +259,17 @@ final class CalendarController
             'aspects.*.components.max' => 'Paling banyak '.GradingRules::MAX_COMPONENTS.' komponen nilai per aspek.',
             'components.required' => 'Isi minimal satu komponen nilai.',
             'components.max' => 'Paling banyak '.GradingRules::MAX_COMPONENTS.' komponen nilai.',
+            'predicates.min' => 'Isi minimal '.GradingRules::MIN_LEVELS.' tingkat predikat.',
+            'predicates.max' => 'Paling banyak '.GradingRules::MAX_LEVELS.' tingkat predikat.',
         ], [
             'jenjang' => 'jenjang',
             'organization_id' => 'lembaga',
             'kkm' => 'KKM',
             'grade_a' => 'batas predikat A',
             'grade_b' => 'batas predikat B',
+            'predicates.*.letter' => 'huruf predikat',
+            'predicates.*.label' => 'sebutan predikat',
+            'predicates.*.min' => 'nilai minimal predikat',
             'aspects.*.code' => 'kode aspek',
             'aspects.*.name' => 'nama aspek',
             'aspects.*.components.*.code' => 'kode komponen',
@@ -286,7 +301,33 @@ final class CalendarController
             $aspects[] = ['code' => mb_strtoupper(trim((string) $aspect['code'])), 'name' => self::cleanText($aspect['name']), 'components' => $components];
         }
 
-        $value = ['kkm' => (int) $validated['kkm'], 'grade_a' => (int) $validated['grade_a'], 'grade_b' => (int) $validated['grade_b'], 'aspects' => $aspects];
+        $value = ['kkm' => (int) $validated['kkm'], 'aspects' => $aspects];
+
+        if ($byScale) {
+            $levels = array_values((array) $validated['predicates']);
+            $value['predicates'] = [];
+
+            foreach ($levels as $index => $level) {
+                $level = (array) $level;
+                $label = self::cleanText($level['label'] ?? '');
+                $value['predicates'][] = [
+                    'letter' => mb_strtoupper(trim((string) $level['letter'])),
+                    'label' => $label === '' ? null : $label,
+                    // Tingkat terakhir selalu mulai dari 0.
+                    'min' => $index === count($levels) - 1 ? 0 : (int) ($level['min'] ?? -1),
+                ];
+            }
+
+            $scaleProblem = GradingRules::scaleProblem($value['predicates']);
+
+            if ($scaleProblem !== null) {
+                throw ValidationException::withMessages(['predicates' => $scaleProblem]);
+            }
+        } else {
+            $value['grade_a'] = (int) $validated['grade_a'];
+            $value['grade_b'] = (int) $validated['grade_b'];
+        }
+
         $problem = GradingRules::problem($value);
 
         if ($problem !== null) {

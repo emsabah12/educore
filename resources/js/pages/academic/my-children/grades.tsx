@@ -11,9 +11,19 @@ type Line = {
     kkm: number;
     final: number | null;
     predicate: string | null;
+    label: string | null;
     description: string | null;
-    aspects: Record<string, { score: number | null; predicate: string | null }>;
+    aspects: Record<
+        string,
+        { score: number | null; predicate: string | null; label: string | null }
+    >;
+    grade_type: 'NUMBER' | 'LETTER';
 };
+
+/** "B Baik" atau "B" bila tanpa sebutan. */
+function withLabel(predicate: string | null, label: string | null): string {
+    return [predicate, label].filter(Boolean).join(' ');
+}
 
 type Props = {
     student: { id: string; name: string };
@@ -33,7 +43,8 @@ type Props = {
 
 /**
  * Nilai & rapor anak (PRD-002 §21.3, AC-7b): hanya nilai yang sudah FINAL; rapor bisa dicetak bila
- * semua mapel sudah final. Hanya baca. Lembaga beraspek: nilai tiap aspek ikut tampil (§22 AC-8a).
+ * semua mapel sudah final. Hanya baca. Lembaga beraspek: nilai tiap aspek ikut tampil (§22 AC-8a);
+ * mapel bernilai huruf tampil hurufnya + sebutan predikat (AC-8b).
  */
 export default function ChildGrades({
     student,
@@ -123,7 +134,16 @@ export default function ChildGrades({
                                                         {line.name}
                                                     </span>
                                                     <span className="text-sm tabular-nums">
-                                                        {line.final === null ? (
+                                                        {line.grade_type ===
+                                                        'LETTER' ? (
+                                                            <span className="text-lg font-semibold">
+                                                                {withLabel(
+                                                                    line.predicate,
+                                                                    line.label,
+                                                                ) || '–'}
+                                                            </span>
+                                                        ) : line.final ===
+                                                          null ? (
                                                             <span className="text-muted-foreground">
                                                                 Belum ada nilai
                                                             </span>
@@ -146,29 +166,41 @@ export default function ChildGrades({
                                                                             : 0,
                                                                     )}
                                                                 </span>{' '}
-                                                                {line.predicate}
+                                                                {withLabel(
+                                                                    line.predicate,
+                                                                    line.label,
+                                                                )}
                                                             </>
                                                         )}
                                                     </span>
                                                 </div>
-                                                {aspects.length > 0 && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {aspects
-                                                            .map((aspect) => {
-                                                                const grade =
-                                                                    line
-                                                                        .aspects[
-                                                                        aspect
-                                                                            .code
-                                                                    ];
+                                                {aspects.length > 0 &&
+                                                    line.grade_type ===
+                                                        'NUMBER' && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {aspects
+                                                                .map(
+                                                                    (
+                                                                        aspect,
+                                                                    ) => {
+                                                                        const grade =
+                                                                            line
+                                                                                .aspects[
+                                                                                aspect
+                                                                                    .code
+                                                                            ];
 
-                                                                return `${aspect.name}: ${grade?.score === null || grade === undefined ? '–' : `${grade.score} ${grade.predicate ?? ''}`}`;
-                                                            })
-                                                            .join(' · ')}
-                                                    </p>
-                                                )}
+                                                                        return `${aspect.name}: ${grade?.score === null || grade === undefined ? '–' : `${grade.score} ${withLabel(grade.predicate, grade.label)}`}`;
+                                                                    },
+                                                                )
+                                                                .join(' · ')}
+                                                        </p>
+                                                    )}
                                                 <p className="text-xs text-muted-foreground">
-                                                    KKM {line.kkm}
+                                                    {line.grade_type ===
+                                                    'LETTER'
+                                                        ? 'Nilai huruf'
+                                                        : `KKM ${line.kkm}`}
                                                     {line.description &&
                                                         ` · ${line.description}`}
                                                 </p>

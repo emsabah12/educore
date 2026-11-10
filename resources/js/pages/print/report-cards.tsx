@@ -8,9 +8,21 @@ type Line = {
     kkm: number;
     final: number | null;
     predicate: string | null;
+    label: string | null;
     description: string | null;
-    aspects: Record<string, { score: number | null; predicate: string | null }>;
+    aspects: Record<
+        string,
+        { score: number | null; predicate: string | null; label: string | null }
+    >;
+    grade_type: 'NUMBER' | 'LETTER';
+    group: string | null;
+    counts: boolean;
 };
+
+/** Baris tabel nilai: judul kelompok bernomor, atau mapel bernomor/bersub-huruf. */
+type TableRow =
+    | { kind: 'group'; number: number; name: string }
+    | { kind: 'subject'; mark: string; line: Line };
 
 type Aspect = { code: string; name: string };
 
@@ -49,12 +61,60 @@ type Props = {
         homeroom: string | null;
         aspects: Aspect[];
         multi_aspect: boolean;
+        grouped: boolean;
+        predicates: { letter: string; label: string | null; min: number }[];
+        labels: boolean;
     };
     today: string;
     backUrl: string;
 };
 
 const longDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
+
+/**
+ * Susun baris tabel (AC-8b): lembaga berkelompok → "1 PELAJARAN MADRASAH" lalu a, b, c; mapel tanpa
+ * kelompok di bawah "Lainnya". Tanpa kelompok → nomor urut 1, 2, 3.
+ */
+function tableRows(lines: Line[], grouped: boolean): TableRow[] {
+    if (!grouped) {
+        return lines.map((line, index) => ({
+            kind: 'subject',
+            mark: String(index + 1),
+            line,
+        }));
+    }
+
+    const rows: TableRow[] = [];
+    let current: string | null | undefined;
+    let groupNumber = 0;
+    let letter = 0;
+
+    for (const line of lines) {
+        if (line.group !== current) {
+            current = line.group;
+            groupNumber++;
+            letter = 0;
+            rows.push({
+                kind: 'group',
+                number: groupNumber,
+                name: line.group ?? 'Lainnya',
+            });
+        }
+
+        rows.push({
+            kind: 'subject',
+            mark: String.fromCharCode(97 + (letter++ % 26)),
+            line,
+        });
+    }
+
+    return rows;
+}
+
+/** Predikat untuk rapor: sebutan bila ada (mis. "Sangat Baik"), selain itu hurufnya. */
+function predicateText(predicate: string | null, label: string | null): string {
+    return label ?? predicate ?? '–';
+}
 
 function formatDate(value: string): string {
     const [year, month, day] = value.split('-').map(Number);
@@ -66,6 +126,7 @@ function formatDate(value: string): string {
  * Halaman cetak rapor (PRD-002 §19 AC-5d): satu halaman A4 per siswa. Nama kepala lembaga dan
  * tempat/tanggal diketik di sini (tidak disimpan); cetak lewat dialog cetak browser. Lembaga
  * beraspek (§22 AC-8a): kolom angka & predikat per aspek + rata-rata; deskripsi di bawah tabel.
+ * AC-8b: kelompok mapel bernomor, sebutan predikat + keterangan predikat, nilai huruf tanpa angka.
  */
 export default function PrintReportCards({
     class: item,
@@ -190,7 +251,11 @@ export default function PrintReportCards({
                         </table>
 
                         {report.multi_aspect ? (
-                            <AspectTable card={card} aspects={report.aspects} />
+                            <AspectTable
+                                card={card}
+                                aspects={report.aspects}
+                                grouped={report.grouped}
+                            />
                         ) : (
                             <table className="w-full border-collapse text-left">
                                 <thead>
@@ -220,30 +285,51 @@ export default function PrintReportCards({
                                             </Td>
                                         </tr>
                                     ) : (
-                                        card.subjects.map((line, index) => (
-                                            <tr key={line.name}>
-                                                <Td className="text-center">
-                                                    {index + 1}
-                                                </Td>
-                                                <Td>{line.name}</Td>
-                                                <Td className="text-center">
-                                                    {line.kkm}
-                                                </Td>
-                                                <Td className="text-center font-semibold">
-                                                    {line.final === null
-                                                        ? '—'
-                                                        : formatScore(
-                                                              line.final,
-                                                          )}
-                                                </Td>
-                                                <Td className="text-center">
-                                                    {line.predicate ?? '—'}
-                                                </Td>
-                                                <Td className="text-[10pt]">
-                                                    {line.description ?? ''}
-                                                </Td>
-                                            </tr>
-                                        ))
+                                        tableRows(
+                                            card.subjects,
+                                            report.grouped,
+                                        ).map((row) =>
+                                            row.kind === 'group' ? (
+                                                <GroupRow
+                                                    key={`g-${row.number}`}
+                                                    row={row}
+                                                    span={5}
+                                                />
+                                            ) : (
+                                                <tr key={row.line.name}>
+                                                    <Td className="text-center">
+                                                        {row.mark}
+                                                    </Td>
+                                                    <Td>{row.line.name}</Td>
+                                                    <Td className="text-center">
+                                                        {row.line.grade_type ===
+                                                        'LETTER'
+                                                            ? '–'
+                                                            : row.line.kkm}
+                                                    </Td>
+                                                    <Td className="text-center font-semibold">
+                                                        {row.line.final === null
+                                                            ? (row.line
+                                                                  .predicate ??
+                                                              '—')
+                                                            : formatScore(
+                                                                  row.line
+                                                                      .final,
+                                                              )}
+                                                    </Td>
+                                                    <Td className="text-center">
+                                                        {predicateText(
+                                                            row.line.predicate,
+                                                            row.line.label,
+                                                        )}
+                                                    </Td>
+                                                    <Td className="text-[10pt]">
+                                                        {row.line.description ??
+                                                            ''}
+                                                    </Td>
+                                                </tr>
+                                            ),
+                                        )
                                     )}
                                 </tbody>
                                 {card.total !== null && (
@@ -265,6 +351,21 @@ export default function PrintReportCards({
                                     </tfoot>
                                 )}
                             </table>
+                        )}
+
+                        {report.labels && (
+                            <p className="text-[10pt]">
+                                <span className="font-semibold">
+                                    Keterangan predikat:
+                                </span>{' '}
+                                {report.predicates
+                                    .map((level) =>
+                                        level.label
+                                            ? `${level.letter} = ${level.label}`
+                                            : level.letter,
+                                    )
+                                    .join(' · ')}
+                            </p>
                         )}
 
                         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4">
@@ -323,7 +424,15 @@ export default function PrintReportCards({
 }
 
 /** Tabel nilai per aspek: Angka & Predikat tiap aspek, rata-rata; aspek tak dinilai = "–". */
-function AspectTable({ card, aspects }: { card: Card; aspects: Aspect[] }) {
+function AspectTable({
+    card,
+    aspects,
+    grouped,
+}: {
+    card: Card;
+    aspects: Aspect[];
+    grouped: boolean;
+}) {
     const described = card.subjects.filter((line) => line.description);
 
     return (
@@ -368,29 +477,61 @@ function AspectTable({ card, aspects }: { card: Card; aspects: Aspect[] }) {
                             </Td>
                         </tr>
                     ) : (
-                        card.subjects.map((line, index) => (
-                            <tr key={line.name}>
-                                <Td className="text-center">{index + 1}</Td>
-                                <Td>{line.name}</Td>
-                                <Td className="text-center">{line.kkm}</Td>
-                                {aspects.map((aspect) => {
-                                    const grade = line.aspects[aspect.code];
+                        tableRows(card.subjects, grouped).map((row) => {
+                            if (row.kind === 'group') {
+                                return (
+                                    <GroupRow
+                                        key={`g-${row.number}`}
+                                        row={row}
+                                        span={2 + aspects.length * 2 + 1}
+                                    />
+                                );
+                            }
 
-                                    return (
-                                        <AspectCells
-                                            key={aspect.code}
-                                            score={grade?.score ?? null}
-                                            predicate={grade?.predicate ?? null}
-                                        />
-                                    );
-                                })}
-                                <Td className="text-center font-semibold">
-                                    {line.final === null
-                                        ? '–'
-                                        : formatScore(line.final, 1)}
-                                </Td>
-                            </tr>
-                        ))
+                            const { line } = row;
+                            const letter = line.grade_type === 'LETTER';
+
+                            return (
+                                <tr key={line.name}>
+                                    <Td className="text-center">{row.mark}</Td>
+                                    <Td>{line.name}</Td>
+                                    <Td className="text-center">
+                                        {letter ? '–' : line.kkm}
+                                    </Td>
+                                    {aspects.map((aspect) => {
+                                        const grade = line.aspects[aspect.code];
+
+                                        return (
+                                            <AspectCells
+                                                key={aspect.code}
+                                                value={
+                                                    grade === undefined
+                                                        ? null
+                                                        : letter
+                                                          ? grade.predicate
+                                                          : grade.score
+                                                }
+                                                predicate={
+                                                    grade === undefined ||
+                                                    (grade.score === null &&
+                                                        !letter)
+                                                        ? null
+                                                        : predicateText(
+                                                              grade.predicate,
+                                                              grade.label,
+                                                          )
+                                                }
+                                            />
+                                        );
+                                    })}
+                                    <Td className="text-center font-semibold">
+                                        {line.final === null || !line.counts
+                                            ? '–'
+                                            : formatScore(line.final, 1)}
+                                    </Td>
+                                </tr>
+                            );
+                        })
                     )}
                 </tbody>
                 {card.total !== null && (
@@ -459,17 +600,35 @@ function AspectHead() {
 }
 
 function AspectCells({
-    score,
+    value,
     predicate,
 }: {
-    score: number | null;
+    value: number | string | null;
     predicate: string | null;
 }) {
     return (
         <>
-            <Td className="text-center">{score ?? '–'}</Td>
+            <Td className="text-center">{value ?? '–'}</Td>
             <Td className="text-center">{predicate ?? '–'}</Td>
         </>
+    );
+}
+
+/** Judul kelompok mapel: nomor + nama huruf kapital. */
+function GroupRow({
+    row,
+    span,
+}: {
+    row: { number: number; name: string };
+    span: number;
+}) {
+    return (
+        <tr className="bg-gray-50">
+            <Td className="text-center font-semibold">{row.number}</Td>
+            <Td className="font-semibold uppercase" colSpan={span}>
+                {row.name}
+            </Td>
+        </tr>
     );
 }
 

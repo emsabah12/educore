@@ -419,7 +419,7 @@
 
 **AC-5 Penilaian & rapor SELESAI (2026-10-22).**
 
-**AC-8a — Aspek penilaian (Tulis & Praktik): DIBANGUN (2026-11-10, menunggu uji owner)** — PRD-002 §22 (OD-AC-21 s.d. OD-AC-24)
+**AC-8a — Aspek penilaian (Tulis & Praktik): SELESAI (2026-11-10, commit `0f87c40`)** — PRD-002 §22 (OD-AC-21 s.d. OD-AC-24)
 
 - `GradingRules` memakai **aspek** (1–3, masing-masing 1–6 komponen berbobot = 100; kode komponen unik di seluruh aturan); format lama `components` dibaca sebagai satu aspek `NILAI`. `forAspects`, `hasAspects`, `components()`.
 - Migrasi `2026_11_10_200014`: `ac_subjects.grading_aspects` (jsonb, null = semua aspek) dan `ac_grades.final_score` → `numeric(4,1)`.
@@ -428,7 +428,16 @@
 - Mata pelajaran: pilihan **Aspek yang dinilai** (hanya bila lembaga beraspek) + keterangan "Dinilai: …" di daftar.
 - Lembar nilai: komponen dikelompokkan per aspek dengan nilai aspek langsung terhitung; nilai akhir 1 desimal. Leger: nilai akhir desimal, unduhan .xlsx lembar kedua **Per aspek**. Rapor cetak: kolom Angka/Predikat per aspek + Rata-rata, baris Jumlah & Rata-rata per aspek, deskripsi di bawah tabel. Portal orang tua (Nilai): nilai per aspek.
 - Helper bersama di layar: `resources/js/components/academic/grading.ts` (hitungan sama dengan server).
-- Bukti: 4 test baru (`GradingAspectsTest`); test lama disesuaikan (format aturan `aspects`, nilai akhir desimal).
+- Bukti: 761 test lulus (4 test baru, `GradingAspectsTest`; test lama disesuaikan ke format aturan `aspects` & nilai akhir desimal); uji manual owner lancar.
+
+**AC-8b — Kelompok mapel, skala predikat & nilai huruf: DIBANGUN (2026-11-10, menunggu uji owner)** — PRD-002 §22.4 (OD-AC-25, OD-AC-26)
+
+- Migrasi `2026_11_10_200015`: tabel `ac_subject_groups` (nama unik per lembaga, urutan, ikut jumlah & rata-rata); `ac_subjects.group_id|sort_order|grade_type` (FK gabungan ke kelompok di lembaga yang sama); `ac_grade_sheets.grade_type`; `ac_grades.letters` (jsonb).
+- `GradingRules`: skala `predicates` 2–6 tingkat (huruf, sebutan, min menurun, terakhir 0); format lama batas A/B dibaca sebagai A/B/C/D tanpa sebutan (`legacyScale`). `letters()`, `labelOf()`, `hasLabels()`, `scaleSummary()`, `scaleProblem()`.
+- Kelompok: `Domain/Subject/SubjectGroup`, `Application/Subject/ManageSubjectGroups`, `SubjectOrder` (urut kelompok → urutan → nama, dipakai daftar mapel, leger, rapor); bagian **Kelompok mapel** di halaman Mata pelajaran; form mapel: Kelompok, Urutan di rapor, Jenis nilai.
+- Nilai huruf: `ManageGrades` (salinan jenis nilai di lembar, `validatedLetters`, `isComplete`, Terapkan aturan terbaru mengosongkan nilai bila jenis berganti); lembar nilai memilih huruf per aspek.
+- Rapor: judul kelompok bernomor + mapel a/b/c, sebutan predikat, kotak Keterangan predikat, mapel huruf tanpa angka; jumlah & rata-rata hanya mapel angka di kelompok yang ikut; rata-rata rapor beraspek = rata-rata dari rata-rata aspek. Leger & portal orang tua ikut (huruf, urutan kelompok, rata-rata hanya kelompok yang ikut).
+- Bukti: 765 test lulus (4 test baru, `SubjectGroupsLetterGradesTest`; test lama disesuaikan ke format `predicates`/`label`); Pint, Larastan, tsc, oxlint, build lulus.
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
@@ -899,7 +908,7 @@
 - Tanpa perubahan backend; `tsc`, format (oxfmt) & lint (oxlint) bersih; 706 test Unit/Feature lulus.
 - **UI-2-fix1**: 502 Bad Gateway saat refresh halaman detail → middleware `AddLinkHeadersForPreloadedAssets` dilepas dari `bootstrap/app.php` (lihat Catatan teknis).
 
-**UX-2 — Tema visual gaya Materio: DIBANGUN (2026-11-10, menunggu uji owner)** — permintaan owner 2026-11-10 (contoh tangkapan layar dasbor Materio; pilihan owner: ganti total UX-1, tema visual saja, aksen ungu #8C57FF)
+**UX-2 — Tema visual gaya Materio: SELESAI (2026-11-10, commit `005016a`)** — permintaan owner 2026-11-10 (contoh tangkapan layar dasbor Materio; pilihan owner: ganti total UX-1, tema visual saja, aksen ungu #8C57FF)
 
 - **Menggantikan UX-1** (tema DESIGN-airbnb.md) yang belum pernah di-push; seluruh berkas UX-1 ikut di paket UX-2 sehingga aman dipasang di atas UX-1 maupun di atas PB-3.
 - Token tema (`resources/css/app.css`): latar abu-ungu #F4F5FA, kartu putih melayang (`shadow-card`), teks #3A3541, aksen ungu #8C57FF, sudut 8px (kartu 10px); mode gelap ungu tua (#28243D / kartu #312D4B). Huruf Inter tetap.
@@ -959,11 +968,12 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 - **CSRF di Laravel 13 = `PreventRequestForgery`** (grup web). Untuk mengecualikan route (mis. webhook) pakai `withoutMiddleware([PreventRequestForgery::class])`; `ValidateCsrfToken` hanya turunannya sehingga mengecualikannya tidak berpengaruh → webhook menjawab 419 (MG-2-fix2). Test otomatis **selalu** melewati CSRF, jadi pengecualian ini diuji dengan memeriksa daftar middleware route.
 - Integrasi pihak ketiga (Midtrans) di test: ganti `MidtransGateway` dengan `Tests\Support\FakeMidtransGateway` lewat `app()->instance(...)` dan pasang `Http::preventStrayRequests()` agar tidak ada panggilan ke internet.
 - `assertSessionHasNoErrors()` **tetap lulus untuk respons 500** (tanpa error validasi). Untuk aksi POST yang harus berhasil, pakai `->assertRedirect()->assertSessionHasNoErrors()` (KS-5: pelanggaran CHECK constraint sempat lolos test).
+- **Server staging owner memakai Docker** (2026-11-10): `compose.staging.yml` dengan container `educore-app` (PHP-FPM, image dari `docker/php`), `educore-web` (nginx), `educore-db` (PostgreSQL); folder proyek di-*bind mount* ke `/var/www/html`, diakses lewat Cloudflare Tunnel + Nginx Proxy Manager. Semua `php artisan` wajib lewat `docker exec educore-app …` (dari host, host DB `db` tidak dikenal dan cache berisi path host). `public/build` tidak ikut Git: setelah `git pull` wajib `npm run build` di host (tampilan UX-2 sempat tidak muncul karena build terakhir 4 Nov). Urutan lengkap di README §7.7.
 - Jangan panggil `set_time_limit()` langsung; pakai `Modules\Core\Support\ExecutionTime::atLeast()` (hanya menaikkan batas). `set_time_limit(300)` di controller impor sempat memasang batas 300 detik ke seluruh proses `composer test` sehingga test sesudahnya gagal "Maximum execution time" (AC-4a, 2026-10-21).
 
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Tampilan & penilaian**: owner menguji UX-2 (tema Materio) dan AC-8a (aspek penilaian). Sesudahnya AC-8b (kelompok mapel, skala predikat 5 tingkat, nilai huruf), AC-8c (kop & penanda tangan rapor, tanggal Hijriah), AC-8d (ekstrakurikuler, kepribadian, peringkat) — PRD-002 §22.
+2. **Penilaian (PRD-002 §22)**: owner menguji AC-8b; sesudahnya AC-8c (kop & penanda tangan rapor, tanggal Hijriah), AC-8d (ekstrakurikuler, kepribadian, peringkat) — dirinci dulu sebelum dibangun.
 3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

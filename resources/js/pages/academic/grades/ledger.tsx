@@ -14,6 +14,9 @@ type Subject = {
     code: string | null;
     status: 'BELUM' | 'DRAFT' | 'FINAL';
     kkm: number;
+    grade_type: 'NUMBER' | 'LETTER';
+    group: string | null;
+    counts: boolean;
 };
 
 type Student = {
@@ -23,7 +26,8 @@ type Student = {
     nisn: string | null;
     student_number: string | null;
     left: boolean;
-    grades: Record<string, number | null>;
+    /** Angka, atau huruf untuk mapel bernilai huruf (AC-8b). */
+    grades: Record<string, number | string | null>;
     average: number | null;
     below: number;
 };
@@ -198,9 +202,24 @@ export default function GradeLedger({
     );
 }
 
-function Score({ value, subject }: { value: number | null; subject: Subject }) {
+function Score({
+    value,
+    subject,
+}: {
+    value: number | string | null;
+    subject: Subject;
+}) {
     if (value === null) {
         return <span className="text-muted-foreground">—</span>;
+    }
+
+    if (typeof value === 'string') {
+        return (
+            <span>
+                {value}
+                {subject.status !== 'FINAL' && '*'}
+            </span>
+        );
     }
 
     return (
@@ -211,7 +230,7 @@ function Score({ value, subject }: { value: number | null; subject: Subject }) {
                     : undefined
             }
         >
-            {value}
+            {value.toLocaleString('id-ID')}
             {subject.status !== 'FINAL' && '*'}
         </span>
     );
@@ -252,7 +271,15 @@ function DesktopTable({
                                     shortName(subject)
                                 )}
                                 <span className="block font-normal">
-                                    KKM {subject.kkm}
+                                    {subject.grade_type === 'LETTER'
+                                        ? 'Huruf'
+                                        : `KKM ${subject.kkm}`}
+                                    {!subject.counts &&
+                                        subject.grade_type === 'NUMBER' && (
+                                            <span className="block text-[0.7rem] text-muted-foreground">
+                                                tak ikut rata-rata
+                                            </span>
+                                        )}
                                 </span>
                             </th>
                         ))}

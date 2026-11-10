@@ -1,7 +1,8 @@
 /*
- * Hitungan nilai di layar (PRD-002 §19 AC-5b, aspek §22 AC-8a), sama persis dengan server
- * (ManageGrades): nilai aspek = Σ nilai × bobot ÷ 100 dibulatkan bulat; nilai akhir = rata-rata
- * aspek, 1 desimal. Server tetap menghitung ulang dan memeriksa semua aturan.
+ * Hitungan nilai di layar (PRD-002 §19 AC-5b, aspek §22 AC-8a, skala predikat AC-8b), sama persis
+ * dengan server (ManageGrades/GradingRules): nilai aspek = Σ nilai × bobot ÷ 100 dibulatkan bulat;
+ * nilai akhir = rata-rata aspek, 1 desimal; predikat = tingkat tertinggi yang nilai minimalnya
+ * terpenuhi. Server tetap menghitung ulang dan memeriksa semua aturan.
  */
 
 export type GradingComponent = { code: string; name: string; weight: number };
@@ -12,12 +13,21 @@ export type GradingAspect = {
     components: GradingComponent[];
 };
 
+/** Satu tingkat skala predikat, urut dari tertinggi; tingkat terakhir min 0. */
+export type PredicateLevel = {
+    letter: string;
+    label: string | null;
+    min: number;
+};
+
 export type GradingRules = {
     kkm: number;
-    grade_a: number;
-    grade_b: number;
+    predicates: PredicateLevel[];
     aspects: GradingAspect[];
 };
+
+/** Jenis nilai mapel (AC-8b). */
+export type GradeType = 'NUMBER' | 'LETTER';
 
 /** Kode aspek tunggal aturan lama/bawaan (namanya tidak ditampilkan). */
 export const DEFAULT_ASPECT_CODE = 'NILAI';
@@ -87,15 +97,38 @@ export function finalScore(
 }
 
 export function predicate(rules: GradingRules, score: number): string {
-    if (score >= rules.grade_a) {
-        return 'A';
-    }
+    const level =
+        rules.predicates.find((item) => score >= item.min) ??
+        rules.predicates[rules.predicates.length - 1];
 
-    if (score >= rules.grade_b) {
-        return 'B';
-    }
+    return level?.letter ?? '';
+}
 
-    return score >= rules.kkm ? 'C' : 'D';
+/** Sebutan huruf skala (mis. "Sangat Baik"), atau null. */
+export function labelOf(rules: GradingRules, letter: string): string | null {
+    return (
+        rules.predicates.find((item) => item.letter === letter)?.label ?? null
+    );
+}
+
+/** "A Sangat Baik" atau "A" bila tanpa sebutan. */
+export function describePredicate(rules: GradingRules, letter: string): string {
+    const label = labelOf(rules, letter);
+
+    return label ? `${letter} ${label}` : letter;
+}
+
+/** Ringkasan skala: "A ≥ 90, B ≥ 80, C ≥ 75, D di bawahnya". */
+export function scaleText(rules: GradingRules): string {
+    return rules.predicates
+        .map((level, index) => {
+            const name = describePredicate(rules, level.letter);
+
+            return index === rules.predicates.length - 1
+                ? `${name} di bawahnya`
+                : `${name} ≥ ${level.min}`;
+        })
+        .join(', ');
 }
 
 /** 86.5 → "86,5"; `decimals` 1 → selalu satu angka di belakang koma (75 → "75,0"). */

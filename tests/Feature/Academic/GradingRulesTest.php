@@ -67,7 +67,8 @@ test('Admin Yayasan mengatur aturan untuk jenjang MA: berlaku di MA, lembaga lai
     $ma = app(GradingSetting::class)->rulesFor($this->tenant->id, $this->ma);
 
     expect($ma->toArray())->toBe([
-        'kkm' => 70, 'grade_a' => 88, 'grade_b' => 78,
+        'kkm' => 70,
+        'predicates' => [['letter' => 'A', 'label' => null, 'min' => 88], ['letter' => 'B', 'label' => null, 'min' => 78], ['letter' => 'C', 'label' => null, 'min' => 70], ['letter' => 'D', 'label' => null, 'min' => 0]],
         'aspects' => [['code' => 'NILAI', 'name' => 'Nilai', 'components' => [
             ['code' => 'TUGAS', 'name' => 'Tugas harian', 'weight' => 30],
             ['code' => 'PTS', 'name' => 'PTS', 'weight' => 30],

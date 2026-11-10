@@ -300,3 +300,27 @@ curl -fsS https://educore.example.id/up
 ```
 
 Selalu pastikan ada backup terbaru sebelum `migrate --force`.
+
+**Tampilan tidak berubah setelah deploy?** `public/build` tidak ikut Git, jadi wajib `npm run build` di server. Periksa: `npm run build` selesai tanpa error (butuh akses ke fonts.bunny.net untuk huruf Inter), tanggal `public/build/manifest.json` ikut baru, file `public/hot` tidak ada; lalu `php artisan optimize:clear && php artisan optimize`, restart PHP-FPM, dan Ctrl+F5 di browser. Bila lewat Cloudflare dan halaman masih lama, *purge cache* di dashboard Cloudflare.
+
+### 7.7 Deploy dengan Docker (staging)
+
+Susunan: `compose.staging.yml` (tidak ikut Git) dengan container `educore-app` (PHP-FPM, image dari `docker/php`), `educore-web` (nginx) dan `educore-db` (PostgreSQL 16). Folder proyek di-*bind mount* ke `/var/www/html`, jadi hasil `npm run build` di host langsung terbaca container.
+
+Semua perintah `php artisan` dijalankan **di dalam container**. Dari host, nama host database `db` tidak dikenal, dan cache yang dibuat berisi path host yang salah bagi container.
+
+```bash
+cd ~/projects/educore
+docker exec educore-db pg_dump -U <user-db> educore > ~/backup-educore-$(date +%F).sql
+git pull
+docker exec educore-app composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+docker exec educore-app php artisan migrate --force
+docker exec educore-app php artisan educore:sync-access
+docker exec educore-app php artisan optimize
+docker restart educore-app
+```
+
+Cek tanpa lewat Cloudflare: nama `assets/app-…` di `public/build/manifest.json` harus sama dengan yang muncul di `curl -s http://localhost:3002/login`.
+
+Bila `php artisan optimize` terlanjur dijalankan di host: `rm -f bootstrap/cache/config.php bootstrap/cache/routes-v7.php bootstrap/cache/events.php`, lalu jalankan ulang lewat `docker exec`.

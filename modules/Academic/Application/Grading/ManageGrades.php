@@ -28,9 +28,11 @@ use Modules\Core\Support\BusinessClock;
  *   (setengah ke atas); kosong bila ada komponen aspek itu yang kosong.
  * - Nilai akhir = rata-rata nilai aspek yang dinilai pada mapel itu, 1 desimal (setengah ke atas);
  *   kosong bila ada aspek yang kosong. Aturan satu aspek → sama dengan nilai aspeknya (85 → 85,0).
- * - Lembar menyimpan salinan aturan penilaian (hanya aspek yang dinilai pada mapel itu) saat
- *   pertama kali disimpan; aturan/aspek yang berubah sesudahnya tidak mengubah lembar, kecuali
- *   operator menekan "Terapkan aturan terbaru" (DRAFT).
+ * - Mapel bernilai huruf (§22.4 AC-8b): per siswa satu huruf skala predikat untuk tiap aspek; tanpa
+ *   komponen & nilai akhir angka. Lengkap = semua aspek berhuruf.
+ * - Lembar menyimpan salinan aturan penilaian (hanya aspek yang dinilai pada mapel itu) dan jenis
+ *   nilai saat pertama kali disimpan; aturan/aspek/jenis nilai yang berubah sesudahnya tidak
+ *   mengubah lembar, kecuali operator menekan "Terapkan aturan terbaru" (DRAFT).
  * - Siswa = yang pernah tercatat di kelas pada semester itu (+ yang sudah punya nilai). Yang keluar
  *   dari kelas sebelum semester berakhir ditandai dan tidak wajib dinilai untuk Finalkan.
  * - FINAL = hanya dibaca; dibuka kembali hanya oleh pengelola kelas (alasan wajib).
@@ -41,8 +43,8 @@ use Modules\Core\Support\BusinessClock;
  * @phpstan-import-type RulesArray from GradingRules
  *
  * @phpstan-type TermOption array{value: string, label: string, start: string, end: string}
- * @phpstan-type GradeRow array{enrollment_id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, scores: array<string, float|null>, aspects: array<string, int|null>, final: float|null, predicate: string|null, description: string|null}
- * @phpstan-type SheetData array{status: string, rules: RulesArray, outdated: bool, finalized: array{by: string|null, at: string}|null, students: list<GradeRow>, complete: int, required: int}
+ * @phpstan-type GradeRow array{enrollment_id: string, student_id: string, name: string, gender: string|null, nisn: string|null, student_number: string|null, left: bool, scores: array<string, float|null>, aspects: array<string, int|null>, letters: array<string, string|null>, final: float|null, predicate: string|null, description: string|null}
+ * @phpstan-type SheetData array{status: string, rules: RulesArray, grade_type: string, outdated: bool, finalized: array{by: string|null, at: string}|null, students: list<GradeRow>, complete: int, required: int}
  */
 final class ManageGrades
 {
@@ -125,7 +127,9 @@ final class ManageGrades
     {
         $sheet = $this->findSheet($row->id, $term['value']);
         $current = $this->currentRules($row);
+        $currentType = $this->currentGradeType($row);
         $rules = $sheet === null ? $current : GradingRules::fromValue($sheet->rules);
+        $gradeType = $sheet === null ? $currentType : $sheet->grade_type;
         $saved = $sheet === null ? [] : $this->savedGrades($sheet->id);
         $students = [];
         $complete = 0;
@@ -139,13 +143,20 @@ final class ManageGrades
                 $scores[$component['code']] = $grade['scores'][$component['code']] ?? null;
             }
 
+            $letters = [];
+
+            foreach ($rules->aspectCodes() as $code) {
+                $letters[$code] = $grade['letters'][$code] ?? null;
+            }
+
             $final = $grade['final'] ?? null;
-            $complete += $final === null ? 0 : 1;
+            $complete += self::isComplete($gradeType, $final, $letters) ? 1 : 0;
             $required += $student['left'] ? 0 : 1;
 
             $students[] = $student + [
                 'scores' => $scores,
                 'aspects' => self::aspectScores($rules, $scores),
+                'letters' => $letters,
                 'final' => $final,
                 'predicate' => $final === null ? null : $rules->predicate($final),
                 'description' => $grade['description'] ?? null,
@@ -155,7 +166,8 @@ final class ManageGrades
         return [
             'status' => $sheet === null ? self::EMPTY : $sheet->status,
             'rules' => $rules->toArray(),
-            'outdated' => $sheet !== null && ! $sheet->isFinal() && $rules->toArray() !== $current->toArray(),
+            'grade_type' => $gradeType,
+            'outdated' => $sheet !== null && ! $sheet->isFinal() && ($rules->toArray() !== $current->toArray() || $gradeType !== $currentType),
             'finalized' => $sheet === null || $sheet->finalized_at === null ? null : [
                 'by' => $sheet->finalized_by_membership_id === null ? null : $this->memberName($sheet->finalized_by_membership_id),
                 'at' => $sheet->finalized_at->toIso8601String(),
@@ -169,7 +181,7 @@ final class ManageGrades
     /**
      * Simpan nilai siswa yang dikirim (siswa lain tidak diubah).
      *
-     * @param  array<string, array{scores: mixed, description: mixed}>  $entries  id pendaftaran => isian
+     * @param  array<string, array{scores: mixed, letters?: mixed, description: mixed}>  $entries  id pendaftaran => isian
      * @return array{saved: int, complete: int}
      *
      * @throws GradingException
@@ -217,6 +229,7 @@ final class ManageGrades
                     'term_id' => $term['value'],
                     'status' => GradeSheet::DRAFT,
                     'rules' => $this->currentRules($row)->toArray(),
+                    'grade_type' => $this->currentGradeType($row),
                 ]);
                 $sheet->save();
             }
@@ -225,14 +238,17 @@ final class ManageGrades
             $now = CarbonImmutable::now();
 
             foreach ($entries as $enrollmentId => $entry) {
-                $scores = $this->validatedScores($rules, $entry['scores'], $roster[$enrollmentId]);
                 $description = $this->validatedDescription($entry['description'], $roster[$enrollmentId]);
-                $values = [
-                    'scores' => json_encode((object) $scores, JSON_THROW_ON_ERROR),
-                    'final_score' => self::finalScore($rules, $scores),
-                    'description' => $description,
-                    'updated_at' => $now,
-                ];
+
+                if ($sheet->isLetter()) {
+                    $letters = $this->validatedLetters($rules, $entry['letters'] ?? [], $roster[$enrollmentId]);
+                    $values = ['scores' => '{}', 'letters' => json_encode((object) $letters, JSON_THROW_ON_ERROR), 'final_score' => null];
+                } else {
+                    $scores = $this->validatedScores($rules, $entry['scores'], $roster[$enrollmentId]);
+                    $values = ['scores' => json_encode((object) $scores, JSON_THROW_ON_ERROR), 'letters' => null, 'final_score' => self::finalScore($rules, $scores)];
+                }
+
+                $values += ['description' => $description, 'updated_at' => $now];
 
                 $updated = DB::table('ac_grades')->where('sheet_id', $sheet->id)->where('enrollment_id', $enrollmentId)->update($values);
 
@@ -249,7 +265,11 @@ final class ManageGrades
             }
 
             $sheet->touch();
-            $complete = DB::table('ac_grades')->where('sheet_id', $sheet->id)->whereNotNull('final_score')->count();
+            $complete = 0;
+
+            foreach ($this->savedGrades($sheet->id) as $grade) {
+                $complete += self::isComplete($sheet->grade_type, $grade['final'], self::lettersFor($rules, $grade['letters'])) ? 1 : 0;
+            }
 
             $this->audit->record(
                 AcademicAuditAction::GRADES_SAVED,
@@ -284,6 +304,7 @@ final class ManageGrades
             }
 
             $saved = $this->savedGrades($sheet->id);
+            $rules = GradingRules::fromValue($sheet->rules);
             $missing = [];
             $students = 0;
 
@@ -294,7 +315,9 @@ final class ManageGrades
 
                 $students++;
 
-                if (($saved[$student['enrollment_id']]['final'] ?? null) === null) {
+                $grade = $saved[$student['enrollment_id']] ?? null;
+
+                if (! self::isComplete($sheet->grade_type, $grade['final'] ?? null, self::lettersFor($rules, $grade['letters'] ?? []))) {
                     $missing[] = $student['name'];
                 }
             }
@@ -302,7 +325,9 @@ final class ManageGrades
             if ($missing !== []) {
                 $listed = implode(', ', array_slice($missing, 0, 5)).(count($missing) > 5 ? ', dan lainnya' : '');
 
-                throw GradingException::make('form', 'Nilai belum lengkap untuk '.count($missing)." siswa: {$listed}. Lengkapi semua komponen lalu simpan dulu.");
+                $what = $sheet->isLetter() ? 'Pilih huruf semua aspek' : 'Lengkapi semua komponen';
+
+                throw GradingException::make('form', 'Nilai belum lengkap untuk '.count($missing)." siswa: {$listed}. {$what} lalu simpan dulu.");
             }
 
             $sheet->status = GradeSheet::FINAL;
@@ -360,8 +385,9 @@ final class ManageGrades
     }
 
     /**
-     * Ganti salinan aturan lembar DRAFT dengan aturan yang berlaku sekarang (termasuk aspek mapel
-     * yang terbaru). Nilai komponen yang kodenya sama dipertahankan; nilai akhir dihitung ulang.
+     * Ganti salinan aturan lembar DRAFT dengan aturan yang berlaku sekarang (termasuk aspek & jenis
+     * nilai mapel yang terbaru). Nilai komponen/huruf yang kodenya sama dipertahankan (huruf hanya
+     * bila masih ada di skala); bila jenis nilai berganti, nilai jenis lama dikosongkan.
      *
      * @return int jumlah siswa yang nilainya dihitung ulang
      *
@@ -379,28 +405,39 @@ final class ManageGrades
 
             $before = GradingRules::fromValue($sheet->rules);
             $after = $this->currentRules($row);
+            $typeBefore = $sheet->grade_type;
+            $typeAfter = $this->currentGradeType($row);
 
-            if ($before->toArray() === $after->toArray()) {
+            if ($before->toArray() === $after->toArray() && $typeBefore === $typeAfter) {
                 throw GradingException::make('form', 'Aturan nilai ini sudah sama dengan aturan terbaru.');
             }
 
             $sheet->rules = $after->toArray();
+            $sheet->grade_type = $typeAfter;
             $sheet->save();
 
             $count = 0;
 
             foreach ($this->savedGrades($sheet->id) as $enrollmentId => $grade) {
-                $scores = [];
+                if ($sheet->isLetter()) {
+                    $letters = [];
 
-                foreach ($after->components() as $component) {
-                    $scores[$component['code']] = $grade['scores'][$component['code']] ?? null;
+                    foreach (self::lettersFor($after, $typeBefore === $typeAfter ? $grade['letters'] : []) as $code => $letter) {
+                        $letters[$code] = $letter !== null && in_array($letter, $after->letters(), true) ? $letter : null;
+                    }
+
+                    $values = ['scores' => '{}', 'letters' => json_encode((object) $letters, JSON_THROW_ON_ERROR), 'final_score' => null];
+                } else {
+                    $scores = [];
+
+                    foreach ($after->components() as $component) {
+                        $scores[$component['code']] = $typeBefore === $typeAfter ? ($grade['scores'][$component['code']] ?? null) : null;
+                    }
+
+                    $values = ['scores' => json_encode((object) $scores, JSON_THROW_ON_ERROR), 'letters' => null, 'final_score' => self::finalScore($after, $scores)];
                 }
 
-                DB::table('ac_grades')->where('sheet_id', $sheet->id)->where('enrollment_id', $enrollmentId)->update([
-                    'scores' => json_encode((object) $scores, JSON_THROW_ON_ERROR),
-                    'final_score' => self::finalScore($after, $scores),
-                    'updated_at' => CarbonImmutable::now(),
-                ]);
+                DB::table('ac_grades')->where('sheet_id', $sheet->id)->where('enrollment_id', $enrollmentId)->update($values + ['updated_at' => CarbonImmutable::now()]);
                 $count++;
             }
 
@@ -408,7 +445,7 @@ final class ManageGrades
                 AcademicAuditAction::GRADE_SHEET_RULES_APPLIED,
                 AcademicAuditAction::SUBJECT_CLASS,
                 $class->id,
-                ['kelas' => $class->name, 'mapel' => $subjectName, 'semester' => $term['label'], 'sebelum' => $before->summary(), 'sesudah' => $after->summary()],
+                ['kelas' => $class->name, 'mapel' => $subjectName, 'semester' => $term['label'], 'sebelum' => self::typeLabel($typeBefore).' · '.$before->summary(), 'sesudah' => self::typeLabel($typeAfter).' · '.$after->summary()],
                 organizationId: $class->organization_id,
                 tenantId: $tenantId,
             );
@@ -428,6 +465,69 @@ final class ManageGrades
         $codes = is_array($decoded) ? array_values(array_filter($decoded, 'is_string')) : null;
 
         return $this->grading->rulesFor($row->tenant_id, $row->organization_id)->forAspects($codes);
+    }
+
+    /**
+     * Jenis nilai mapel sekarang (AC-8b): angka atau huruf.
+     */
+    public function currentGradeType(ClassSubject $row): string
+    {
+        return DB::table('ac_subjects')->where('id', $row->subject_id)->value('grade_type') === 'LETTER' ? 'LETTER' : 'NUMBER';
+    }
+
+    public static function typeLabel(string $gradeType): string
+    {
+        return $gradeType === 'LETTER' ? 'Nilai huruf' : 'Nilai angka';
+    }
+
+    /**
+     * Lengkap: nilai angka punya nilai akhir; nilai huruf punya huruf di semua aspek.
+     *
+     * @param  array<string, string|null>  $letters  kode aspek lembar => huruf
+     */
+    public static function isComplete(string $gradeType, ?float $final, array $letters): bool
+    {
+        if ($gradeType === 'LETTER') {
+            return $letters !== [] && ! in_array(null, $letters, true);
+        }
+
+        return $final !== null;
+    }
+
+    /**
+     * Huruf tersimpan, dibatasi & diurutkan menurut aspek aturan lembar.
+     *
+     * @param  array<string, string>  $saved
+     * @return array<string, string|null>
+     */
+    public static function lettersFor(GradingRules $rules, array $saved): array
+    {
+        $letters = [];
+
+        foreach ($rules->aspectCodes() as $code) {
+            $letters[$code] = $saved[$code] ?? null;
+        }
+
+        return $letters;
+    }
+
+    /**
+     * Huruf dari kolom `letters` (jsonb).
+     *
+     * @return array<string, string>
+     */
+    public static function decodeLetters(mixed $raw): array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $letters = [];
+
+        foreach (is_array($decoded) ? $decoded : [] as $code => $letter) {
+            if (is_string($letter) && $letter !== '') {
+                $letters[(string) $code] = $letter;
+            }
+        }
+
+        return $letters;
     }
 
     /**
@@ -524,6 +624,40 @@ final class ManageGrades
     }
 
     /**
+     * Huruf per aspek harus salah satu huruf skala predikat lembar; kosong boleh (belum dinilai).
+     *
+     * @return array<string, string|null> kode aspek => huruf
+     *
+     * @throws GradingException
+     */
+    private function validatedLetters(GradingRules $rules, mixed $input, string $studentName): array
+    {
+        $input = is_array($input) ? $input : [];
+        $letters = [];
+
+        foreach ($rules->aspects as $aspect) {
+            $raw = $input[$aspect['code']] ?? null;
+            $letter = is_string($raw) ? mb_strtoupper(trim($raw)) : '';
+
+            if ($letter === '') {
+                $letters[$aspect['code']] = null;
+
+                continue;
+            }
+
+            if (! in_array($letter, $rules->letters(), true)) {
+                $where = $rules->hasAspects() ? " ({$aspect['name']})" : '';
+
+                throw GradingException::make('grades', "Nilai{$where} untuk {$studentName} harus salah satu dari: ".implode(', ', $rules->letters()).'.');
+            }
+
+            $letters[$aspect['code']] = $letter;
+        }
+
+        return $letters;
+    }
+
+    /**
      * @throws GradingException
      */
     private function validatedDescription(mixed $input, string $studentName): ?string
@@ -590,13 +724,13 @@ final class ManageGrades
     }
 
     /**
-     * @return array<string, array{scores: array<string, float|null>, final: float|null, description: string|null}>
+     * @return array<string, array{scores: array<string, float|null>, letters: array<string, string>, final: float|null, description: string|null}>
      */
     private function savedGrades(string $sheetId): array
     {
         $saved = [];
 
-        foreach (DB::table('ac_grades')->where('sheet_id', $sheetId)->get(['enrollment_id', 'scores', 'final_score', 'description']) as $grade) {
+        foreach (DB::table('ac_grades')->where('sheet_id', $sheetId)->get(['enrollment_id', 'scores', 'letters', 'final_score', 'description']) as $grade) {
             $decoded = json_decode((string) $grade->scores, true);
             $scores = [];
 
@@ -606,6 +740,7 @@ final class ManageGrades
 
             $saved[(string) $grade->enrollment_id] = [
                 'scores' => $scores,
+                'letters' => self::decodeLetters($grade->letters),
                 'final' => self::storedFinal($grade->final_score),
                 'description' => $grade->description === null ? null : (string) $grade->description,
             ];

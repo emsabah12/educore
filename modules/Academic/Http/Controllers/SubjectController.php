@@ -12,11 +12,13 @@ use Inertia\Response;
 use Modules\Academic\Application\Authorization\AcademicAccess;
 use Modules\Academic\Application\Grading\GradingRules;
 use Modules\Academic\Application\Grading\GradingSetting;
+use Modules\Academic\Application\Subject\ManageSubjectGroups;
 use Modules\Academic\Application\Subject\ManageSubjects;
 use Modules\Academic\Application\Subject\SubjectData;
 use Modules\Academic\Application\Subject\SubjectDirectory;
 use Modules\Academic\Domain\Subject\Exceptions\SubjectException;
 use Modules\Academic\Domain\Subject\Subject;
+use Modules\Academic\Domain\Subject\SubjectGroup;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
@@ -51,6 +53,8 @@ final class SubjectController
             'filters' => ['lembaga' => $organizationId],
             'options' => ['organizations' => $organizations],
             'subjects' => $organizationId === null ? [] : $directory->list($this->tenantId(), $organizationId),
+            // Kelompok mapel lembaga ini (AC-8b).
+            'groups' => $organizationId === null ? [] : $directory->groups($this->tenantId(), $organizationId),
             'canManage' => $organizationId !== null && $this->authorization->allows(AcademicAccess::CLASSES_MANAGE, $organizationId),
             // Aspek penilaian lembaga ini (AC-8a); pilihan per mapel hanya muncul bila lebih dari satu.
             'aspects' => $rules === null || ! $rules->hasAspects() ? [] : array_map(
@@ -112,6 +116,84 @@ final class SubjectController
         return $this->done("Mata pelajaran {$name} dihapus.");
     }
 
+    // ── Kelompok mapel (PRD-002 §22.4 AC-8b) ────────────────────────────────────
+
+    public function storeGroup(Request $request, ManageSubjectGroups $groups): RedirectResponse
+    {
+        $request->validate(array_merge($this->groupRules(), ['organization_id' => ['required', 'uuid']]), [
+            'name.required' => 'Nama kelompok wajib diisi.',
+            'organization_id.required' => 'Pilih lembaga.',
+        ], ['name' => 'nama kelompok', 'sort_order' => 'urutan']);
+
+        $organization = Organization::query()->find($request->string('organization_id')->value());
+
+        if (! $organization instanceof Organization) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $organization);
+
+        $group = $this->attempt(fn (): SubjectGroup => $groups->create(
+            $this->tenantId(),
+            $organization->id,
+            (string) $request->input('name'),
+            $request->integer('sort_order'),
+            $request->boolean('counts_in_totals'),
+        ));
+
+        return $this->done("Kelompok {$group->name} ditambahkan.");
+    }
+
+    public function updateGroup(Request $request, string $group, ManageSubjectGroups $groups): RedirectResponse
+    {
+        $target = $groups->find($this->tenantId(), $group);
+
+        if (! $target instanceof SubjectGroup) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $target);
+
+        $request->validate($this->groupRules(), ['name.required' => 'Nama kelompok wajib diisi.'], ['name' => 'nama kelompok', 'sort_order' => 'urutan']);
+
+        $changed = $this->attempt(fn (): array => $groups->update(
+            $this->tenantId(),
+            $target->id,
+            (string) $request->input('name'),
+            $request->integer('sort_order'),
+            $request->boolean('counts_in_totals'),
+        ));
+
+        return $this->done($changed === [] ? 'Tidak ada data yang berubah.' : 'Kelompok mapel disimpan.');
+    }
+
+    public function destroyGroup(string $group, ManageSubjectGroups $groups): RedirectResponse
+    {
+        $target = $groups->find($this->tenantId(), $group);
+
+        if (! $target instanceof SubjectGroup) {
+            abort(404);
+        }
+
+        Gate::authorize(AcademicAccess::CLASSES_MANAGE, $target);
+
+        $name = $this->attempt(fn (): string => $groups->delete($this->tenantId(), $target->id));
+
+        return $this->done("Kelompok {$name} dihapus.");
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function groupRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:'.ManageSubjectGroups::NAME_MAX_LENGTH],
+            'sort_order' => ['nullable', 'integer', 'between:0,'.ManageSubjectGroups::ORDER_MAX],
+            'counts_in_totals' => ['nullable', 'boolean'],
+        ];
+    }
+
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
     private function findAndAuthorize(string $subjectId): Subject
@@ -159,6 +241,11 @@ final class SubjectController
             gradeMax: SubjectData::cleanGrade($request->input('grade_max')),
             setsAspects: $request->boolean('grading_aspects_set'),
             gradingAspects: SubjectData::cleanAspects($request->input('grading_aspects')),
+            // Kelompok, urutan, jenis nilai (AC-8b) hanya diubah bila form mengirim jenis nilai.
+            setsGrouping: $request->has('grade_type'),
+            groupId: $request->filled('group_id') ? (string) $request->input('group_id') : null,
+            sortOrder: $request->filled('sort_order') ? $request->integer('sort_order') : null,
+            gradeType: (string) $request->input('grade_type', Subject::NUMBER),
         );
     }
 
@@ -204,6 +291,9 @@ final class SubjectController
             'grading_aspects_set' => ['nullable', 'boolean'],
             'grading_aspects' => ['nullable', 'array', 'max:'.GradingRules::MAX_ASPECTS],
             'grading_aspects.*' => ['string', 'max:10'],
+            'group_id' => ['nullable', 'uuid'],
+            'sort_order' => ['nullable', 'integer', 'between:0,'.ManageSubjectGroups::ORDER_MAX],
+            'grade_type' => ['nullable', 'string', 'in:'.Subject::NUMBER.','.Subject::LETTER],
         ];
     }
 
@@ -232,6 +322,9 @@ final class SubjectController
             'grade_max' => 'tingkat sampai',
             'organization_id' => 'lembaga',
             'grading_aspects' => 'aspek yang dinilai',
+            'group_id' => 'kelompok',
+            'sort_order' => 'urutan',
+            'grade_type' => 'jenis nilai',
         ];
     }
 }

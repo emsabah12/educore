@@ -68,6 +68,12 @@ final class AcademicAuditAction
 
     public const SUBJECT_DELETED = 'academic.subject_deleted';
 
+    public const SUBJECT_GROUP_CREATED = 'academic.subject_group_created';
+
+    public const SUBJECT_GROUP_UPDATED = 'academic.subject_group_updated';
+
+    public const SUBJECT_GROUP_DELETED = 'academic.subject_group_deleted';
+
     public const CLASS_SUBJECTS_ADDED = 'academic.class_subjects_added';
 
     public const CLASS_SUBJECT_TEACHER_CHANGED = 'academic.class_subject_teacher_changed';
@@ -118,6 +124,8 @@ final class AcademicAuditAction
 
     public const SUBJECT_SUBJECT = 'ac_subject';
 
+    public const SUBJECT_SUBJECT_GROUP = 'ac_subject_group';
+
     /**
      * @return array<string, string> aksi => label
      */
@@ -153,6 +161,9 @@ final class AcademicAuditAction
             self::SUBJECT_DEACTIVATED => 'Mata pelajaran dinonaktifkan',
             self::SUBJECT_REACTIVATED => 'Mata pelajaran diaktifkan kembali',
             self::SUBJECT_DELETED => 'Mata pelajaran dihapus',
+            self::SUBJECT_GROUP_CREATED => 'Kelompok mapel ditambahkan',
+            self::SUBJECT_GROUP_UPDATED => 'Kelompok mapel diubah',
+            self::SUBJECT_GROUP_DELETED => 'Kelompok mapel dihapus',
             self::CLASS_SUBJECTS_ADDED => 'Mata pelajaran ditambahkan ke kelas',
             self::CLASS_SUBJECT_TEACHER_CHANGED => 'Guru pengampu diganti',
             self::CLASS_SUBJECT_REMOVED => 'Mata pelajaran dilepas dari kelas',

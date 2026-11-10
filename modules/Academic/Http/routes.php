@@ -107,6 +107,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('akademik/mapel/{subject}', [SubjectController::class, 'update'])->whereUuid('subject')->name('academic.subjects.update');
     Route::post('akademik/mapel/{subject}/status', [SubjectController::class, 'status'])->whereUuid('subject')->name('academic.subjects.status');
     Route::delete('akademik/mapel/{subject}', [SubjectController::class, 'destroy'])->whereUuid('subject')->name('academic.subjects.destroy');
+    Route::post('akademik/mapel/kelompok', [SubjectController::class, 'storeGroup'])->name('academic.subject-groups.store');
+    Route::patch('akademik/mapel/kelompok/{group}', [SubjectController::class, 'updateGroup'])->whereUuid('group')->name('academic.subject-groups.update');
+    Route::delete('akademik/mapel/kelompok/{group}', [SubjectController::class, 'destroyGroup'])->whereUuid('group')->name('academic.subject-groups.destroy');
 
     // Kelas/rombel (AC-1d-a, PRD-002 §6). Lihat: izin lihat siswa; kelola: academic.classes.manage di lembaga kelas.
     Route::get('kelas', [ClassController::class, 'index'])->name('academic.classes.index');

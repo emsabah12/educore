@@ -15,7 +15,9 @@ import {
     finalScore,
     formatScore,
     parseScore,
+    describePredicate,
     predicate,
+    scaleText,
     showsAspects,
 } from '@/components/academic/grading';
 import { selectClass } from '@/components/academic/student-actions';
@@ -38,6 +40,7 @@ type Student = {
     left: boolean;
     scores: Record<string, number | null>;
     aspects: Record<string, number | null>;
+    letters: Record<string, string | null>;
     final: number | null;
     predicate: string | null;
     description: string | null;
@@ -51,6 +54,7 @@ type Props = {
     sheet: {
         status: 'BELUM' | 'DRAFT' | 'FINAL';
         rules: Rules;
+        grade_type: 'NUMBER' | 'LETTER';
         outdated: boolean;
         finalized: { by: string | null; at: string } | null;
         students: Student[];
@@ -66,7 +70,11 @@ type Props = {
     backLabel: string;
 };
 
-type Draft = { scores: Record<string, string>; description: string };
+type Draft = {
+    scores: Record<string, string>;
+    letters: Record<string, string>;
+    description: string;
+};
 
 const stampFormat = new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
@@ -98,6 +106,7 @@ function weights(rules: Rules): string {
  * Lembar nilai satu mapel kelas per semester (PRD-002 §19 AC-5b). Lembaga beraspek (§22 AC-8a):
  * komponen dikelompokkan per aspek, nilai akhir = rata-rata aspek. Nilai aspek, nilai akhir &
  * predikat dihitung langsung saat diketik; server tetap menghitung ulang dan memeriksa semua aturan.
+ * Mapel bernilai huruf (§22.4 AC-8b): per siswa memilih huruf skala predikat untuk tiap aspek.
  */
 export default function GradeSheet(props: Props) {
     const { class: item, subject, terms, term, sheet, baseUrl } = props;
@@ -159,24 +168,42 @@ export default function GradeSheet(props: Props) {
                                     <StatusBadge status={sheet.status} />
                                     <span className="text-muted-foreground">
                                         {sheet.complete} dari {sheet.required}{' '}
-                                        siswa sudah punya nilai akhir
+                                        siswa sudah{' '}
+                                        {sheet.grade_type === 'LETTER'
+                                            ? 'dinilai lengkap'
+                                            : 'punya nilai akhir'}
                                     </span>
                                 </p>
-                                <p className="text-muted-foreground">
-                                    KKM {sheet.rules.kkm} · A ≥{' '}
-                                    {sheet.rules.grade_a}, B ≥{' '}
-                                    {sheet.rules.grade_b}, C ≥ {sheet.rules.kkm}
-                                    , D di bawahnya · {weights(sheet.rules)}
-                                </p>
-                                {sheet.rules.aspects.length > 1 && (
+                                {sheet.grade_type === 'LETTER' ? (
                                     <p className="text-muted-foreground">
-                                        Nilai akhir = rata-rata nilai{' '}
-                                        {sheet.rules.aspects
-                                            .map((aspect) => aspect.name)
-                                            .join(' dan ')}
-                                        .
+                                        Nilai huruf: pilih satu huruf untuk tiap
+                                        siswa ·{' '}
+                                        {sheet.rules.predicates
+                                            .map((level) =>
+                                                describePredicate(
+                                                    sheet.rules,
+                                                    level.letter,
+                                                ),
+                                            )
+                                            .join(', ')}
+                                    </p>
+                                ) : (
+                                    <p className="text-muted-foreground">
+                                        KKM {sheet.rules.kkm} ·{' '}
+                                        {scaleText(sheet.rules)} ·{' '}
+                                        {weights(sheet.rules)}
                                     </p>
                                 )}
+                                {sheet.grade_type === 'NUMBER' &&
+                                    sheet.rules.aspects.length > 1 && (
+                                        <p className="text-muted-foreground">
+                                            Nilai akhir = rata-rata nilai{' '}
+                                            {sheet.rules.aspects
+                                                .map((aspect) => aspect.name)
+                                                .join(' dan ')}
+                                            .
+                                        </p>
+                                    )}
                             </div>
                         </div>
 
@@ -193,6 +220,7 @@ export default function GradeSheet(props: Props) {
                                 key={`${term.value}-${sheet.status}-${JSON.stringify(
                                     sheet.students.map((student) => [
                                         student.scores,
+                                        student.letters,
                                         student.description,
                                     ]),
                                 )}`}
@@ -342,7 +370,7 @@ function Banners({
                             ini pertama kali disimpan. Lembar ini tetap memakai
                             aturan lama
                             {canManage
-                                ? ' sampai Anda menerapkan aturan terbaru (nilai komponen yang kodenya sama tetap tersimpan).'
+                                ? ' sampai Anda menerapkan aturan terbaru (nilai komponen yang kodenya sama tetap tersimpan; bila jenis nilai angka/huruf berganti, nilai lama dikosongkan).'
                                 : '; minta operator menerapkan aturan terbaru bila perlu.'}
                         </span>
                     </p>
@@ -390,6 +418,7 @@ function SheetForm({
     term: NonNullable<Props['term']>;
 }) {
     const { rules, students } = sheet;
+    const letterMode = sheet.grade_type === 'LETTER';
     const initial = useMemo(
         () =>
             Object.fromEntries(
@@ -402,6 +431,12 @@ function SheetForm({
                                 showScore(
                                     student.scores[component.code] ?? null,
                                 ).replace('.', ','),
+                            ]),
+                        ),
+                        letters: Object.fromEntries(
+                            rules.aspects.map((aspect) => [
+                                aspect.code,
+                                student.letters[aspect.code] ?? '',
                             ]),
                         ),
                         description: student.description ?? '',
@@ -423,17 +458,28 @@ function SheetForm({
             },
         }));
 
+    const setLetter = (id: string, code: string, value: string) =>
+        setValues((current) => ({
+            ...current,
+            [id]: {
+                ...current[id],
+                letters: { ...current[id].letters, [code]: value },
+            },
+        }));
+
     const setDescription = (id: string, value: string) =>
         setValues((current) => ({
             ...current,
             [id]: { ...current[id], description: value },
         }));
 
-    const invalid = students.some((student) =>
-        allComponents(rules).some((component) =>
-            isInvalid(values[student.enrollment_id].scores[component.code]),
-        ),
-    );
+    const invalid =
+        !letterMode &&
+        students.some((student) =>
+            allComponents(rules).some((component) =>
+                isInvalid(values[student.enrollment_id].scores[component.code]),
+            ),
+        );
 
     return (
         <div className="space-y-4">
@@ -481,83 +527,167 @@ function SheetForm({
                                                         .join(' · ')}
                                                 </p>
                                             </div>
-                                            <FinalBadge
-                                                rules={rules}
-                                                score={final}
-                                            />
+                                            {letterMode ? (
+                                                <LetterBadge
+                                                    rules={rules}
+                                                    letters={draft.letters}
+                                                />
+                                            ) : (
+                                                <FinalBadge
+                                                    rules={rules}
+                                                    score={final}
+                                                />
+                                            )}
                                         </div>
 
-                                        {rules.aspects.map((aspect) => (
-                                            <AspectGroup
-                                                key={aspect.code}
-                                                rules={rules}
-                                                aspect={aspect}
-                                                score={aspectScore(
-                                                    aspect,
-                                                    draft.scores,
-                                                )}
-                                            >
-                                                {aspect.components.map(
-                                                    (component) => {
-                                                        const id = `g-${student.enrollment_id}-${component.code}`;
-                                                        const value =
-                                                            draft.scores[
-                                                                component.code
-                                                            ];
+                                        {letterMode && (
+                                            <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2">
+                                                {rules.aspects.map((aspect) => {
+                                                    const id = `l-${student.enrollment_id}-${aspect.code}`;
 
-                                                        return (
-                                                            <div
-                                                                key={
-                                                                    component.code
-                                                                }
-                                                                className="grid gap-1"
+                                                    return (
+                                                        <div
+                                                            key={aspect.code}
+                                                            className="grid gap-1"
+                                                        >
+                                                            <Label
+                                                                htmlFor={id}
+                                                                className="text-xs"
                                                             >
-                                                                <Label
-                                                                    htmlFor={id}
-                                                                    className="text-xs"
-                                                                    title={
-                                                                        component.name
-                                                                    }
-                                                                >
-                                                                    {
+                                                                {showsAspects(
+                                                                    rules,
+                                                                )
+                                                                    ? aspect.name
+                                                                    : 'Nilai huruf'}
+                                                            </Label>
+                                                            <select
+                                                                id={id}
+                                                                name={`grades[${student.enrollment_id}][letters][${aspect.code}]`}
+                                                                className={
+                                                                    selectClass
+                                                                }
+                                                                value={
+                                                                    draft
+                                                                        .letters[
+                                                                        aspect
+                                                                            .code
+                                                                    ]
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setLetter(
+                                                                        student.enrollment_id,
+                                                                        aspect.code,
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">
+                                                                    Belum
+                                                                    dinilai
+                                                                </option>
+                                                                {rules.predicates.map(
+                                                                    (level) => (
+                                                                        <option
+                                                                            key={
+                                                                                level.letter
+                                                                            }
+                                                                            value={
+                                                                                level.letter
+                                                                            }
+                                                                        >
+                                                                            {describePredicate(
+                                                                                rules,
+                                                                                level.letter,
+                                                                            )}
+                                                                        </option>
+                                                                    ),
+                                                                )}
+                                                            </select>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {!letterMode &&
+                                            rules.aspects.map((aspect) => (
+                                                <AspectGroup
+                                                    key={aspect.code}
+                                                    rules={rules}
+                                                    aspect={aspect}
+                                                    score={aspectScore(
+                                                        aspect,
+                                                        draft.scores,
+                                                    )}
+                                                >
+                                                    {aspect.components.map(
+                                                        (component) => {
+                                                            const id = `g-${student.enrollment_id}-${component.code}`;
+                                                            const value =
+                                                                draft.scores[
+                                                                    component
+                                                                        .code
+                                                                ];
+
+                                                            return (
+                                                                <div
+                                                                    key={
                                                                         component.code
-                                                                    }{' '}
-                                                                    <span className="text-muted-foreground">
-                                                                        {
-                                                                            component.weight
+                                                                    }
+                                                                    className="grid gap-1"
+                                                                >
+                                                                    <Label
+                                                                        htmlFor={
+                                                                            id
                                                                         }
-                                                                        %
-                                                                    </span>
-                                                                </Label>
-                                                                <Input
-                                                                    id={id}
-                                                                    name={`grades[${student.enrollment_id}][scores][${component.code}]`}
-                                                                    inputMode="decimal"
-                                                                    autoComplete="off"
-                                                                    value={
-                                                                        value
-                                                                    }
-                                                                    aria-invalid={isInvalid(
-                                                                        value,
-                                                                    )}
-                                                                    onChange={(
-                                                                        event,
-                                                                    ) =>
-                                                                        setScore(
-                                                                            student.enrollment_id,
-                                                                            component.code,
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        );
-                                                    },
-                                                )}
-                                            </AspectGroup>
-                                        ))}
+                                                                        className="text-xs"
+                                                                        title={
+                                                                            component.name
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            component.code
+                                                                        }{' '}
+                                                                        <span className="text-muted-foreground">
+                                                                            {
+                                                                                component.weight
+                                                                            }
+                                                                            %
+                                                                        </span>
+                                                                    </Label>
+                                                                    <Input
+                                                                        id={id}
+                                                                        name={`grades[${student.enrollment_id}][scores][${component.code}]`}
+                                                                        inputMode="decimal"
+                                                                        autoComplete="off"
+                                                                        value={
+                                                                            value
+                                                                        }
+                                                                        aria-invalid={isInvalid(
+                                                                            value,
+                                                                        )}
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setScore(
+                                                                                student.enrollment_id,
+                                                                                component.code,
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
+                                                </AspectGroup>
+                                            ))}
 
                                         <Input
                                             aria-label={`Deskripsi ${student.name}`}
@@ -647,7 +777,7 @@ function SheetForm({
                             />
                             <p>
                                 Finalkan nilai {term.label}? Semua siswa yang
-                                masih di kelas harus sudah punya nilai akhir.
+                                masih di kelas harus sudah dinilai lengkap.
                                 Sesudahnya nilai hanya bisa diubah setelah
                                 dibuka kembali oleh operator.
                             </p>
@@ -692,33 +822,42 @@ function ReadOnly({ sheet }: { sheet: NonNullable<Props['sheet']> }) {
                                 </p>
                             )}
                         </div>
-                        <FinalBadge rules={rules} score={student.final} />
+                        {sheet.grade_type === 'LETTER' ? (
+                            <LetterBadge
+                                rules={rules}
+                                letters={student.letters}
+                            />
+                        ) : (
+                            <FinalBadge rules={rules} score={student.final} />
+                        )}
                     </div>
-                    {rules.aspects.map((aspect) => (
-                        <AspectGroup
-                            key={aspect.code}
-                            rules={rules}
-                            aspect={aspect}
-                            score={student.aspects[aspect.code] ?? null}
-                        >
-                            {aspect.components.map((component) => (
-                                <div
-                                    key={component.code}
-                                    className="rounded-md bg-muted/50 px-2 py-1 text-sm"
-                                >
-                                    <p className="text-xs text-muted-foreground">
-                                        {component.code} {component.weight}%
-                                    </p>
-                                    <p className="tabular-nums">
-                                        {showScore(
-                                            student.scores[component.code] ??
-                                                null,
-                                        ) || '—'}
-                                    </p>
-                                </div>
-                            ))}
-                        </AspectGroup>
-                    ))}
+                    {sheet.grade_type === 'NUMBER' &&
+                        rules.aspects.map((aspect) => (
+                            <AspectGroup
+                                key={aspect.code}
+                                rules={rules}
+                                aspect={aspect}
+                                score={student.aspects[aspect.code] ?? null}
+                            >
+                                {aspect.components.map((component) => (
+                                    <div
+                                        key={component.code}
+                                        className="rounded-md bg-muted/50 px-2 py-1 text-sm"
+                                    >
+                                        <p className="text-xs text-muted-foreground">
+                                            {component.code} {component.weight}%
+                                        </p>
+                                        <p className="tabular-nums">
+                                            {showScore(
+                                                student.scores[
+                                                    component.code
+                                                ] ?? null,
+                                            ) || '—'}
+                                        </p>
+                                    </div>
+                                ))}
+                            </AspectGroup>
+                        ))}
                     {student.description && (
                         <p className="text-sm break-words text-muted-foreground">
                             {student.description}
@@ -763,7 +902,7 @@ function AspectGroup({
                 <span className="text-muted-foreground tabular-nums">
                     {score === null
                         ? 'Nilai: —'
-                        : `Nilai: ${score} · ${predicate(rules, score)}`}
+                        : `Nilai: ${score} · ${describePredicate(rules, predicate(rules, score))}`}
                 </span>
             </p>
             {grid}
@@ -792,8 +931,42 @@ function FinalBadge({ rules, score }: { rules: Rules; score: number | null }) {
             }
         >
             Akhir {formatScore(score, rules.aspects.length > 1 ? 1 : 0)} ·{' '}
-            {predicate(rules, score)}
+            {describePredicate(rules, predicate(rules, score))}
             {below && ' · di bawah KKM'}
+        </span>
+    );
+}
+
+/** Ringkasan nilai huruf: "B Baik" atau per aspek "Praktik: B". */
+function LetterBadge({
+    rules,
+    letters,
+}: {
+    rules: Rules;
+    letters: Record<string, string | null>;
+}) {
+    const filled = rules.aspects.filter((aspect) => letters[aspect.code]);
+
+    if (filled.length < rules.aspects.length) {
+        return (
+            <span className="text-sm text-muted-foreground">Belum lengkap</span>
+        );
+    }
+
+    return (
+        <span className="rounded-md bg-muted px-2 py-1 text-sm font-medium">
+            {rules.aspects
+                .map((aspect) => {
+                    const text = describePredicate(
+                        rules,
+                        letters[aspect.code] ?? '',
+                    );
+
+                    return rules.aspects.length > 1
+                        ? `${aspect.name}: ${text}`
+                        : text;
+                })
+                .join(' · ')}
         </span>
     );
 }

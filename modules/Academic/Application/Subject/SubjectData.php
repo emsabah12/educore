@@ -4,7 +4,8 @@ namespace Modules\Academic\Application\Subject;
 
 /**
  * Isian mata pelajaran (PRD-002 §16 AC-3a): nama, kode singkat (opsional), rentang tingkat (opsional),
- * dan aspek penilaian yang dinilai (§22 AC-8a; hanya diubah bila `$setsAspects`).
+ * aspek penilaian yang dinilai (§22 AC-8a; hanya diubah bila `$setsAspects`), serta kelompok, urutan
+ * & jenis nilai (§22.4 AC-8b; hanya diubah bila `$setsGrouping`).
  */
 final readonly class SubjectData
 {
@@ -16,6 +17,10 @@ final readonly class SubjectData
         public bool $setsAspects = false,
         /** @var list<string> */
         public array $gradingAspects = [],
+        public bool $setsGrouping = false,
+        public ?string $groupId = null,
+        public ?int $sortOrder = null,
+        public string $gradeType = 'NUMBER',
     ) {}
 
     /**

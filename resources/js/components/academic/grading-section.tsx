@@ -3,6 +3,7 @@ import { Copy, Layers, Lock, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type {
     GradingComponent as Component,
+    PredicateLevel,
     GradingRules as RulesValue,
 } from '@/components/academic/grading';
 import { DEFAULT_ASPECT_CODE } from '@/components/academic/grading';
@@ -17,8 +18,8 @@ import { Label } from '@/components/ui/label';
 
 /*
  * Bagian "Aturan penilaian" di halaman Kalender akademik (PRD-002 §19 AC-5a): KKM, komponen nilai &
- * bobot, batas predikat per jenjang/lembaga; aspek penilaian (mis. Tulis & Praktik) dengan komponen
- * masing-masing (§22 AC-8a). Hanya Admin Yayasan; pola sama dengan Mode presensi. Semua aturan dicek
+ * bobot, skala predikat per jenjang/lembaga; aspek penilaian (mis. Tulis & Praktik) dengan komponen
+ * masing-masing (§22 AC-8a); skala predikat 2–6 tingkat bersebutan (AC-8b). Hanya Admin Yayasan; pola sama dengan Mode presensi. Semua aturan dicek
  * server; jumlah bobot di sini hanya bantuan.
  */
 
@@ -30,6 +31,17 @@ type AspectRow = {
     name: string;
     rows: ComponentRow[];
 };
+
+type LevelRow = PredicateLevel & { key: number };
+
+/** Isi cepat skala 5 tingkat seperti rapor madrasah. */
+const FIVE_LEVELS: PredicateLevel[] = [
+    { letter: 'A', label: 'Sangat Baik', min: 90 },
+    { letter: 'B', label: 'Baik', min: 75 },
+    { letter: 'C', label: 'Cukup Baik', min: 60 },
+    { letter: 'D', label: 'Kurang Baik', min: 40 },
+    { letter: 'E', label: 'Perlu Perbaikan', min: 0 },
+];
 
 /** Isi cepat dua aspek seperti rapor madrasah: ujian tulis & ujian praktik. */
 const WRITTEN_AND_PRACTICE: Omit<AspectRow, 'key'>[] = [
@@ -360,36 +372,30 @@ function GradingForm({
                         </div>
                     )}
 
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
-                        {(
-                            [
-                                ['kkm', 'KKM', initial.kkm],
-                                ['grade_a', 'Batas A', initial.grade_a],
-                                ['grade_b', 'Batas B', initial.grade_b],
-                            ] as const
-                        ).map(([name, label, value]) => (
-                            <div key={name} className="grid gap-1.5">
-                                <Label htmlFor={`grading-${name}`}>
-                                    {label}
-                                </Label>
-                                <Input
-                                    id={`grading-${name}`}
-                                    name={name}
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                    defaultValue={value}
-                                    required
-                                />
-                                <InputError message={errors[name]} />
-                            </div>
-                        ))}
+                    <div className="grid gap-1.5 sm:max-w-40">
+                        <Label htmlFor="grading-kkm">KKM</Label>
+                        <Input
+                            id="grading-kkm"
+                            name="kkm"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            defaultValue={initial.kkm}
+                            required
+                        />
+                        <InputError message={errors.kkm} />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        Predikat: A ≥ batas A, B ≥ batas B, C ≥ KKM, D di bawah
-                        KKM.
-                    </p>
+
+                    <PredicateFields
+                        initial={initial.predicates}
+                        error={
+                            errors.predicates ??
+                            Object.entries(errors).find(([field]) =>
+                                field.startsWith('predicates.'),
+                            )?.[1]
+                        }
+                    />
 
                     <div className="space-y-3">
                         {aspects.map((aspect, aspectIndex) => (
@@ -710,6 +716,175 @@ function AspectFields({
                     {total !== 100 && ' (harus 100%)'}
                 </span>
             </div>
+        </fieldset>
+    );
+}
+
+/**
+ * Skala predikat: 2–6 tingkat urut dari tertinggi (huruf, sebutan, nilai minimal). Tingkat terakhir
+ * selalu mulai dari 0 (kolomnya dikunci).
+ */
+function PredicateFields({
+    initial,
+    error,
+}: {
+    initial: PredicateLevel[];
+    error?: string;
+}) {
+    const [levels, setLevels] = useState<LevelRow[]>(() =>
+        initial.map((level, index) => ({ ...level, key: index })),
+    );
+    const [nextKey, setNextKey] = useState(initial.length + 100);
+
+    const update = (key: number, change: Partial<PredicateLevel>) =>
+        setLevels((current) =>
+            current.map((level) =>
+                level.key === key ? { ...level, ...change } : level,
+            ),
+        );
+
+    return (
+        <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Skala predikat</legend>
+            <p className="text-xs text-muted-foreground">
+                Urut dari tertinggi. Predikat = tingkat tertinggi yang nilai
+                minimalnya tercapai. Sebutan (mis. "Sangat Baik") tampil di
+                rapor; kosongkan bila cukup huruf saja. Mapel bernilai huruf
+                memilih dari huruf-huruf ini.
+            </p>
+
+            {levels.map((level, index) => {
+                const last = index === levels.length - 1;
+
+                return (
+                    <div
+                        key={level.key}
+                        className="grid grid-cols-[4rem_minmax(0,1fr)_5rem_auto] items-end gap-2"
+                    >
+                        <div className="grid gap-1">
+                            <Label
+                                htmlFor={`level-letter-${level.key}`}
+                                className="text-xs"
+                            >
+                                Huruf
+                            </Label>
+                            <Input
+                                id={`level-letter-${level.key}`}
+                                name={`predicates[${index}][letter]`}
+                                value={level.letter}
+                                maxLength={2}
+                                onChange={(event) =>
+                                    update(level.key, {
+                                        letter: event.target.value.toUpperCase(),
+                                    })
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-1">
+                            <Label
+                                htmlFor={`level-label-${level.key}`}
+                                className="text-xs"
+                            >
+                                Sebutan
+                            </Label>
+                            <Input
+                                id={`level-label-${level.key}`}
+                                name={`predicates[${index}][label]`}
+                                value={level.label ?? ''}
+                                maxLength={30}
+                                placeholder="Opsional"
+                                onChange={(event) =>
+                                    update(level.key, {
+                                        label: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div className="grid gap-1">
+                            <Label
+                                htmlFor={`level-min-${level.key}`}
+                                className="text-xs"
+                            >
+                                Minimal
+                            </Label>
+                            <Input
+                                id={`level-min-${level.key}`}
+                                name={`predicates[${index}][min]`}
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={last ? 0 : level.min}
+                                readOnly={last}
+                                aria-readonly={last}
+                                className={last ? 'bg-muted' : undefined}
+                                onChange={(event) =>
+                                    update(level.key, {
+                                        min: Number.parseInt(
+                                            event.target.value,
+                                            10,
+                                        ),
+                                    })
+                                }
+                                required
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label={`Hapus predikat ${level.letter || index + 1}`}
+                            disabled={levels.length <= 2}
+                            onClick={() =>
+                                setLevels((current) =>
+                                    current.filter(
+                                        (item) => item.key !== level.key,
+                                    ),
+                                )
+                            }
+                        >
+                            <Trash2 />
+                        </Button>
+                    </div>
+                );
+            })}
+
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex sm:flex-wrap">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={levels.length >= 6}
+                    onClick={() => {
+                        setLevels((current) => [
+                            ...current,
+                            { key: nextKey, letter: '', label: null, min: 0 },
+                        ]);
+                        setNextKey((key) => key + 1);
+                    }}
+                >
+                    <Plus />
+                    Tambah tingkat
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                        setLevels(
+                            FIVE_LEVELS.map((level, index) => ({
+                                ...level,
+                                key: nextKey + index,
+                            })),
+                        );
+                        setNextKey((key) => key + FIVE_LEVELS.length);
+                    }}
+                >
+                    Isi contoh 5 tingkat
+                </Button>
+            </div>
+            <InputError message={error} />
         </fieldset>
     );
 }

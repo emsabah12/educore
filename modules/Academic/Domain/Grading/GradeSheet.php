@@ -24,6 +24,7 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property string $term_id
  * @property string $status
  * @property array<string, mixed> $rules
+ * @property string $grade_type salinan jenis nilai mapel: Subject::NUMBER atau Subject::LETTER (AC-8b)
  * @property string|null $finalized_by_membership_id
  * @property CarbonImmutable|null $finalized_at
  * @property CarbonImmutable|null $created_at
@@ -49,6 +50,7 @@ class GradeSheet extends Model implements OwnedByOrganization
         'term_id',
         'status',
         'rules',
+        'grade_type',
         'finalized_by_membership_id',
         'finalized_at',
     ];
@@ -67,6 +69,11 @@ class GradeSheet extends Model implements OwnedByOrganization
     public function newUniqueId(): string
     {
         return (string) Str::uuid7();
+    }
+
+    public function isLetter(): bool
+    {
+        return $this->grade_type === 'LETTER';
     }
 
     public function isFinal(): bool
