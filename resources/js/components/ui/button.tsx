@@ -4,29 +4,29 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// Tombol (UX-1, DESIGN-airbnb button-*): utama merah Rausch, sekunder putih bergaris tinta, teks tanpa latar;
-// tinggi 48px (sentuh nyaman), sudut 8px, berat 500; fokus = cincin tinta 2px.
+// Tombol (UX-2, gaya dasbor Materio): huruf kapital kecil berjarak, sudut 6px, tinggi 40px; utama ungu dengan bayangan
+// ungu, garis = garis & teks ungu, teks = tanpa latar. Fokus = cincin ungu 2px.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium uppercase tracking-[0.03em] transition-[color,background-color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary-active active:bg-primary-active",
+          "bg-primary text-primary-foreground shadow-primary hover:bg-primary-active active:bg-primary-active",
         destructive:
-          "border border-destructive bg-background text-destructive hover:bg-destructive hover:text-white",
+          "border border-destructive/60 bg-transparent text-destructive hover:bg-destructive/10",
         outline:
-          "border border-foreground bg-background text-foreground hover:bg-muted",
+          "border border-primary/60 bg-transparent text-primary hover:bg-accent dark:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-        ghost: "text-foreground hover:bg-muted",
-        link: "text-foreground underline underline-offset-4 hover:text-muted-foreground",
+        ghost: "text-primary hover:bg-accent dark:text-accent-foreground",
+        link: "normal-case tracking-normal text-primary underline-offset-4 hover:underline dark:text-accent-foreground",
       },
       size: {
-        default: "h-12 px-6 has-[>svg]:px-5",
-        sm: "h-9 rounded-md px-4 text-sm has-[>svg]:px-3",
-        lg: "h-14 rounded-md px-8 has-[>svg]:px-6",
-        icon: "size-10 rounded-full",
+        default: "h-10 px-5 has-[>svg]:px-4",
+        sm: "h-8 px-3.5 text-xs has-[>svg]:px-3",
+        lg: "h-12 px-7 has-[>svg]:px-6",
+        icon: "size-9 rounded-full normal-case",
       },
     },
     defaultVariants: {

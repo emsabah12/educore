@@ -438,7 +438,7 @@ function RecapRow({
                     </dl>
 
                     {row.lines.length > 0 && (
-                        <ul className="divide-y rounded-lg border bg-background">
+                        <ul className="divide-y rounded-lg border bg-card">
                             {row.lines.map((line, index) => (
                                 <li
                                     key={index}
@@ -512,7 +512,7 @@ function Adjustments({
                     Belum ada penyesuaian.
                 </p>
             ) : (
-                <ul className="divide-y rounded-lg border bg-background">
+                <ul className="divide-y rounded-lg border bg-card">
                     {row.adjustments.map((adjustment) => (
                         <li
                             key={adjustment.id}

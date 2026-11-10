@@ -481,7 +481,7 @@ export function AppSidebar() {
     ].filter((group) => group.items.length > 0);
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

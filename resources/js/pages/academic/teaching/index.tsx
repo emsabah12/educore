@@ -296,7 +296,7 @@ function LessonCard({
                                         className={
                                             'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 ' +
                                             (status === value
-                                                ? 'border-foreground bg-muted'
+                                                ? 'border-primary bg-accent'
                                                 : 'hover:bg-muted')
                                         }
                                     >

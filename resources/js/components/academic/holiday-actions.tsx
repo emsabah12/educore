@@ -119,7 +119,7 @@ export function WeeklyOffForm({
                             return (
                                 <label
                                     key={option.value}
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border bg-background p-2 text-sm hover:bg-muted"
+                                    className="flex cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-sm hover:bg-muted"
                                 >
                                     <input
                                         type="checkbox"

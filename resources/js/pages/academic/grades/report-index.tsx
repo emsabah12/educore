@@ -205,7 +205,7 @@ function NotesForm({
                                     [student.enrollment_id]: event.target.value,
                                 }))
                             }
-                            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
+                            className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
                         />
                     ) : (
                         student.note && (
@@ -244,7 +244,7 @@ function NotesForm({
                             )?.[1]
                         }
                     />
-                    <div className="sticky bottom-0 border-t bg-background py-3">
+                    <div className="sticky bottom-0 border-t bg-card py-3">
                         <Button
                             type="submit"
                             disabled={processing}

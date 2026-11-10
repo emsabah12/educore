@@ -886,7 +886,7 @@ function OnceForm({
                                 className={
                                     'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
                                     (target === value
-                                        ? 'border-foreground bg-muted'
+                                        ? 'border-primary bg-accent'
                                         : 'hover:bg-muted')
                                 }
                             >
@@ -924,7 +924,7 @@ function OnceForm({
 
                     {target === 'siswa' &&
                         (student ? (
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3 text-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card p-3 text-sm">
                                 <span className="min-w-0 font-medium break-words">
                                     {student.name}
                                     {student.class && (
@@ -1022,7 +1022,7 @@ function SummaryBox({
             : `${summary.months[0]} – ${summary.months[summary.months.length - 1]}`;
 
     return (
-        <div className="space-y-2 rounded-md border bg-background p-3 text-sm">
+        <div className="space-y-2 rounded-md border bg-card p-3 text-sm">
             <p className="font-medium">
                 {summary.type},{' '}
                 {once

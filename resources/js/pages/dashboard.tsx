@@ -1,5 +1,16 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import {
+    ChevronRight,
+    ClipboardCheck,
+    CreditCard,
+    FileClock,
+    LayoutGrid,
+    PiggyBank,
+    ReceiptText,
+    Scale,
+    Wallet,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { dashboard } from '@/routes';
 
 type DashboardCard = {
@@ -15,10 +26,23 @@ type Props = {
     cards: DashboardCard[];
 };
 
-const TONE_CLASS: Record<DashboardCard['tone'], string> = {
-    default: '',
-    warning: 'border-amber-400/60 bg-amber-50 dark:bg-amber-950/30',
-    danger: 'border-red-400/60 bg-red-50 dark:bg-red-950/30',
+/** Ikon per kartu (kunci dari server); kartu baru tanpa ikon khusus memakai ikon umum. */
+const CARD_ICON: Record<string, LucideIcon> = {
+    'hr.expiring_documents': FileClock,
+    'finance.arrears': ReceiptText,
+    'finance.billing': ReceiptText,
+    'finance.expenses_pending': ClipboardCheck,
+    'finance.expenses_approved': Wallet,
+    'finance.savings': PiggyBank,
+    'finance.online_overpaid': CreditCard,
+    'finance.ledger_mismatch': Scale,
+};
+
+/** Kotak ikon berwarna (UX-2, gaya Materio): ungu = biasa, kuning = perlu perhatian, merah = mendesak. */
+const TONE_ICON: Record<DashboardCard['tone'], string> = {
+    default: 'bg-brand text-white shadow-primary',
+    warning: 'bg-amber-500 text-white shadow-[0_2px_6px_rgba(255,180,0,0.4)]',
+    danger: 'bg-red-500 text-white shadow-[0_2px_6px_rgba(255,76,81,0.4)]',
 };
 
 /**
@@ -31,9 +55,9 @@ export default function Dashboard({ cards }: Props) {
     return (
         <>
             <Head title="Beranda" />
-            <div className="flex flex-1 flex-col gap-4 p-4">
+            <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
                 <div className="space-y-1">
-                    <h1 className="text-xl font-semibold">
+                    <h1 className="text-[1.375rem] leading-tight font-medium">
                         Selamat datang{auth.user ? `, ${auth.user.name}` : ''}
                     </h1>
                     <p className="text-sm text-muted-foreground">
@@ -42,30 +66,44 @@ export default function Dashboard({ cards }: Props) {
                 </div>
 
                 {cards.length > 0 && (
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-4">
-                        {cards.map((card) => (
-                            <Link
-                                key={card.key}
-                                href={card.href}
-                                className={
-                                    'group flex flex-col gap-2 rounded-xl border p-4 transition-colors hover:bg-muted/50 ' +
-                                    TONE_CLASS[card.tone]
-                                }
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-sm font-medium">
-                                        {card.title}
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-6">
+                        {cards.map((card) => {
+                            const Icon = CARD_ICON[card.key] ?? LayoutGrid;
+
+                            return (
+                                <Link
+                                    key={card.key}
+                                    href={card.href}
+                                    className="group flex flex-col gap-3 rounded-xl bg-card p-5 shadow-card transition-shadow hover:shadow-float focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <span
+                                            className={
+                                                'flex size-11 shrink-0 items-center justify-center rounded-lg ' +
+                                                TONE_ICON[card.tone]
+                                            }
+                                        >
+                                            <Icon
+                                                className="size-5"
+                                                aria-hidden
+                                            />
+                                        </span>
+                                        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <span className="block text-sm text-muted-foreground">
+                                            {card.title}
+                                        </span>
+                                        <span className="block text-[1.75rem] leading-tight font-medium tabular-nums">
+                                            {card.value}
+                                        </span>
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">
+                                        {card.description}
                                     </span>
-                                    <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                                </div>
-                                <span className="text-3xl font-semibold tabular-nums">
-                                    {card.value}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                    {card.description}
-                                </span>
-                            </Link>
-                        ))}
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>

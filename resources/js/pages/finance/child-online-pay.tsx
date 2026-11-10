@@ -165,7 +165,7 @@ export default function ChildOnlinePay({
                                             {organizations.map((row) => (
                                                 <label
                                                     key={row.enrollment_id}
-                                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${row.enrollment_id === enrollmentId ? 'border-foreground bg-muted' : ''}`}
+                                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${row.enrollment_id === enrollmentId ? 'border-primary bg-accent' : ''}`}
                                                 >
                                                     <input
                                                         type="radio"
@@ -252,7 +252,7 @@ export default function ChildOnlinePay({
                                         {methods.map((row) => (
                                             <label
                                                 key={row.value}
-                                                className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${row.value === method ? 'border-foreground bg-muted' : ''}`}
+                                                className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${row.value === method ? 'border-primary bg-accent' : ''}`}
                                             >
                                                 <input
                                                     type="radio"

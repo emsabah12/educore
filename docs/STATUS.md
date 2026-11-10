@@ -51,7 +51,7 @@
 | 2026-11-04 | **Pembukuan** (PRD-007, disetujui 2026-11-05 termasuk OD-PB-04 s.d. 11 sesuai usulan): jurnal **otomatis** dari semua transaksi aplikasi + **jurnal manual** penyesuaian; laporan format **ISAK 35** nirlaba; tagihan siswa diakui **akrual**; satu buku yayasan + dimensi lembaga + RAK; potongan dicatat bruto; tahun buku Januari–Desember | PRD-007 §2, §14                                          |
 | 2026-11-05 | Jurnal otomatis lewat **antrean yang diisi trigger database** (transaksi sama), disusun tiap menit oleh scheduler & sebelum halaman pembukuan dibuka; nomor jurnal dari sequence (naik, boleh melompat)                                                                                                                                       | PRD-007 §4, §15                                          |
 | 2026-10-31 | **Pedoman tampilan**: menu samping berkelompok (Untuk saya, Akademik, Kepegawaian, Keuangan siswa, Kas & pengeluaran, Pengaturan); satu tampilan = satu fungsi utama — bagian berbeda jadi **tab** (`?tab=`), form tambahan di **jendela pop-up**, bukan menumpuk di halaman                                                                  | STATUS § Pedoman tampilan                                |
-| 2026-11-10 | **Tema visual UX-1** mengikuti `DESIGN-airbnb.md` (owner): kanvas putih + tinta, satu aksen merah dipakai hemat, sudut lembut, satu tingkat bayangan, huruf Inter; tombol utama #e00b41 demi kontras AA                                                                                                                                       | STATUS § Perapian tampilan                               |
+| 2026-11-10 | **Tema visual UX-2** gaya Materio (owner, menggantikan UX-1 yang tidak di-push): latar abu-ungu + kartu putih melayang, aksen ungu #8C57FF, menu aktif pil gradasi; tombol utama #7E4EE6 demi kontras AA | STATUS § Perapian tampilan |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -888,13 +888,15 @@
 - Tanpa perubahan backend; `tsc`, format (oxfmt) & lint (oxlint) bersih; 706 test Unit/Feature lulus.
 - **UI-2-fix1**: 502 Bad Gateway saat refresh halaman detail → middleware `AddLinkHeadersForPreloadedAssets` dilepas dari `bootstrap/app.php` (lihat Catatan teknis).
 
-**UX-1 — Tema visual mengikuti DESIGN-airbnb.md: DIBANGUN (2026-11-10, menunggu uji owner)** — permintaan owner 2026-11-10
+**UX-2 — Tema visual gaya Materio: DIBANGUN (2026-11-10, menunggu uji owner)** — permintaan owner 2026-11-10 (contoh tangkapan layar dasbor Materio; pilihan owner: ganti total UX-1, tema visual saja, aksen ungu #8C57FF)
 
-- Token tema (`resources/css/app.css`): kanvas putih, tinta #222222, teks redup #6a6a6a, garis #dddddd, satu aksen merah (Rausch) dipakai hemat; sudut lembut (tombol/isian 8px, kartu 14px, panel 20px, tombol ikon bundar); satu tingkat bayangan (`shadow-float`) untuk menu/dialog melayang; huruf **Inter** (pengganti terbuka Airbnb Cereal yang berlisensi) lewat `vite.config.ts`.
-- Penyesuaian aksesibilitas [ASUMSI UX-1]: tombol utama memakai Rausch tua **#e00b41** (kontras teks putih 4,9:1, WCAG AA); #ff385c hanya untuk penanda non-teks (logo). Garis isian #929292 (kontras 3,2:1). Merah galat #c13515 terpisah dari merah merek. Mode gelap tetap ada (abu netral).
-- Komponen dasar (`components/ui`): tombol 48px (sm 36px), utama merah, garis = putih bergaris tinta, hapus = garis merah; isian & `<select>` 48px, fokus garis tinta tanpa cahaya; kartu, dialog, sheet, dropdown, tooltip, badge, checkbox, sidebar disesuaikan. `components/native-select.ts` = kelas bersama `<select>` bawaan; textarea di halaman Akademik/SDM disamakan.
-- Halaman: judul 22px semibold; tombol saringan (Terapkan) jadi tombol garis supaya merah hanya untuk aksi utama; logo aplikasi = satu-satunya warna merek di kerangka.
-- Tanpa perubahan backend.
+- **Menggantikan UX-1** (tema DESIGN-airbnb.md) yang belum pernah di-push; seluruh berkas UX-1 ikut di paket UX-2 sehingga aman dipasang di atas UX-1 maupun di atas PB-3.
+- Token tema (`resources/css/app.css`): latar abu-ungu #F4F5FA, kartu putih melayang (`shadow-card`), teks #3A3541, aksen ungu #8C57FF, sudut 8px (kartu 10px); mode gelap ungu tua (#28243D / kartu #312D4B). Huruf Inter tetap.
+- Penyesuaian aksesibilitas [ASUMSI UX-2]: tombol utama memakai ungu lebih tua **#7E4EE6** (kontras teks putih 5,1:1, WCAG AA); #8C57FF untuk gradasi menu aktif, ikon, logo dan cincin fokus. Garis isian #9A97A1. Merah galat #D93A3F.
+- Kerangka: menu samping menyatu dengan latar, menu aktif = pil gradasi ungu menempel ke kiri; label kelompok huruf kapital kecil; header tanpa garis bawah.
+- Komponen: tombol huruf kapital (utama ungu berbayang, garis = garis ungu, hapus = garis merah), isian & `<select>` 40px bergaris abu dengan fokus ungu, badge lembut, tab aktif ungu, dialog/sheet berlatar kartu. **Setiap kotak `rounded-xl border` di area isi otomatis tampil sebagai kartu putih melayang** (aturan CSS di `@layer components`); kotak bersarang tetap bergaris tipis.
+- Beranda: kartu ringkasan berikon kotak warna (ungu normal, kuning peringatan, merah bahaya). Halaman masuk: formulir di kartu putih.
+- Tanpa perubahan backend, data, menu, atau perilaku.
 
 ### Pedoman tampilan (berlaku untuk halaman baru) [owner 2026-10-31]
 
@@ -902,7 +904,7 @@
 2. Satu tampilan = satu fungsi utama. Bagian yang berbeda (mis. daftar vs pengaturan vs riwayat) dipisah dengan `PageTabs`; tab tercatat di alamat dan ikut dikirim saat mengganti saringan.
 3. Form tambahan (tambah, catat, ajukan, setujui, batalkan) dibuka dengan `FormDialog`, bukan disisipkan di atas daftar. Form sangat panjang (mis. tambah siswa/pegawai) boleh tetap halaman tersendiri.
 4. Saringan di atas daftar; ringkasan angka (kotak statistik) paling banyak satu baris.
-5. [UX-1] Merah (tombol `default`) hanya untuk **satu aksi utama** per tampilan; aksi lain `outline`/`ghost`. Pakai komponen `components/ui` dan `selectClass` dari `components/native-select.ts`, jangan menulis ulang kelas isian/tombol. Angka negatif & galat memakai `text-destructive`, bukan warna merek.
+5. [UX-2] Ungu (tombol `default`) hanya untuk **satu aksi utama** per tampilan; aksi lain `outline`/`ghost`. Kotak isi cukup ditulis `rounded-xl border` — otomatis jadi kartu putih melayang (pakai `border-dashed` untuk kotak kosong yang tidak ingin jadi kartu). Pakai komponen `components/ui` dan `selectClass` dari `components/native-select.ts`, jangan menulis ulang kelas isian/tombol. Angka negatif & galat memakai `text-destructive`, bukan warna merek.
 
 ## Struktur file utama
 

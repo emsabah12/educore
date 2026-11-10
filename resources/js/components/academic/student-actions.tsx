@@ -63,7 +63,7 @@ export type EnrollmentRef = {
 };
 
 export const textareaClass =
-    'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm';
+    'min-h-20 w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm';
 
 /** Nama isian untuk ringkasan kesalahan. */
 const fieldLabels: Record<string, string> = {

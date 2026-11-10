@@ -121,7 +121,7 @@ export function StudentSearch({
                         Tidak ada siswa yang cocok di lembaga ini.
                     </p>
                 ) : (
-                    <ul className="divide-y rounded-md border bg-background">
+                    <ul className="divide-y rounded-md border bg-card">
                         {results.map((hit) => (
                             <li key={hit.enrollment_id}>
                                 <button

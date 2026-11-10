@@ -267,7 +267,7 @@ function DesktopTable({
                 <tbody className="divide-y">
                     {ledger.students.map((student, index) => (
                         <tr key={student.enrollment_id}>
-                            <td className="sticky left-0 bg-background px-3 py-2">
+                            <td className="sticky left-0 bg-card px-3 py-2">
                                 <span className="text-muted-foreground">
                                     {index + 1}.
                                 </span>{' '}

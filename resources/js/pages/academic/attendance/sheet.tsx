@@ -319,7 +319,7 @@ function SheetForm({
                                                             ? activeClass[
                                                                   status.value
                                                               ]
-                                                            : 'bg-background hover:bg-muted')
+                                                            : 'bg-card hover:bg-muted')
                                                     }
                                                 >
                                                     <input

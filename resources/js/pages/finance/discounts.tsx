@@ -322,7 +322,7 @@ function AddForm({
                     />
 
                     {student ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card p-3 text-sm">
                             <span className="min-w-0 break-words">
                                 <span className="font-medium">
                                     {student.name}

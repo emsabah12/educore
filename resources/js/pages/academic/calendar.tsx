@@ -272,7 +272,7 @@ export default function AcademicCalendar({
                                         className={
                                             'flex min-h-14 flex-col justify-center gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors ' +
                                             (active
-                                                ? 'border-foreground bg-foreground text-background'
+                                                ? 'border-primary bg-primary text-primary-foreground'
                                                 : 'hover:bg-muted')
                                         }
                                     >
@@ -891,7 +891,7 @@ function AssignForm({
                                 className={
                                     'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
                                     (target === value
-                                        ? 'border-foreground bg-muted'
+                                        ? 'border-primary bg-accent'
                                         : 'hover:bg-muted')
                                 }
                             >

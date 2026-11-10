@@ -453,7 +453,7 @@ function RateEditor({
                     Belum ada tarif. Pegawai belum menerima komponen ini.
                 </p>
             ) : (
-                <ul className="divide-y rounded-md border bg-background">
+                <ul className="divide-y rounded-md border bg-card">
                     {component.rates.map((rate) => (
                         <li
                             key={rate.id}

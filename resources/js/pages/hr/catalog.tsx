@@ -71,7 +71,7 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                                 className={
                                     'flex min-h-10 items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors ' +
                                     (active
-                                        ? 'border-foreground bg-foreground text-background'
+                                        ? 'border-primary bg-primary text-primary-foreground'
                                         : 'hover:bg-muted')
                                 }
                             >

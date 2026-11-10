@@ -184,7 +184,7 @@ export default function AttendanceSheetPage(props: Props) {
                                         />
                                     ))}
                                 </ul>
-                                <div className="sticky bottom-0 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 border-t bg-background py-3 sm:flex">
+                                <div className="sticky bottom-0 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 border-t bg-card py-3 sm:flex">
                                     <Button type="submit" disabled={processing}>
                                         {processing
                                             ? 'Menyimpan…'

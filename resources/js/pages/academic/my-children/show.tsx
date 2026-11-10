@@ -128,7 +128,7 @@ export default function MyChild({
                                         `/anak-saya/${event.target.value}`,
                                     )
                                 }
-                                className="h-12 max-w-[14rem] min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                                className="h-10 max-w-[14rem] min-w-0 rounded-md border border-input bg-transparent px-3 text-sm"
                             >
                                 {siblings.map((sibling) => (
                                     <option key={sibling.id} value={sibling.id}>

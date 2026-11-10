@@ -373,7 +373,7 @@ function AddAssignmentForm({
                             ).map(([value, label]) => (
                                 <label
                                     key={value}
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-foreground has-[:checked]:bg-muted"
+                                    className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent"
                                 >
                                     <input
                                         type="radio"

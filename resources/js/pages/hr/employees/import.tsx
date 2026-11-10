@@ -450,7 +450,7 @@ function Step({
     return (
         <section className="space-y-3 rounded-xl border p-4">
             <h2 className="flex items-center gap-2 text-base font-medium">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-xs text-background">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
                     {number}
                 </span>
                 {title}

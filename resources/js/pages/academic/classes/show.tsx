@@ -594,7 +594,7 @@ function AddMembersForm({
                                 </span>
                             </div>
 
-                            <ul className="max-h-96 divide-y overflow-y-auto rounded-md border bg-background">
+                            <ul className="max-h-96 divide-y overflow-y-auto rounded-md border bg-card">
                                 {shown.map((candidate) => (
                                     <li key={candidate.enrollment_id}>
                                         <label className="flex cursor-pointer items-start gap-3 p-3 text-sm">

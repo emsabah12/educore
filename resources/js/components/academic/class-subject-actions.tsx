@@ -396,7 +396,7 @@ function AddSubjectsForm({
                                 />
                                 Pilih semua ({options.length})
                             </label>
-                            <ul className="grid max-h-80 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-1 overflow-y-auto rounded-md border bg-background p-2">
+                            <ul className="grid max-h-80 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-1 overflow-y-auto rounded-md border bg-card p-2">
                                 {options.map((option) => (
                                     <li key={option.value}>
                                         <label className="flex cursor-pointer items-start gap-2 rounded p-2 text-sm hover:bg-muted">
