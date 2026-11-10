@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -72,9 +73,6 @@ type Props = {
 };
 
 const BASE_URL = '/pegawai/gaji/rekap';
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 const COLUMN_LABELS: [keyof Row['columns'], string][] = [
     ['position', 'Dari jabatan'],

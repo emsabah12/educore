@@ -1,3 +1,4 @@
+import { selectClass } from '@/components/native-select';
 /**
  * Bantuan bersama halaman pembukuan (PRD-007, PB-1).
  */
@@ -45,9 +46,6 @@ export function formatMonth(value: string): string {
     return monthFormat.format(new Date(year, month - 1, 1));
 }
 
-export const selectClass =
-    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 dark:bg-input/30';
-
 export type LedgerPeriod = {
     from: string;
     to: string;
@@ -70,3 +68,5 @@ export function formatBalance(
 
     return value < 0 ? `(${formatNumber(-value)})` : formatNumber(value);
 }
+
+export { selectClass };

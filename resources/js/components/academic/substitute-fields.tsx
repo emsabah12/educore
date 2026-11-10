@@ -1,11 +1,9 @@
 import type { SubstituteCandidate } from '@/components/academic/teaching';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Pilihan guru pengganti (PRD-002 §20.3): guru piket & yang tersedia di atas; yang bentrok jadwal

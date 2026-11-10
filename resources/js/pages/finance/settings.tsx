@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -76,9 +77,6 @@ const rupiah = new Intl.NumberFormat('id-ID');
 const TYPES_URL = '/keuangan/jenis-biaya';
 
 const TABS = ['jenis', 'tarif', 'jatuh-tempo', 'batas', 'online'] as const;
-
-const selectClass =
-    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Pengaturan keuangan (PRD-003 §6, FN-1a): jenis biaya yayasan dan tarifnya per lembaga × tahun ajaran
@@ -864,7 +862,7 @@ function AddGradeForm({
             errorBag={errorBag}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-2 rounded-md border border-primary/30 bg-muted/20 p-3"
+            className="space-y-2 rounded-md border border-border bg-muted/20 p-3"
         >
             {({ processing, errors }) => (
                 <>
@@ -1110,7 +1108,7 @@ function OnlineMethodRow({
                         checked={enabled}
                         disabled={disabled && !enabled}
                         onChange={(event) => setEnabled(event.target.checked)}
-                        className="size-4 accent-primary"
+                        className="size-4 accent-foreground"
                     />
                     {row.label}
                 </label>

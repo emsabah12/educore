@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -48,9 +49,6 @@ type Props = {
 };
 
 const BASE_URL = '/akademik/presensi-mengajar';
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Presensi mengajar per lembaga & tanggal (PRD-002 §20.2, AC-6a): guru piket hari ini, Operator
@@ -275,7 +273,7 @@ function LessonCard({
                     errorBag={`lesson-${lesson.key}`}
                     options={{ preserveScroll: true }}
                     onSuccess={() => setEditing(false)}
-                    className="space-y-3 rounded-md border border-primary/30 bg-muted/20 p-3"
+                    className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -298,7 +296,7 @@ function LessonCard({
                                         className={
                                             'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 ' +
                                             (status === value
-                                                ? 'border-primary bg-primary/5'
+                                                ? 'border-foreground bg-muted'
                                                 : 'hover:bg-muted')
                                         }
                                     >
@@ -308,7 +306,7 @@ function LessonCard({
                                             value={value}
                                             checked={status === value}
                                             onChange={() => setStatus(value)}
-                                            className="size-4 accent-primary"
+                                            className="size-4 accent-foreground"
                                         />
                                         {label}
                                     </label>

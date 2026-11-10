@@ -3,6 +3,7 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 /*
  * Bagian form & daftar aturan berjenjang (PRD-000 §8) — Pengaturan gaji (HR-5b), Pengaturan keuangan (FN-2a): target
@@ -17,9 +18,6 @@ export type RulesData = {
     rules: { id: string; target: string; days: string; enforced: boolean }[];
     usage: { id: string; name: string; days: string; source: string }[];
 };
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 export function TargetFields({
     idPrefix,
@@ -53,7 +51,7 @@ export function TargetFields({
                         className={
                             'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
                             (target === value
-                                ? 'border-primary bg-primary/5'
+                                ? 'border-foreground bg-muted'
                                 : 'hover:bg-muted')
                         }
                     >
@@ -63,7 +61,7 @@ export function TargetFields({
                             value={value}
                             checked={target === value}
                             onChange={() => setTarget(value)}
-                            className="size-4 accent-primary"
+                            className="size-4 accent-foreground"
                         />
                         {label}
                     </label>
@@ -126,7 +124,7 @@ export function EnforcedCheckbox({ text }: { text: string }) {
                 type="checkbox"
                 name="enforced"
                 value="1"
-                className="mt-0.5 size-4 accent-primary"
+                className="mt-0.5 size-4 accent-foreground"
             />
             {text}
         </label>

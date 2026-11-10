@@ -205,7 +205,7 @@ function Select({
                 id={id}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm"
+                className="h-12 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>

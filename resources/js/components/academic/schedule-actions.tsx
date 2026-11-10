@@ -173,7 +173,7 @@ export function ScheduleSection({
                                                     {lessonAttendance && (
                                                         <Link
                                                             href={`/kelas/jadwal/${entry.id}/presensi`}
-                                                            className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                                            className="mt-1 inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground"
                                                         >
                                                             <ClipboardCheck className="size-3.5" />
                                                             Presensi

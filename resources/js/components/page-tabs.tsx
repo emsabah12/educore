@@ -73,7 +73,7 @@ export function PageTabs<T extends string>({
         <div
             role="tablist"
             aria-label={label}
-            className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0"
+            className="-mx-4 flex gap-2 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0"
         >
             {tabs.map((tab) => {
                 const active = tab.value === value;
@@ -86,15 +86,16 @@ export function PageTabs<T extends string>({
                         aria-selected={active}
                         onClick={() => onChange(tab.value)}
                         className={cn(
-                            '-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                            '-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                            // UX-1 (DESIGN-airbnb product-tab): aktif = tinta + garis bawah tinta 2px; lainnya abu.
                             active
-                                ? 'border-primary text-foreground'
-                                : 'border-transparent text-muted-foreground hover:text-foreground',
+                                ? 'border-foreground text-foreground'
+                                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
                         )}
                     >
                         {tab.label}
                         {tab.badge !== undefined && tab.badge > 0 && (
-                            <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground tabular-nums">
+                            <span className="rounded-full bg-foreground px-1.5 text-xs text-background tabular-nums">
                                 {tab.badge}
                             </span>
                         )}

@@ -181,7 +181,7 @@ export function GuardianAccountPanel({
                             errorBag={ERROR_BAG}
                             options={{ preserveScroll: true }}
                             onSuccess={() => setConfirm(null)}
-                            className="space-y-2 rounded-lg border border-primary/30 p-3"
+                            className="space-y-2 rounded-lg border border-border p-3"
                         >
                             {({ processing, errors }) => (
                                 <>

@@ -101,7 +101,7 @@ export function WeeklyOffForm({
             errorBag="weekly-off"
             options={{ preserveScroll: true }}
             onSuccess={() => setEditing(false)}
-            className="space-y-3 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-3 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -127,7 +127,7 @@ export function WeeklyOffForm({
                                         value={option.value}
                                         checked={selected.includes(day)}
                                         onChange={() => toggle(day)}
-                                        className="size-4 accent-primary"
+                                        className="size-4 accent-foreground"
                                     />
                                     {option.label}
                                 </label>
@@ -374,7 +374,7 @@ function HolidayForm({
             errorBag={errorBag}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-md border border-primary/30 bg-muted/20 p-3"
+            className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
         >
             {({ processing, errors }) => (
                 <>

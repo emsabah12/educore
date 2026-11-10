@@ -13,6 +13,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Status = 'SIAP' | 'PERINGATAN' | 'SALAH';
 
@@ -69,9 +70,6 @@ const STATUS_LABEL: Record<Status, string> = {
     PERINGATAN: 'Peringatan',
     SALAH: 'Salah',
 };
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Impor siswa dari Excel/CSV (PRD-002 AC-1e): pilih lembaga → template → unggah → pratinjau.
@@ -536,7 +534,7 @@ function Step({
     return (
         <section className="space-y-3 rounded-xl border p-4">
             <h2 className="flex items-center gap-2 text-base font-medium">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-xs text-background">
                     {number}
                 </span>
                 {title}

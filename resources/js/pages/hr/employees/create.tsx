@@ -7,6 +7,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -34,11 +35,8 @@ type Props = {
 
 type Mode = 'baru' | 'anggota';
 
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
-
 const textareaClass =
-    'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm dark:bg-input/30';
+    'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm';
 
 /**
  * Form tambah pegawai (PRD-001 §6). Validasi akhir & hak akses tetap di server.
@@ -500,7 +498,7 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                             type="checkbox"
                                             name="confirm_duplicate"
                                             value="1"
-                                            className="mt-0.5 size-4 accent-primary"
+                                            className="mt-0.5 size-4 accent-foreground"
                                         />
                                         Saya sudah memeriksa: ini orang yang
                                         berbeda.
@@ -549,7 +547,7 @@ function ModeButton({
             className={
                 'min-h-14 rounded-md border px-3 py-2 text-left transition-colors ' +
                 (active
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-foreground bg-foreground text-background'
                     : 'hover:bg-muted')
             }
         >
@@ -557,9 +555,7 @@ function ModeButton({
             <span
                 className={
                     'block text-xs ' +
-                    (active
-                        ? 'text-primary-foreground/80'
-                        : 'text-muted-foreground')
+                    (active ? 'text-background/80' : 'text-muted-foreground')
                 }
             >
                 {description}

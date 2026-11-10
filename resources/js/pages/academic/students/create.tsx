@@ -20,6 +20,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -83,11 +84,8 @@ function fieldLabel(field: string): string {
 /** '' = belum memilih, 'baru' = orang berbeda, selain itu = membership calon yang dipilih. */
 type DuplicateChoice = string;
 
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
-
 const textareaClass =
-    'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm dark:bg-input/30';
+    'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm';
 
 /**
  * Form tambah siswa (PRD-002 §6, AC-1b). Validasi akhir & hak akses tetap di server.
@@ -624,7 +622,7 @@ function GuardianRow({
                         type="radio"
                         checked={isPrimary}
                         onChange={onPrimary}
-                        className="size-4 accent-primary"
+                        className="size-4 accent-foreground"
                     />
                     Kontak utama
                 </label>
@@ -735,7 +733,7 @@ function DuplicateBox({
                             type="radio"
                             checked={choice === candidate.membership_id}
                             onChange={() => onChoose(candidate.membership_id)}
-                            className="mt-0.5 size-4 accent-primary"
+                            className="mt-0.5 size-4 accent-foreground"
                         />
                         <span>
                             <span className="font-medium">
@@ -750,7 +748,7 @@ function DuplicateBox({
                         type="radio"
                         checked={choice === 'baru'}
                         onChange={() => onChoose('baru')}
-                        className="mt-0.5 size-4 accent-primary"
+                        className="mt-0.5 size-4 accent-foreground"
                     />
                     <span className="font-medium">
                         Orang berbeda — buat sebagai orang baru

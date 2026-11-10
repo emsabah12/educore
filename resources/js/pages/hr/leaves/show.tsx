@@ -241,7 +241,7 @@ function CancelForm({
                         rows={2}
                         maxLength={reasonMax}
                         required
-                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
                     />
                     <InputError message={errors.reason ?? errors.form} />
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">

@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 /*
  * Form aksi di detail siswa (AC-1c-b1, PRD-002 §6). Semua aturan & hak akses tetap dicek server;
@@ -61,11 +62,8 @@ export type EnrollmentRef = {
     end_date: string | null;
 };
 
-export const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
-
 export const textareaClass =
-    'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm dark:bg-input/30';
+    'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm';
 
 /** Nama isian untuk ringkasan kesalahan. */
 const fieldLabels: Record<string, string> = {
@@ -494,7 +492,7 @@ export function ActionForm({
             errorBag={errorBag}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -676,3 +674,5 @@ export function ReopenEnrollmentForm({
         </ActionForm>
     );
 }
+
+export { selectClass };

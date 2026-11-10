@@ -523,7 +523,7 @@ function AddMembersForm({
                 setSelected([]);
                 onDone();
             }}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -583,7 +583,7 @@ function AddMembersForm({
                                 <label className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
-                                        className="size-4 accent-primary"
+                                        className="size-4 accent-foreground"
                                         checked={allShownSelected}
                                         onChange={toggleShown}
                                     />
@@ -608,7 +608,7 @@ function AddMembersForm({
                                                         candidate.enrollment_id,
                                                     )
                                                 }
-                                                className="mt-0.5 size-4 accent-primary"
+                                                className="mt-0.5 size-4 accent-foreground"
                                             />
                                             <span className="min-w-0">
                                                 <span className="block font-medium break-words">

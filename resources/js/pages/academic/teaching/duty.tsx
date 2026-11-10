@@ -5,6 +5,7 @@ import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -25,9 +26,6 @@ type Props = {
 };
 
 const BASE_URL = '/akademik/jadwal-piket';
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Jadwal piket per lembaga & tahun ajaran (PRD-002 §20.2, OD-AC-13): guru piket tiap hari, yang
@@ -219,7 +217,7 @@ function DayCard({
                                             defaultChecked={selected.has(
                                                 employee.value,
                                             )}
-                                            className="size-4 accent-primary"
+                                            className="size-4 accent-foreground"
                                         />
                                         {employee.label}
                                     </label>

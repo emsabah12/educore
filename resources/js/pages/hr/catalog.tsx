@@ -71,7 +71,7 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                                 className={
                                     'flex min-h-10 items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors ' +
                                     (active
-                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        ? 'border-foreground bg-foreground text-background'
                                         : 'hover:bg-muted')
                                 }
                             >
@@ -80,7 +80,7 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                                     className={
                                         'rounded px-1.5 text-xs ' +
                                         (active
-                                            ? 'bg-primary-foreground/20'
+                                            ? 'bg-background/20'
                                             : 'bg-muted')
                                     }
                                 >
@@ -391,7 +391,7 @@ function FlagCheckbox({
                     type="checkbox"
                     checked={checked}
                     onChange={(event) => setChecked(event.target.checked)}
-                    className="mt-0.5 size-4 accent-primary"
+                    className="mt-0.5 size-4 accent-foreground"
                 />
                 {label}
             </label>

@@ -205,7 +205,7 @@ export default function MyClassDetail({ class: item, students }: Props) {
                                                     {student.contact.phone ? (
                                                         <a
                                                             href={`tel:${student.contact.phone}`}
-                                                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                            className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground"
                                                         >
                                                             <Phone className="size-3.5" />
                                                             {

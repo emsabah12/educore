@@ -141,7 +141,7 @@ function ModeForm({
                                 className={
                                     'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
                                     (target === value
-                                        ? 'border-primary bg-primary/5'
+                                        ? 'border-foreground bg-muted'
                                         : 'hover:bg-muted')
                                 }
                             >
@@ -151,7 +151,7 @@ function ModeForm({
                                     value={value}
                                     checked={target === value}
                                     onChange={() => setTarget(value)}
-                                    className="size-4 accent-primary"
+                                    className="size-4 accent-foreground"
                                 />
                                 {label}
                             </label>
@@ -237,7 +237,7 @@ function ModeForm({
                             type="checkbox"
                             name="enforced"
                             value="1"
-                            className="mt-0.5 size-4 accent-primary"
+                            className="mt-0.5 size-4 accent-foreground"
                         />
                         Kunci: lembaga di bawahnya tidak bisa memakai mode lain.
                     </label>

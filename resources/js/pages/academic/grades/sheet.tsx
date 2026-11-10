@@ -320,7 +320,7 @@ function Banners({
                                             rows={2}
                                             maxLength={limits.reason}
                                             required
-                                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                                            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
                                         />
                                         <InputError
                                             message={
@@ -648,7 +648,7 @@ function SheetForm({
                     errorBag="finalizeGrades"
                     options={{ preserveScroll: true }}
                     onSuccess={() => setConfirming(false)}
-                    className="space-y-3 rounded-xl border border-primary/30 bg-muted/20 p-4 text-sm"
+                    className="space-y-3 rounded-xl border border-border bg-muted/20 p-4 text-sm"
                 >
                     {({ processing, errors }) => (
                         <>

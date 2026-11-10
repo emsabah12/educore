@@ -78,7 +78,7 @@ export default function PrintSavingsSlip({
                     <button
                         type="button"
                         onClick={() => window.print()}
-                        className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+                        className="inline-flex h-12 items-center gap-2 rounded-md bg-primary px-6 text-base font-medium text-primary-foreground hover:bg-primary-active"
                     >
                         <Printer className="size-4" />
                         Cetak / simpan PDF

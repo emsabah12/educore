@@ -5,6 +5,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 /*
  * Role tingkat Yayasan & penugasan seorang anggota (PRD-000 §4.7 F5b), di dalam bagian
@@ -36,9 +37,6 @@ export type MemberAccess = {
 };
 
 type Kind = 'STRUKTURAL' | 'FUNGSIONAL';
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
 
 export function MemberAccessPanel({
     membershipId,
@@ -344,7 +342,7 @@ function AddAssignmentForm({
             errorBag="addAssignment"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -375,7 +373,7 @@ function AddAssignmentForm({
                             ).map(([value, label]) => (
                                 <label
                                     key={value}
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary"
+                                    className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-foreground has-[:checked]:bg-muted"
                                 >
                                     <input
                                         type="radio"

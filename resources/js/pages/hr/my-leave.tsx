@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Balance = {
     type_id: string;
@@ -53,9 +54,6 @@ type Props =
           today: string;
           limits: { reason: number; backdate: number };
       };
-
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30';
 
 const dateFormatter = new Intl.DateTimeFormat('id-ID', {
     weekday: 'short',
@@ -375,7 +373,7 @@ function RequestForm({
                                 rows={3}
                                 maxLength={props.limits.reason}
                                 required
-                                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:ring-1 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
                             />
                             <p className="text-xs text-muted-foreground">
                                 Hanya dilihat penyetuju dan Admin SDM. Tanggal

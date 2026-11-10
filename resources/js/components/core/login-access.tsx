@@ -255,7 +255,7 @@ function AccessForm({
             errorBag={ERROR_BAG}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>

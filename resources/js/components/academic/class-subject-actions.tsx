@@ -274,7 +274,7 @@ function CopySubjectsForm({
 }) {
     if (sources.options.length === 0) {
         return (
-            <div className="space-y-3 rounded-xl border border-primary/30 bg-muted/20 p-4 text-sm">
+            <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4 text-sm">
                 <p>
                     Belum ada kelas lain di lembaga ini yang punya mata
                     pelajaran untuk disalin.
@@ -357,7 +357,7 @@ function AddSubjectsForm({
                 setSelected([]);
                 onDone();
             }}
-            className="space-y-4 rounded-xl border border-primary/30 bg-muted/20 p-4"
+            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -382,7 +382,7 @@ function AddSubjectsForm({
                             <label className="flex items-center gap-2 text-sm">
                                 <input
                                     type="checkbox"
-                                    className="size-4 accent-primary"
+                                    className="size-4 accent-foreground"
                                     checked={allSelected}
                                     onChange={() =>
                                         setSelected(
@@ -410,7 +410,7 @@ function AddSubjectsForm({
                                                 onChange={() =>
                                                     toggleOne(option.value)
                                                 }
-                                                className="mt-0.5 size-4 accent-primary"
+                                                className="mt-0.5 size-4 accent-foreground"
                                             />
                                             <span className="break-words">
                                                 {option.label}

@@ -34,7 +34,7 @@ export type GuardianRow = {
     other_students: number;
 };
 
-const checkboxClass = 'size-4 rounded border-input accent-primary';
+const checkboxClass = 'size-4 rounded border-input accent-foreground';
 
 // ── Tambah ───────────────────────────────────────────────────────────────────
 

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { selectClass } from '@/components/native-select';
 
 type Option = { value: string; label: string };
 
@@ -90,9 +91,6 @@ function formatDate(value: string): string {
 
     return dateFormat.format(new Date(year, month - 1, day));
 }
-
-const selectClass =
-    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30';
 
 /**
  * Tagihan siswa (PRD-003 §4, §6, FN-2a): daftar per lembaga × tahun ajaran dengan saringan, buat tagihan
@@ -888,7 +886,7 @@ function OnceForm({
                                 className={
                                     'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm ' +
                                     (target === value
-                                        ? 'border-primary bg-primary/5'
+                                        ? 'border-foreground bg-muted'
                                         : 'hover:bg-muted')
                                 }
                             >
@@ -899,7 +897,7 @@ function OnceForm({
                                         setTarget(value);
                                         reset();
                                     }}
-                                    className="size-4 accent-primary"
+                                    className="size-4 accent-foreground"
                                 />
                                 {label}
                             </label>

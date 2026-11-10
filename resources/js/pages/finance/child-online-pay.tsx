@@ -165,7 +165,7 @@ export default function ChildOnlinePay({
                                             {organizations.map((row) => (
                                                 <label
                                                     key={row.enrollment_id}
-                                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${row.enrollment_id === enrollmentId ? 'border-primary bg-primary/5' : ''}`}
+                                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${row.enrollment_id === enrollmentId ? 'border-foreground bg-muted' : ''}`}
                                                 >
                                                     <input
                                                         type="radio"
@@ -178,7 +178,7 @@ export default function ChildOnlinePay({
                                                                 row.enrollment_id,
                                                             )
                                                         }
-                                                        className="size-4 accent-primary"
+                                                        className="size-4 accent-foreground"
                                                     />
                                                     {row.organization}
                                                 </label>
@@ -206,7 +206,7 @@ export default function ChildOnlinePay({
                                                                     invoice.id,
                                                                 )
                                                             }
-                                                            className="mt-0.5 size-4 accent-primary"
+                                                            className="mt-0.5 size-4 accent-foreground"
                                                         />
                                                         <span className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2">
                                                             <span className="min-w-0">
@@ -252,7 +252,7 @@ export default function ChildOnlinePay({
                                         {methods.map((row) => (
                                             <label
                                                 key={row.value}
-                                                className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${row.value === method ? 'border-primary bg-primary/5' : ''}`}
+                                                className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${row.value === method ? 'border-foreground bg-muted' : ''}`}
                                             >
                                                 <input
                                                     type="radio"
@@ -262,7 +262,7 @@ export default function ChildOnlinePay({
                                                     onChange={() =>
                                                         setMethod(row.value)
                                                     }
-                                                    className="mt-0.5 size-4 accent-primary"
+                                                    className="mt-0.5 size-4 accent-foreground"
                                                 />
                                                 <span>
                                                     <span className="block font-medium">
