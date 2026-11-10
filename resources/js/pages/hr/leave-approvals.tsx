@@ -166,7 +166,7 @@ function Item({ row, noteMax }: { row: InboxRow; noteMax: number }) {
                                 rows={2}
                                 maxLength={noteMax}
                                 required={mode === 'tolak'}
-                                className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
+                                className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
                             />
                             <InputError message={errors.note ?? errors.form} />
                             <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">

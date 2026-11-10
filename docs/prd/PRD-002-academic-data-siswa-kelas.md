@@ -533,11 +533,11 @@ Empat fitur kecil yang sebelumnya saran (§14 dan saran sesudah AC-2/AC-4), dike
 
 ### Keputusan owner
 
-| ID       | Topik              | Keputusan                                                                                                                                             |
-| -------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-AC-10 | Cara mengisi nilai | **Komponen + bobot** (mis. Harian 40%, PTS 30%, PAS 30%); nilai akhir dihitung otomatis; bobot diatur per jenjang/lembaga [OWNER]                     |
+| ID       | Topik              | Keputusan                                                                                                                                                                               |
+| -------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-10 | Cara mengisi nilai | **Komponen + bobot** (mis. Harian 40%, PTS 30%, PAS 30%); nilai akhir dihitung otomatis; bobot diatur per jenjang/lembaga [OWNER]                                                       |
 | OD-AC-11 | Format rapor       | **Format umum** untuk semua jenjang: nilai angka + predikat + deskripsi + KKM [OWNER]. **Direvisi 2026-11-10 (OD-AC-21):** format rapor bisa diatur per lembaga, bertahap di AC-8 (§22) |
-| OD-AC-12 | Kunci nilai        | Pengampu **Finalkan**; sesudahnya hanya Operator Akademik/Admin Yayasan yang bisa membuka lagi (tercatat di audit). Rapor memakai nilai final [OWNER] |
+| OD-AC-12 | Kunci nilai        | Pengampu **Finalkan**; sesudahnya hanya Operator Akademik/Admin Yayasan yang bisa membuka lagi (tercatat di audit). Rapor memakai nilai final [OWNER]                                   |
 
 ### Dasar
 
@@ -706,25 +706,25 @@ Latar: lembaga seperti MDA/pesantren menilai satu mapel dari **dua sisi** — uj
 
 ### 22.1 Keputusan owner
 
-| ID       | Topik                       | Keputusan                                                                                                                                       |
-| -------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| OD-AC-21 | Format rapor                | Merevisi OD-AC-11: penilaian & rapor **bisa diatur per lembaga** (aturan berjenjang `academic.grading`), dibangun bertahap AC-8a–AC-8d [OWNER] |
-| OD-AC-22 | Nilai akhir mapel           | **Rata-rata biasa** dari nilai aspek yang dipakai mapel itu (seperti contoh: (98 + 75) ÷ 2 = 86,5), tanpa bobot antar-aspek [OWNER]            |
-| OD-AC-23 | Nilai huruf                 | **Ada**: kegiatan di luar kelas/ekstra dinilai huruf langsung tanpa angka → dirinci di AC-8b/AC-8d [OWNER]                                      |
-| OD-AC-24 | Cakupan tahap pertama       | **AC-8a saja** (aspek penilaian per mapel; lembar nilai, leger, rapor menampilkan per aspek); AC-8b–AC-8d menyusul [OWNER]                      |
-| OD-AC-25 | Rata-rata rapor beraspek    | **Rata-rata dari rata-rata tiap aspek** (contoh: (90,4 + 75,0) ÷ 2 = 82,7), bukan rata-rata kolom Rata-rata semua mapel [OWNER, 2026-11-10]    |
-| OD-AC-27 | Pengatur format rapor       | **Operator Akademik tiap lembaga dan Admin Yayasan** (`academic.classes.manage` di lembaga itu) [OWNER, 2026-11-11]                            |
-| OD-AC-28 | Logo kop rapor              | **Dibuat di AC-8c** (unggah PNG/JPG) [OWNER, 2026-11-11]                                                                                        |
-| OD-AC-26 | Jumlah & rata-rata rapor    | Hanya dari mapel bernilai angka di kelompok yang **ikut jumlah & rata-rata**; angka jumlah di contoh rapor owner dihitung manual [OWNER, 2026-11-10] |
+| ID       | Topik                    | Keputusan                                                                                                                                            |
+| -------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-AC-21 | Format rapor             | Merevisi OD-AC-11: penilaian & rapor **bisa diatur per lembaga** (aturan berjenjang `academic.grading`), dibangun bertahap AC-8a–AC-8d [OWNER]       |
+| OD-AC-22 | Nilai akhir mapel        | **Rata-rata biasa** dari nilai aspek yang dipakai mapel itu (seperti contoh: (98 + 75) ÷ 2 = 86,5), tanpa bobot antar-aspek [OWNER]                  |
+| OD-AC-23 | Nilai huruf              | **Ada**: kegiatan di luar kelas/ekstra dinilai huruf langsung tanpa angka → dirinci di AC-8b/AC-8d [OWNER]                                           |
+| OD-AC-24 | Cakupan tahap pertama    | **AC-8a saja** (aspek penilaian per mapel; lembar nilai, leger, rapor menampilkan per aspek); AC-8b–AC-8d menyusul [OWNER]                           |
+| OD-AC-25 | Rata-rata rapor beraspek | **Rata-rata dari rata-rata tiap aspek** (contoh: (90,4 + 75,0) ÷ 2 = 82,7), bukan rata-rata kolom Rata-rata semua mapel [OWNER, 2026-11-10]          |
+| OD-AC-26 | Jumlah & rata-rata rapor | Hanya dari mapel bernilai angka di kelompok yang **ikut jumlah & rata-rata**; angka jumlah di contoh rapor owner dihitung manual [OWNER, 2026-11-10] |
+| OD-AC-27 | Pengatur format rapor    | **Operator Akademik tiap lembaga dan Admin Yayasan** (`academic.classes.manage` di lembaga itu) [OWNER, 2026-11-11]                                  |
+| OD-AC-28 | Logo kop rapor           | **Dibuat di AC-8c** (unggah PNG/JPG) [OWNER, 2026-11-11]                                                                                             |
 
 ### 22.2 Tahapan AC-8
 
-| Tahap     | Isi                                                                                                                                                          |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tahap     | Isi                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **AC-8a** | Aspek penilaian (mis. Tulis & Praktik) di aturan penilaian; mapel memilih aspek yang dipakai; lembar nilai, leger, rapor, dan portal orang tua menampilkan per aspek |
-| AC-8b     | Kelompok mapel & urutannya; skala predikat yang bisa diatur (jumlah tingkat, batas, sebutan mis. A Sangat Baik … E Perlu Perbaikan); mapel bernilai huruf |
-| AC-8c     | Format rapor per lembaga: kop (logo, nama, alamat), judul, label kolom, penanda tangan tambahan (mis. Khodimul Ma'had), tanggal Hijriah                       |
-| AC-8d     | Bagian tambahan rapor: ekstrakurikuler (predikat), kepribadian/sikap (predikat + keterangan), jumlah nilai, peringkat kelas                                  |
+| AC-8b     | Kelompok mapel & urutannya; skala predikat yang bisa diatur (jumlah tingkat, batas, sebutan mis. A Sangat Baik … E Perlu Perbaikan); mapel bernilai huruf            |
+| AC-8c     | Format rapor per lembaga: kop (logo, nama, alamat), judul, label kolom, penanda tangan tambahan (mis. Khodimul Ma'had), tanggal Hijriah                              |
+| AC-8d     | Bagian tambahan rapor: ekstrakurikuler (predikat), kepribadian/sikap (predikat + keterangan), jumlah nilai, peringkat kelas                                          |
 
 ### 22.3 AC-8a Aspek penilaian [ASUMSI disetujui owner 2026-11-10]
 
@@ -832,4 +832,3 @@ Acuan contoh rapor owner: kop berlogo (nama pondok, nama madrasah, alamat, kode 
 - Halaman Rapor menampilkan tombol **Atur format rapor** bagi pengelola kelas di lembaga itu.
 
 **Di luar AC-8c**: stempel/tanda tangan gambar, catatan kaki rapor (mis. "SKBM"), format kertas selain A4, tahun pelajaran Hijriah otomatis (nama tahun ajaran sudah bisa "1447/1448"); ekstrakurikuler, kepribadian, peringkat kelas (AC-8d).
-

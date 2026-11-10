@@ -177,7 +177,7 @@ export default function TrialBalance({
                                                 <tr className="bg-muted/30">
                                                     <td
                                                         colSpan={5}
-                                                        className="p-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                                        className="p-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                                                     >
                                                         {GROUPS[row.group] ??
                                                             row.group}

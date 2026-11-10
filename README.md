@@ -301,11 +301,11 @@ curl -fsS https://educore.example.id/up
 
 Selalu pastikan ada backup terbaru sebelum `migrate --force`.
 
-**Tampilan tidak berubah setelah deploy?** `public/build` tidak ikut Git, jadi wajib `npm run build` di server. Periksa: `npm run build` selesai tanpa error (butuh akses ke fonts.bunny.net untuk huruf Inter), tanggal `public/build/manifest.json` ikut baru, file `public/hot` tidak ada; lalu `php artisan optimize:clear && php artisan optimize`, restart PHP-FPM, dan Ctrl+F5 di browser. Bila lewat Cloudflare dan halaman masih lama, *purge cache* di dashboard Cloudflare.
+**Tampilan tidak berubah setelah deploy?** `public/build` tidak ikut Git, jadi wajib `npm run build` di server. Periksa: `npm run build` selesai tanpa error (butuh akses ke fonts.bunny.net untuk huruf Inter), tanggal `public/build/manifest.json` ikut baru, file `public/hot` tidak ada; lalu `php artisan optimize:clear && php artisan optimize`, restart PHP-FPM, dan Ctrl+F5 di browser. Bila lewat Cloudflare dan halaman masih lama, _purge cache_ di dashboard Cloudflare.
 
 ### 7.7 Deploy dengan Docker (staging)
 
-Susunan: `compose.staging.yml` (tidak ikut Git) dengan container `educore-app` (PHP-FPM, image dari `docker/php`), `educore-web` (nginx) dan `educore-db` (PostgreSQL 16). Folder proyek di-*bind mount* ke `/var/www/html`, jadi hasil `npm run build` di host langsung terbaca container.
+Susunan: `compose.staging.yml` (tidak ikut Git) dengan container `educore-app` (PHP-FPM, image dari `docker/php`), `educore-web` (nginx) dan `educore-db` (PostgreSQL 16). Folder proyek di-_bind mount_ ke `/var/www/html`, jadi hasil `npm run build` di host langsung terbaca container.
 
 Semua perintah `php artisan` dijalankan **di dalam container**. Dari host, nama host database `db` tidak dikenal, dan cache yang dibuat berisi path host yang salah bagi container.
 
