@@ -62,7 +62,8 @@ export type PeriodPreset = { label: string; from: string; to: string };
  */
 export function formatBalance(
     signed: number,
-    normal: 'DEBIT' | 'KREDIT' | string,
+    /** Saldo normal akun: 'DEBIT' atau 'KREDIT' (nilai dari server). */
+    normal: string,
 ): string {
     const value = normal === 'DEBIT' ? signed : -signed;
 
