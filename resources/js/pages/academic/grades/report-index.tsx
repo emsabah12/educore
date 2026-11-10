@@ -1,5 +1,11 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CircleAlert, Printer, Save } from 'lucide-react';
+import {
+    ArrowLeft,
+    CircleAlert,
+    LayoutTemplate,
+    Printer,
+    Save,
+} from 'lucide-react';
 import { useState } from 'react';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
@@ -33,6 +39,8 @@ type Props = {
     baseUrl: string;
     backUrl: string;
     backLabel: string;
+    /** Halaman format rapor lembaga (AC-8c); null bila tidak boleh mengatur. */
+    formatUrl: string | null;
 };
 
 /**
@@ -107,6 +115,14 @@ export default function ReportIndex(props: Props) {
                                     >
                                         <Printer />
                                         Cetak semua rapor
+                                    </Link>
+                                </Button>
+                            )}
+                            {props.formatUrl && (
+                                <Button asChild variant="outline">
+                                    <Link href={props.formatUrl}>
+                                        <LayoutTemplate />
+                                        Atur format rapor
                                     </Link>
                                 </Button>
                             )}

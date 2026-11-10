@@ -15,6 +15,7 @@ use Modules\Academic\Http\Controllers\GuardianLookupController;
 use Modules\Academic\Http\Controllers\MyChildrenController;
 use Modules\Academic\Http\Controllers\MyClassesController;
 use Modules\Academic\Http\Controllers\ReportCardController;
+use Modules\Academic\Http\Controllers\ReportFormatController;
 use Modules\Academic\Http\Controllers\ScheduleController;
 use Modules\Academic\Http\Controllers\StudentActionController;
 use Modules\Academic\Http\Controllers\StudentController;
@@ -107,6 +108,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('akademik/mapel/{subject}', [SubjectController::class, 'update'])->whereUuid('subject')->name('academic.subjects.update');
     Route::post('akademik/mapel/{subject}/status', [SubjectController::class, 'status'])->whereUuid('subject')->name('academic.subjects.status');
     Route::delete('akademik/mapel/{subject}', [SubjectController::class, 'destroy'])->whereUuid('subject')->name('academic.subjects.destroy');
+    Route::get('akademik/format-rapor', [ReportFormatController::class, 'index'])->name('academic.report-formats.index');
+    Route::post('akademik/format-rapor/{organization}', [ReportFormatController::class, 'update'])->whereUuid('organization')->name('academic.report-formats.update');
     Route::post('akademik/mapel/kelompok', [SubjectController::class, 'storeGroup'])->name('academic.subject-groups.store');
     Route::patch('akademik/mapel/kelompok/{group}', [SubjectController::class, 'updateGroup'])->whereUuid('group')->name('academic.subject-groups.update');
     Route::delete('akademik/mapel/kelompok/{group}', [SubjectController::class, 'destroyGroup'])->whereUuid('group')->name('academic.subject-groups.destroy');

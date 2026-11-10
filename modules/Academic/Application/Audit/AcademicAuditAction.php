@@ -108,6 +108,8 @@ final class AcademicAuditAction
 
     public const REPORT_NOTES_SAVED = 'academic.report_notes_saved';
 
+    public const REPORT_FORMAT_SAVED = 'academic.report_format_saved';
+
     public const DUTY_ROSTER_UPDATED = 'academic.duty_roster_updated';
 
     public const TEACHING_RECORDED = 'academic.teaching_recorded';
@@ -125,6 +127,8 @@ final class AcademicAuditAction
     public const SUBJECT_SUBJECT = 'ac_subject';
 
     public const SUBJECT_SUBJECT_GROUP = 'ac_subject_group';
+
+    public const SUBJECT_REPORT_FORMAT = 'ac_report_format';
 
     /**
      * @return array<string, string> aksi => label
@@ -181,6 +185,7 @@ final class AcademicAuditAction
             self::GRADE_SHEET_REOPENED => 'Nilai mapel dibuka kembali',
             self::GRADE_SHEET_RULES_APPLIED => 'Aturan nilai mapel diperbarui',
             self::REPORT_NOTES_SAVED => 'Catatan wali kelas di rapor disimpan',
+            self::REPORT_FORMAT_SAVED => 'Format rapor lembaga disimpan',
             self::DUTY_ROSTER_UPDATED => 'Jadwal piket diubah',
             self::TEACHING_RECORDED => 'Presensi mengajar dicatat',
         ];

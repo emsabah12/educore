@@ -15,6 +15,7 @@ use Modules\Academic\Application\Classroom\ManageClasses;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\ManageGrades;
 use Modules\Academic\Application\Grading\ReportCards;
+use Modules\Academic\Application\Grading\ReportFormats;
 use Modules\Academic\Domain\Calendar\AcademicYear;
 use Modules\Academic\Domain\Classroom\SchoolClass;
 use Modules\Academic\Domain\Grading\Exceptions\GradingException;
@@ -50,9 +51,9 @@ final class ReportCardController
         return $this->save($request, $target, $reports, "/kelas/{$target->id}/rapor");
     }
 
-    public function print(Request $request, string $class, ManageGrades $grades, ReportCards $reports): Response
+    public function print(Request $request, string $class, ManageGrades $grades, ReportCards $reports, ReportFormats $formats): Response
     {
-        return $this->printPage($request, $this->viewableClass($class), $grades, $reports, "/kelas/{$class}/rapor");
+        return $this->printPage($request, $this->viewableClass($class), $grades, $reports, $formats, "/kelas/{$class}/rapor");
     }
 
     public function indexMine(Request $request, string $class, MyClasses $myClasses, ManageGrades $grades, ReportCards $reports): Response
@@ -69,9 +70,9 @@ final class ReportCardController
         return $this->save($request, $target, $reports, "/kelas-saya/{$target->id}/rapor");
     }
 
-    public function printMine(Request $request, string $class, MyClasses $myClasses, ManageGrades $grades, ReportCards $reports): Response
+    public function printMine(Request $request, string $class, MyClasses $myClasses, ManageGrades $grades, ReportCards $reports, ReportFormats $formats): Response
     {
-        return $this->printPage($request, $this->homeroomClass($class, $myClasses), $grades, $reports, "/kelas-saya/{$class}/rapor");
+        return $this->printPage($request, $this->homeroomClass($class, $myClasses), $grades, $reports, $formats, "/kelas-saya/{$class}/rapor");
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
@@ -109,10 +110,12 @@ final class ReportCardController
             'baseUrl' => $baseUrl,
             'backUrl' => $backUrl,
             'backLabel' => $backLabel,
+            // Pengatur format rapor lembaga (AC-8c): pengelola kelas di lembaga itu.
+            'formatUrl' => Gate::allows(AcademicAccess::CLASSES_MANAGE, $class) ? "/akademik/format-rapor?lembaga={$class->organization_id}" : null,
         ]);
     }
 
-    private function printPage(Request $request, SchoolClass $class, ManageGrades $grades, ReportCards $reports, string $backUrl): Response
+    private function printPage(Request $request, SchoolClass $class, ManageGrades $grades, ReportCards $reports, ReportFormats $formats, string $backUrl): Response
     {
         $year = $this->yearOf($class);
         $term = ManageGrades::pickTerm($grades->terms($class), $request->query('semester'));
@@ -132,6 +135,8 @@ final class ReportCardController
             'class' => $this->classInfo($class, $year) + ['grade' => $class->grade],
             'term' => $term,
             'report' => $report,
+            // Format rapor lembaga (AC-8c): kop, judul, penanda tangan, tanggal Hijriah.
+            'format' => $formats->forOrganization($class->tenant_id, $class->organization_id) + ['logo' => $formats->logoDataUri($class->tenant_id, $class->organization_id)],
             'today' => BusinessClock::todayString(),
             'backUrl' => $backUrl.'?semester='.$term['value'],
         ]);

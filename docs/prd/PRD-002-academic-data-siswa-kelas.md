@@ -1,8 +1,8 @@
 # PRD-002 — Modul Academic (Akademik)
 
-- **Versi:** 2.8 (2026-11-10: AC-8b kelompok mapel, skala predikat, nilai huruf disetujui & dibangun — §22.4; OD-AC-25, OD-AC-26)
-- **Versi sebelumnya:** 2.6 (AC-8 Penilaian & rapor per lembaga — rincian AC-8a aspek penilaian, §22; OD-AC-11 direvisi), 2.5 (tombol modul lain di detail anak — Tagihan dari Keuangan, §21.3; kontrak `GuardianChildren`), 2.4 (AC-7b — presensi, nilai final, rapor anak, §21.3), 2.3 (HP orang tua/wali unik & pencarian nama/HP, §21.5), 2.2 (rincian AC-7, §21; AC-7a), 2.1 (AC-6c — rekap presensi mengajar bulanan, §20.4), 2.0 (AC-6b-2 — tugas pengganti, presensi siswa oleh pengganti, catatan otomatis), 1.9 (AC-1g-b — kolom NIK di impor siswa), 1.8 (AC-1g-a — NIK siswa & orang tua/wali di form), 1.7 (OD-AC-02 direvisi — NIK siswa & orang tua/wali disimpan, opsional), 1.6 (rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7), 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
-- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a SELESAI (`a69c50a`), AC-6b-1 SELESAI (`443a98d`), AC-6b-2 & AC-6c dibangun 2026-10-24; **AC-1g SELESAI (2026-10-24, commit `6360f6a`)**; **AC-7 dirinci & disetujui (§21, 2026-10-28)**: **AC-7 SELESAI (2026-10-28)** — AC-7a `db7f755` + `1e17de5`, AC-7b `b51efe5`; **AC-8 dirinci (§22, 2026-11-10)**: AC-8a selesai, AC-8b dibangun 2026-11-10 (menunggu uji owner); ekspor Dapodik/EMIS, PPDB, asrama hanya digariskan
+- **Versi:** 3.0 (2026-11-11: AC-8c format rapor per lembaga disetujui & dibangun — §22.5; OD-AC-27, OD-AC-28)
+- **Versi sebelumnya:** 2.8 (AC-8b kelompok mapel, skala predikat, nilai huruf — §22.4; OD-AC-25, OD-AC-26), 2.6 (AC-8 Penilaian & rapor per lembaga — rincian AC-8a aspek penilaian, §22; OD-AC-11 direvisi), 2.5 (tombol modul lain di detail anak — Tagihan dari Keuangan, §21.3; kontrak `GuardianChildren`), 2.4 (AC-7b — presensi, nilai final, rapor anak, §21.3), 2.3 (HP orang tua/wali unik & pencarian nama/HP, §21.5), 2.2 (rincian AC-7, §21; AC-7a), 2.1 (AC-6c — rekap presensi mengajar bulanan, §20.4), 2.0 (AC-6b-2 — tugas pengganti, presensi siswa oleh pengganti, catatan otomatis), 1.9 (AC-1g-b — kolom NIK di impor siswa), 1.8 (AC-1g-a — NIK siswa & orang tua/wali di form), 1.7 (OD-AC-02 direvisi — NIK siswa & orang tua/wali disimpan, opsional), 1.6 (rincian AC-6 Presensi mengajar & guru pengganti — §20; rencana lama AC-6 jadi AC-7), 1.5 (rincian AC-5 Penilaian & rapor, §19), 1.4 (penyempurnaan P1–P4, §18), 1.3 (rincian AC-4, §17), 1.2 (rincian AC-3, §16; §7 akses wali kelas/guru), 1.1 (rincian AC-2, §15), 1.0 (rincian AC-1e impor siswa), 0.9 (rincian AC-1d-b anggota kelas), 0.8 (AC-1d dipecah d-a/d-b; aturan tahun ajaran lewat & tingkat kelas), 0.7 (rincian AC-1c-b2; kontrak HR `EmployeeLookup`), 0.6 (AC-1c-b dipecah b1/b2; ubah pendaftaran; pencarian orang tua lewat HP), 0.5 (AC-1c dipecah AC-1c-a/b; siswa alumni per lembaga; OD-AC-09 ubah data diri), 0.4 (rincian AC-1b), 0.3 (rincian teknis AC-1a), 0.2 (owner menyetujui semua usulan v0.1; OD-AC-04 s.d. OD-AC-07 diputuskan), 0.1 (draf pertama)
+- **Status:** **AC-1 SELESAI (2026-10-20)** — AC-1a `ccc183b`, AC-1b & AC-1c-a `759ac3d`, AC-1c-b1 `1b572e8`, AC-1c-b2 `dd5744d`, AC-1d-a `0fb2643`, AC-1d-b `c7f7dd8`, AC-1e `e09a3f3` + `1938694`; **AC-2 SELESAI (2026-10-21, commit `ece7aa6`)**; **AC-3 SELESAI (2026-10-21)** — AC-3a `9a0b128`, AC-3b `26d3594`, AC-3c `2e58909`, AC-3d `6878d84` (§16); **AC-4 SELESAI (2026-10-21)** — AC-4a `5fceb18`, AC-4b `887a384`, AC-4c `98a3aac` (§17); **Penyempurnaan P1–P4 SELESAI (2026-10-22, §18)** — P1 `3027bb4`, P2 `1d076ba`, P3 `84a5053`, P4a `b7683df`, P4b `e00cad0`; **AC-5 SELESAI (2026-10-22, §19)** — AC-5a `eb9a8a8`, AC-5b `1842b9a`, AC-5c `8f7c63e`, AC-5d `d233839`; **AC-6 dirinci & disetujui (§20, 2026-10-23)**: AC-6a SELESAI (`a69c50a`), AC-6b-1 SELESAI (`443a98d`), AC-6b-2 & AC-6c dibangun 2026-10-24; **AC-1g SELESAI (2026-10-24, commit `6360f6a`)**; **AC-7 dirinci & disetujui (§21, 2026-10-28)**: **AC-7 SELESAI (2026-10-28)** — AC-7a `db7f755` + `1e17de5`, AC-7b `b51efe5`; **AC-8 dirinci (§22, 2026-11-10)**: AC-8a & AC-8b selesai (2026-11-11), AC-8c dibangun 2026-11-11 (menunggu uji owner); ekspor Dapodik/EMIS, PPDB, asrama hanya digariskan
 - **Bergantung pada:** PRD-000 (pondasi, F5 Kelola akses SELESAI), PRD-001 (HR-1 SELESAI — sumber data wali kelas), ADR-001
 - **Referensi domain lama:** `architecture/current-architecture.md` §9–§11 (Student, Guardian, Teacher), ADR-013 (identitas manusia) di `docs.zip`
 
@@ -713,6 +713,8 @@ Latar: lembaga seperti MDA/pesantren menilai satu mapel dari **dua sisi** — uj
 | OD-AC-23 | Nilai huruf                 | **Ada**: kegiatan di luar kelas/ekstra dinilai huruf langsung tanpa angka → dirinci di AC-8b/AC-8d [OWNER]                                      |
 | OD-AC-24 | Cakupan tahap pertama       | **AC-8a saja** (aspek penilaian per mapel; lembar nilai, leger, rapor menampilkan per aspek); AC-8b–AC-8d menyusul [OWNER]                      |
 | OD-AC-25 | Rata-rata rapor beraspek    | **Rata-rata dari rata-rata tiap aspek** (contoh: (90,4 + 75,0) ÷ 2 = 82,7), bukan rata-rata kolom Rata-rata semua mapel [OWNER, 2026-11-10]    |
+| OD-AC-27 | Pengatur format rapor       | **Operator Akademik tiap lembaga dan Admin Yayasan** (`academic.classes.manage` di lembaga itu) [OWNER, 2026-11-11]                            |
+| OD-AC-28 | Logo kop rapor              | **Dibuat di AC-8c** (unggah PNG/JPG) [OWNER, 2026-11-11]                                                                                        |
 | OD-AC-26 | Jumlah & rata-rata rapor    | Hanya dari mapel bernilai angka di kelompok yang **ikut jumlah & rata-rata**; angka jumlah di contoh rapor owner dihitung manual [OWNER, 2026-11-10] |
 
 ### 22.2 Tahapan AC-8
@@ -794,4 +796,40 @@ Acuan contoh rapor owner: mapel dikelompokkan bernomor (1 Pelajaran Madrasah, 2 
 - Rapor: kolom KKM mapel huruf "–"; kolom Angka mapel huruf berisi hurufnya; kolom Predikat berisi sebutan (atau huruf bila tanpa sebutan); kolom Rata-rata mapel di kelompok yang tidak ikut rata-rata "–". Kotak **Keterangan predikat** memakai skala lembar final pertama. Leger: sel mapel huruf berisi huruf (aspek digabung "A / B"); judul kolom "tak ikut rata-rata" untuk mapel angka di kelompok yang tidak ikut.
 
 **Di luar AC-8b**: kop/penanda tangan/tanggal Hijriah (AC-8c); ekstrakurikuler, kepribadian, peringkat kelas, presensi gaya baru (AC-8d); nilai huruf yang dihitung dari angka (predikat sudah melakukannya).
+
+### 22.5 AC-8c Format rapor per lembaga [ASUMSI disetujui owner 2026-11-11]
+
+Acuan contoh rapor owner: kop berlogo (nama pondok, nama madrasah, alamat, kode pos), judul "LAPORAN HASIL BELAJAR SANTRI", sebutan "Santri"/"Wali Santri", tanggal Hijriah di atas tanggal Masehi ("5 Muharram 1448 H / 20 Juni 2026"), penanda tangan Wali Santri, Wali Kelas, Kepala Madrasah, dan "Mengetahui, Khodimul Ma'had".
+
+**Data**
+
+- **Tabel `ac_report_formats`**: satu baris per lembaga (boleh tidak ada → tampilan rapor sekarang). Isi:
+    - **Kop**: baris 1 (mis. nama yayasan/pondok, maks. 120), baris 2 (nama lembaga, bawaan = nama lembaga), baris 3–4 (alamat, telepon/kode pos; masing-masing maks. 160), **logo** (opsional).
+    - **Judul rapor** (bawaan "LAPORAN HASIL BELAJAR", maks. 80).
+    - **Sebutan peserta didik**: Siswa (bawaan) / Santri / Murid → dipakai di judul tanda tangan ("Orang tua/wali siswa" → "Wali Santri") dan label identitas.
+    - **Tempat** (bawaan tempat tanggal rapor, mis. "Karawang"; maks. 60) dan **tampilkan tanggal Hijriah** (ya/tidak).
+    - **Kepala lembaga**: jabatan (bawaan "Kepala lembaga", mis. "Kepala Madrasah") dan nama (opsional; tetap bisa diganti saat cetak).
+    - **Penanda tangan "Mengetahui"** (opsional, 0–1 orang): jabatan (mis. "Khodimul Ma'had") dan nama.
+- **Logo**: PNG/JPG maks. 1 MB, disimpan di disk privat (pola sama dengan lampiran pengeluaran, jenis file dari isi file), keluar lewat controller setelah izin dicek; tidak ada URL publik.
+
+**Pengelolaan**
+
+- Halaman **Format rapor** per lembaga (`/akademik/format-rapor?lembaga=`), dibuka dari tombol **Atur format rapor** di halaman Rapor dan dari menu Mata pelajaran. Diubah oleh pemegang `academic.classes.manage` di lembaga itu (Operator Akademik / Admin Yayasan) [ASUMSI]; pratinjau kop langsung di halaman.
+- Audit `academic.report_format_saved` (lembaga, field yang berubah; tanpa isi logo).
+
+**Rapor cetak**
+
+- Kop berlogo di atas (logo kiri, teks rata tengah, garis ganda di bawah), lalu judul.
+- Tanggal Hijriah dihitung **di browser** dari tanggal rapor (kalender Umm al-Qura, bahasa Indonesia, mis. "5 Muharam 1448 H") tanpa pustaka baru; bisa diketik ulang di halaman cetak bila perlu penyesuaian (rukyat/ketetapan lembaga).
+- Tanda tangan: baris pertama Wali {sebutan} · Wali kelas · {jabatan kepala lembaga}; bila ada penanda tangan "Mengetahui", baris kedua di tengah: "Mengetahui," + jabatan + nama.
+- Lembaga tanpa format → rapor sama seperti sekarang.
+
+**Rincian teknis AC-8c** [keputusan saat membangun]:
+
+- Route: `GET akademik/format-rapor?lembaga=` dan `POST akademik/format-rapor/{lembaga}` (multipart). Pilihan lembaga = lembaga aktif yang boleh dikelola kelasnya; lembaga di luar cakupan → 404, tanpa izin kelola → 403.
+- Logo tidak punya alamat sendiri: dikirim sebagai data URI ke halaman Format rapor dan halaman cetak rapor (sekolah, wali kelas, portal orang tua) yang izinnya sudah dicek. Jenis file dibaca dari isi file (finfo); logo lama dihapus saat diganti/dihapus.
+- Baris kop yang kosong tidak ditampilkan. Isian tempat, tanggal Hijriah, dan nama kepala di halaman cetak terisi dari format dan tetap bisa diubah sebelum cetak (tidak disimpan).
+- Halaman Rapor menampilkan tombol **Atur format rapor** bagi pengelola kelas di lembaga itu.
+
+**Di luar AC-8c**: stempel/tanda tangan gambar, catatan kaki rapor (mis. "SKBM"), format kertas selain A4, tahun pelajaran Hijriah otomatis (nama tahun ajaran sudah bisa "1447/1448"); ekstrakurikuler, kepribadian, peringkat kelas (AC-8d).
 

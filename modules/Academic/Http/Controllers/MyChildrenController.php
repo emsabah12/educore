@@ -9,6 +9,7 @@ use Inertia\Response;
 use Modules\Academic\Application\Classroom\MyClasses;
 use Modules\Academic\Application\Grading\ManageGrades;
 use Modules\Academic\Application\Grading\ReportCards;
+use Modules\Academic\Application\Grading\ReportFormats;
 use Modules\Academic\Application\Guardian\ChildRecords;
 use Modules\Academic\Application\Guardian\MyChildren;
 use Modules\Academic\Domain\Calendar\AcademicYear;
@@ -137,7 +138,7 @@ final class MyChildrenController
     /**
      * Cetak rapor anak (AC-7b). Semester belum lengkap (masih ada mapel belum final) → 404.
      */
-    public function reportCard(Request $request, string $student, ChildRecords $records, ManageGrades $grades, ReportCards $reports): Response
+    public function reportCard(Request $request, string $student, ChildRecords $records, ManageGrades $grades, ReportCards $reports, ReportFormats $formats): Response
     {
         $this->childName($student);
         $picked = ChildRecords::pickClass($records->classes($student), $request->query('kelas'));
@@ -171,6 +172,7 @@ final class MyChildrenController
             ],
             'term' => $term,
             'report' => $report,
+            'format' => $formats->forOrganization($class->tenant_id, $class->organization_id) + ['logo' => $formats->logoDataUri($class->tenant_id, $class->organization_id)],
             'today' => BusinessClock::todayString(),
             'backUrl' => "/anak-saya/{$student}/nilai?kelas={$class->id}&semester={$term['value']}",
         ]);

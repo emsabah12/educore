@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { formatScore } from '@/components/academic/grading';
+import { ReportHeader } from '@/components/academic/report-header';
 
 type Line = {
     name: string;
@@ -65,9 +66,46 @@ type Props = {
         predicates: { letter: string; label: string | null; min: number }[];
         labels: boolean;
     };
+    /** Format rapor lembaga (AC-8c). */
+    format: ReportFormat;
     today: string;
     backUrl: string;
 };
+
+type ReportFormat = {
+    header_lines: (string | null)[];
+    title: string;
+    student_term: 'SISWA' | 'SANTRI' | 'MURID';
+    place: string | null;
+    show_hijri: boolean;
+    principal_title: string;
+    principal_name: string | null;
+    witness_title: string | null;
+    witness_name: string | null;
+    configured: boolean;
+    logo: string | null;
+};
+
+const TERM_LABEL: Record<ReportFormat['student_term'], string> = {
+    SISWA: 'Siswa',
+    SANTRI: 'Santri',
+    MURID: 'Murid',
+};
+
+/** Tanggal Hijriah (kalender Umm al-Qura) dari "YYYY-MM-DD", mis. "5 Muharam 1448 H"; dihitung browser. */
+function hijriDate(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+
+    try {
+        return new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        }).format(new Date(year, month - 1, day));
+    } catch {
+        return '';
+    }
+}
 
 const longDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
 
@@ -127,17 +165,27 @@ function formatDate(value: string): string {
  * tempat/tanggal diketik di sini (tidak disimpan); cetak lewat dialog cetak browser. Lembaga
  * beraspek (§22 AC-8a): kolom angka & predikat per aspek + rata-rata; deskripsi di bawah tabel.
  * AC-8b: kelompok mapel bernomor, sebutan predikat + keterangan predikat, nilai huruf tanpa angka.
+ * AC-8c: kop berlogo, judul, sebutan peserta didik, tanggal Hijriah, jabatan kepala & "Mengetahui"
+ * dari format rapor lembaga; isian di atas halaman terisi dari format dan tetap bisa diubah.
  */
 export default function PrintReportCards({
     class: item,
     term,
     report,
+    format,
     today,
     backUrl,
 }: Props) {
-    const [place, setPlace] = useState('');
+    const [place, setPlace] = useState(format.place ?? '');
     const [date, setDate] = useState(formatDate(today));
-    const [principal, setPrincipal] = useState('');
+    const [hijri, setHijri] = useState(
+        format.show_hijri ? hijriDate(today) : '',
+    );
+    const [principal, setPrincipal] = useState(format.principal_name ?? '');
+    const guardianRole =
+        format.student_term === 'SISWA'
+            ? 'Orang tua/wali'
+            : `Wali ${TERM_LABEL[format.student_term]}`;
 
     return (
         <>
@@ -189,9 +237,23 @@ export default function PrintReportCards({
                                 className="rounded-md border border-gray-300 px-2 py-1.5"
                             />
                         </label>
+                        {format.show_hijri && (
+                            <label className="grid gap-1">
+                                <span className="text-xs text-gray-600">
+                                    Tanggal Hijriah
+                                </span>
+                                <input
+                                    value={hijri}
+                                    onChange={(event) =>
+                                        setHijri(event.target.value)
+                                    }
+                                    className="rounded-md border border-gray-300 px-2 py-1.5"
+                                />
+                            </label>
+                        )}
                         <label className="grid gap-1">
                             <span className="text-xs text-gray-600">
-                                Nama kepala lembaga
+                                Nama {format.principal_title.toLowerCase()}
                             </span>
                             <input
                                 value={principal}
@@ -210,8 +272,9 @@ export default function PrintReportCards({
                         </p>
                     )}
                     <p className="text-xs text-gray-600">
-                        Isian di atas tidak disimpan. Atur kertas A4 pada dialog
-                        cetak; matikan "Header and footer" bila perlu.
+                        Isian di atas tidak disimpan (nilai awalnya dari Format
+                        rapor lembaga). Atur kertas A4 pada dialog cetak;
+                        matikan "Header and footer" bila perlu.
                     </p>
                 </div>
 
@@ -220,12 +283,26 @@ export default function PrintReportCards({
                         key={card.enrollment_id}
                         className="break-after-page space-y-4 border border-gray-300 bg-white p-6 text-[11pt] leading-snug print:border-0 print:p-0"
                     >
-                        <header className="space-y-1 border-b-2 border-black pb-2 text-center">
-                            <p className="text-base font-bold uppercase">
-                                Laporan Hasil Belajar
-                            </p>
-                            <p className="font-semibold">{item.organization}</p>
-                        </header>
+                        {format.configured ? (
+                            <header className="space-y-3">
+                                <ReportHeader
+                                    lines={format.header_lines}
+                                    logo={format.logo}
+                                />
+                                <p className="text-center text-base font-bold uppercase">
+                                    {format.title}
+                                </p>
+                            </header>
+                        ) : (
+                            <header className="space-y-1 border-b-2 border-black pb-2 text-center">
+                                <p className="text-base font-bold uppercase">
+                                    Laporan Hasil Belajar
+                                </p>
+                                <p className="font-semibold">
+                                    {item.organization}
+                                </p>
+                            </header>
+                        )}
 
                         <table className="w-full text-left">
                             <tbody>
@@ -405,17 +482,37 @@ export default function PrintReportCards({
                             </div>
                         </div>
 
-                        <p className="text-right">
-                            {[place, date].filter(Boolean).join(', ')}
-                        </p>
+                        {hijri ? (
+                            <div className="ml-auto w-fit text-right">
+                                <p>
+                                    {[place, hijri].filter(Boolean).join(', ')}
+                                </p>
+                                <p className="border-t border-black">{date}</p>
+                            </div>
+                        ) : (
+                            <p className="text-right">
+                                {[place, date].filter(Boolean).join(', ')}
+                            </p>
+                        )}
                         <div className="grid grid-cols-3 gap-4 text-center">
-                            <Signature role="Orang tua/wali" name="" />
+                            <Signature role={guardianRole} name="" />
                             <Signature
                                 role="Wali kelas"
                                 name={report.homeroom ?? ''}
                             />
-                            <Signature role="Kepala lembaga" name={principal} />
+                            <Signature
+                                role={format.principal_title}
+                                name={principal}
+                            />
                         </div>
+                        {format.witness_title && (
+                            <div className="mx-auto w-1/3 text-center">
+                                <Signature
+                                    role={`Mengetahui, ${format.witness_title}`}
+                                    name={format.witness_name ?? ''}
+                                />
+                            </div>
+                        )}
                     </article>
                 ))}
             </div>

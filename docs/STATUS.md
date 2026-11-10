@@ -430,14 +430,22 @@
 - Helper bersama di layar: `resources/js/components/academic/grading.ts` (hitungan sama dengan server).
 - Bukti: 761 test lulus (4 test baru, `GradingAspectsTest`; test lama disesuaikan ke format aturan `aspects` & nilai akhir desimal); uji manual owner lancar.
 
-**AC-8b — Kelompok mapel, skala predikat & nilai huruf: DIBANGUN (2026-11-10, menunggu uji owner)** — PRD-002 §22.4 (OD-AC-25, OD-AC-26)
+**AC-8b — Kelompok mapel, skala predikat & nilai huruf: SELESAI (2026-11-11, commit `c41b9a1`)** — PRD-002 §22.4 (OD-AC-25, OD-AC-26)
 
 - Migrasi `2026_11_10_200015`: tabel `ac_subject_groups` (nama unik per lembaga, urutan, ikut jumlah & rata-rata); `ac_subjects.group_id|sort_order|grade_type` (FK gabungan ke kelompok di lembaga yang sama); `ac_grade_sheets.grade_type`; `ac_grades.letters` (jsonb).
 - `GradingRules`: skala `predicates` 2–6 tingkat (huruf, sebutan, min menurun, terakhir 0); format lama batas A/B dibaca sebagai A/B/C/D tanpa sebutan (`legacyScale`). `letters()`, `labelOf()`, `hasLabels()`, `scaleSummary()`, `scaleProblem()`.
 - Kelompok: `Domain/Subject/SubjectGroup`, `Application/Subject/ManageSubjectGroups`, `SubjectOrder` (urut kelompok → urutan → nama, dipakai daftar mapel, leger, rapor); bagian **Kelompok mapel** di halaman Mata pelajaran; form mapel: Kelompok, Urutan di rapor, Jenis nilai.
 - Nilai huruf: `ManageGrades` (salinan jenis nilai di lembar, `validatedLetters`, `isComplete`, Terapkan aturan terbaru mengosongkan nilai bila jenis berganti); lembar nilai memilih huruf per aspek.
 - Rapor: judul kelompok bernomor + mapel a/b/c, sebutan predikat, kotak Keterangan predikat, mapel huruf tanpa angka; jumlah & rata-rata hanya mapel angka di kelompok yang ikut; rata-rata rapor beraspek = rata-rata dari rata-rata aspek. Leger & portal orang tua ikut (huruf, urutan kelompok, rata-rata hanya kelompok yang ikut).
-- Bukti: 765 test lulus (4 test baru, `SubjectGroupsLetterGradesTest`; test lama disesuaikan ke format `predicates`/`label`); Pint, Larastan, tsc, oxlint, build lulus.
+- Bukti: 765 test lulus (4 test baru, `SubjectGroupsLetterGradesTest`; test lama disesuaikan ke format `predicates`/`label`); Pint, Larastan, tsc, oxlint, build lulus; uji manual owner lancar.
+
+**AC-8c — Format rapor per lembaga: DIBANGUN (2026-11-11, menunggu uji owner)** — PRD-002 §22.5 (OD-AC-27, OD-AC-28)
+
+- Migrasi `2026_11_11_200016`: tabel `ac_report_formats` (satu per lembaga: kop 4 baris, logo, judul, sebutan SISWA/SANTRI/MURID, tempat, tanggal Hijriah, jabatan & nama kepala, penanda tangan "Mengetahui").
+- `Domain/Grading/ReportFormat`; `Application/Grading/ReportFormats` (`forOrganization` dengan bawaan, `logoDataUri`, `save` + logo PNG/JPG ≤ 1 MB di disk privat, jenis dari isi file). Audit `academic.report_format_saved`.
+- `ReportFormatController` + halaman `academic/grades/report-format` (pratinjau kop langsung); komponen `components/academic/report-header.tsx`. Tombol **Atur format rapor** di halaman Rapor.
+- Rapor cetak (sekolah, wali kelas, portal orang tua): kop berlogo + judul, "Wali {sebutan}", jabatan kepala, tanggal Hijriah (Umm al-Qura, dihitung browser), penanda tangan "Mengetahui". Lembaga tanpa format → tampilan lama.
+- Bukti: 769 test lulus (4 test baru, `ReportFormatTest`); Pint, Larastan, tsc, oxlint, build lulus.
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
@@ -974,6 +982,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Penilaian (PRD-002 §22)**: owner menguji AC-8b; sesudahnya AC-8c (kop & penanda tangan rapor, tanggal Hijriah), AC-8d (ekstrakurikuler, kepribadian, peringkat) — dirinci dulu sebelum dibangun.
+2. **Penilaian (PRD-002 §22)**: owner menguji AC-8c; sesudahnya AC-8d (ekstrakurikuler, kepribadian, peringkat) — dirinci dulu sebelum dibangun.
 3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).
