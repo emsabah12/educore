@@ -3,12 +3,15 @@
 namespace Modules\Finance\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Ledger\ChartOfAccounts;
+use Modules\Finance\Application\Ledger\FinancialStatements;
+use Modules\Finance\Application\Ledger\FinancialStatementsExport;
 use Modules\Finance\Application\Ledger\JournalProjector;
 use Modules\Finance\Application\Ledger\LedgerExport;
 use Modules\Finance\Application\Ledger\LedgerReports;
@@ -18,7 +21,7 @@ use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Neraca saldo, buku besar, cek kecocokan (PRD-007 §7, §9; PB-2b) untuk pemilik `finance.ledger.view`, sesuai lingkup.
+ * Neraca saldo, buku besar, cek kecocokan (PRD-007 §7, §9; PB-2b), laporan keuangan ISAK 35 (PB-3) untuk pemilik `finance.ledger.view`, sesuai lingkup.
  * Antrean jurnal otomatis diproses dulu supaya angka mutakhir.
  *
  * @phpstan-import-type Period from LedgerReports
@@ -79,6 +82,34 @@ final class LedgerReportController
         return $this->download($path, LedgerExport::fileName('buku-besar-'.$ledger['account']['code'], (string) $view['props']['scope'], $period['from'], $period['to']));
     }
 
+    /**
+     * Laporan keuangan ISAK 35 (PB-3): tab Posisi keuangan · Penghasilan komprehensif · Perubahan aset neto · Arus kas.
+     */
+    public function statements(Request $request, LedgerReports $reports, LedgerSetup $setup, JournalProjector $projector, FinancialStatements $statements): Response
+    {
+        $view = $this->prepare($request, $reports, $setup, $projector);
+        $period = $view['period'];
+        $tenantId = $this->tenantId();
+
+        return Inertia::render('finance/financial-statements', $view['props'] + [
+            'entity' => $this->entityName($view['scope_label']),
+            'position' => $period === null ? null : $statements->position($tenantId, $view['filter'], $period),
+            'activities' => $period === null ? null : $statements->activities($tenantId, $view['filter'], $period),
+            'changes' => $period === null ? null : $statements->netAssetChanges($tenantId, $view['filter'], $period),
+            'cashFlows' => $period === null ? null : $statements->cashFlows($tenantId, $view['filter'], $period),
+        ]);
+    }
+
+    public function exportStatements(Request $request, LedgerReports $reports, LedgerSetup $setup, JournalProjector $projector, FinancialStatementsExport $export): BinaryFileResponse
+    {
+        $view = $this->prepare($request, $reports, $setup, $projector);
+        $period = $view['period'] ?? abort(404);
+        $path = $this->tempFile();
+        $export->write($this->tenantId(), $view['filter'], $period, $this->entityName($view['scope_label']), $path);
+
+        return $this->download($path, LedgerExport::fileName('laporan-keuangan', (string) $view['props']['scope'], $period['from'], $period['to']));
+    }
+
     public function reconciliation(LedgerReports $reports, LedgerSetup $setup, JournalProjector $projector): Response
     {
         [$foundation, $organizations] = $this->ledgerScopes();
@@ -129,6 +160,16 @@ final class LedgerReportController
             'period' => $period,
             'scope_label' => $label,
         ];
+    }
+
+    /**
+     * Nama entitas di judul laporan: "<nama yayasan> — <lingkup>".
+     */
+    private function entityName(string $scopeLabel): string
+    {
+        $tenant = (string) DB::table('tenants')->where('id', $this->tenantId())->value('name');
+
+        return $scopeLabel === '' ? $tenant : "{$tenant} — {$scopeLabel}";
     }
 
     private function tempFile(): string

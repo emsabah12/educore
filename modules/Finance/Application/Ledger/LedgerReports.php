@@ -11,7 +11,6 @@ use Modules\Finance\Application\Cash\CashBalances;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
 use Modules\Finance\Domain\Ledger\AccountGroup;
 use Modules\Finance\Domain\Ledger\JournalSource;
-use Modules\Finance\Domain\Payment\PaymentStatus;
 
 /**
  * Buku besar, neraca saldo, cek kecocokan (PRD-007 §7, PB-2b). Hanya jurnal SAH. Hak akses & lingkup dicek pemanggil.
@@ -31,12 +30,6 @@ use Modules\Finance\Domain\Payment\PaymentStatus;
 final class LedgerReports
 {
     public const PER_PAGE = 100;
-
-    /**
-     * Tanggal efektif baris jurnal: jurnal saldo awal (bertanggal tanggal mulai) dihitung sebagai saldo SEBELUM tanggal
-     * mulai, supaya tampil sebagai saldo awal periode, bukan mutasi.
-     */
-    private const EFFECTIVE_DATE = "(j.journal_date - CASE WHEN j.source = 'SALDO_AWAL' THEN 1 ELSE 0 END)";
 
     public function __construct(
         private readonly ChartOfAccounts $accounts,
@@ -275,7 +268,7 @@ final class LedgerReports
         $ledger = [];
 
         if ($ids !== []) {
-            foreach ($this->validLines($tenantId)
+            foreach (LedgerQuery::validLines($tenantId)
                 ->whereIn('l.cash_account_id', $ids)
                 ->groupBy('l.cash_account_id')
                 ->get(['l.cash_account_id', DB::raw('SUM(l.debit - l.credit) AS total')]) as $row) {
@@ -325,7 +318,7 @@ final class LedgerReports
         }
 
         if ($organizationIds === null && isset($keyed[ChartOfAccounts::KEY_INTER_OFFICE])) {
-            $rak = (int) $this->validLines($tenantId)->where('l.account_id', $keyed[ChartOfAccounts::KEY_INTER_OFFICE])->sum(DB::raw('l.debit - l.credit'));
+            $rak = (int) LedgerQuery::validLines($tenantId)->where('l.account_id', $keyed[ChartOfAccounts::KEY_INTER_OFFICE])->sum(DB::raw('l.debit - l.credit'));
             $rows[] = $this->check('RAK', 'Rekening antar-kantor gabungan (harus 0)', 'Seluruh yayasan', $rak, 0, null);
         }
 
@@ -354,7 +347,7 @@ final class LedgerReports
 
         $totals = [];
 
-        foreach ($this->validLines($tenantId)
+        foreach (LedgerQuery::validLines($tenantId)
             ->where('l.account_id', $accountId)
             ->whereNotNull('l.organization_id')
             ->when($organizationIds !== null, fn (Builder $query) => $query->whereIn('l.organization_id', $organizationIds))
@@ -380,15 +373,15 @@ final class LedgerReports
         $result = ['opening' => [], 'debit' => [], 'credit' => []];
         $rolled = ['free' => 0, 'restricted' => 0];
 
-        $query = $this->scoped($this->validLines($tenantId), $scope)
+        $query = LedgerQuery::scoped(LedgerQuery::validLines($tenantId), $scope)
             ->join('fn_ledger_accounts as a', 'a.id', '=', 'l.account_id')
-            ->whereRaw(self::EFFECTIVE_DATE.' <= ?', [$period['to']])
+            ->whereRaw(LedgerQuery::EFFECTIVE_DATE.' <= ?', [$period['to']])
             ->groupBy('l.account_id', 'a.account_group', 'a.is_restricted')
             ->select(['l.account_id', 'a.account_group', 'a.is_restricted'])
-            ->selectRaw('SUM(CASE WHEN '.self::EFFECTIVE_DATE.' < ? THEN l.debit - l.credit ELSE 0 END) AS before_from', [$period['from']])
-            ->selectRaw('SUM(CASE WHEN '.self::EFFECTIVE_DATE.' < ? THEN l.debit - l.credit ELSE 0 END) AS before_fiscal', [$period['fiscal_start']])
-            ->selectRaw('SUM(CASE WHEN '.self::EFFECTIVE_DATE.' >= ? THEN l.debit ELSE 0 END) AS period_debit', [$period['from']])
-            ->selectRaw('SUM(CASE WHEN '.self::EFFECTIVE_DATE.' >= ? THEN l.credit ELSE 0 END) AS period_credit', [$period['from']]);
+            ->selectRaw('SUM(CASE WHEN '.LedgerQuery::EFFECTIVE_DATE.' < ? THEN l.debit - l.credit ELSE 0 END) AS before_from', [$period['from']])
+            ->selectRaw('SUM(CASE WHEN '.LedgerQuery::EFFECTIVE_DATE.' < ? THEN l.debit - l.credit ELSE 0 END) AS before_fiscal', [$period['fiscal_start']])
+            ->selectRaw('SUM(CASE WHEN '.LedgerQuery::EFFECTIVE_DATE.' >= ? THEN l.debit ELSE 0 END) AS period_debit', [$period['from']])
+            ->selectRaw('SUM(CASE WHEN '.LedgerQuery::EFFECTIVE_DATE.' >= ? THEN l.credit ELSE 0 END) AS period_credit', [$period['from']]);
 
         foreach ($query->get() as $row) {
             $id = (string) $row->account_id;
@@ -428,26 +421,9 @@ final class LedgerReports
      */
     private function rangeLines(string $tenantId, string $accountId, ?string $scope, array $period): Builder
     {
-        return $this->scoped($this->validLines($tenantId), $scope)
+        return LedgerQuery::scoped(LedgerQuery::validLines($tenantId), $scope)
             ->where('l.account_id', $accountId)
-            ->whereRaw(self::EFFECTIVE_DATE.' BETWEEN ? AND ?', [$period['from'], $period['to']]);
-    }
-
-    private function validLines(string $tenantId): Builder
-    {
-        return DB::table('fn_journal_lines as l')
-            ->join('fn_journals as j', 'j.id', '=', 'l.journal_id')
-            ->where('l.tenant_id', $tenantId)
-            ->where('j.status', PaymentStatus::Valid->value);
-    }
-
-    private function scoped(Builder $query, ?string $scope): Builder
-    {
-        return match ($scope) {
-            null => $query,
-            '' => $query->whereNull('l.organization_id'),
-            default => $query->where('l.organization_id', $scope),
-        };
+            ->whereRaw(LedgerQuery::EFFECTIVE_DATE.' BETWEEN ? AND ?', [$period['from'], $period['to']]);
     }
 
     private function fiscalStart(string $date, int $month): string

@@ -14,16 +14,17 @@ import {
     ClipboardCheck,
     ClipboardList,
     ClipboardPen,
+    Clock,
     Coins,
     CreditCard,
-    Clock,
     FileClock,
+    FileSpreadsheet,
     FileText,
+    FolderTree,
+    GraduationCap,
     HandCoins,
     Heart,
-    GraduationCap,
     Landmark,
-    FolderTree,
     LayoutGrid,
     ListChecks,
     Network,
@@ -296,6 +297,12 @@ const trialBalanceNavItem: NavItem = {
     icon: Scale,
 };
 
+const statementsNavItem: NavItem = {
+    title: 'Laporan keuangan',
+    href: '/keuangan/pembukuan/laporan',
+    icon: FileSpreadsheet,
+};
+
 const reconciliationNavItem: NavItem = {
     title: 'Cek kecocokan',
     href: '/keuangan/pembukuan/cek-kecocokan',
@@ -425,6 +432,7 @@ export function AppSidebar() {
                     journalsNavItem,
                     generalLedgerNavItem,
                     trialBalanceNavItem,
+                    statementsNavItem,
                     reconciliationNavItem,
                 ]),
                 ...when(

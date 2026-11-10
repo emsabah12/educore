@@ -1,8 +1,8 @@
 # PRD-007 — Modul Finance (Keuangan): Pembukuan (COA, Jurnal, Laporan ISAK 35)
 
-- **Versi:** 0.4 (2026-11-05: rincian & pembangunan PB-2b, §17)
-- **Versi sebelumnya:** 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
-- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b dibangun 2026-11-05, menunggu uji owner
+- **Versi:** 0.5 (2026-11-09: rincian & pembangunan PB-3, §18)
+- **Versi sebelumnya:** 0.4 (PB-2b, §17), 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
+- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b SELESAI (`71a92ca`); PB-3 dibangun 2026-11-09, menunggu uji owner
 - **Bergantung pada:** PRD-003 (tagihan, potongan, kuitansi), PRD-004 (kas, rekening, kategori, pengeluaran, mutasi), PRD-005 (tabungan, rekening Titipan), PRD-006 (pembayaran online), PRD-000 (pohon lembaga, akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → (3) Midtrans (selesai) → **(4) pembukuan**
 
@@ -254,3 +254,13 @@ Anggaran (RAPBS) & realisasi anggaran, modul aset tetap & penyusutan otomatis, i
 - **Cek kecocokan** (`/keuangan/pembukuan/cek-kecocokan`, semua tanggal): (1) saldo akun per rekening kas vs buku kas; (2) Piutang siswa per lembaga vs sisa tagihan (tagihan tidak batal); (3) Utang titipan per lembaga vs total saldo tabungan; (4) RAK gabungan = 0 (izin tingkat Yayasan). Baris yang kedua sisinya nol tidak ditampilkan. Tiap bagian yang selisih menampilkan petunjuk penyebab umum + tautan ke halaman sumber; pengelola mendapat tombol ke Susun ulang jurnal.
 - **Kartu Beranda** "Pembukuan tidak cocok" (pemilik `finance.ledger.manage` tingkat Yayasan): jumlah baris selisih, hanya bila ada selisih dan antrean/susun ulang sudah selesai.
 - **Menu Pembukuan**: Jurnal · Buku besar · Neraca saldo · Cek kecocokan (`finance.ledger.view`) · Pengaturan pembukuan (`finance.ledger.manage`, "Seluruh Yayasan").
+
+## 18. PB-3 Laporan keuangan ISAK 35 [ASUMSI — rincian teknis 2026-11-09]
+
+- **Halaman** `/keuangan/pembukuan/laporan` (menu Pembukuan → **Laporan keuangan**, `finance.ledger.view`): saringan lingkup & periode sama dengan neraca saldo (satu tahun buku); tab **Posisi keuangan · Penghasilan komprehensif · Perubahan aset neto · Arus kas**; judul entitas "<nama yayasan> — <lingkup>"; **Unduh .xlsx** berisi keempat laporan (satu lembar per laporan). Hanya jurnal SAH; angka negatif dalam kurung.
+- **Pengelompokan**: akun dikelompokkan menurut akun judul induknya (tanpa induk → "Lainnya"); akun yang nol di semua kolom tidak ditampilkan. RAK pada lingkup gabungan saling hapus (nol, tidak tampil).
+- **Posisi keuangan** per tanggal Sampai: aset (per kelompok), liabilitas, aset neto **tanpa pembatasan** (saldo akun aset neto tanpa pembatasan + akumulasi pendapatan − beban tanpa pembatasan s.d. tanggal laporan) dan **dengan pembatasan** (saldo akun aset neto bertanda "dengan pembatasan" + akumulasi pendapatan bertanda "dengan pembatasan"). Pembanding: akhir tahun buku lalu, bila tanggal itu tidak sebelum tanggal mulai pembukuan. Tampil peringatan bila jumlah aset ≠ liabilitas + aset neto.
+- **Penghasilan komprehensif** periode Dari–Sampai: _tanpa pembatasan_ — pendapatan (akun kontra seperti Potongan & beasiswa tampil negatif), **aset neto yang dibebaskan dari pembatasan**, jumlah pendapatan, beban, surplus (defisit); _dengan pembatasan_ — pendapatan bertanda "dengan pembatasan", pelepasan (negatif), kenaikan (penurunan); total penghasilan komprehensif. Pembanding: periode yang sama tahun lalu (dijepit ke tanggal mulai), bila tidak seluruhnya sebelum tanggal mulai.
+- **Pelepasan pembatasan** = kredit bersih ke akun aset neto tanpa pembatasan pada jurnal (manual) yang juga mendebit akun aset neto dengan pembatasan.
+- **Perubahan aset neto** per golongan (tanpa / dengan pembatasan / jumlah): saldo awal (sehari sebelum Dari), surplus (defisit) / perubahan periode (dari laporan penghasilan komprehensif), **penyesuaian langsung lain** (jurnal manual langsung ke akun aset neto selain pelepasan; dihitung sebagai sisa), saldo akhir.
+- **Arus kas metode langsung**: kas = akun kas/bank selain Kas titipan tabungan siswa. Tiap jurnal yang menggerakkan kas (dalam lingkup) dirinci per akun lawan — penerimaan (kredit akun lawan) & pengeluaran (debit akun lawan) — dikelompokkan menurut **aktivitas arus kas** akun lawan (kosong = operasi). Mutasi antar-rekening kas dalam lingkup yang sama tidak dihitung; pada lingkup lembaga, setoran ke/dari Kas Yayasan tampil sebagai pendanaan (RAK). Saldo awal rekening kas yang dibuka dalam periode tampil terpisah; kas awal + kenaikan + saldo rekening baru = kas akhir. Kas titipan tabungan ditampilkan sebagai catatan (awal & akhir).

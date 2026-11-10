@@ -139,6 +139,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('keuangan/pembukuan/neraca-saldo/unduh', [LedgerReportController::class, 'exportTrialBalance'])->middleware('throttle:10,1')->name('finance.trial-balance.export');
     Route::get('keuangan/pembukuan/buku-besar', [LedgerReportController::class, 'generalLedger'])->name('finance.general-ledger.index');
     Route::get('keuangan/pembukuan/buku-besar/unduh', [LedgerReportController::class, 'exportGeneralLedger'])->middleware('throttle:10,1')->name('finance.general-ledger.export');
+    Route::get('keuangan/pembukuan/laporan', [LedgerReportController::class, 'statements'])->name('finance.financial-statements.index');
+    Route::get('keuangan/pembukuan/laporan/unduh', [LedgerReportController::class, 'exportStatements'])->middleware('throttle:10,1')->name('finance.financial-statements.export');
     Route::get('keuangan/pembukuan/cek-kecocokan', [LedgerReportController::class, 'reconciliation'])->name('finance.ledger-reconciliation.index');
     Route::get('keuangan/pembukuan/pengaturan', [LedgerSettingsController::class, 'index'])->name('finance.ledger-settings.index');
     Route::post('keuangan/pembukuan/akun', [LedgerSettingsController::class, 'storeAccount'])->name('finance.ledger-accounts.store');
