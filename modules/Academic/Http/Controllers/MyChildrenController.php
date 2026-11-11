@@ -94,7 +94,7 @@ final class MyChildrenController
     /**
      * Nilai final per mapel per semester (AC-7b); rapor bisa dicetak bila semua mapel sudah final.
      */
-    public function grades(Request $request, string $student, ChildRecords $records, ManageGrades $grades, ReportCards $reports): Response
+    public function grades(Request $request, string $student, ChildRecords $records, ManageGrades $grades, ReportCards $reports, ReportFormats $formats): Response
     {
         $name = $this->childName($student);
         $classes = $records->classes($student);
@@ -104,6 +104,7 @@ final class MyChildrenController
         $card = null;
         $report = null;
         $canPrint = false;
+        $rank = null;
 
         if ($picked !== null) {
             $class = $this->classOf($picked['id']);
@@ -115,6 +116,7 @@ final class MyChildrenController
                 $card = $report['cards'][0] ?? null;
                 // Rapor dicetak hanya bila semua mapel kelas sudah final [ASUMSI].
                 $canPrint = $card !== null && $report['pending'] === [] && $report['final_subjects'] > 0;
+                $rank = $canPrint ? $this->rank($formats, $class, $card, $report['ranked']) : null;
             }
         }
 
@@ -132,7 +134,39 @@ final class MyChildrenController
             // Aspek penilaian (AC-8a): kolom per aspek hanya bila lebih dari satu.
             'aspects' => ($report['multi_aspect'] ?? false) ? $report['aspects'] : [],
             'canPrint' => $canPrint,
+            // AC-8d: ekstrakurikuler, kepribadian, peringkat kelas (sama dengan rapor cetak).
+            'extracurriculars' => $card === null ? [] : array_map(
+                fn (array $item): array => ['name' => $item['name'], 'letter' => $card['extracurricular'][$item['id']] ?? null],
+                $report['extracurriculars'],
+            ),
+            'personalities' => $card === null ? [] : array_map(
+                fn (array $item): array => [
+                    'name' => $item['name'],
+                    'letter' => $card['personality'][$item['id']]['letter'] ?? null,
+                    'text' => $card['personality'][$item['id']]['text'] ?? null,
+                ],
+                $report['personalities'],
+            ),
+            'rank' => $rank,
         ]);
+    }
+
+    /**
+     * Peringkat kelas untuk halaman nilai anak (AC-8d): hanya bila lembaga menampilkannya di rapor
+     * dan rapor semester itu sudah lengkap (semua mapel final), agar angka tidak berubah-ubah.
+     *
+     * @param  array<string, mixed>  $card
+     * @return array{position: int, of: int, term: string}|null
+     */
+    private function rank(ReportFormats $formats, SchoolClass $class, array $card, int $ranked): ?array
+    {
+        $format = $formats->forOrganization($class->tenant_id, $class->organization_id);
+
+        if (! $format['show_rank'] || ! is_int($card['rank'] ?? null)) {
+            return null;
+        }
+
+        return ['position' => $card['rank'], 'of' => $ranked, 'term' => $format['student_term']];
     }
 
     /**

@@ -163,3 +163,47 @@ test('bukan anaknya atau bukan kelasnya: 404', function () {
     $this->get(route('academic.my-children.attendance', ['student' => $this->ahmad->id, 'kelas' => $this->otherClass->id]))
         ->assertInertia(fn (Assert $page) => $page->where('classId', $this->class->id));
 });
+
+test('nilai anak: ekstrakurikuler & kepribadian tampil; peringkat hanya bila diaktifkan dan rapor lengkap (AC-8d)', function () {
+    $ma = CoreFixtures::node($this->tenant, 'U1-MA')->id;
+    foreach ([['EKSKUL', 'Pramuka', []], ['EKSKUL', 'Hadroh', []], ['KEPRIBADIAN', 'Kelakuan', ['A' => 'Sangat baik', 'B' => 'Baik dan sopan']]] as $order => [$kind, $name, $descriptions]) {
+        $this->actingAs($this->admin)->post(route('academic.report-items.store', ['organization' => $ma]), [
+            'kind' => $kind, 'name' => $name, 'sort_order' => $order + 1, 'descriptions' => $descriptions,
+        ])->assertSessionHasNoErrors();
+    }
+    $item = fn (string $name): string => (string) DB::table('ac_report_items')->where('name', $name)->value('id');
+    $ahmadEnrollment = (string) DB::table('ac_enrollments')->where('student_id', $this->ahmad->id)->value('id');
+    $this->actingAs($this->admin)->post(route('academic.reports.items.save', ['class' => $this->class->id]), [
+        'semester' => $this->term->id,
+        'grades' => [$ahmadEnrollment => [$item('Pramuka') => ['letter' => 'A'], $item('Kelakuan') => ['letter' => 'B']]],
+    ])->assertSessionHasNoErrors();
+    $this->actingAs($this->admin)->post(route('academic.report-formats.update', ['organization' => $ma]), [
+        'header_lines' => ['MA UNIT 1'], 'title' => 'LAPORAN HASIL BELAJAR', 'student_term' => 'SANTRI', 'place' => 'Karawang',
+        'principal_title' => 'Kepala Madrasah', 'show_rank' => '1',
+    ])->assertSessionHasNoErrors();
+    $this->flushSession();
+
+    // Akidah belum final → peringkat belum tampil, ekskul & kepribadian sudah.
+    $this->actingAs($this->siti)
+        ->get(route('academic.my-children.grades', ['student' => $this->ahmad->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('extracurriculars', [['name' => 'Pramuka', 'letter' => 'A'], ['name' => 'Hadroh', 'letter' => null]])
+            ->where('personalities', [['name' => 'Kelakuan', 'letter' => 'B', 'text' => 'Baik dan sopan']])
+            ->where('rank', null));
+
+    $this->flushSession();
+    $this->actingAs($this->admin)->post(route('academic.grades.finalize', ['classSubject' => ($this->row)('Akidah')]), ['semester' => $this->term->id])->assertSessionHasNoErrors();
+    $this->flushSession();
+
+    // Ahmad (85) di atas Aisyah.
+    $this->actingAs($this->siti)
+        ->get(route('academic.my-children.grades', ['student' => $this->ahmad->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('rank', ['position' => 1, 'of' => 2, 'term' => 'SANTRI']));
+
+    // Peringkat dimatikan → tidak tampil.
+    $this->flushSession();
+    DB::table('ac_report_formats')->where('organization_id', $ma)->update(['show_rank' => false]);
+    $this->actingAs($this->siti)
+        ->get(route('academic.my-children.grades', ['student' => $this->ahmad->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('rank', null));
+});

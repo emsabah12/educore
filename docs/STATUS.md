@@ -447,14 +447,20 @@
 - Rapor cetak (sekolah, wali kelas, portal orang tua): kop berlogo + judul, "Wali {sebutan}", jabatan kepala, tanggal Hijriah (Umm al-Qura, dihitung browser), penanda tangan "Mengetahui". Lembaga tanpa format → tampilan lama.
 - Bukti: 769 test lulus (4 test baru, `ReportFormatTest`); Pint, Larastan, tsc, oxlint, build lulus; uji manual owner lancar.
 
-**AC-8d — Ekstrakurikuler, kepribadian & peringkat kelas: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-002 §22.6 (OD-AC-29, OD-AC-30, OD-AC-31)
+**AC-8d — Ekstrakurikuler, kepribadian & peringkat kelas: SELESAI (2026-11-11, commit `0145cf0`)** — PRD-002 §22.6 (OD-AC-29, OD-AC-30, OD-AC-31)
 
 - Migrasi `2026_11_11_200017`: `ac_report_items` (butir EKSKUL/KEPRIBADIAN per lembaga, keterangan per huruf), `ac_report_item_grades` (kelas × semester × siswa × butir: huruf + keterangan pengganti), kolom `ac_report_formats.show_rank`.
 - `Domain/Grading/ReportItem`; `Application/Grading/{ReportItems, ReportItemGrades}`; `ReportCards` menambah ekskul, kepribadian, peringkat (`ranks()`: rata-rata ↓, jumlah ↓, nama, tanpa kembar). Audit `REPORT_ITEM_SAVED`, `REPORT_ITEM_DELETED`, `REPORT_ITEMS_GRADED`.
 - Format rapor: bagian **Ekstrakurikuler** & **Kepribadian** (tambah/ubah/hapus/nonaktif, **Isi contoh 6 aspek**), centang **Tampilkan peringkat kelas**.
 - Halaman baru **Ekstrakurikuler & kepribadian** per kelas per semester (`/kelas/{id}/rapor/ekskul-kepribadian`, juga lewat Kelas saya); daftar rapor menampilkan "peringkat X dari N".
 - Rapor cetak: tabel Kegiatan ekstrakurikuler (2 kolom bila > 5), Kepribadian diri, Peringkat kelas. Leger tidak menampilkan peringkat.
-- Bukti: 772 test lulus (3 test baru, `ReportItemsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Bukti: 772 test lulus (3 test baru, `ReportItemsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
+
+**AC-8d-2 — Ekskul, kepribadian & peringkat di halaman nilai anak: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-002 §22.6
+
+- `MyChildrenController::grades` menambah prop `extracurriculars`, `personalities`, `rank` (dari `ReportCards`; peringkat hanya bila `show_rank` aktif & semua mapel final).
+- Halaman `academic/my-children/grades`: bagian **Ekstrakurikuler** (yang diikuti saja), **Kepribadian** (huruf + keterangan), baris **Peringkat kelas**.
+- Bukti: 773 test lulus (1 test baru di `ChildRecordsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
@@ -992,6 +998,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Penilaian (PRD-002 §22)**: uji manual AC-8d oleh owner; sesudahnya opsional: ekskul & kepribadian di halaman nilai anak (portal orang tua).
+2. **Penilaian (PRD-002 §22)**: uji manual AC-8d-2 oleh owner.
 3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

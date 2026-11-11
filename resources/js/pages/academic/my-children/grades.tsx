@@ -39,12 +39,33 @@ type Props = {
     /** Aspek penilaian (AC-8a); kosong bila lembaga hanya punya satu aspek. */
     aspects: { code: string; name: string }[];
     canPrint: boolean;
+    /** AC-8d: semua ekstrakurikuler lembaga; huruf null = tidak ikut. */
+    extracurriculars: { name: string; letter: string | null }[];
+    /** AC-8d: aspek kepribadian; keterangan otomatis per huruf atau tulisan wali kelas. */
+    personalities: {
+        name: string;
+        letter: string | null;
+        text: string | null;
+    }[];
+    /** AC-8d: hanya bila lembaga menampilkannya dan rapor sudah lengkap. */
+    rank: {
+        position: number;
+        of: number;
+        term: 'SISWA' | 'SANTRI' | 'MURID';
+    } | null;
+};
+
+const TERM_LABEL: Record<NonNullable<Props['rank']>['term'], string> = {
+    SISWA: 'siswa',
+    SANTRI: 'santri',
+    MURID: 'murid',
 };
 
 /**
  * Nilai & rapor anak (PRD-002 §21.3, AC-7b): hanya nilai yang sudah FINAL; rapor bisa dicetak bila
  * semua mapel sudah final. Hanya baca. Lembaga beraspek: nilai tiap aspek ikut tampil (§22 AC-8a);
- * mapel bernilai huruf tampil hurufnya + sebutan predikat (AC-8b).
+ * mapel bernilai huruf tampil hurufnya + sebutan predikat (AC-8b). AC-8d: ekstrakurikuler yang
+ * diikuti, kepribadian, dan peringkat kelas (bila lembaga menampilkannya & rapor lengkap).
  */
 export default function ChildGrades({
     student,
@@ -59,7 +80,12 @@ export default function ChildGrades({
     pending,
     aspects,
     canPrint,
+    extracurriculars,
+    personalities,
+    rank,
 }: Props) {
+    const joined = extracurriculars.filter((item) => item.letter !== null);
+
     const visit = (params: Record<string, string>) =>
         router.get(`/anak-saya/${student.id}/nilai`, params, {
             preserveScroll: true,
@@ -220,6 +246,17 @@ export default function ChildGrades({
                                                 : formatScore(average)}
                                         </dd>
                                     </div>
+                                    {rank && (
+                                        <div>
+                                            <dt className="text-xs text-muted-foreground">
+                                                Peringkat kelas
+                                            </dt>
+                                            <dd className="text-sm">
+                                                {rank.position} dari {rank.of}{' '}
+                                                {TERM_LABEL[rank.term]}
+                                            </dd>
+                                        </div>
+                                    )}
                                     <div>
                                         <dt className="text-xs text-muted-foreground">
                                             Ketidakhadiran semester ini (per{' '}
@@ -232,6 +269,66 @@ export default function ChildGrades({
                                         </dd>
                                     </div>
                                 </dl>
+
+                                {extracurriculars.length > 0 && (
+                                    <section className="space-y-2 rounded-xl border p-4">
+                                        <h2 className="text-sm font-medium">
+                                            Ekstrakurikuler
+                                        </h2>
+                                        {joined.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">
+                                                Belum ada nilai ekstrakurikuler
+                                                semester ini.
+                                            </p>
+                                        ) : (
+                                            <ul className="divide-y">
+                                                {joined.map((item) => (
+                                                    <li
+                                                        key={item.name}
+                                                        className="flex items-baseline justify-between gap-2 py-1.5 text-sm"
+                                                    >
+                                                        <span className="break-words">
+                                                            {item.name}
+                                                        </span>
+                                                        <span className="font-semibold">
+                                                            {item.letter}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </section>
+                                )}
+
+                                {personalities.length > 0 && (
+                                    <section className="space-y-2 rounded-xl border p-4">
+                                        <h2 className="text-sm font-medium">
+                                            Kepribadian
+                                        </h2>
+                                        <ul className="divide-y">
+                                            {personalities.map((item) => (
+                                                <li
+                                                    key={item.name}
+                                                    className="py-1.5 text-sm"
+                                                >
+                                                    <div className="flex items-baseline justify-between gap-2">
+                                                        <span className="break-words">
+                                                            {item.name}
+                                                        </span>
+                                                        <span className="font-semibold">
+                                                            {item.letter ?? '–'}
+                                                        </span>
+                                                    </div>
+                                                    {item.text && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.text}
+                                                        </p>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                )}
 
                                 {pending.length > 0 && (
                                     <p className="text-sm text-muted-foreground">
