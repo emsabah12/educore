@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
-- **Diperbarui:** 2026-11-05
-- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) dibangun 2026-11-09, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `71a92ca` — feat(finance): PB-2b pembukuan — buku besar, neraca saldo, cek kecocokan
+- **Diperbarui:** 2026-11-11
+- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) SELESAI; PB-4 (kunci periode) dibangun 2026-11-11, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Commit terakhir:** `410efaf` — AC-8d-2: ekskul, kepribadian & peringkat di halaman nilai anak
 
 ## Keputusan penting
 
@@ -456,11 +456,11 @@
 - Rapor cetak: tabel Kegiatan ekstrakurikuler (2 kolom bila > 5), Kepribadian diri, Peringkat kelas. Leger tidak menampilkan peringkat.
 - Bukti: 772 test lulus (3 test baru, `ReportItemsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
 
-**AC-8d-2 — Ekskul, kepribadian & peringkat di halaman nilai anak: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-002 §22.6
+**AC-8d-2 — Ekskul, kepribadian & peringkat di halaman nilai anak: SELESAI (2026-11-11, commit `410efaf`)** — PRD-002 §22.6
 
 - `MyChildrenController::grades` menambah prop `extracurriculars`, `personalities`, `rank` (dari `ReportCards`; peringkat hanya bila `show_rank` aktif & semua mapel final).
 - Halaman `academic/my-children/grades`: bagian **Ekstrakurikuler** (yang diikuti saja), **Kepribadian** (huruf + keterangan), baris **Peringkat kelas**.
-- Bukti: 773 test lulus (1 test baru di `ChildRecordsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Bukti: 773 test lulus (1 test baru di `ChildRecordsTest`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
 
 **AC-6 Presensi mengajar & guru pengganti (PRD-002 §20, OD-AC-13–15, disetujui 2026-10-23)** — presensi per pertemuan di tiap lembaga tempat guru mengajar, jadwal piket, guru pengganti saat cuti. Kehadiran kerja harian tetap di HR-4.
 
@@ -902,11 +902,18 @@
 - Frontend: `pages/finance/trial-balance.tsx`, `general-ledger.tsx`, `ledger-reconciliation.tsx`; `components/finance/ledger-filters.tsx`; menu Pembukuan + Buku besar, Neraca saldo, Cek kecocokan.
 - Test: `tests/Feature/Finance/LedgerReportTest.php` (4 test).
 
-**PB-3 — Laporan keuangan ISAK 35: DIBANGUN (2026-11-09, menunggu uji owner)** — PRD-007 §18
+**PB-3 — Laporan keuangan ISAK 35: SELESAI (2026-11-09, commit `2b186ed`)** — PRD-007 §18
 
 - Finance: `Application/Ledger/FinancialStatements` (posisi keuangan, penghasilan komprehensif, perubahan aset neto, arus kas metode langsung, pembanding), `FinancialStatementsExport` (.xlsx 4 lembar), `LedgerQuery` (potongan query bersama laporan, dipakai juga `LedgerReports`); `LedgerReportController::statements|exportStatements`; route `finance.financial-statements.index|export`.
 - Frontend: `pages/finance/financial-statements.tsx` (tab Posisi keuangan · Penghasilan komprehensif · Perubahan aset neto · Arus kas); menu Pembukuan + Laporan keuangan.
 - Test: `tests/Feature/Finance/FinancialStatementsTest.php` (4 test).
+
+**PB-4 — Kunci periode / tutup buku: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-007 §19 (OD-PB-12, OD-PB-13, OD-PB-14)
+
+- Migrasi `2026_11_11_300018`: kolom `fn_ledger_settings.locked_through` (akhir bulan) + trigger pengaman `fn_ledger_lock_guard` di tabel kas, mutasi, tagihan, rekening, saldo tambahan, jurnal & baris jurnal, pengaturan.
+- `Application/Ledger/LedgerLock` (kunci, buka kunci + alasan, pilihan bulan, pesan ramah); dipakai Kasir, Kas, Mutasi, Pengeluaran, Tabungan, Tagihan (buat bulanan & batal; siswa keluar melewati bulan terkunci), Rekening kas, Jurnal manual, Saldo awal, Pengaturan periode; Online lunas di bulan terkunci → kuitansi hari ini + keterangan. `JournalProjector` & `PaymentCashSync` membekukan periode terkunci. Audit `finance.period_locked|unlocked`.
+- Halaman: Pengaturan pembukuan → Periode → kartu **Tutup buku (kunci periode)**.
+- Bukti: 778 test lulus (5 test baru); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
 
 ## Perapian tampilan
 
@@ -998,6 +1005,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 ## Tugas berikutnya
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
-2. **Penilaian (PRD-002 §22)**: uji manual AC-8d-2 oleh owner.
-3. **Pembukuan (PRD-007)**: PB-4 (kunci periode). Halaman lain yang masih padat dirapikan bila owner menemukannya.
+2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
+3. **Pembukuan (PRD-007)**: uji manual PB-4 oleh owner. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).

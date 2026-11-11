@@ -10,6 +10,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
@@ -44,6 +45,7 @@ final class ManageExpenses
         private readonly CashBalances $balances,
         private readonly ExpenseFileStore $files,
         private readonly ExpenseApprovalLimitSetting $limits,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -216,6 +218,7 @@ final class ManageExpenses
     public function realize(string $tenantId, string $requestId, string $accountId, string $date, mixed $amount, ?UploadedFile $proof, ?string $membershipId): void
     {
         $day = $this->paidDate($date);
+        $this->lock->assertOpen($tenantId, $day, 'entry_date');
         $file = $proof === null ? null : $this->files->store($tenantId, $proof, 'proof');
         $oldProof = null;
 
@@ -331,6 +334,7 @@ final class ManageExpenses
             $entry = DB::table('fn_cash_entries')->where('id', $request->realized_entry_id)->first(['id', 'account_id', 'amount', 'entry_date']);
 
             if ($entry !== null) {
+                $this->lock->assertChangeable($tenantId, (string) $entry->entry_date);
                 DB::table('fn_cash_accounts')->where('id', $entry->account_id)->lockForUpdate()->first(['id']);
                 DB::table('fn_cash_entries')->where('id', $entry->id)->update([
                     'status' => PaymentStatus::Void->value,

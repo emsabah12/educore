@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
@@ -39,6 +40,7 @@ final class ManageCashAccounts
 
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -111,6 +113,11 @@ final class ManageCashAccounts
         $fields = $this->bankFields($name, $bankName, $accountNumber);
         $amount = Rupiah::parse($opening, 'opening_balance', 'saldo awal', 0, self::MAX_AMOUNT);
         $date = $this->openingDate($openingDate);
+
+        if ($amount !== 0) {
+            $this->lock->assertOpen($tenantId, $date, 'opening_date');
+        }
+
         $id = (string) Str::uuid7();
 
         DB::transaction(function () use ($tenantId, $organizationId, $fields, $amount, $date, $membershipId, $id): void {
@@ -174,6 +181,15 @@ final class ManageCashAccounts
                 // Cerminan kuitansi kasir (KS-2) tidak mengunci: disusun ulang sesudah saldo awal berubah.
                 if (DB::table('fn_cash_entries')->where('account_id', $accountId)->where('source', '!=', CashEntrySource::Payment->value)->exists()) {
                     throw FinanceException::make('opening_balance', 'Saldo awal tidak bisa diubah karena rekening ini sudah punya transaksi.');
+                }
+
+                // Saldo awal masuk jurnal di tanggalnya: tanggal lama & baru tidak boleh di periode tutup buku.
+                if ((int) $account->opening_balance !== 0) {
+                    $this->lock->assertChangeable($tenantId, (string) $account->opening_date, 'opening_balance');
+                }
+
+                if ($amount !== 0) {
+                    $this->lock->assertOpen($tenantId, $date, 'opening_date');
                 }
 
                 $values += ['opening_balance' => $amount, 'opening_date' => $date];

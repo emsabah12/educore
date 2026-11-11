@@ -3,8 +3,13 @@
 namespace Modules\Finance;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Exceptions\Handler;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Inertia\Inertia;
 use Modules\Academic\Contracts\Events\EnrollmentClosed;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
@@ -24,6 +29,7 @@ use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Application\Ledger\LedgerReports;
 use Modules\Finance\Application\Ledger\LedgerSetup;
 use Modules\Finance\Application\Online\HttpMidtransGateway;
@@ -74,6 +80,29 @@ class FinanceServiceProvider extends ModuleServiceProvider
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('finance:ledger-process')->everyMinute()->withoutOverlapping();
+        });
+
+        // Pengaman kedua kunci periode (PB-4): penolakan trigger database ditampilkan sebagai pesan ramah, bukan galat 500.
+        $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler): void {
+            if (! $handler instanceof Handler) {
+                return;
+            }
+
+            $handler->renderable(function (QueryException $exception, Request $request) {
+                $message = LedgerLock::messageFor($exception);
+
+                if ($message === null) {
+                    return null;
+                }
+
+                if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+                    return response()->json(['message' => $message], 422);
+                }
+
+                Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
+
+                return back()->withErrors(['form' => $message]);
+            });
         });
 
         // Siswa keluar → tagihan bulan sesudahnya yang belum dibayar dibatalkan (OD-FN-07, FN-2b).

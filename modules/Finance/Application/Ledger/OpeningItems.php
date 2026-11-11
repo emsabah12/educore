@@ -28,6 +28,7 @@ final class OpeningItems
         private readonly AuditLogger $audit,
         private readonly ChartOfAccounts $accounts,
         private readonly JournalProjector $projector,
+        private readonly LedgerLock $ledgerLock,
     ) {}
 
     /**
@@ -172,9 +173,14 @@ final class OpeningItems
      */
     private function assertActive(string $tenantId): void
     {
-        if (DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->whereNotNull('start_date')->doesntExist()) {
+        $start = DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->value('start_date');
+
+        if ($start === null) {
             throw FinanceException::make('form', 'Atur tanggal mulai pembukuan dulu.');
         }
+
+        // Jurnal saldo awal bertanggal tanggal mulai: begitu bulan itu ditutup buku, saldo awal ikut terkunci.
+        $this->ledgerLock->assertChangeable($tenantId, substr((string) $start, 0, 10));
     }
 
     /**

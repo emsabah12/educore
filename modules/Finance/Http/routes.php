@@ -150,6 +150,8 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('keuangan/pembukuan/pemetaan', [LedgerSettingsController::class, 'setMapping'])->name('finance.ledger-mappings.set');
     Route::post('keuangan/pembukuan/periode', [LedgerSettingsController::class, 'setPeriod'])->name('finance.ledger-period.set');
     Route::post('keuangan/pembukuan/susun-ulang', [LedgerSettingsController::class, 'rebuild'])->middleware('throttle:60,1')->name('finance.ledger-rebuild');
+    Route::post('keuangan/pembukuan/kunci-periode', [LedgerSettingsController::class, 'lockPeriod'])->name('finance.ledger-lock.lock');
+    Route::post('keuangan/pembukuan/buka-kunci-periode', [LedgerSettingsController::class, 'unlockPeriod'])->name('finance.ledger-lock.unlock');
 
     Route::get('keuangan/kategori-kas', [CashCategoryController::class, 'index'])->name('finance.cash-categories.index');
     Route::post('keuangan/kategori-kas', [CashCategoryController::class, 'store'])->name('finance.cash-categories.store');

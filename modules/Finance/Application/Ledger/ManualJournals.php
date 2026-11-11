@@ -35,18 +35,28 @@ final class ManualJournals
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly ChartOfAccounts $accounts,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
-     * Rentang tanggal yang boleh dipakai: [tanggal mulai, akhir bulan berjalan], atau null bila pembukuan belum aktif.
+     * Rentang tanggal yang boleh dipakai: [tanggal mulai (atau sehari sesudah periode terkunci), akhir bulan
+     * berjalan], atau null bila pembukuan belum aktif.
      *
      * @return array{0: string, 1: string}|null
      */
     public function dateRange(string $tenantId): ?array
     {
-        $start = DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->value('start_date');
+        $row = DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->first(['start_date', 'locked_through']);
 
-        return $start === null ? null : [substr((string) $start, 0, 10), BusinessClock::today()->endOfMonth()->toDateString()];
+        if ($row === null || $row->start_date === null) {
+            return null;
+        }
+
+        $first = $row->locked_through === null
+            ? substr((string) $row->start_date, 0, 10)
+            : CarbonImmutable::parse(substr((string) $row->locked_through, 0, 10))->addDay()->toDateString();
+
+        return [$first, BusinessClock::today()->endOfMonth()->toDateString()];
     }
 
     /**
@@ -62,6 +72,7 @@ final class ManualJournals
             throw FinanceException::make('form', 'Atur tanggal mulai pembukuan dulu.');
         }
 
+        $this->lock->assertOpen($tenantId, trim($date), 'date');
         $date = $this->date($date, $range);
         $description = trim((string) preg_replace('/\s+/u', ' ', $description));
 
@@ -143,6 +154,8 @@ final class ManualJournals
             if ((string) $journal->status !== PaymentStatus::Valid->value) {
                 throw FinanceException::make('form', 'Jurnal ini sudah dibatalkan.');
             }
+
+            $this->lock->assertChangeable($tenantId, (string) $journal->journal_date);
 
             DB::table('fn_journals')->where('id', $journalId)->update([
                 'status' => PaymentStatus::Void->value,

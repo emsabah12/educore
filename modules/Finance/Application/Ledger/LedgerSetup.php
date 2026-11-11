@@ -97,6 +97,10 @@ final class LedgerSetup
                 return;
             }
 
+            if ($row?->locked_through !== null) {
+                throw FinanceException::make('start_date', 'Sudah ada periode yang ditutup buku. Buka semua kunci periode dulu sebelum mengubah tanggal mulai atau tahun buku.');
+            }
+
             DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->update([
                 'start_date' => $start,
                 'fiscal_start_month' => $fiscalStartMonth,

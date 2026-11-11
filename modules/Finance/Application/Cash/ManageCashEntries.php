@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
@@ -34,6 +35,7 @@ final class ManageCashEntries
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly CashBalances $balances,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -49,6 +51,7 @@ final class ManageCashEntries
         }
 
         $day = $this->date($date);
+        $this->lock->assertOpen($tenantId, $day, 'entry_date');
         $id = (string) Str::uuid7();
 
         DB::transaction(function () use ($tenantId, $organizationId, $accountId, $day, $categoryId, $value, $description, $membershipId, $id): void {
@@ -133,6 +136,8 @@ final class ManageCashEntries
             if ((string) $entry->source !== CashEntrySource::Manual->value) {
                 throw FinanceException::make('form', 'Transaksi ini berasal dari proses lain dan dibatalkan dari asalnya.');
             }
+
+            $this->lock->assertChangeable($tenantId, (string) $entry->entry_date);
 
             $amount = (int) $entry->amount;
 

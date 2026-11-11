@@ -15,6 +15,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Ledger\ChartOfAccounts;
 use Modules\Finance\Application\Ledger\JournalProjector;
+use Modules\Finance\Application\Ledger\LedgerDate;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Application\Ledger\LedgerSetup;
 use Modules\Finance\Application\Ledger\OpeningItems;
 use Modules\Finance\Domain\Ledger\AccountGroup;
@@ -23,7 +25,8 @@ use Modules\Finance\Http\Controllers\Concerns\WorksPerOrganization;
 
 /**
  * Pengaturan pembukuan (PRD-007 §3, §5, §9; PB-1): tab Akun (COA), Pemetaan, Saldo awal (PB-2a), Periode
- * (tanggal mulai, tahun buku, susun ulang jurnal). Hanya `finance.ledger.manage` tingkat Yayasan; tanpa izin 403.
+ * (tanggal mulai, tahun buku, susun ulang jurnal, kunci periode PB-4). Hanya `finance.ledger.manage` tingkat Yayasan;
+ * tanpa izin 403.
  */
 final class LedgerSettingsController
 {
@@ -38,7 +41,7 @@ final class LedgerSettingsController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, ChartOfAccounts $accounts, LedgerSetup $setup, OpeningItems $items, JournalProjector $projector): Response
+    public function index(Request $request, ChartOfAccounts $accounts, LedgerSetup $setup, OpeningItems $items, JournalProjector $projector, LedgerLock $lock): Response
     {
         $this->authorize();
         $tenantId = $this->tenantId();
@@ -85,6 +88,8 @@ final class LedgerSettingsController
             ],
             'openingAccounts' => $accounts->manualOptions($tenantId, true),
             'noteMax' => OpeningItems::NOTE_MAX_LENGTH,
+            // Kunci periode (PB-4).
+            'lock' => $this->lockProps($tenantId, $lock),
         ]);
     }
 
@@ -185,6 +190,24 @@ final class LedgerSettingsController
         return $this->done('Jurnal otomatis selesai disusun.');
     }
 
+    public function lockPeriod(Request $request, LedgerLock $lock): RedirectResponse
+    {
+        $this->authorize();
+        $through = $request->string('locked_through')->toString();
+        $this->attempt(fn () => $lock->lock($this->tenantId(), $through));
+
+        return $this->done('Periode sampai '.$lock->monthLabel($through).' dikunci (tutup buku).');
+    }
+
+    public function unlockPeriod(Request $request, LedgerLock $lock): RedirectResponse
+    {
+        $this->authorize();
+        $through = $request->string('unlocked_through')->toString();
+        $this->attempt(fn () => $lock->unlock($this->tenantId(), $through === '' ? null : $through, $request->string('reason')->toString()));
+
+        return $this->done($through === '' ? 'Semua kunci periode dibuka.' : 'Kunci dimundurkan: terkunci sampai '.$lock->monthLabel($through).'.');
+    }
+
     public function storeOpening(Request $request, OpeningItems $items): RedirectResponse
     {
         $this->authorize();
@@ -222,6 +245,24 @@ final class LedgerSettingsController
         $this->attempt(fn () => $items->remove($this->tenantId(), $item));
 
         return $this->done('Baris saldo awal dihapus.');
+    }
+
+    /**
+     * @return array{through: string|null, through_label: string|null, month_label: string|null, lock_options: list<array{value: string, label: string}>, unlock_options: list<array{value: string, label: string}>, reason_min: int, reason_max: int}
+     */
+    private function lockProps(string $tenantId, LedgerLock $lock): array
+    {
+        $through = $lock->lockedThrough($tenantId);
+
+        return [
+            'through' => $through,
+            'through_label' => $through === null ? null : LedgerDate::long($through),
+            'month_label' => $through === null ? null : $lock->monthLabel($through),
+            'lock_options' => $lock->lockOptions($tenantId),
+            'unlock_options' => $lock->unlockOptions($tenantId),
+            'reason_min' => LedgerLock::REASON_MIN_LENGTH,
+            'reason_max' => LedgerLock::REASON_MAX_LENGTH,
+        ];
     }
 
     private function authorize(): void

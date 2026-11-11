@@ -5,6 +5,7 @@ namespace Modules\Finance\Application\Cash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Academic\Contracts\EnrolledStudents;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
@@ -34,6 +35,7 @@ final class PaymentCashSync
         private readonly ManageCashCategories $categories,
         private readonly CashBalances $balances,
         private readonly EnrolledStudents $students,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -80,6 +82,8 @@ final class PaymentCashSync
                 ->get(['id', 'enrollment_id', 'receipt_number', 'paid_on', 'method', 'amount', 'status', 'void_reason', 'voided_at', 'voided_by_membership_id', 'recorded_by_membership_id']);
 
             $mirrors = [];
+            // Kuitansi di periode tutup buku (PB-4) tidak ditata ulang: cerminannya dibekukan apa adanya.
+            $lockedThrough = $this->lock->lockedThrough($tenantId);
 
             foreach (DB::table('fn_cash_entries')
                 ->where('tenant_id', $tenantId)
@@ -95,6 +99,10 @@ final class PaymentCashSync
             foreach ($payments as $payment) {
                 $id = (string) $payment->id;
                 $mirror = $mirrors[$id] ?? null;
+
+                if ($lockedThrough !== null && substr((string) $payment->paid_on, 0, 10) <= $lockedThrough) {
+                    continue;
+                }
 
                 if ((string) $payment->status !== PaymentStatus::Valid->value) {
                     if ($mirror !== null && (string) $mirror->status === PaymentStatus::Valid->value) {

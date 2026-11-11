@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Academic\Contracts\Events\EnrollmentClosed;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
 
 /**
@@ -20,17 +21,21 @@ final class VoidInvoicesAfterExit
 
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly LedgerLock $lock,
     ) {}
 
     public function handle(EnrollmentClosed $event): void
     {
         $nextMonth = CarbonImmutable::parse($event->endDate)->startOfMonth()->addMonth()->toDateString();
+        // Bulan yang sudah ditutup buku (PB-4) tidak disentuh; tagihannya tetap, petugas membereskannya sesudah buka kunci.
+        $lockedThrough = $this->lock->lockedThrough($event->tenantId);
 
         $voided = DB::table('fn_invoices')
             ->where('tenant_id', $event->tenantId)
             ->where('enrollment_id', $event->enrollmentId)
             ->whereNotNull('period')
             ->where('period', '>=', $nextMonth)
+            ->when($lockedThrough !== null, fn ($query) => $query->where('period', '>', $lockedThrough))
             ->where('status', '!=', InvoiceStatus::Void->value)
             ->where('paid_amount', 0)
             ->update([

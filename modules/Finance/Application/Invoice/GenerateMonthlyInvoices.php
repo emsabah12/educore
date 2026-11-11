@@ -11,6 +11,8 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
+use Modules\Finance\Application\Ledger\LedgerDate;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
 use Modules\Finance\Domain\Fee\FeeType;
@@ -44,6 +46,7 @@ final class GenerateMonthlyInvoices
         private readonly EnrolledStudents $students,
         private readonly DueDaySetting $dueDay,
         private readonly AuditLogger $audit,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -172,6 +175,17 @@ final class GenerateMonthlyInvoices
         }
 
         $months = $this->months($year['start_date'], $year['end_date'], $from, $to);
+        $lockedThrough = $this->lock->lockedThrough($tenantId);
+
+        // Tagihan bulanan masuk jurnal di tanggal 1 bulannya: bulan yang sudah ditutup buku tidak bisa ditagih lagi.
+        if ($lockedThrough !== null && $months[0]->toDateString() <= $lockedThrough) {
+            throw FinanceException::make('from', sprintf(
+                '%s sudah ditutup buku (terkunci sampai %s). Mulai dari %s, atau minta pengelola pembukuan Yayasan membuka kuncinya.',
+                self::monthLabel($months[0]),
+                LedgerDate::long($lockedThrough),
+                self::monthLabel(CarbonImmutable::parse($lockedThrough)->addDay()),
+            ));
+        }
         $pricing = InvoicePricing::load($typeId, $organizationId, $yearId);
         $existing = $this->existing($typeId, $organizationId, $yearId);
         $dueDay = $this->dueDay->for($tenantId, $organizationId);

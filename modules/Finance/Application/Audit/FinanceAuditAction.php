@@ -112,6 +112,10 @@ final class FinanceAuditAction
 
     public const JOURNAL_VOIDED = 'finance.journal_voided';
 
+    public const PERIOD_LOCKED = 'finance.period_locked';
+
+    public const PERIOD_UNLOCKED = 'finance.period_unlocked';
+
     public const SUBJECT_LEDGER_ACCOUNT = 'fn_ledger_account';
 
     public const SUBJECT_JOURNAL = 'fn_journal';
@@ -197,6 +201,8 @@ final class FinanceAuditAction
             self::OPENING_BALANCE_SET => 'Saldo awal pembukuan diubah',
             self::JOURNAL_POSTED => 'Jurnal manual dicatat',
             self::JOURNAL_VOIDED => 'Jurnal manual dibatalkan',
+            self::PERIOD_LOCKED => 'Periode pembukuan dikunci (tutup buku)',
+            self::PERIOD_UNLOCKED => 'Kunci periode pembukuan dibuka',
         ];
     }
 }

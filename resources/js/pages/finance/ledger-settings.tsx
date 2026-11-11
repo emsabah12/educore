@@ -1,5 +1,13 @@
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import { CircleAlert, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+    CircleAlert,
+    Lock,
+    LockOpen,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import { formatDateTime } from '@/components/finance/online-order';
@@ -77,6 +85,20 @@ type Props = {
     };
     openingAccounts: Option[];
     noteMax: number;
+    lock: PeriodLock;
+};
+
+/** Kunci periode / tutup buku (PB-4). */
+type PeriodLock = {
+    /** Tanggal terakhir yang terkunci (akhir bulan), null = belum ada kunci. */
+    through: string | null;
+    through_label: string | null;
+    month_label: string | null;
+    lock_options: Option[];
+    /** Nilai '' = buka semua. */
+    unlock_options: Option[];
+    reason_min: number;
+    reason_max: number;
 };
 
 type OpeningItem = {
@@ -94,7 +116,8 @@ const TABS = ['akun', 'pemetaan', 'saldo-awal', 'periode'] as const;
 const RESTRICTABLE: Group[] = ['PENDAPATAN', 'ASET_NETO'];
 
 /**
- * Pengaturan pembukuan (PRD-007 §3, §5, §9; PB-1): COA, pemetaan akun untuk jurnal otomatis, periode & susun ulang.
+ * Pengaturan pembukuan (PRD-007 §3, §5, §9; PB-1): COA, pemetaan akun untuk jurnal otomatis, periode & susun ulang,
+ * kunci periode / tutup buku (PB-4, §19).
  */
 export default function LedgerSettingsPage(props: Props) {
     const { settings, accounts } = props;
@@ -797,7 +820,7 @@ function MappingsTab({
 
 /* ----------------------------------------------------------------------------------------------------------------- */
 
-function PeriodTab({ settings, months }: Props) {
+function PeriodTab({ settings, months, lock }: Props) {
     const { errors } = usePage().props as { errors?: Record<string, string> };
     const [start, setStart] = useState(settings.start_date?.slice(0, 7) ?? '');
     const [month, setMonth] = useState(String(settings.fiscal_start_month));
@@ -882,14 +905,24 @@ function PeriodTab({ settings, months }: Props) {
                         <InputError message={errors?.fiscal_start_month} />
                     </div>
                 </div>
+                {lock.through !== null && (
+                    <p className="text-xs text-muted-foreground">
+                        Tanggal mulai & awal tahun buku tidak bisa diubah selama
+                        ada periode yang ditutup buku.
+                    </p>
+                )}
                 <Button
                     type="button"
                     onClick={save}
-                    disabled={saving || start === ''}
+                    disabled={saving || start === '' || lock.through !== null}
                 >
                     {settings.active ? 'Simpan periode' : 'Aktifkan pembukuan'}
                 </Button>
             </div>
+
+            {settings.active && (
+                <PeriodLockSection lock={lock} settings={settings} />
+            )}
 
             <div className="space-y-3 rounded-xl border p-4 text-sm">
                 <h2 className="font-medium">Susun ulang jurnal otomatis</h2>
@@ -950,6 +983,201 @@ function PeriodTab({ settings, months }: Props) {
                 )}
             </div>
         </section>
+    );
+}
+
+/**
+ * Tutup buku (PRD-007 §19, PB-4): kunci sampai akhir bulan yang sudah berakhir; buka kunci (mundurkan) dengan alasan.
+ */
+function PeriodLockSection({
+    lock,
+    settings,
+}: {
+    lock: PeriodLock;
+    settings: LedgerSettings;
+}) {
+    const [unlocking, setUnlocking] = useState(false);
+    const blocked = settings.needs_rebuild || settings.rebuilding;
+
+    return (
+        <div className="space-y-3 rounded-xl border p-4 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-medium">Tutup buku (kunci periode)</h2>
+                {lock.through === null ? (
+                    <Badge variant="outline">Belum ada yang dikunci</Badge>
+                ) : (
+                    <Badge>
+                        <Lock className="size-3" />
+                        Terkunci sampai {lock.through_label}
+                    </Badge>
+                )}
+            </div>
+            <p className="text-muted-foreground">
+                Periode yang dikunci tidak bisa diubah lagi: kasir, kas,
+                pengeluaran, tabungan, tagihan, jurnal manual, dan saldo awal
+                menolak transaksi atau pembatalan bertanggal sampai tanggal
+                kunci. Pembayaran tagihan lama tetap bisa, dengan tanggal hari
+                ini. Hanya bulan yang sudah berakhir yang bisa dikunci.
+            </p>
+
+            {lock.lock_options.length === 0 ? (
+                <p className="text-muted-foreground">
+                    Belum ada bulan lain yang bisa dikunci. Bulan berjalan baru
+                    bisa dikunci setelah berakhir.
+                </p>
+            ) : (
+                <Form
+                    action={`${BASE}/kunci-periode`}
+                    method="post"
+                    options={{ preserveScroll: true }}
+                    className="flex flex-wrap items-end gap-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid min-w-56 flex-1 gap-1.5">
+                                <Label htmlFor="lock-through">
+                                    Kunci sampai akhir bulan
+                                </Label>
+                                <select
+                                    id="lock-through"
+                                    name="locked_through"
+                                    className={selectClass}
+                                    defaultValue={
+                                        lock.lock_options[
+                                            lock.lock_options.length - 1
+                                        ].value
+                                    }
+                                >
+                                    {lock.lock_options.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.locked_through} />
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={processing || blocked}
+                            >
+                                <Lock />
+                                {processing ? 'Mengunci…' : 'Kunci periode'}
+                            </Button>
+                            {blocked && (
+                                <p className="w-full text-xs text-muted-foreground">
+                                    Selesaikan susun ulang jurnal dulu sebelum
+                                    mengunci.
+                                </p>
+                            )}
+                        </>
+                    )}
+                </Form>
+            )}
+
+            {lock.through !== null && (
+                <div className="space-y-3 border-t pt-3">
+                    {!unlocking ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setUnlocking(true)}
+                        >
+                            <LockOpen />
+                            Buka kunci…
+                        </Button>
+                    ) : (
+                        <Form
+                            action={`${BASE}/buka-kunci-periode`}
+                            method="post"
+                            options={{ preserveScroll: true }}
+                            onSuccess={() => setUnlocking(false)}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <p className="text-muted-foreground">
+                                        Buka kunci hanya untuk koreksi yang
+                                        perlu. Laporan yang sudah dilaporkan
+                                        bisa berubah; alasan dicatat di log
+                                        aktivitas.
+                                    </p>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="unlock-through">
+                                                Tetap terkunci sampai
+                                            </Label>
+                                            <select
+                                                id="unlock-through"
+                                                name="unlocked_through"
+                                                className={selectClass}
+                                                defaultValue={
+                                                    lock.unlock_options[1]
+                                                        ?.value ?? ''
+                                                }
+                                            >
+                                                {lock.unlock_options.map(
+                                                    (option) => (
+                                                        <option
+                                                            key={option.value}
+                                                            value={option.value}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+                                            <InputError
+                                                message={
+                                                    errors.unlocked_through
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="unlock-reason">
+                                                Alasan
+                                            </Label>
+                                            <Input
+                                                id="unlock-reason"
+                                                name="reason"
+                                                minLength={lock.reason_min}
+                                                maxLength={lock.reason_max}
+                                                placeholder="Mis. koreksi kuitansi salah tanggal"
+                                                required
+                                            />
+                                            <InputError
+                                                message={errors.reason}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            type="submit"
+                                            variant="destructive"
+                                            disabled={processing}
+                                        >
+                                            <LockOpen />
+                                            {processing
+                                                ? 'Membuka…'
+                                                : 'Buka kunci'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setUnlocking(false)}
+                                        >
+                                            Batal
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }
 

@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashAccountKind;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
@@ -33,6 +34,7 @@ final class ManageCashTransfers
         private readonly AuditLogger $audit,
         private readonly CashBalances $balances,
         private readonly ManageCashCategories $categories,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -48,6 +50,7 @@ final class ManageCashTransfers
         }
 
         $day = $this->date($date);
+        $this->lock->assertOpen($tenantId, $day, 'entry_date');
 
         if (! Str::isUuid($fromAccountId) || ! Str::isUuid($toAccountId) || $fromAccountId === $toAccountId) {
             throw FinanceException::make('to_account_id', 'Pilih rekening tujuan yang berbeda dari rekening asal.');
@@ -177,6 +180,8 @@ final class ManageCashTransfers
             if ($transfer === null || (string) $transfer->status !== PaymentStatus::Valid->value) {
                 throw FinanceException::make('form', 'Mutasi ini sudah dibatalkan.');
             }
+
+            $this->lock->assertChangeable($tenantId, (string) $transfer->transfer_date);
 
             $to = DB::table('fn_cash_accounts')->where('id', $transfer->to_account_id)->first(['id', 'name']);
 

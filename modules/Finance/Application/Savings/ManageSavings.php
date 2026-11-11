@@ -13,6 +13,7 @@ use Modules\Finance\Application\Cash\ManageCashAccounts;
 use Modules\Finance\Application\Cash\ManageCashCategories;
 use Modules\Finance\Application\Cash\ManageCashEntries;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Cash\CashDirection;
 use Modules\Finance\Domain\Cash\CashEntrySource;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
@@ -52,6 +53,7 @@ final class ManageSavings
         private readonly AuditLogger $audit,
         private readonly ManageCashAccounts $cashAccounts,
         private readonly ManageCashCategories $cashCategories,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -118,6 +120,8 @@ final class ManageSavings
                 throw FinanceException::make('form', 'Pembayaran tagihan dari tabungan dibatalkan lewat kuitansinya.');
             }
 
+            $this->lock->assertChangeable($tenantId, (string) $entry->entry_date);
+
             $account = $this->lockAccount((string) $entry->savings_account_id);
             $amount = (int) $entry->amount;
             $balance = (int) $account->balance + ($kind === SavingsEntryKind::Deposit ? -$amount : $amount);
@@ -182,6 +186,7 @@ final class ManageSavings
         }
 
         $day = $this->entryDate($date);
+        $this->lock->assertOpen($tenantId, $day->toDateString(), 'entry_date');
         $note = self::optional($note, 'note', 'Catatan', self::NOTE_MAX_LENGTH);
 
         if ($kind === SavingsEntryKind::Withdrawal) {

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
 
@@ -22,6 +23,7 @@ final class ManageInvoices
 
     public function __construct(
         private readonly AuditLogger $audit,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -51,7 +53,7 @@ final class ManageInvoices
 
         DB::transaction(function () use ($tenantId, $invoiceId, $reason, $membershipId): void {
             $invoice = Str::isUuid($invoiceId)
-                ? DB::table('fn_invoices')->where('tenant_id', $tenantId)->where('id', $invoiceId)->lockForUpdate()->first(['id', 'organization_id', 'enrollment_id', 'description', 'status', 'paid_amount', 'amount'])
+                ? DB::table('fn_invoices')->where('tenant_id', $tenantId)->where('id', $invoiceId)->lockForUpdate()->first(['id', 'organization_id', 'enrollment_id', 'description', 'status', 'paid_amount', 'amount', 'period', 'created_at'])
                 : null;
 
             if ($invoice === null) {
@@ -65,6 +67,8 @@ final class ManageInvoices
             if ((int) $invoice->paid_amount > 0) {
                 throw FinanceException::make('form', 'Tagihan ini sudah ada pembayarannya. Batalkan pembayarannya dulu.');
             }
+
+            $this->lock->assertChangeable($tenantId, LedgerLock::invoiceDate($invoice->period === null ? null : (string) $invoice->period, (string) $invoice->created_at));
 
             DB::table('fn_invoices')->where('id', $invoice->id)->update([
                 'status' => InvoiceStatus::Void->value,

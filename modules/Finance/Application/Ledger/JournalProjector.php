@@ -30,7 +30,8 @@ use stdClass;
  * dengan yang tersimpan —
  * - sumber hilang (cerminan kas disusun ulang) atau bertanggal sebelum tanggal mulai → jurnalnya dihapus;
  * - sumber dibatalkan → jurnalnya BATAL di tanggal aslinya (OD-PB-08); sumber batal yang belum pernah dijurnal tidak dibuat;
- * - selain itu jurnal dibuat / diperbarui (nomor tetap).
+ * - selain itu jurnal dibuat / diperbarui (nomor tetap);
+ * - jurnal bertanggal di periode terkunci (PB-4) dibekukan: tidak dibuat, diubah, atau dihapus lagi.
  *
  * Perubahan sumber masuk `fn_ledger_queue` lewat trigger database; `processQueue()` dijalankan scheduler tiap menit dan
  * sebelum halaman pembukuan dibuka. `rebuildStep()` menyusun ulang semua sumber bertahap (sesudah tanggal mulai /
@@ -56,6 +57,9 @@ final class JournalProjector
 
     /** @var array<string, string|null> */
     private array $feeTypes = [];
+
+    /** Tanggal terakhir periode terkunci (PB-4), null = tidak ada kunci. */
+    private ?string $lockedThrough = null;
 
     /** @var array<string, string> */
     private array $organizationNames = [];
@@ -288,6 +292,7 @@ final class JournalProjector
             DB::table('fn_journals as j')
                 ->where('j.tenant_id', $tenantId)
                 ->where('j.source', $source)
+                ->when($this->lockedThrough !== null, fn ($query) => $query->where('j.journal_date', '>', $this->lockedThrough))
                 ->whereNotExists(fn ($query) => $query->select(DB::raw(1))->from($table.' as s')->whereColumn('s.id', 'j.source_id'))
                 ->delete();
         }
@@ -344,6 +349,11 @@ final class JournalProjector
         foreach ($ids as $id) {
             $want = $desired[$id] ?? null;
             $have = $existing[$id] ?? null;
+
+            // Periode terkunci: jurnal dibekukan apa adanya (sumbernya sendiri sudah dijaga agar tidak berubah).
+            if ($this->frozen($have === null ? null : substr((string) $have->journal_date, 0, 10)) || $this->frozen($want['date'] ?? null)) {
+                continue;
+            }
 
             if ($have === null) {
                 if ($want !== null && $want['valid']) {
@@ -852,6 +862,8 @@ final class JournalProjector
     {
         $this->accounts->ensureDefaults($tenantId);
         $this->keyed = $this->accounts->keyed($tenantId);
+        $locked = DB::table('fn_ledger_settings')->where('tenant_id', $tenantId)->value('locked_through');
+        $this->lockedThrough = $locked === null ? null : substr((string) $locked, 0, 10);
 
         $this->organizationNames = [];
 
@@ -890,6 +902,11 @@ final class JournalProjector
         foreach (DB::table('fn_fee_types')->where('tenant_id', $tenantId)->get(['id', 'ledger_account_id']) as $row) {
             $this->feeTypes[(string) $row->id] = $row->ledger_account_id === null ? null : (string) $row->ledger_account_id;
         }
+    }
+
+    private function frozen(?string $date): bool
+    {
+        return $date !== null && $this->lockedThrough !== null && $date <= $this->lockedThrough;
     }
 
     private function startDate(string $tenantId): ?string

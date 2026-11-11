@@ -11,6 +11,7 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Cash\PaymentCashSync;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Application\Savings\ManageSavings;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
@@ -44,6 +45,7 @@ final class ManagePayments
         private readonly AuditLogger $audit,
         private readonly PaymentCashSync $cashSync,
         private readonly ManageSavings $savings,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -57,6 +59,7 @@ final class ManagePayments
         $value = Rupiah::parse($amount, 'amount', 'jumlah bayar', 1, self::MAX_AMOUNT);
         $methodCase = PaymentMethod::tryFrom($method) ?? throw FinanceException::make('method', 'Pilih cara bayar: tunai, transfer, atau tabungan.');
         $date = $this->paidOn($paidOn);
+        $this->lock->assertOpen($tenantId, $date->toDateString(), 'paid_on');
         $note = $note === null ? null : trim((string) preg_replace('/\s+/u', ' ', $note));
         $note = $note === '' ? null : $note;
 
@@ -201,7 +204,7 @@ final class ManagePayments
 
         DB::transaction(function () use ($tenantId, $paymentId, $reason, $membershipId): void {
             $payment = Str::isUuid($paymentId)
-                ? DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->lockForUpdate()->first(['id', 'organization_id', 'receipt_number', 'amount', 'method', 'status'])
+                ? DB::table('fn_payments')->where('tenant_id', $tenantId)->where('id', $paymentId)->lockForUpdate()->first(['id', 'organization_id', 'receipt_number', 'amount', 'method', 'status', 'paid_on'])
                 : null;
 
             if ($payment === null) {
@@ -211,6 +214,8 @@ final class ManagePayments
             if ((string) $payment->status === PaymentStatus::Void->value) {
                 throw FinanceException::make('form', 'Pembayaran ini sudah dibatalkan.');
             }
+
+            $this->lock->assertChangeable($tenantId, (string) $payment->paid_on);
 
             $now = now();
 

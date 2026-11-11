@@ -1,8 +1,8 @@
 # PRD-007 — Modul Finance (Keuangan): Pembukuan (COA, Jurnal, Laporan ISAK 35)
 
-- **Versi:** 0.5 (2026-11-09: rincian & pembangunan PB-3, §18)
-- **Versi sebelumnya:** 0.4 (PB-2b, §17), 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
-- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b SELESAI (`71a92ca`); PB-3 dibangun 2026-11-09, menunggu uji owner
+- **Versi:** 0.6 (2026-11-11: rincian & pembangunan PB-4 kunci periode, §19; OD-PB-12 s.d. OD-PB-14)
+- **Versi sebelumnya:** 0.5 (PB-3, §18), 0.4 (PB-2b, §17), 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
+- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b SELESAI (`71a92ca`); PB-3 SELESAI (`2b186ed`); PB-4 dibangun 2026-11-11, menunggu uji owner
 - **Bergantung pada:** PRD-003 (tagihan, potongan, kuitansi), PRD-004 (kas, rekening, kategori, pengeluaran, mutasi), PRD-005 (tabungan, rekening Titipan), PRD-006 (pembayaran online), PRD-000 (pohon lembaga, akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → (3) Midtrans (selesai) → **(4) pembukuan**
 
@@ -214,6 +214,9 @@ Anggaran (RAPBS) & realisasi anggaran, modul aset tetap & penyusutan otomatis, i
 | OD-PB-09 | Jurnal manual perlu persetujuan?         | **DIPUTUSKAN** — tidak, cukup izin `finance.ledger.manage` + audit [OWNER, 2026-11-05]                                         |
 | OD-PB-10 | Tanggal mulai & saldo awal               | **DIPUTUSKAN** — dipilih admin; saldo awal otomatis dari aplikasi + tambahan akuntan (§5) [OWNER, 2026-11-05]                  |
 | OD-PB-11 | Bendahara melihat pembukuan?             | **DIPUTUSKAN** — tidak; Kepala Lembaga & Pimpinan lihat sesuai cakupannya [OWNER, 2026-11-05]                                  |
+| OD-PB-12 | Siapa mengunci & membuka kunci periode   | **DIPUTUSKAN** — pemegang `finance.ledger.manage` tingkat Yayasan; alasan wajib saat membuka [OWNER, 2026-11-11]               |
+| OD-PB-13 | Kunci per lembaga atau satu untuk semua  | **DIPUTUSKAN** — satu tanggal kunci untuk seluruh buku yayasan [OWNER, 2026-11-11]                                             |
+| OD-PB-14 | Online lunas di periode terkunci         | **DIPUTUSKAN** — kuitansi tetap dibuat, bertanggal hari ini + keterangan tanggal lunas aslinya [OWNER, 2026-11-11]             |
 
 ## 15. PB-1 COA, pemetaan, periode, jurnal otomatis, daftar jurnal [ASUMSI — rincian teknis 2026-11-05]
 
@@ -264,3 +267,22 @@ Anggaran (RAPBS) & realisasi anggaran, modul aset tetap & penyusutan otomatis, i
 - **Pelepasan pembatasan** = kredit bersih ke akun aset neto tanpa pembatasan pada jurnal (manual) yang juga mendebit akun aset neto dengan pembatasan.
 - **Perubahan aset neto** per golongan (tanpa / dengan pembatasan / jumlah): saldo awal (sehari sebelum Dari), surplus (defisit) / perubahan periode (dari laporan penghasilan komprehensif), **penyesuaian langsung lain** (jurnal manual langsung ke akun aset neto selain pelepasan; dihitung sebagai sisa), saldo akhir.
 - **Arus kas metode langsung**: kas = akun kas/bank selain Kas titipan tabungan siswa. Tiap jurnal yang menggerakkan kas (dalam lingkup) dirinci per akun lawan — penerimaan (kredit akun lawan) & pengeluaran (debit akun lawan) — dikelompokkan menurut **aktivitas arus kas** akun lawan (kosong = operasi). Mutasi antar-rekening kas dalam lingkup yang sama tidak dihitung; pada lingkup lembaga, setoran ke/dari Kas Yayasan tampil sebagai pendanaan (RAK). Saldo awal rekening kas yang dibuka dalam periode tampil terpisah; kas awal + kenaikan + saldo rekening baru = kas akhir. Kas titipan tabungan ditampilkan sebagai catatan (awal & akhir).
+
+## 19. PB-4 Kunci periode / tutup buku [DISETUJUI OWNER 2026-11-11 — OD-PB-12 s.d. OD-PB-14]
+
+- **Bentuk**: satu tanggal **"terkunci sampai"** (akhir bulan) untuk seluruh buku yayasan (`fn_ledger_settings.locked_through`). Hanya bulan yang **sudah berakhir** yang bisa dikunci; boleh dimajukan beberapa bulan sekaligus, paling awal bulan mulai pembukuan.
+- **Syarat mengunci**: pembukuan aktif, tidak ada susun ulang yang tertunda/berjalan (supaya jurnal yang dibekukan sudah memakai pemetaan terbaru), dan antrean jurnal sudah tersusun (diproses otomatis saat mengunci).
+- **Buka kunci** = memundurkan tanggalnya ke akhir bulan sebelumnya yang dipilih, atau **buka semua**; alasan 5–200 karakter wajib. Audit `finance.period_locked` (tanggal lama → baru) & `finance.period_unlocked` (+ alasan).
+- **Ditolak bila tanggalnya ≤ tanggal kunci** (pesan: _"Tanggal … sudah masuk periode tutup buku (terkunci sampai …). Pakai tanggal sesudahnya, atau minta pengelola pembukuan Yayasan membuka kuncinya."_; untuk batal: _"Transaksi ini bertanggal …, di periode yang sudah ditutup buku …"_):
+    - Kasir: catat kuitansi bertanggal mundur, batal kuitansi (termasuk bayar dari tabungan).
+    - Kas: pemasukan, batal transaksi; mutasi antar-rekening & batalnya; saldo awal rekening (buat/ubah) bila nominalnya bukan nol.
+    - Pengeluaran: realisasi & batal realisasi.
+    - Tabungan: setor, tarik, batal.
+    - Tagihan: buat tagihan bulanan untuk bulan terkunci, batal tagihan yang tanggal jurnalnya terkunci (bulanan = tanggal 1 bulannya; sekali bayar = tanggal dibuat). Siswa keluar: tagihan bulan terkunci **tidak** ikut dibatalkan otomatis.
+    - Pembukuan: jurnal manual (catat & batal), saldo tambahan (saldo awal), ubah tanggal mulai / awal tahun buku.
+- **Tetap boleh**: membayar tagihan lama dengan tanggal hari ini; transaksi di bulan yang belum dikunci.
+- **Pembayaran online** (OD-PB-14): lunas di periode terkunci → kuitansi bertanggal hari ini, catatan _"… · lunas <tanggal>, dicatat hari ini karena periode itu sudah ditutup buku"_.
+- **Jurnal dibekukan**: proses antrean & susun ulang tidak membuat, mengubah, atau menghapus jurnal bertanggal ≤ tanggal kunci; cerminan kuitansi di Kas juga tidak ditata ulang.
+- **Pengaman kedua (database)**: trigger `fn_ledger_lock_guard` pada `fn_cash_entries`, `fn_cash_transfers`, `fn_invoices` (hanya perubahan yang memengaruhi jurnal), `fn_cash_accounts` (saldo awal), `fn_opening_items`, `fn_journals`, `fn_journal_lines`, serta `fn_ledger_settings` (tanggal mulai/tahun buku) menolak perubahan ke periode terkunci (`EDUCORE_PERIOD_LOCKED`); aplikasi menampilkannya sebagai pesan ramah. Trigger memegang `FOR KEY SHARE` atas baris pengaturan sehingga transaksi yang sedang berjalan selesai dulu sebelum kunci terpasang.
+- **Halaman**: Pengaturan pembukuan → tab **Periode** → kartu **Tutup buku (kunci periode)**: status ("Terkunci sampai 30 November 2026"), pilih "Kunci sampai akhir bulan" + **Kunci periode**, **Buka kunci…** (pilih "Tetap terkunci sampai" atau buka semua + alasan). Isian tanggal mulai dinonaktifkan selama ada kunci.
+- **Teknis**: migrasi `2026_11_11_300018_add_period_lock_to_fn_ledger`; `Application/Ledger/LedgerLock`; rute `POST keuangan/pembukuan/kunci-periode`, `POST keuangan/pembukuan/buka-kunci-periode`; test `PeriodLockTest` (4) + 1 test di `OnlinePaymentTest`.

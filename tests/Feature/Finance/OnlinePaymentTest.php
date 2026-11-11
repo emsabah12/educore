@@ -110,13 +110,13 @@ function fnyOrder(mixed $test, array $invoiceIds, string $method): mixed
 /**
  * Kirim notifikasi Midtrans; status "resmi" (yang dicek ulang server) diatur lewat Midtrans tiruan.
  */
-function fnyNotify(mixed $test, object $order, string $status, ?string $gross = null, bool $validSignature = true): mixed
+function fnyNotify(mixed $test, object $order, string $status, ?string $gross = null, bool $validSignature = true, string $settledAt = '2026-11-03 10:15:00'): mixed
 {
     $gross ??= $order->gross_amount.'.00';
     $code = $status === 'settlement' ? '200' : ($status === 'pending' ? '201' : '202');
     $test->midtrans->statuses[$order->order_id] = [
         'order_id' => $order->order_id, 'transaction_status' => $status, 'status_code' => $code, 'gross_amount' => $gross,
-        'transaction_id' => 'trx-'.$order->order_id, 'settlement_time' => '2026-11-03 10:15:00',
+        'transaction_id' => 'trx-'.$order->order_id, 'settlement_time' => $settledAt,
     ];
 
     return $test->postJson(route('finance.midtrans.webhook'), [
@@ -396,4 +396,19 @@ test('petugas (MG-3): kepala lembaga hanya melihat; bendahara lembaga lain tidak
     $this->get(route('finance.online-payments.index'))->assertInertia(fn (Assert $page) => $page->where('orders.total', 0));
     $this->get(route('finance.online-payments.show', ['order' => $order->id]))->assertNotFound();
     $this->post(route('finance.online-payments.settle-overpaid', ['order' => $order->id]))->assertNotFound();
+});
+
+test('lunas di periode yang sudah ditutup buku (PB-4): kuitansi tetap dibuat, bertanggal hari ini dengan keterangan', function () {
+    fnyOrder($this, fnyInvoices($this->ahmad, '2026-07'), 'QRIS')->assertRedirect();
+    $order = fnyLatestOrder();
+
+    // Pembukuan mulai 1 Okt, Oktober sudah ditutup buku; Midtrans melaporkan lunas 31 Okt 23.59.
+    DB::table('fn_ledger_settings')->insert(['tenant_id' => $this->tenant->id, 'start_date' => '2026-10-01', 'locked_through' => '2026-10-31', 'created_at' => now(), 'updated_at' => now()]);
+
+    fnyNotify($this, $order, 'settlement', settledAt: '2026-10-31 23:59:00')->assertOk();
+
+    $payment = DB::table('fn_payments')->sole();
+    expect(substr((string) $payment->paid_on, 0, 10))->toBe('2026-11-03')
+        ->and($payment->note)->toBe('Midtrans QRIS · '.$order->order_id.' · lunas 31 Oktober 2026, dicatat hari ini karena periode itu sudah ditutup buku')
+        ->and(DB::table('fn_online_payments')->where('id', $order->id)->value('status'))->toBe('LUNAS');
 });

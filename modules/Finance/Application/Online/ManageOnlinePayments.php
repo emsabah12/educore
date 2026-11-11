@@ -12,6 +12,8 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Fee\Rupiah;
+use Modules\Finance\Application\Ledger\LedgerDate;
+use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Application\Payment\ManagePayments;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Invoice\InvoiceStatus;
@@ -42,6 +44,7 @@ final class ManageOnlinePayments
         private readonly EnrolledStudents $students,
         private readonly ManagePayments $payments,
         private readonly AuditLogger $audit,
+        private readonly LedgerLock $lock,
     ) {}
 
     /**
@@ -407,11 +410,18 @@ final class ManageOnlinePayments
             }
 
             $paidOn = $this->paidOn($status);
+            $note = 'Midtrans '.OnlinePaymentMethod::from((string) $locked->method)->label().' · '.((string) $locked->order_id);
+
+            // Uang sudah masuk: lunas di periode yang sudah ditutup buku (PB-4) tetap dicatat, bertanggal hari ini.
+            if ($this->lock->isLocked($tenantId, $paidOn)) {
+                $note .= ' · lunas '.LedgerDate::long($paidOn).', dicatat hari ini karena periode itu sudah ditutup buku';
+                $paidOn = BusinessClock::today()->toDateString();
+            }
+
             $amount = min((int) $locked->invoice_amount, $outstanding);
             $paymentId = null;
 
             if ($amount > 0) {
-                $method = OnlinePaymentMethod::from((string) $locked->method);
                 $paymentId = $this->payments->record(
                     $tenantId,
                     $organizationId,
@@ -419,7 +429,7 @@ final class ManageOnlinePayments
                     (string) $amount,
                     $paidOn,
                     PaymentMethod::Online->value,
-                    mb_substr('Midtrans '.$method->label().' · '.((string) $locked->order_id), 0, ManagePayments::NOTE_MAX_LENGTH),
+                    mb_substr($note, 0, ManagePayments::NOTE_MAX_LENGTH),
                     array_values(array_map(fn (stdClass $invoice): string => (string) $invoice->id, $open->all())),
                     null,
                 );
