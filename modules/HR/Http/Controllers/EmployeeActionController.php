@@ -229,9 +229,10 @@ final class EmployeeActionController
             $reason,
             PersonalData::text($request->input('end_note')),
             $request->string('end_date')->value(),
+            $this->tenantContext->require()->membershipId,
         ));
 
-        return $this->done('Pegawai diberhentikan. Akun login (bila ada) tidak berubah.');
+        return $this->done('Pegawai diberhentikan. Akun login (bila ada) tidak berubah; lanjutkan lewat checklist di tab Offboarding.');
     }
 
     public function rehire(Request $request, string $employee, RehireEmployee $rehire): RedirectResponse

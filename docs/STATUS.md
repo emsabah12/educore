@@ -2,7 +2,7 @@
 
 - **Diperbarui:** 2026-11-11
 - **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) SELESAI; PB-4 (kunci periode) SELESAI — Pembukuan PRD-007 lengkap (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `c6b7439` — feat(finance): PB-4 pembukuan — kunci periode (tutup buku)
+- **Commit terakhir:** `1ec0a96` — feat(hr): HR-7a catatan disiplin pegawai (teguran & SP)
 
 ## Keputusan penting
 
@@ -705,13 +705,21 @@
 
 **HR menyusul — urutan [OWNER, 2026-11-11]:** HR-7 (disiplin & offboarding) → HR-8 (pelatihan & kinerja) → HR-9 (rekrutmen) → HR-4d (presensi lokasi HP; mesin absen hanya cadangan) → HR-10 (formulir A05 Simpatika + rekap PTK). PRD-001 §3, §18.
 
-**HR-7a — Catatan disiplin: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §18.1 (OD-HR-13, OD-HR-14)
+**HR-7a — Catatan disiplin: SELESAI (2026-11-11, commit `1ec0a96`)** — PRD-001 §18.1 (OD-HR-13, OD-HR-14)
 
 - Migrasi `2026_11_11_100016`: `hr_discipline_records` (jenis Teguran lisan/tertulis, SP1–SP3; berlaku sampai; lampiran privat opsional; dicabut + alasan).
 - `Application/Discipline/{ManageDiscipline, DisciplineRecords}`; `DisciplineController`; izin baru `hr.discipline.view` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.discipline.manage` (Admin SDM, Admin Yayasan); audit `hr.discipline_recorded|revoked` tanpa isi.
 - Halaman: detail pegawai → tab **Disiplin** (catat, cabut, lampiran, peringatan SP berlaku/SP3); menu **Disiplin pegawai** (`/pegawai/disiplin`, saring lembaga/jenis/status); **Dokumen saya** → bagian Catatan disiplin.
-- Bukti: 782 test lulus (4 test baru `DisciplineTest`, awalan `dsp`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Bukti: 782 test lulus (4 test baru `DisciplineTest`, awalan `dsp`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
 - Perlu `php artisan educore:sync-access` sesudah migrate (izin baru).
+
+**HR-7b — Offboarding pegawai keluar: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §18.2 (OD-HR-15)
+
+- Migrasi `2026_11_11_100017`: `hr_offboarding_items` (katalog SDM baru "Item offboarding", 6 isi awal), `hr_offboardings`, `hr_offboarding_tasks`.
+- `Application/Offboarding/{ManageOffboarding, OffboardingChecklist}`; `EndEmployment` membuat checklist; kontrak `HR\Contracts\TeachingDuties` (Academic: wali kelas & guru mapel yang masih tercatat); `OffboardingController`.
+- Halaman: detail pegawai → tab **Offboarding** (checklist, pemeriksaan, tombol Nonaktifkan akun login, Buat checklist untuk pegawai lama); menu **Pegawai keluar**.
+- Bukti: 786 test lulus (4 test baru `OffboardingTest`, awalan `ofb`; `HrCatalogTest` disesuaikan); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 
 **AC-7a — Akun orang tua/wali & Anak saya: SELESAI (2026-10-28, commit `db7f755`)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
 
@@ -1018,5 +1026,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: uji manual HR-7a oleh owner → HR-7b offboarding → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7a SELESAI → uji manual HR-7b offboarding → HR-8 → HR-9 → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

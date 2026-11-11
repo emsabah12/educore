@@ -37,6 +37,8 @@ use Modules\HR\Application\Employee\EmployeeVisibility;
 use Modules\HR\Application\Employee\NewEmployeeData;
 use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
+use Modules\HR\Application\Offboarding\ManageOffboarding;
+use Modules\HR\Application\Offboarding\OffboardingChecklist;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Employee\EducationLevel;
@@ -107,6 +109,7 @@ final class EmployeeController
         AttendanceRecap $attendanceRecap,
         EmployeeDocuments $employeeDocuments,
         DisciplineRecords $disciplineRecords,
+        OffboardingChecklist $offboarding,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -150,6 +153,8 @@ final class EmployeeController
                     'fileMaxMb' => intdiv(ManageDiscipline::FILE_MAX_KILOBYTES, 1024),
                 ] : null,
             ] : null,
+            // Checklist offboarding (HR-7b): Admin SDM / Admin Yayasan, bila ada checklist atau bisa dibuatkan.
+            'offboarding' => $canManage ? $this->offboardingData($offboarding, $employee) : null,
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()
@@ -319,6 +324,20 @@ final class EmployeeController
     private function canManage(): bool
     {
         return $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function offboardingData(OffboardingChecklist $offboarding, string $employeeId): ?array
+    {
+        $data = $offboarding->forEmployee($this->tenantContext->require()->tenantId, $employeeId);
+
+        if ($data['checklists'] === [] && ! $data['canStart']) {
+            return null;
+        }
+
+        return $data + ['canManageAccess' => $this->canManageAccess(), 'noteMax' => ManageOffboarding::NOTE_MAX];
     }
 
     private function canManageAccess(): bool

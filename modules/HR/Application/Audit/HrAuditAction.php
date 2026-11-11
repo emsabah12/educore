@@ -99,6 +99,14 @@ final class HrAuditAction
 
     public const SUBJECT_DISCIPLINE = 'hr_discipline_record';
 
+    /** Checklist offboarding dibuat (HR-7b): pegawai, tanggal berhenti, jumlah item. */
+    public const OFFBOARDING_STARTED = 'hr.offboarding_started';
+
+    /** Item checklist offboarding diubah (HR-7b): pegawai, kode item, status — tanpa catatan. */
+    public const OFFBOARDING_TASK_UPDATED = 'hr.offboarding_task_updated';
+
+    public const SUBJECT_OFFBOARDING = 'hr_offboarding';
+
     /** Komponen gaji (HR-5a). Nominal tidak pernah dicatat di audit. */
     public const PAY_COMPONENT_CREATED = 'hr.pay_component_created';
 
@@ -174,6 +182,8 @@ final class HrAuditAction
             self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
             self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
             self::ATTENDANCE_RECORDED => 'Presensi pegawai dicatat petugas',
+            self::OFFBOARDING_STARTED => 'Checklist offboarding pegawai dibuat',
+            self::OFFBOARDING_TASK_UPDATED => 'Item checklist offboarding diubah',
             self::DISCIPLINE_RECORDED => 'Catatan disiplin pegawai dicatat',
             self::DISCIPLINE_REVOKED => 'Catatan disiplin pegawai dicabut',
             self::DOCUMENT_ADDED => 'Dokumen pegawai ditambahkan',

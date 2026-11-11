@@ -28,6 +28,8 @@ import { PageTabs, usePageTab } from '@/components/page-tabs';
 import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
+import { OffboardingSection } from '@/components/hr/employee-offboarding';
+import type { OffboardingData } from '@/components/hr/employee-offboarding';
 import type { EmployeeDocument } from '@/components/hr/employee-documents';
 import { DisciplineSection } from '@/components/hr/employee-discipline';
 import type {
@@ -104,6 +106,8 @@ type Props = {
         records: DisciplineRecord[];
         manage: DisciplineManage | null;
     } | null;
+    /** Checklist offboarding (HR-7b), hanya Admin SDM / Admin Yayasan. */
+    offboarding: OffboardingData | null;
     canManageLeave: boolean;
 };
 
@@ -152,6 +156,7 @@ const TABS = [
     'cuti',
     'dokumen',
     'disiplin',
+    'offboarding',
     'akun',
     'riwayat',
 ] as const;
@@ -170,6 +175,7 @@ export default function EmployeeDetail({
     attendance,
     documents,
     discipline,
+    offboarding,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -198,6 +204,9 @@ export default function EmployeeDetail({
         ...(documents ? [{ value: 'dokumen' as const, label: 'Dokumen' }] : []),
         ...(discipline
             ? [{ value: 'disiplin' as const, label: 'Disiplin' }]
+            : []),
+        ...(offboarding
+            ? [{ value: 'offboarding' as const, label: 'Offboarding' }]
             : []),
         ...(access ? [{ value: 'akun' as const, label: 'Akun login' }] : []),
         { value: 'riwayat', label: 'Riwayat' },
@@ -586,6 +595,13 @@ export default function EmployeeDetail({
                         employeeId={employee.id}
                         records={discipline.records}
                         manage={discipline.manage}
+                    />
+                )}
+
+                {tab === 'offboarding' && offboarding && (
+                    <OffboardingSection
+                        employeeId={employee.id}
+                        data={offboarding}
                     />
                 )}
 

@@ -16,6 +16,7 @@ use Modules\Academic\Application\Grading\GradingSetting;
 use Modules\Academic\Application\Guardian\AcademicGuardianChildren;
 use Modules\Academic\Application\Guardian\MyChildren;
 use Modules\Academic\Application\Student\AcademicEnrolledStudents;
+use Modules\Academic\Application\Teaching\AcademicTeachingDuties;
 use Modules\Academic\Application\Teaching\AcademicTeachingLoad;
 use Modules\Academic\Application\Teaching\DutyRoster;
 use Modules\Academic\Application\Teaching\SubstituteTasks;
@@ -30,6 +31,7 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\HR\Contracts\SchoolWeeklyOff;
+use Modules\HR\Contracts\TeachingDuties;
 use Modules\HR\Contracts\TeachingLoad;
 use Modules\HR\Contracts\TeachingSchedule;
 
@@ -54,6 +56,7 @@ class AcademicServiceProvider extends ModuleServiceProvider
         $this->app->singleton(TeachingSchedule::class, AcademicTeachingSchedule::class);
         // Beban mengajar untuk honor JP (PRD-001 §16.2).
         $this->app->singleton(TeachingLoad::class, AcademicTeachingLoad::class);
+        $this->app->singleton(TeachingDuties::class, AcademicTeachingDuties::class);
         // Libur mingguan kalender akademik untuk perbandingan di Pengaturan cuti & presensi (OD-HR-07).
         $this->app->singleton(SchoolWeeklyOff::class, AcademicSchoolWeeklyOff::class);
         // Kontrak publik Academic untuk modul lain (Modules\Academic\Contracts), mis. Finance (PRD-003 §7).

@@ -18,6 +18,7 @@ use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
+use Modules\HR\Http\Controllers\OffboardingController;
 use Modules\HR\Http\Controllers\PayrollEmployeeController;
 use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
@@ -96,6 +97,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Catatan disiplin (PRD-001 §18.1, HR-7a).
     Route::get('pegawai/disiplin', [DisciplineController::class, 'index'])->name('hr.discipline.index');
 
+    // Offboarding pegawai keluar (PRD-001 §18.2, HR-7b).
+    Route::get('pegawai/keluar', [OffboardingController::class, 'index'])->name('hr.offboarding.index');
+
     // Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji. Admin SDM / Admin Yayasan.
     Route::get('pegawai/gaji/pengaturan', [PayrollSettingsController::class, 'index'])->name('hr.payroll-settings.index');
     Route::post('pegawai/gaji/komponen', [PayrollSettingsController::class, 'store'])->name('hr.pay-components.store');
@@ -156,5 +160,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/{employee}/dokumen/{document}/unduh', [EmployeeDocumentController::class, 'download'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.download');
     Route::post('pegawai/{employee}/disiplin', [DisciplineController::class, 'store'])->whereUuid('employee')->name('hr.employees.discipline.store');
     Route::post('pegawai/{employee}/disiplin/{record}/cabut', [DisciplineController::class, 'revoke'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.revoke');
+    Route::post('pegawai/{employee}/offboarding', [OffboardingController::class, 'start'])->whereUuid('employee')->name('hr.employees.offboarding.start');
+    Route::post('pegawai/{employee}/offboarding/{task}', [OffboardingController::class, 'updateTask'])->whereUuid(['employee', 'task'])->name('hr.employees.offboarding.task');
     Route::get('pegawai/{employee}/disiplin/{record}/unduh', [DisciplineController::class, 'download'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.download');
 });

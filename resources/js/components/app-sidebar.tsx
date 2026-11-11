@@ -42,6 +42,7 @@ import {
     Smartphone,
     Tags,
     UserCheck,
+    UserMinus,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -134,6 +135,12 @@ const myPayNavItem: NavItem = {
     title: 'Gaji saya',
     href: '/gaji-saya',
     icon: HandCoins,
+};
+
+const offboardingNavItem: NavItem = {
+    title: 'Pegawai keluar',
+    href: '/pegawai/keluar',
+    icon: UserMinus,
 };
 
 const disciplineNavItem: NavItem = {
@@ -395,7 +402,7 @@ export function AppSidebar() {
                 ...when(
                     atTenantLevel &&
                         permissions.includes('hr.employees.manage'),
-                    [expiringDocumentsNavItem],
+                    [expiringDocumentsNavItem, offboardingNavItem],
                 ),
                 ...when(permissions.includes('hr.discipline.view'), [
                     disciplineNavItem,

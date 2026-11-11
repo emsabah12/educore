@@ -59,6 +59,15 @@ final class DefaultCatalog
                 'SERTIFIKAT-PENDIDIK' => 'Sertifikat Pendidik',
                 'LAINNYA' => 'Dokumen lainnya',
             ],
+            // HR-7b (§18.2): AKUN-LOGIN dicentang otomatis bila akun pegawai sudah nonaktif.
+            CatalogKind::OffboardingItem->value => [
+                'INVENTARIS' => 'Kembalikan kunci & inventaris',
+                'PERANGKAT' => 'Kembalikan laptop/perangkat',
+                'SERAH-TERIMA' => 'Serah terima tugas & dokumen',
+                'AKUN-LOGIN' => 'Nonaktifkan akun login',
+                'HAK-AKHIR' => 'Selesaikan gaji/hak terakhir',
+                'GRUP' => 'Keluarkan dari grup komunikasi',
+            ],
         ];
     }
 }

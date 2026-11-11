@@ -47,7 +47,8 @@ test('isi awal katalog terisi untuk setiap yayasan dan aman dijalankan berulang'
     expect(EmploymentType::query()->count())->toBe(3)
         ->and(CatalogKind::Classification->query()->count())->toBe(4)
         ->and(Position::query()->count())->toBe(9)
-        ->and(hrAuditCount(HrAuditAction::CATALOG_CREATED))->toBe(23);
+        // 3 + 4 + 9 + 7 jenis dokumen (HR-2a) + 6 item offboarding (HR-7b).
+        ->and(hrAuditCount(HrAuditAction::CATALOG_CREATED))->toBe(29);
 
     // Admin SDM sudah mengubah nama dan menonaktifkan sebuah item; seeder tidak menimpanya.
     $guru = hrPosition($this->tenant, 'GURU');
@@ -59,7 +60,7 @@ test('isi awal katalog terisi untuk setiap yayasan dan aman dijalankan berulang'
     expect(Position::query()->count())->toBe(9)
         ->and($guru->refresh()->name)->toBe('Guru Mata Pelajaran')
         ->and($guru->is_active)->toBeFalse()
-        ->and(hrAuditCount(HrAuditAction::CATALOG_CREATED))->toBe(23);
+        ->and(hrAuditCount(HrAuditAction::CATALOG_CREATED))->toBe(29);
 
     // Yayasan baru ikut mendapat isi awal.
     CoreFixtures::tenant('YYS-BARU');
@@ -77,7 +78,7 @@ test('Admin Yayasan membuka Katalog SDM; menu muncul dari permission hr.catalog.
         ->assertInertia(fn (Assert $page) => $page
             ->component('hr/catalog')
             ->where('activeKind', CatalogKind::EmploymentType->value)
-            ->has('kinds', 4)
+            ->has('kinds', 5)
             ->where('kinds.2.count', 9)
             ->has('items', 3)
             ->where('permissions', fn ($permissions) => collect($permissions)->contains(HrAccess::CATALOG_MANAGE)),

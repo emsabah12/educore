@@ -5,7 +5,7 @@ namespace Modules\HR\Domain\Catalog;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Katalog SDM per yayasan (PRD-001 §4.3), ditambah jenis dokumen (§15, HR-2a). Nilai enum dipakai di
+ * Katalog SDM per yayasan (PRD-001 §4.3), ditambah jenis dokumen (§15, HR-2a) dan item offboarding (§18.2, HR-7b). Nilai enum dipakai di
  * URL halaman Katalog SDM.
  */
 enum CatalogKind: string
@@ -14,6 +14,7 @@ enum CatalogKind: string
     case Classification = 'status-kepegawaian';
     case Position = 'jabatan';
     case DocumentType = 'jenis-dokumen';
+    case OffboardingItem = 'item-offboarding';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum CatalogKind: string
             self::Classification => 'Status kepegawaian',
             self::Position => 'Jabatan',
             self::DocumentType => 'Jenis dokumen',
+            self::OffboardingItem => 'Item offboarding',
         };
     }
 
@@ -35,6 +37,7 @@ enum CatalogKind: string
             self::Classification => 'Status kepegawaian yayasan, mis. GTY, GTT, PTY, PTT. Boleh dikosongkan di data pegawai.',
             self::Position => 'Jabatan di lembaga. Jabatan tidak memberi hak akses apa pun di aplikasi.',
             self::DocumentType => 'Jenis dokumen & SK pegawai, mis. SK Pengangkatan, Kontrak Kerja. Jenis yang punya masa berlaku masuk pengingat dokumen akan habis.',
+            self::OffboardingItem => 'Langkah checklist saat pegawai berhenti, mis. kembalikan laptop, serah terima tugas. Item aktif disalin ke checklist setiap pegawai yang diberhentikan.',
         };
     }
 
@@ -48,13 +51,14 @@ enum CatalogKind: string
             self::Classification => 'hr_employment_classification',
             self::Position => 'hr_position',
             self::DocumentType => 'hr_document_type',
+            self::OffboardingItem => 'hr_offboarding_item',
         };
     }
 
     /**
      * Query model katalog jenis ini (ikut tersaring ke yayasan aktif bila konteks kerja ada).
      *
-     * @return Builder<EmploymentType>|Builder<EmploymentClassification>|Builder<Position>|Builder<DocumentType>
+     * @return Builder<EmploymentType>|Builder<EmploymentClassification>|Builder<Position>|Builder<DocumentType>|Builder<OffboardingItem>
      */
     public function query(): Builder
     {
@@ -63,6 +67,7 @@ enum CatalogKind: string
             self::Classification => EmploymentClassification::query(),
             self::Position => Position::query(),
             self::DocumentType => DocumentType::query(),
+            self::OffboardingItem => OffboardingItem::query(),
         };
     }
 
@@ -76,6 +81,7 @@ enum CatalogKind: string
             self::Classification => new EmploymentClassification,
             self::Position => new Position,
             self::DocumentType => new DocumentType,
+            self::OffboardingItem => new OffboardingItem,
         };
     }
 
@@ -99,7 +105,7 @@ enum CatalogKind: string
                 'label' => 'Menerima honor per JP (honor mengajar dihitung di rekap gaji).',
                 'badge' => 'Honor per JP',
             ],
-            self::Position => null,
+            self::Position, self::OffboardingItem => null,
         };
     }
 }
