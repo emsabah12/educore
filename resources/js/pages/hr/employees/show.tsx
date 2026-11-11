@@ -29,6 +29,11 @@ import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
 import type { EmployeeDocument } from '@/components/hr/employee-documents';
+import { DisciplineSection } from '@/components/hr/employee-discipline';
+import type {
+    DisciplineManage,
+    DisciplineRecord,
+} from '@/components/hr/employee-discipline';
 import {
     formatLeaveRange,
     LEAVE_STATUS_CLASS,
@@ -94,6 +99,11 @@ type Props = {
     attendance: AttendanceSummaryData | null;
     /** Dokumen & SK (HR-2a), hanya bagi yang boleh melihat data pribadi. */
     documents: EmployeeDocument[] | null;
+    /** Catatan disiplin (HR-7a), bagi pemegang hr.discipline.view atas pegawai ini. */
+    discipline: {
+        records: DisciplineRecord[];
+        manage: DisciplineManage | null;
+    } | null;
     canManageLeave: boolean;
 };
 
@@ -141,6 +151,7 @@ const TABS = [
     'penempatan',
     'cuti',
     'dokumen',
+    'disiplin',
     'akun',
     'riwayat',
 ] as const;
@@ -158,6 +169,7 @@ export default function EmployeeDetail({
     leave,
     attendance,
     documents,
+    discipline,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -184,6 +196,9 @@ export default function EmployeeDetail({
             ? [{ value: 'cuti' as const, label: 'Cuti & presensi' }]
             : []),
         ...(documents ? [{ value: 'dokumen' as const, label: 'Dokumen' }] : []),
+        ...(discipline
+            ? [{ value: 'disiplin' as const, label: 'Disiplin' }]
+            : []),
         ...(access ? [{ value: 'akun' as const, label: 'Akun login' }] : []),
         { value: 'riwayat', label: 'Riwayat' },
     ];
@@ -563,6 +578,14 @@ export default function EmployeeDetail({
                                   }
                                 : null
                         }
+                    />
+                )}
+
+                {tab === 'disiplin' && discipline && (
+                    <DisciplineSection
+                        employeeId={employee.id}
+                        records={discipline.records}
+                        manage={discipline.manage}
                     />
                 )}
 

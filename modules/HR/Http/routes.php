@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Http\Controllers\AttendanceSheetController;
 use Modules\HR\Http\Controllers\CatalogController;
+use Modules\HR\Http\Controllers\DisciplineController;
 use Modules\HR\Http\Controllers\EmployeeActionController;
 use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeDocumentController;
@@ -90,6 +91,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('dokumen-saya', [MyDocumentController::class, 'index'])->name('hr.my-documents.index');
     Route::get('dokumen-saya/{document}/unduh', [MyDocumentController::class, 'download'])->whereUuid('document')->name('hr.my-documents.download');
     Route::get('pegawai/dokumen/akan-habis', [ExpiringDocumentController::class, 'index'])->name('hr.documents.expiring');
+    Route::get('dokumen-saya/disiplin/{record}/unduh', [MyDocumentController::class, 'downloadDiscipline'])->whereUuid('record')->name('hr.my-documents.discipline.download');
+
+    // Catatan disiplin (PRD-001 §18.1, HR-7a).
+    Route::get('pegawai/disiplin', [DisciplineController::class, 'index'])->name('hr.discipline.index');
 
     // Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji. Admin SDM / Admin Yayasan.
     Route::get('pegawai/gaji/pengaturan', [PayrollSettingsController::class, 'index'])->name('hr.payroll-settings.index');
@@ -149,4 +154,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('pegawai/{employee}/dokumen/{document}', [EmployeeDocumentController::class, 'update'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.update');
     Route::post('pegawai/{employee}/dokumen/{document}/batalkan', [EmployeeDocumentController::class, 'void'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.void');
     Route::get('pegawai/{employee}/dokumen/{document}/unduh', [EmployeeDocumentController::class, 'download'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.download');
+    Route::post('pegawai/{employee}/disiplin', [DisciplineController::class, 'store'])->whereUuid('employee')->name('hr.employees.discipline.store');
+    Route::post('pegawai/{employee}/disiplin/{record}/cabut', [DisciplineController::class, 'revoke'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.revoke');
+    Route::get('pegawai/{employee}/disiplin/{record}/unduh', [DisciplineController::class, 'download'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.download');
 });

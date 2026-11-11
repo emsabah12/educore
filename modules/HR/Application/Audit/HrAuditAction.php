@@ -91,6 +91,14 @@ final class HrAuditAction
 
     public const SUBJECT_DOCUMENT = 'hr_document';
 
+    /** Catatan disiplin dicatat (HR-7a): pegawai, jenis, tanggal, ada lampiran — tanpa isi pelanggaran. */
+    public const DISCIPLINE_RECORDED = 'hr.discipline_recorded';
+
+    /** Catatan disiplin dicabut (HR-7a): pegawai, jenis — tanpa alasan. */
+    public const DISCIPLINE_REVOKED = 'hr.discipline_revoked';
+
+    public const SUBJECT_DISCIPLINE = 'hr_discipline_record';
+
     /** Komponen gaji (HR-5a). Nominal tidak pernah dicatat di audit. */
     public const PAY_COMPONENT_CREATED = 'hr.pay_component_created';
 
@@ -166,6 +174,8 @@ final class HrAuditAction
             self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
             self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
             self::ATTENDANCE_RECORDED => 'Presensi pegawai dicatat petugas',
+            self::DISCIPLINE_RECORDED => 'Catatan disiplin pegawai dicatat',
+            self::DISCIPLINE_REVOKED => 'Catatan disiplin pegawai dicabut',
             self::DOCUMENT_ADDED => 'Dokumen pegawai ditambahkan',
             self::DOCUMENT_UPDATED => 'Isian dokumen pegawai diubah',
             self::DOCUMENT_VOIDED => 'Dokumen pegawai dibatalkan',

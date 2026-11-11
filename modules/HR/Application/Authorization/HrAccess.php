@@ -37,6 +37,12 @@ final class HrAccess
     /** Komponen gaji, nominal per pegawai, tarif, rekap input gaji (PRD-001 §16, HR-5). Tingkat Yayasan. */
     public const PAYROLL_MANAGE = 'hr.payroll.manage';
 
+    /** Lihat catatan disiplin pegawai (PRD-001 §18.1, HR-7a), sesuai cakupan lihat pegawai. */
+    public const DISCIPLINE_VIEW = 'hr.discipline.view';
+
+    /** Catat & cabut catatan disiplin (OD-HR-13: Admin SDM / Admin Yayasan, tingkat Yayasan). */
+    public const DISCIPLINE_MANAGE = 'hr.discipline.manage';
+
     public const ROLE_ADMIN_SDM = 'admin-sdm';
 
     /** Petugas presensi lembaga (HR-4b): hanya mengisi lembar presensi pegawai lembaganya. */
@@ -52,7 +58,9 @@ final class HrAccess
             ->permission(self::LEAVE_APPROVE, 'Setujui cuti pegawai lembaga')
             ->permission(self::LEAVE_MANAGE, 'Kelola cuti pegawai')
             ->permission(self::ATTENDANCE_MANAGE, 'Kelola presensi pegawai')
-            ->permission(self::PAYROLL_MANAGE, 'Kelola komponen & rekap gaji');
+            ->permission(self::PAYROLL_MANAGE, 'Kelola komponen & rekap gaji')
+            ->permission(self::DISCIPLINE_VIEW, 'Lihat catatan disiplin pegawai')
+            ->permission(self::DISCIPLINE_MANAGE, 'Catat & cabut catatan disiplin pegawai');
 
         $all = [
             self::EMPLOYEES_VIEW,
@@ -64,6 +72,8 @@ final class HrAccess
             self::ATTENDANCE_MANAGE,
             // Data gaji sensitif: hanya Admin SDM & Admin Yayasan, bukan Kepala Lembaga (PRD-001 §16).
             self::PAYROLL_MANAGE,
+            self::DISCIPLINE_VIEW,
+            self::DISCIPLINE_MANAGE,
         ];
 
         $catalog
@@ -72,7 +82,7 @@ final class HrAccess
             ->grant(CoreAccess::ROLE_ADMIN_YAYASAN, $all)
             ->grant(CoreAccess::ROLE_PIMPINAN, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL, self::LEAVE_APPROVE])
             // Kepala Lembaga = penyetuju cuti tahap lembaga (PRD-001 §13.4).
-            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL, self::LEAVE_APPROVE, self::ATTENDANCE_MANAGE])
+            ->grant(CoreAccess::ROLE_KEPALA_LEMBAGA, [self::EMPLOYEES_VIEW, self::EMPLOYEES_VIEW_PERSONAL, self::LEAVE_APPROVE, self::ATTENDANCE_MANAGE, self::DISCIPLINE_VIEW])
             // [ASUMSI, PRD-001 §14.3] Petugas presensi dipasang per lembaga lewat Kelola akses.
             ->role(self::ROLE_PETUGAS_PRESENSI, 'Petugas Presensi', [self::ATTENDANCE_MANAGE])
             ->grant(CoreAccess::ROLE_KOORDINATOR, [self::EMPLOYEES_VIEW])

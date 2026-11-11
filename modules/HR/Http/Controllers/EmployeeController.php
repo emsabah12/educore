@@ -25,6 +25,8 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Attendance\AttendanceRecap;
 use Modules\HR\Application\Authorization\HrAccess;
+use Modules\HR\Application\Discipline\DisciplineRecords;
+use Modules\HR\Application\Discipline\ManageDiscipline;
 use Modules\HR\Application\Document\DocumentFileStore;
 use Modules\HR\Application\Document\EmployeeDocuments;
 use Modules\HR\Application\Employee\CreateEmployee;
@@ -104,6 +106,7 @@ final class EmployeeController
         EmployeeLeaveSummary $leaveSummary,
         AttendanceRecap $attendanceRecap,
         EmployeeDocuments $employeeDocuments,
+        DisciplineRecords $disciplineRecords,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -135,6 +138,18 @@ final class EmployeeController
             'attendance' => $withPersonal ? $attendanceRecap->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
             // Dokumen & SK (HR-2a): hanya bagi yang boleh melihat data pribadi pegawai ini.
             'documents' => $withPersonal ? $employeeDocuments->forEmployee($this->tenantContext->require()->tenantId, $employee) : null,
+            // Catatan disiplin (HR-7a): bagi pemegang hr.discipline.view atas pegawai ini (OD-HR-13).
+            'discipline' => $visibility->canSee($employee, HrAccess::DISCIPLINE_VIEW) ? [
+                'records' => $disciplineRecords->forEmployee($this->tenantContext->require()->tenantId, $employee),
+                'manage' => $this->authorization->inspectTarget(HrAccess::DISCIPLINE_MANAGE, null, null)->allowed() ? [
+                    'today' => BusinessClock::todayString(),
+                    'kinds' => DisciplineController::kindOptions(),
+                    'validMonths' => ManageDiscipline::DEFAULT_VALID_MONTHS,
+                    'textMax' => ManageDiscipline::TEXT_MAX,
+                    'reasonMax' => ManageDiscipline::REVOKE_REASON_MAX,
+                    'fileMaxMb' => intdiv(ManageDiscipline::FILE_MAX_KILOBYTES, 1024),
+                ] : null,
+            ] : null,
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()

@@ -2,7 +2,7 @@
 
 - **Versi:** 0.6 (2026-11-11: rincian & pembangunan PB-4 kunci periode, §19; OD-PB-12 s.d. OD-PB-14)
 - **Versi sebelumnya:** 0.5 (PB-3, §18), 0.4 (PB-2b, §17), 0.3 (PB-2 dipecah; PB-2a, §16), 0.2 (disetujui owner; PB-1, §15), 0.1 (draf pertama, 2026-11-04)
-- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b SELESAI (`71a92ca`); PB-3 SELESAI (`2b186ed`); PB-4 dibangun 2026-11-11, menunggu uji owner
+- **Status:** **DISETUJUI (2026-11-05)**; PB-1 SELESAI (`c602d11`); PB-2a SELESAI (`03bde32`); PB-2b SELESAI (`71a92ca`); PB-3 SELESAI (`2b186ed`); PB-4 SELESAI (`c6b7439`)
 - **Bergantung pada:** PRD-003 (tagihan, potongan, kuitansi), PRD-004 (kas, rekening, kategori, pengeluaran, mutasi), PRD-005 (tabungan, rekening Titipan), PRD-006 (pembayaran online), PRD-000 (pohon lembaga, akses, audit), ADR-001
 - **Lanjutan dari:** PRD-004 §11, urutan owner 2026-10-30: (1) persetujuan berjenjang (selesai) → (2) tabungan siswa (selesai) → (3) Midtrans (selesai) → **(4) pembukuan**
 

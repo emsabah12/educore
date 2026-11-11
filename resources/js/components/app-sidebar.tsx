@@ -36,6 +36,7 @@ import {
     Scale,
     School,
     ScrollText,
+    ShieldAlert,
     ShieldCheck,
     SlidersHorizontal,
     Smartphone,
@@ -133,6 +134,12 @@ const myPayNavItem: NavItem = {
     title: 'Gaji saya',
     href: '/gaji-saya',
     icon: HandCoins,
+};
+
+const disciplineNavItem: NavItem = {
+    title: 'Disiplin pegawai',
+    href: '/pegawai/disiplin',
+    icon: ShieldAlert,
 };
 
 const expiringDocumentsNavItem: NavItem = {
@@ -390,6 +397,9 @@ export function AppSidebar() {
                         permissions.includes('hr.employees.manage'),
                     [expiringDocumentsNavItem],
                 ),
+                ...when(permissions.includes('hr.discipline.view'), [
+                    disciplineNavItem,
+                ]),
                 ...when(
                     atTenantLevel && permissions.includes('hr.payroll.manage'),
                     [payrollEmployeesNavItem, payrollRecapNavItem],

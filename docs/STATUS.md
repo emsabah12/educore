@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-11
-- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) SELESAI; PB-4 (kunci periode) dibangun 2026-11-11, menunggu uji owner (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `410efaf` — AC-8d-2: ekskul, kepribadian & peringkat di halaman nilai anak
+- **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) SELESAI; PB-4 (kunci periode) SELESAI — Pembukuan PRD-007 lengkap (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
+- **Commit terakhir:** `c6b7439` — feat(finance): PB-4 pembukuan — kunci periode (tutup buku)
 
 ## Keputusan penting
 
@@ -52,6 +52,7 @@
 | 2026-11-05 | Jurnal otomatis lewat **antrean yang diisi trigger database** (transaksi sama), disusun tiap menit oleh scheduler & sebelum halaman pembukuan dibuka; nomor jurnal dari sequence (naik, boleh melompat)                                                                                                                                       | PRD-007 §4, §15                                          |
 | 2026-10-31 | **Pedoman tampilan**: menu samping berkelompok (Untuk saya, Akademik, Kepegawaian, Keuangan siswa, Kas & pengeluaran, Pengaturan); satu tampilan = satu fungsi utama — bagian berbeda jadi **tab** (`?tab=`), form tambahan di **jendela pop-up**, bukan menumpuk di halaman                                                                  | STATUS § Pedoman tampilan                                |
 | 2026-11-10 | **Tema visual UX-2** gaya Materio (owner, menggantikan UX-1 yang tidak di-push): latar abu-ungu + kartu putih melayang, aksen ungu #8C57FF, menu aktif pil gradasi; tombol utama #7E4EE6 demi kontras AA                                                                                                                                      | STATUS § Perapian tampilan                               |
+| 2026-11-11 | **HR menyusul**: urutan HR-7 disiplin & offboarding → HR-8 → HR-9 → HR-4d presensi lokasi HP (mesin absen cadangan) → HR-10 formulir A05 Simpatika; disiplin dicatat Admin SDM/Admin Yayasan, dilihat Kepala Lembaga & pegawai sendiri, SP berlaku 6 bulan; akun pegawai berhenti dinonaktifkan lewat tombol checklist                        | PRD-001 §3, §18, OD-HR-13 s.d. 15                        |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -702,6 +703,16 @@
 - **Cakupan inti HR SELESAI (2026-10-28)** (PRD-001 §3): HR-1, HR-1e, HR-1g, HR-2, HR-3, HR-4, HR-5, HR-6a.
 - Pelajaran: jangan `git reset --hard origin/main` sebelum memastikan origin sudah memuat commit owner — HR-5b sempat belum di-push (dipulihkan lewat reflog).
 
+**HR menyusul — urutan [OWNER, 2026-11-11]:** HR-7 (disiplin & offboarding) → HR-8 (pelatihan & kinerja) → HR-9 (rekrutmen) → HR-4d (presensi lokasi HP; mesin absen hanya cadangan) → HR-10 (formulir A05 Simpatika + rekap PTK). PRD-001 §3, §18.
+
+**HR-7a — Catatan disiplin: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §18.1 (OD-HR-13, OD-HR-14)
+
+- Migrasi `2026_11_11_100016`: `hr_discipline_records` (jenis Teguran lisan/tertulis, SP1–SP3; berlaku sampai; lampiran privat opsional; dicabut + alasan).
+- `Application/Discipline/{ManageDiscipline, DisciplineRecords}`; `DisciplineController`; izin baru `hr.discipline.view` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.discipline.manage` (Admin SDM, Admin Yayasan); audit `hr.discipline_recorded|revoked` tanpa isi.
+- Halaman: detail pegawai → tab **Disiplin** (catat, cabut, lampiran, peringatan SP berlaku/SP3); menu **Disiplin pegawai** (`/pegawai/disiplin`, saring lembaga/jenis/status); **Dokumen saya** → bagian Catatan disiplin.
+- Bukti: 782 test lulus (4 test baru `DisciplineTest`, awalan `dsp`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Perlu `php artisan educore:sync-access` sesudah migrate (izin baru).
+
 **AC-7a — Akun orang tua/wali & Anak saya: SELESAI (2026-10-28, commit `db7f755`)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
 
 - `Academic/Application/Guardian/GuardianAccounts` (status akun per tautan, buat/atur ulang/nonaktif/aktif lewat `ManageLoginAccount` Core; username = HP tanpa `+`; hanya orang yang murni orang tua/wali), `MyChildren` (daftar & detail anak: profil ringkas tanpa NIK/HP/alamat, lembaga + NIS, kelas berjalan + wali kelas, jadwal + pengampu, kalender lembaga).
@@ -908,12 +919,12 @@
 - Frontend: `pages/finance/financial-statements.tsx` (tab Posisi keuangan · Penghasilan komprehensif · Perubahan aset neto · Arus kas); menu Pembukuan + Laporan keuangan.
 - Test: `tests/Feature/Finance/FinancialStatementsTest.php` (4 test).
 
-**PB-4 — Kunci periode / tutup buku: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-007 §19 (OD-PB-12, OD-PB-13, OD-PB-14)
+**PB-4 — Kunci periode / tutup buku: SELESAI (2026-11-11, commit `c6b7439`)** — PRD-007 §19 (OD-PB-12, OD-PB-13, OD-PB-14)
 
 - Migrasi `2026_11_11_300018`: kolom `fn_ledger_settings.locked_through` (akhir bulan) + trigger pengaman `fn_ledger_lock_guard` di tabel kas, mutasi, tagihan, rekening, saldo tambahan, jurnal & baris jurnal, pengaturan.
 - `Application/Ledger/LedgerLock` (kunci, buka kunci + alasan, pilihan bulan, pesan ramah); dipakai Kasir, Kas, Mutasi, Pengeluaran, Tabungan, Tagihan (buat bulanan & batal; siswa keluar melewati bulan terkunci), Rekening kas, Jurnal manual, Saldo awal, Pengaturan periode; Online lunas di bulan terkunci → kuitansi hari ini + keterangan. `JournalProjector` & `PaymentCashSync` membekukan periode terkunci. Audit `finance.period_locked|unlocked`.
 - Halaman: Pengaturan pembukuan → Periode → kartu **Tutup buku (kunci periode)**.
-- Bukti: 778 test lulus (5 test baru); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
+- Bukti: 778 test lulus (5 test baru); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
 
 ## Perapian tampilan
 
@@ -1006,5 +1017,6 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
-3. **Pembukuan (PRD-007)**: uji manual PB-4 oleh owner. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. Sesudah itu: AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) atau HR "menyusul" (kinerja/PKG, rekrutmen, disiplin, offboarding, Dapodik/Simpatika, mesin absen).
+3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
+4. **HR menyusul (PRD-001 §3, §18)**: uji manual HR-7a oleh owner → HR-7b offboarding → HR-8 → HR-9 → HR-4d → HR-10.
+5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.
