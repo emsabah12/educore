@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Award,
     Banknote,
     BookOpen,
     BookOpenCheck,
@@ -135,6 +136,18 @@ const myPayNavItem: NavItem = {
     title: 'Gaji saya',
     href: '/gaji-saya',
     icon: HandCoins,
+};
+
+const myTrainingsNavItem: NavItem = {
+    title: 'Pelatihan saya',
+    href: '/pelatihan-saya',
+    icon: Award,
+};
+
+const trainingsNavItem: NavItem = {
+    title: 'Pelatihan pegawai',
+    href: '/pegawai/pelatihan',
+    icon: Award,
 };
 
 const offboardingNavItem: NavItem = {
@@ -359,6 +372,7 @@ export function AppSidebar() {
                     myAttendanceNavItem,
                     myLeaveNavItem,
                     myDocumentsNavItem,
+                    myTrainingsNavItem,
                     myPayNavItem,
                 ]),
             ],
@@ -402,7 +416,11 @@ export function AppSidebar() {
                 ...when(
                     atTenantLevel &&
                         permissions.includes('hr.employees.manage'),
-                    [expiringDocumentsNavItem, offboardingNavItem],
+                    [
+                        expiringDocumentsNavItem,
+                        trainingsNavItem,
+                        offboardingNavItem,
+                    ],
                 ),
                 ...when(permissions.includes('hr.discipline.view'), [
                     disciplineNavItem,

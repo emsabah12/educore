@@ -29,6 +29,11 @@ import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
 import { OffboardingSection } from '@/components/hr/employee-offboarding';
+import { TrainingSection } from '@/components/hr/employee-trainings';
+import type {
+    TrainingFormOptions,
+    TrainingRecord,
+} from '@/components/hr/employee-trainings';
 import type { OffboardingData } from '@/components/hr/employee-offboarding';
 import type { EmployeeDocument } from '@/components/hr/employee-documents';
 import { DisciplineSection } from '@/components/hr/employee-discipline';
@@ -106,6 +111,12 @@ type Props = {
         records: DisciplineRecord[];
         manage: DisciplineManage | null;
     } | null;
+    /** Riwayat pelatihan (HR-8a); lampiran hanya bila boleh melihat data pribadi. */
+    trainings: {
+        records: TrainingRecord[];
+        canDownload: boolean;
+        manage: TrainingFormOptions | null;
+    };
     /** Checklist offboarding (HR-7b), hanya Admin SDM / Admin Yayasan. */
     offboarding: OffboardingData | null;
     canManageLeave: boolean;
@@ -155,6 +166,7 @@ const TABS = [
     'penempatan',
     'cuti',
     'dokumen',
+    'pelatihan',
     'disiplin',
     'offboarding',
     'akun',
@@ -176,6 +188,7 @@ export default function EmployeeDetail({
     documents,
     discipline,
     offboarding,
+    trainings,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -202,6 +215,7 @@ export default function EmployeeDetail({
             ? [{ value: 'cuti' as const, label: 'Cuti & presensi' }]
             : []),
         ...(documents ? [{ value: 'dokumen' as const, label: 'Dokumen' }] : []),
+        { value: 'pelatihan', label: 'Pelatihan' },
         ...(discipline
             ? [{ value: 'disiplin' as const, label: 'Disiplin' }]
             : []),
@@ -595,6 +609,24 @@ export default function EmployeeDetail({
                         employeeId={employee.id}
                         records={discipline.records}
                         manage={discipline.manage}
+                    />
+                )}
+
+                {tab === 'pelatihan' && (
+                    <TrainingSection
+                        records={trainings.records}
+                        mode={trainings.manage ? 'admin' : 'view'}
+                        form={trainings.manage}
+                        storeUrl={`/pegawai/${employee.id}/pelatihan`}
+                        actionUrl={(record) =>
+                            `/pegawai/${employee.id}/pelatihan/${record.id}`
+                        }
+                        downloadUrl={
+                            trainings.canDownload
+                                ? (record) =>
+                                      `/pegawai/${employee.id}/pelatihan/${record.id}/unduh`
+                                : null
+                        }
                     />
                 )}
 

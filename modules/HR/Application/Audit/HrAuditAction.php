@@ -107,6 +107,21 @@ final class HrAuditAction
 
     public const SUBJECT_OFFBOARDING = 'hr_offboarding';
 
+    /** Riwayat pelatihan (HR-8a): pegawai & jenis — tanpa isi catatan/alasan. */
+    public const TRAINING_RECORDED = 'hr.training_recorded';
+
+    public const TRAINING_SUBMITTED = 'hr.training_submitted';
+
+    public const TRAINING_VERIFIED = 'hr.training_verified';
+
+    public const TRAINING_REJECTED = 'hr.training_rejected';
+
+    public const TRAINING_CANCELLED = 'hr.training_cancelled';
+
+    public const TRAINING_WITHDRAWN = 'hr.training_withdrawn';
+
+    public const SUBJECT_TRAINING = 'hr_training';
+
     /** Komponen gaji (HR-5a). Nominal tidak pernah dicatat di audit. */
     public const PAY_COMPONENT_CREATED = 'hr.pay_component_created';
 
@@ -182,6 +197,12 @@ final class HrAuditAction
             self::ATTENDANCE_CHECKED_IN => 'Pegawai absen masuk',
             self::ATTENDANCE_CHECKED_OUT => 'Pegawai absen pulang',
             self::ATTENDANCE_RECORDED => 'Presensi pegawai dicatat petugas',
+            self::TRAINING_RECORDED => 'Riwayat pelatihan pegawai dicatat',
+            self::TRAINING_SUBMITTED => 'Pegawai mengajukan riwayat pelatihan',
+            self::TRAINING_VERIFIED => 'Riwayat pelatihan diterima',
+            self::TRAINING_REJECTED => 'Riwayat pelatihan ditolak',
+            self::TRAINING_CANCELLED => 'Riwayat pelatihan dibatalkan',
+            self::TRAINING_WITHDRAWN => 'Pegawai menarik pengajuan pelatihan',
             self::OFFBOARDING_STARTED => 'Checklist offboarding pegawai dibuat',
             self::OFFBOARDING_TASK_UPDATED => 'Item checklist offboarding diubah',
             self::DISCIPLINE_RECORDED => 'Catatan disiplin pegawai dicatat',

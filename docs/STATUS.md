@@ -2,7 +2,7 @@
 
 - **Diperbarui:** 2026-11-11
 - **Tahap aktif:** Keuangan lanjutan — **Pembukuan (PRD-007, disetujui 2026-11-05)**: PB-1 (COA, pemetaan, periode, jurnal otomatis, daftar jurnal) SELESAI; PB-2a (saldo awal, jurnal manual) SELESAI; PB-2b (buku besar, neraca saldo, cek kecocokan) SELESAI; PB-3 (laporan keuangan ISAK 35) SELESAI; PB-4 (kunci periode) SELESAI — Pembukuan PRD-007 lengkap (Midtrans PRD-006 SELESAI; tabungan PRD-005 SELESAI; kas & pengeluaran PRD-004 SELESAI; tagihan siswa PRD-003 SELESAI; perapian tampilan UI-1 & UI-2 SELESAI)
-- **Commit terakhir:** `1ec0a96` — feat(hr): HR-7a catatan disiplin pegawai (teguran & SP)
+- **Commit terakhir:** `d42b35d` — feat(hr): HR-7b offboarding pegawai keluar
 
 ## Keputusan penting
 
@@ -53,6 +53,7 @@
 | 2026-10-31 | **Pedoman tampilan**: menu samping berkelompok (Untuk saya, Akademik, Kepegawaian, Keuangan siswa, Kas & pengeluaran, Pengaturan); satu tampilan = satu fungsi utama — bagian berbeda jadi **tab** (`?tab=`), form tambahan di **jendela pop-up**, bukan menumpuk di halaman                                                                  | STATUS § Pedoman tampilan                                |
 | 2026-11-10 | **Tema visual UX-2** gaya Materio (owner, menggantikan UX-1 yang tidak di-push): latar abu-ungu + kartu putih melayang, aksen ungu #8C57FF, menu aktif pil gradasi; tombol utama #7E4EE6 demi kontras AA                                                                                                                                      | STATUS § Perapian tampilan                               |
 | 2026-11-11 | **HR menyusul**: urutan HR-7 disiplin & offboarding → HR-8 → HR-9 → HR-4d presensi lokasi HP (mesin absen cadangan) → HR-10 formulir A05 Simpatika; disiplin dicatat Admin SDM/Admin Yayasan, dilihat Kepala Lembaga & pegawai sendiri, SP berlaku 6 bulan; akun pegawai berhenti dinonaktifkan lewat tombol checklist                        | PRD-001 §3, §18, OD-HR-13 s.d. 15                        |
+| 2026-11-11 | **HR-8**: riwayat pelatihan dicatat Admin SDM atau diajukan pegawai lalu diverifikasi; penilaian kinerja ringkas 0–100 berbobot (komponen guru & staf), predikat ala PKG, dinilai Kepala Lembaga, hasil terlihat pegawai setelah periode dikunci                                                                                              | PRD-001 §19, OD-HR-16 s.d. 18                            |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -713,13 +714,21 @@
 - Bukti: 782 test lulus (4 test baru `DisciplineTest`, awalan `dsp`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus; uji manual owner lancar.
 - Perlu `php artisan educore:sync-access` sesudah migrate (izin baru).
 
-**HR-7b — Offboarding pegawai keluar: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §18.2 (OD-HR-15)
+**HR-7b — Offboarding pegawai keluar: SELESAI (2026-11-11, commit `d42b35d`)** — **HR-7 SELESAI** — PRD-001 §18.2 (OD-HR-15)
 
 - Migrasi `2026_11_11_100017`: `hr_offboarding_items` (katalog SDM baru "Item offboarding", 6 isi awal), `hr_offboardings`, `hr_offboarding_tasks`.
 - `Application/Offboarding/{ManageOffboarding, OffboardingChecklist}`; `EndEmployment` membuat checklist; kontrak `HR\Contracts\TeachingDuties` (Academic: wali kelas & guru mapel yang masih tercatat); `OffboardingController`.
 - Halaman: detail pegawai → tab **Offboarding** (checklist, pemeriksaan, tombol Nonaktifkan akun login, Buat checklist untuk pegawai lama); menu **Pegawai keluar**.
 - Bukti: 786 test lulus (4 test baru `OffboardingTest`, awalan `ofb`; `HrCatalogTest` disesuaikan); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
+- Uji manual owner lancar.
+
+**HR-8a — Riwayat pelatihan & sertifikasi: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §19.1 (OD-HR-16 s.d. OD-HR-18 disetujui untuk seluruh HR-8)
+
+- Migrasi `2026_11_11_100018`: `hr_trainings` (jenis, nama, penyelenggara, tanggal, jam, no. sertifikat, berlaku sampai, lampiran privat; status Menunggu/Diterima/Ditolak/Dibatalkan).
+- `Application/Training/{ManageTrainings, TrainingRecords, TrainingRecapExport}`; `TrainingController` (Admin SDM/Admin Yayasan) & `MyTrainingController` (pegawai). Audit `hr.training_recorded|submitted|verified|rejected|cancelled|withdrawn` tanpa isi.
+- Halaman: detail pegawai → tab **Pelatihan**; menu **Pelatihan pegawai** (menunggu verifikasi + rekap jam per tahun + unduh .xlsx); menu **Pelatihan saya** (ajukan, tarik, lihat status & alasan).
+- Bukti: 790 test lulus (4 test baru `TrainingTest`, awalan `trn`); Pint, Larastan, tsc, `vp check` (0 peringatan), build lulus.
 
 **AC-7a — Akun orang tua/wali & Anak saya: SELESAI (2026-10-28, commit `db7f755`)** — PRD-002 §21.1–21.2, OD-AC-16 s.d. OD-AC-18
 
@@ -1026,5 +1035,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7a SELESAI → uji manual HR-7b offboarding → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → uji manual HR-8a pelatihan → HR-8b penilaian kinerja ringkas → HR-8 → HR-9 → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

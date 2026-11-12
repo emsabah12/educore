@@ -39,6 +39,7 @@ use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
 use Modules\HR\Application\Offboarding\ManageOffboarding;
 use Modules\HR\Application\Offboarding\OffboardingChecklist;
+use Modules\HR\Application\Training\TrainingRecords;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Catalog\DocumentType;
 use Modules\HR\Domain\Employee\EducationLevel;
@@ -110,6 +111,7 @@ final class EmployeeController
         EmployeeDocuments $employeeDocuments,
         DisciplineRecords $disciplineRecords,
         OffboardingChecklist $offboarding,
+        TrainingRecords $trainingRecords,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -155,6 +157,12 @@ final class EmployeeController
             ] : null,
             // Checklist offboarding (HR-7b): Admin SDM / Admin Yayasan, bila ada checklist atau bisa dibuatkan.
             'offboarding' => $canManage ? $this->offboardingData($offboarding, $employee) : null,
+            // Riwayat pelatihan (HR-8a): bagi yang melihat pegawai ini; lampiran hanya dengan data pribadi.
+            'trainings' => [
+                'records' => $trainingRecords->forEmployee($this->tenantContext->require()->tenantId, $employee),
+                'canDownload' => $withPersonal,
+                'manage' => $canManage ? TrainingController::formOptions() : null,
+            ],
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).
             'access' => $this->canManageAccess()

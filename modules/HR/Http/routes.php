@@ -18,11 +18,13 @@ use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
+use Modules\HR\Http\Controllers\MyTrainingController;
 use Modules\HR\Http\Controllers\OffboardingController;
 use Modules\HR\Http\Controllers\PayrollEmployeeController;
 use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 use Modules\HR\Http\Controllers\PayslipController;
+use Modules\HR\Http\Controllers\TrainingController;
 
 /*
  * Route web modul HR (PRD-001 §6). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -100,6 +102,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Offboarding pegawai keluar (PRD-001 §18.2, HR-7b).
     Route::get('pegawai/keluar', [OffboardingController::class, 'index'])->name('hr.offboarding.index');
 
+    // Riwayat pelatihan (PRD-001 §19.1, HR-8a).
+    Route::get('pegawai/pelatihan', [TrainingController::class, 'index'])->name('hr.trainings.index');
+    Route::get('pegawai/pelatihan/unduh', [TrainingController::class, 'export'])->middleware('throttle:10,1')->name('hr.trainings.export');
+    Route::get('pelatihan-saya', [MyTrainingController::class, 'index'])->name('hr.my-trainings.index');
+    Route::post('pelatihan-saya', [MyTrainingController::class, 'store'])->name('hr.my-trainings.store');
+    Route::post('pelatihan-saya/{training}/tarik', [MyTrainingController::class, 'withdraw'])->whereUuid('training')->name('hr.my-trainings.withdraw');
+    Route::get('pelatihan-saya/{training}/unduh', [MyTrainingController::class, 'download'])->whereUuid('training')->name('hr.my-trainings.download');
+
     // Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji. Admin SDM / Admin Yayasan.
     Route::get('pegawai/gaji/pengaturan', [PayrollSettingsController::class, 'index'])->name('hr.payroll-settings.index');
     Route::post('pegawai/gaji/komponen', [PayrollSettingsController::class, 'store'])->name('hr.pay-components.store');
@@ -160,6 +170,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/{employee}/dokumen/{document}/unduh', [EmployeeDocumentController::class, 'download'])->whereUuid(['employee', 'document'])->name('hr.employees.documents.download');
     Route::post('pegawai/{employee}/disiplin', [DisciplineController::class, 'store'])->whereUuid('employee')->name('hr.employees.discipline.store');
     Route::post('pegawai/{employee}/disiplin/{record}/cabut', [DisciplineController::class, 'revoke'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.revoke');
+    Route::post('pegawai/{employee}/pelatihan', [TrainingController::class, 'store'])->whereUuid('employee')->name('hr.employees.trainings.store');
+    Route::post('pegawai/{employee}/pelatihan/{training}/terima', [TrainingController::class, 'verify'])->whereUuid(['employee', 'training'])->name('hr.employees.trainings.verify');
+    Route::post('pegawai/{employee}/pelatihan/{training}/tolak', [TrainingController::class, 'reject'])->whereUuid(['employee', 'training'])->name('hr.employees.trainings.reject');
+    Route::post('pegawai/{employee}/pelatihan/{training}/batalkan', [TrainingController::class, 'cancel'])->whereUuid(['employee', 'training'])->name('hr.employees.trainings.cancel');
+    Route::get('pegawai/{employee}/pelatihan/{training}/unduh', [TrainingController::class, 'download'])->whereUuid(['employee', 'training'])->name('hr.employees.trainings.download');
     Route::post('pegawai/{employee}/offboarding', [OffboardingController::class, 'start'])->whereUuid('employee')->name('hr.employees.offboarding.start');
     Route::post('pegawai/{employee}/offboarding/{task}', [OffboardingController::class, 'updateTask'])->whereUuid(['employee', 'task'])->name('hr.employees.offboarding.task');
     Route::get('pegawai/{employee}/disiplin/{record}/unduh', [DisciplineController::class, 'download'])->whereUuid(['employee', 'record'])->name('hr.employees.discipline.download');
