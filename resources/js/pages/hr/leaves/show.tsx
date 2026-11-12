@@ -1,6 +1,5 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Ban } from 'lucide-react';
-import { useState } from 'react';
 import Heading from '@/components/heading';
 import {
     formatLeaveDateTime,
@@ -8,7 +7,7 @@ import {
     LEAVE_STATUS_CLASS,
 } from '@/components/hr/leave-format';
 import type { LeaveStatus } from '@/components/hr/leave-format';
-import InputError from '@/components/input-error';
+import { ConfirmAction } from '@/components/confirm-action';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -200,68 +199,24 @@ function CancelForm({
     leaveId: string;
     reasonMax: number;
 }) {
-    const [open, setOpen] = useState(false);
-
-    if (!open) {
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                className="w-full self-start sm:w-auto"
-                onClick={() => setOpen(true)}
-            >
-                <Ban />
-                Batalkan cuti
-            </Button>
-        );
-    }
-
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full self-start sm:w-auto"
+                >
+                    <Ban />
+                    Batalkan cuti
+                </Button>
+            }
+            title="Batalkan cuti ini?"
+            description="Cuti yang dibatalkan tidak lagi memakai jatah. Alasan pembatalan bisa dibaca pegawai di Cuti saya."
             action={`/pegawai/cuti/${leaveId}/batalkan`}
-            method="post"
-            options={{ preserveScroll: true }}
-            className="space-y-2 rounded-xl border border-red-500/40 p-4"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <p className="text-sm">
-                        Cuti yang dibatalkan tidak lagi memakai jatah. Alasan
-                        pembatalan bisa dibaca pegawai di Cuti saya.
-                    </p>
-                    <label
-                        htmlFor="cancel-reason"
-                        className="text-sm font-medium"
-                    >
-                        Alasan pembatalan
-                    </label>
-                    <textarea
-                        id="cancel-reason"
-                        name="reason"
-                        rows={2}
-                        maxLength={reasonMax}
-                        required
-                        className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
-                    />
-                    <InputError message={errors.reason ?? errors.form} />
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            disabled={processing}
-                        >
-                            Batalkan cuti
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                        >
-                            Tidak jadi
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+            confirmLabel="Batalkan cuti"
+            reason={{ label: 'Alasan pembatalan', max: reasonMax }}
+            errorBag="leave-cancel"
+        />
     );
 }

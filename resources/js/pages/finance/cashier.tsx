@@ -13,6 +13,7 @@ import type { OnlineOrder } from '@/components/finance/online-order';
 import { StudentSearch } from '@/components/finance/student-search';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -644,8 +645,6 @@ function PaymentItem({
     canPay: boolean;
     voidReasonMax: number;
 }) {
-    const [voiding, setVoiding] = useState(false);
-
     return (
         <li className="space-y-2 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -684,80 +683,39 @@ function PaymentItem({
                 </div>
             </div>
 
-            {!voiding && (
-                <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                        <Link href={`/keuangan/kuitansi/${payment.id}`}>
-                            <Printer />
-                            Kuitansi
-                        </Link>
-                    </Button>
-                    {canPay && payment.status === 'SAH' && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => setVoiding(true)}
-                        >
-                            <XCircle />
-                            Batalkan
-                        </Button>
-                    )}
-                </div>
-            )}
-
-            {voiding && (
-                <Form
-                    action={`/keuangan/pembayaran/${payment.id}/batalkan`}
-                    method="post"
-                    errorBag={`void-${payment.id}`}
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setVoiding(false)}
-                    className="space-y-2 rounded-md border border-destructive/40 p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <Label htmlFor={`void-${payment.id}`}>
-                                Alasan pembatalan
-                            </Label>
-                            <Input
-                                id={`void-${payment.id}`}
-                                name="reason"
-                                maxLength={voidReasonMax}
-                                placeholder="mis. Salah input jumlah"
-                                required
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Tagihan yang dibayar dengan kuitansi ini terbuka
-                                kembali. Kuitansi tetap tersimpan dengan tanda
-                                BATAL.
-                            </p>
-                            <InputError
-                                message={errors.reason ?? errors.form}
-                            />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={processing}
-                                >
-                                    Batalkan pembayaran
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setVoiding(false)}
-                                >
-                                    Kembali
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
+            <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                    <Link href={`/keuangan/kuitansi/${payment.id}`}>
+                        <Printer />
+                        Kuitansi
+                    </Link>
+                </Button>
+                {canPay && payment.status === 'SAH' && (
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive"
+                            >
+                                <XCircle />
+                                Batalkan
+                            </Button>
+                        }
+                        title={`Batalkan kuitansi ${payment.receipt_number}?`}
+                        description="Tagihan yang dibayar dengan kuitansi ini terbuka kembali. Kuitansi tetap tersimpan dengan tanda BATAL."
+                        action={`/keuangan/pembayaran/${payment.id}/batalkan`}
+                        confirmLabel="Batalkan pembayaran"
+                        reason={{
+                            label: 'Alasan pembatalan',
+                            max: voidReasonMax,
+                            placeholder: 'mis. Salah input jumlah',
+                        }}
+                        errorBag={`void-${payment.id}`}
+                    />
+                )}
+            </div>
         </li>
     );
 }
@@ -1050,7 +1008,6 @@ function SavingsItem({
     canSave: boolean;
     reasonMax: number;
 }) {
-    const [voiding, setVoiding] = useState(false);
     const voided = entry.status === 'BATAL';
     const incoming = entry.kind === 'SETOR';
 
@@ -1105,79 +1062,39 @@ function SavingsItem({
                 </div>
             </div>
 
-            {!voiding && (
-                <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                        <Link href={`/keuangan/slip-tabungan/${entry.id}`}>
-                            <Printer />
-                            Slip
-                        </Link>
-                    </Button>
-                    {canSave && !voided && entry.kind !== 'BAYAR_TAGIHAN' && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => setVoiding(true)}
-                        >
-                            <XCircle />
-                            Batalkan
-                        </Button>
-                    )}
-                </div>
-            )}
-
-            {voiding && (
-                <Form
-                    action={`/keuangan/tabungan/${entry.id}/batalkan`}
-                    method="post"
-                    errorBag={`void-saving-${entry.id}`}
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setVoiding(false)}
-                    className="space-y-2 rounded-md border border-destructive/40 p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <Label htmlFor={`void-saving-${entry.id}`}>
-                                Alasan pembatalan
-                            </Label>
-                            <Input
-                                id={`void-saving-${entry.id}`}
-                                name="reason"
-                                maxLength={reasonMax}
-                                placeholder="mis. Salah input jumlah"
-                                required
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Saldo dihitung ulang. Slip tetap tersimpan
-                                dengan tanda BATAL.
-                            </p>
-                            <InputError
-                                message={errors.reason ?? errors.form}
-                            />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={processing}
-                                >
-                                    Batalkan transaksi
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setVoiding(false)}
-                                >
-                                    Kembali
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
+            <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                    <Link href={`/keuangan/slip-tabungan/${entry.id}`}>
+                        <Printer />
+                        Slip
+                    </Link>
+                </Button>
+                {canSave && !voided && entry.kind !== 'BAYAR_TAGIHAN' && (
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive"
+                            >
+                                <XCircle />
+                                Batalkan
+                            </Button>
+                        }
+                        title={'Batalkan transaksi tabungan ini?'}
+                        description="Saldo dihitung ulang. Slip tetap tersimpan dengan tanda BATAL."
+                        action={`/keuangan/tabungan/${entry.id}/batalkan`}
+                        confirmLabel="Batalkan transaksi"
+                        reason={{
+                            label: 'Alasan pembatalan',
+                            max: reasonMax,
+                            placeholder: 'mis. Salah input jumlah',
+                        }}
+                        errorBag={`void-saving-${entry.id}`}
+                    />
+                )}
+            </div>
         </li>
     );
 }

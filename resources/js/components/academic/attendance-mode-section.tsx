@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { useState } from 'react';
 import type { Option } from '@/components/academic/student-actions';
 import { selectClass } from '@/components/academic/student-actions';
+import { RuleDialog } from '@/components/core/scoped-rules';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -29,17 +30,24 @@ export function AttendanceModeSection({
 }) {
     return (
         <section aria-label="Mode presensi" className="space-y-4">
-            <Heading
-                variant="small"
-                title="Mode presensi"
-                description="Harian: wali kelas mengisi sekali sehari. Per pertemuan: guru pengampu mengisi tiap baris jadwal; presensi harian ditutup. Bawaan: harian."
-            />
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Mode presensi"
+                    description="Harian: wali kelas mengisi sekali sehari. Per pertemuan: guru pengampu mengisi tiap baris jadwal; presensi harian ditutup. Bawaan: harian."
+                />
+                <RuleDialog label="Atur mode presensi">
+                    {(close) => (
+                        <ModeForm
+                            modes={data.modes}
+                            options={options}
+                            onDone={close}
+                        />
+                    )}
+                </RuleDialog>
+            </div>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <div className="rounded-xl border p-4">
-                    <ModeForm modes={data.modes} options={options} />
-                </div>
-
+            <div>
                 <div className="space-y-4">
                     <div className="rounded-xl border">
                         {data.rules.length === 0 ? (
@@ -107,9 +115,11 @@ export function AttendanceModeSection({
 function ModeForm({
     modes,
     options,
+    onDone,
 }: {
     modes: Option[];
     options: { jenjang: Option[]; organizations: Option[] };
+    onDone: () => void;
 }) {
     const [target, setTarget] = useState<'jenjang' | 'lembaga'>('jenjang');
 
@@ -119,12 +129,11 @@ function ModeForm({
             method="post"
             errorBag="attendanceMode"
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">Atur mode presensi</h3>
-
                     <div
                         role="radiogroup"
                         aria-label="Berlaku untuk"

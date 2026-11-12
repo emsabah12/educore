@@ -22,6 +22,8 @@ import {
 } from '@/components/academic/grading';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -267,8 +269,6 @@ function Banners({
     sheet: NonNullable<Props['sheet']>;
     term: NonNullable<Props['term']>;
 }) {
-    const [reopening, setReopening] = useState(false);
-
     return (
         <>
             {past && (
@@ -294,70 +294,31 @@ function Banners({
                             setelah dibuka kembali oleh operator.
                         </span>
                     </p>
-                    {canManage &&
-                        (reopening ? (
-                            <Form
-                                action={`${baseUrl}/buka-kembali`}
-                                method="post"
-                                errorBag="reopenGrades"
-                                options={{ preserveScroll: true }}
-                                onSuccess={() => setReopening(false)}
-                                className="space-y-2"
-                            >
-                                {({ processing, errors }) => (
-                                    <>
-                                        <input
-                                            type="hidden"
-                                            name="semester"
-                                            value={term.value}
-                                        />
-                                        <Label htmlFor="grade-reopen-reason">
-                                            Alasan membuka kembali
-                                        </Label>
-                                        <textarea
-                                            id="grade-reopen-reason"
-                                            name="reason"
-                                            rows={2}
-                                            maxLength={limits.reason}
-                                            required
-                                            className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
-                                        />
-                                        <InputError
-                                            message={
-                                                errors.reason ?? errors.form
-                                            }
-                                        />
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                            <Button
-                                                type="submit"
-                                                disabled={processing}
-                                            >
-                                                Buka kembali
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    setReopening(false)
-                                                }
-                                            >
-                                                Batal
-                                            </Button>
-                                        </div>
-                                    </>
-                                )}
-                            </Form>
-                        ) : (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setReopening(true)}
-                            >
-                                <LockOpen />
-                                Buka kembali nilai
-                            </Button>
-                        ))}
+                    {canManage && (
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    <LockOpen />
+                                    Buka kembali nilai
+                                </Button>
+                            }
+                            title={`Buka kembali nilai ${term.label}?`}
+                            description="Nilai bisa diubah lagi dan harus difinalkan ulang sebelum dipakai di rapor."
+                            action={`${baseUrl}/buka-kembali`}
+                            confirmLabel="Buka kembali"
+                            destructive={false}
+                            reason={{
+                                label: 'Alasan membuka kembali',
+                                max: limits.reason,
+                            }}
+                            errorBag="reopenGrades"
+                            hidden={{ semester: term.value }}
+                        />
+                    )}
                 </div>
             )}
 
@@ -375,32 +336,25 @@ function Banners({
                         </span>
                     </p>
                     {canManage && (
-                        <Form
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    <RefreshCw />
+                                    Terapkan aturan terbaru
+                                </Button>
+                            }
+                            title="Terapkan aturan penilaian terbaru?"
+                            description="Nilai komponen yang kodenya sama tetap tersimpan; bila jenis nilai angka/huruf berganti, nilai lama dikosongkan."
                             action={`${baseUrl}/aturan-terbaru`}
-                            method="post"
+                            confirmLabel="Terapkan"
+                            destructive={false}
                             errorBag="applyGradingRules"
-                            options={{ preserveScroll: true }}
-                        >
-                            {({ processing, errors }) => (
-                                <>
-                                    <input
-                                        type="hidden"
-                                        name="semester"
-                                        value={term.value}
-                                    />
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={processing}
-                                    >
-                                        <RefreshCw />
-                                        Terapkan aturan terbaru
-                                    </Button>
-                                    <InputError message={errors.form} />
-                                </>
-                            )}
-                        </Form>
+                            hidden={{ semester: term.value }}
+                        />
                     )}
                 </div>
             )}
@@ -759,14 +713,19 @@ function SheetForm({
                 )}
             </Form>
 
-            {confirming && (
+            <FormDialog
+                open={confirming}
+                onOpenChange={setConfirming}
+                title={`Finalkan nilai ${term.label}?`}
+                description="Semua siswa yang masih di kelas harus sudah dinilai lengkap. Sesudahnya nilai hanya bisa diubah setelah dibuka kembali oleh operator."
+            >
                 <Form
                     action={`${baseUrl}/final`}
                     method="post"
                     errorBag="finalizeGrades"
                     options={{ preserveScroll: true }}
                     onSuccess={() => setConfirming(false)}
-                    className="space-y-3 rounded-xl border border-border bg-muted/20 p-4 text-sm"
+                    className="space-y-3 text-sm"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -775,12 +734,6 @@ function SheetForm({
                                 name="semester"
                                 value={term.value}
                             />
-                            <p>
-                                Finalkan nilai {term.label}? Semua siswa yang
-                                masih di kelas harus sudah dinilai lengkap.
-                                Sesudahnya nilai hanya bisa diubah setelah
-                                dibuka kembali oleh operator.
-                            </p>
                             <InputError message={errors.form} />
                             <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
                                 <Button type="submit" disabled={processing}>
@@ -799,7 +752,7 @@ function SheetForm({
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </div>
     );
 }

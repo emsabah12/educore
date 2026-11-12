@@ -21,6 +21,8 @@ import {
     WeeklyOffForm,
     type HolidayRow,
 } from '@/components/academic/holiday-actions';
+import { ConfirmAction } from '@/components/confirm-action';
+import { RuleDialog } from '@/components/core/scoped-rules';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -369,20 +371,24 @@ export default function AcademicCalendar({
                             aria-label="Pemakaian kalender"
                             className="space-y-4"
                         >
-                            <Heading
-                                variant="small"
-                                title="Pemakaian kalender"
-                                description="Tetapkan kalender lain untuk satu jenjang (mis. semua MDA) atau untuk lembaga/unit tertentu. Pengaturan di lembaga/unit menang atas pengaturan jenjang, kecuali pengaturan jenjang dikunci."
-                            />
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <Heading
+                                    variant="small"
+                                    title="Pemakaian kalender"
+                                    description="Tetapkan kalender lain untuk satu jenjang (mis. semua MDA) atau untuk lembaga/unit tertentu. Pengaturan di lembaga/unit menang atas pengaturan jenjang, kecuali pengaturan jenjang dikunci."
+                                />
+                                <RuleDialog label="Atur pemakaian">
+                                    {(close) => (
+                                        <AssignForm
+                                            calendars={calendars}
+                                            options={options}
+                                            onDone={close}
+                                        />
+                                    )}
+                                </RuleDialog>
+                            </div>
 
-                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                                <div className="rounded-xl border p-4">
-                                    <AssignForm
-                                        calendars={calendars}
-                                        options={options}
-                                    />
-                                </div>
-
+                            <div>
                                 <div className="rounded-xl border">
                                     {rules.length === 0 ? (
                                         <p className="p-4 text-sm text-muted-foreground">
@@ -448,48 +454,6 @@ export default function AcademicCalendar({
 function CalendarHeader({ calendar }: { calendar: Props['selected'] }) {
     const [editing, setEditing] = useState(false);
 
-    if (editing) {
-        return (
-            <Form
-                action={`${BASE_URL}/${calendar.id}`}
-                method="patch"
-                errorBag="rename-calendar"
-                options={{ preserveScroll: true }}
-                onSuccess={() => setEditing(false)}
-                className="space-y-2"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <Label htmlFor="calendar-rename">Nama kalender</Label>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <Input
-                                id="calendar-rename"
-                                name="name"
-                                defaultValue={calendar.name}
-                                maxLength={100}
-                                required
-                                autoFocus
-                            />
-                            <div className="flex gap-2">
-                                <Button type="submit" disabled={processing}>
-                                    Simpan
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setEditing(false)}
-                                >
-                                    Batal
-                                </Button>
-                            </div>
-                        </div>
-                        <InputError message={errors.name ?? errors.form} />
-                    </>
-                )}
-            </Form>
-        );
-    }
-
     return (
         <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -509,6 +473,51 @@ function CalendarHeader({ calendar }: { calendar: Props['selected'] }) {
                 <Pencil />
                 Ubah nama
             </Button>
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title="Ubah nama kalender"
+            >
+                <Form
+                    action={`${BASE_URL}/${calendar.id}`}
+                    method="patch"
+                    errorBag="rename-calendar"
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => setEditing(false)}
+                    className="space-y-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="calendar-rename">
+                                    Nama kalender
+                                </Label>
+                                <Input
+                                    id="calendar-rename"
+                                    name="name"
+                                    defaultValue={calendar.name}
+                                    maxLength={100}
+                                    required
+                                    autoFocus
+                                />
+                                <div className="flex gap-2">
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setEditing(false)}
+                                    >
+                                        Batal
+                                    </Button>
+                                </div>
+                            </div>
+                            <InputError message={errors.name ?? errors.form} />
+                        </>
+                    )}
+                </Form>
+            </FormDialog>
         </div>
     );
 }
@@ -524,9 +533,13 @@ function YearCard({
 
     return (
         <li className="space-y-3 rounded-xl border p-4">
-            {editing ? (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Ubah tahun ajaran ${year.name}`}
+                wide
+            >
                 <YearForm
-                    title={`Ubah tahun ajaran ${year.name}`}
                     action={`/akademik/tahun-ajaran/${year.id}`}
                     method="patch"
                     errorBag={`year-${year.id}`}
@@ -534,74 +547,68 @@ function YearCard({
                     limits={limits}
                     onDone={() => setEditing(false)}
                 />
-            ) : (
-                <>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="space-y-1">
-                            <p className="flex flex-wrap items-center gap-2 font-medium">
-                                Tahun ajaran {year.name}
-                                {year.is_current && <Badge>Berjalan</Badge>}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {formatDate(year.start_date)} –{' '}
-                                {formatDate(year.end_date)}
-                            </p>
-                        </div>
+            </FormDialog>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                        Tahun ajaran {year.name}
+                        {year.is_current && <Badge>Berjalan</Badge>}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {formatDate(year.start_date)} –{' '}
+                        {formatDate(year.end_date)}
+                    </p>
+                </div>
 
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setEditing(true)}
-                            >
-                                <Pencil />
-                                Ubah
-                            </Button>
-                            {!year.is_current && (
-                                <Form
-                                    action={`/akademik/tahun-ajaran/${year.id}/berjalan`}
-                                    method="post"
-                                    errorBag={`current-${year.id}`}
-                                    options={{ preserveScroll: true }}
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(true)}
+                    >
+                        <Pencil />
+                        Ubah
+                    </Button>
+                    {!year.is_current && (
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
                                 >
-                                    {({ processing, errors }) => (
-                                        <>
-                                            <Button
-                                                type="submit"
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={processing}
-                                            >
-                                                <CalendarCheck />
-                                                Jadikan tahun berjalan
-                                            </Button>
-                                            <InputError message={errors.form} />
-                                        </>
-                                    )}
-                                </Form>
-                            )}
-                        </div>
-                    </div>
+                                    <CalendarCheck />
+                                    Jadikan tahun berjalan
+                                </Button>
+                            }
+                            title={`Jadikan ${year.name} tahun berjalan?`}
+                            description="Lembaga yang memakai kalender ini akan memakai tahun ajaran ini sebagai tahun berjalan."
+                            action={`/akademik/tahun-ajaran/${year.id}/berjalan`}
+                            confirmLabel="Jadikan tahun berjalan"
+                            destructive={false}
+                            errorBag={`current-${year.id}`}
+                        />
+                    )}
+                </div>
+            </div>
 
-                    <ol className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2">
-                        {year.terms.map((term) => (
-                            <li
-                                key={term.sequence}
-                                className="rounded-md bg-muted/50 px-3 py-2 text-sm"
-                            >
-                                <p className="font-medium">{term.name}</p>
-                                <p className="text-muted-foreground">
-                                    {formatDate(term.start_date)} –{' '}
-                                    {formatDate(term.end_date)}
-                                </p>
-                            </li>
-                        ))}
-                    </ol>
+            <ol className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-2">
+                {year.terms.map((term) => (
+                    <li
+                        key={term.sequence}
+                        className="rounded-md bg-muted/50 px-3 py-2 text-sm"
+                    >
+                        <p className="font-medium">{term.name}</p>
+                        <p className="text-muted-foreground">
+                            {formatDate(term.start_date)} –{' '}
+                            {formatDate(term.end_date)}
+                        </p>
+                    </li>
+                ))}
+            </ol>
 
-                    <HolidayList year={year} />
-                </>
-            )}
+            <HolidayList year={year} />
         </li>
     );
 }
@@ -856,9 +863,11 @@ function CreateCalendarForm({ onDone }: { onDone: () => void }) {
 function AssignForm({
     calendars,
     options,
+    onDone,
 }: {
     calendars: CalendarSummary[];
     options: Props['options'];
+    onDone: () => void;
 }) {
     const [target, setTarget] = useState<'jenjang' | 'lembaga'>('jenjang');
 
@@ -868,12 +877,11 @@ function AssignForm({
             method="post"
             errorBag="assign"
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">Atur pemakaian</h3>
-
                     {/* Grid otomatis agar pilihan turun baris di HP. */}
                     <div
                         role="radiogroup"

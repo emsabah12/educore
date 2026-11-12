@@ -22,6 +22,7 @@ import {
     TEACHING_STATUS_CLASS,
 } from '@/components/academic/teaching';
 import Heading from '@/components/heading';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -252,7 +253,7 @@ function LessonCard({
                             Belum dicatat
                         </Badge>
                     )}
-                    {editable && !editing && (
+                    {editable && (
                         <Button
                             type="button"
                             variant="outline"
@@ -266,110 +267,121 @@ function LessonCard({
                 </div>
             </div>
 
-            {editable && editing && (
-                <Form
-                    action={`${BASE_URL}/${lesson.entry_id}`}
-                    method="post"
-                    errorBag={`lesson-${lesson.key}`}
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setEditing(false)}
-                    className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
+            {editable && (
+                <FormDialog
+                    open={editing}
+                    onOpenChange={setEditing}
+                    title={`${lesson.subject} · ${lesson.class_name}`}
+                    description="Catat apakah pertemuan ini terlaksana, digantikan, atau kosong."
                 >
-                    {({ processing, errors }) => (
-                        <>
-                            <input type="hidden" name="date" value={date} />
-                            <InputError message={errors.form ?? errors.date} />
-                            <div
-                                role="radiogroup"
-                                aria-label="Status"
-                                className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2"
-                            >
-                                {(
-                                    [
-                                        ['MENGAJAR', 'Mengajar'],
-                                        ['DIGANTIKAN', 'Digantikan'],
-                                        ['KOSONG', 'Kosong'],
-                                    ] as const
-                                ).map(([value, label]) => (
-                                    <label
-                                        key={value}
-                                        className={
-                                            'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 ' +
-                                            (status === value
-                                                ? 'border-primary bg-accent'
-                                                : 'hover:bg-muted')
-                                        }
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="status"
-                                            value={value}
-                                            checked={status === value}
-                                            onChange={() => setStatus(value)}
-                                            className="size-4 accent-foreground"
-                                        />
-                                        {label}
-                                    </label>
-                                ))}
-                            </div>
-
-                            {status !== 'MENGAJAR' && (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {status === 'DIGANTIKAN' && (
-                                        <SubstituteSelect
-                                            id={`sub-${lesson.key}`}
-                                            candidates={
-                                                candidates[lesson.key] ?? []
-                                            }
-                                            defaultValue={
-                                                lesson.record?.substitute?.id ??
-                                                ''
-                                            }
-                                            error={
-                                                errors.substitute_employee_id
-                                            }
-                                        />
-                                    )}
-                                    <ReasonSelect
-                                        id={`reason-${lesson.key}`}
-                                        reasons={reasons}
-                                        defaultValue={
-                                            lesson.record?.reason ??
-                                            (lesson.leave ? 'CUTI' : '')
-                                        }
-                                        error={errors.absence_reason}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="grid gap-1.5">
-                                <Label htmlFor={`note-${lesson.key}`}>
-                                    Keterangan (opsional)
-                                </Label>
-                                <Input
-                                    id={`note-${lesson.key}`}
-                                    name="note"
-                                    maxLength={noteMax}
-                                    defaultValue={lesson.record?.note ?? ''}
+                    <Form
+                        action={`${BASE_URL}/${lesson.entry_id}`}
+                        method="post"
+                        errorBag={`lesson-${lesson.key}`}
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setEditing(false)}
+                        className="space-y-3"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <input type="hidden" name="date" value={date} />
+                                <InputError
+                                    message={errors.form ?? errors.date}
                                 />
-                                <InputError message={errors.note} />
-                            </div>
-
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                                <Button type="submit" disabled={processing}>
-                                    {processing ? 'Menyimpan…' : 'Simpan'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setEditing(false)}
+                                <div
+                                    role="radiogroup"
+                                    aria-label="Status"
+                                    className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2"
                                 >
-                                    Batal
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                                    {(
+                                        [
+                                            ['MENGAJAR', 'Mengajar'],
+                                            ['DIGANTIKAN', 'Digantikan'],
+                                            ['KOSONG', 'Kosong'],
+                                        ] as const
+                                    ).map(([value, label]) => (
+                                        <label
+                                            key={value}
+                                            className={
+                                                'flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 ' +
+                                                (status === value
+                                                    ? 'border-primary bg-accent'
+                                                    : 'hover:bg-muted')
+                                            }
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="status"
+                                                value={value}
+                                                checked={status === value}
+                                                onChange={() =>
+                                                    setStatus(value)
+                                                }
+                                                className="size-4 accent-foreground"
+                                            />
+                                            {label}
+                                        </label>
+                                    ))}
+                                </div>
+
+                                {status !== 'MENGAJAR' && (
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {status === 'DIGANTIKAN' && (
+                                            <SubstituteSelect
+                                                id={`sub-${lesson.key}`}
+                                                candidates={
+                                                    candidates[lesson.key] ?? []
+                                                }
+                                                defaultValue={
+                                                    lesson.record?.substitute
+                                                        ?.id ?? ''
+                                                }
+                                                error={
+                                                    errors.substitute_employee_id
+                                                }
+                                            />
+                                        )}
+                                        <ReasonSelect
+                                            id={`reason-${lesson.key}`}
+                                            reasons={reasons}
+                                            defaultValue={
+                                                lesson.record?.reason ??
+                                                (lesson.leave ? 'CUTI' : '')
+                                            }
+                                            error={errors.absence_reason}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`note-${lesson.key}`}>
+                                        Keterangan (opsional)
+                                    </Label>
+                                    <Input
+                                        id={`note-${lesson.key}`}
+                                        name="note"
+                                        maxLength={noteMax}
+                                        defaultValue={lesson.record?.note ?? ''}
+                                    />
+                                    <InputError message={errors.note} />
+                                </div>
+
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Menyimpan…' : 'Simpan'}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setEditing(false)}
+                                    >
+                                        Batal
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </Form>
+                </FormDialog>
             )}
         </li>
     );

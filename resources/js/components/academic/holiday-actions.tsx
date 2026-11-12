@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { CalendarOff, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,8 +63,8 @@ export function WeeklyOffForm({
                 : [...current, day],
         );
 
-    if (!editing) {
-        return (
+    return (
+        <>
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-4 text-sm">
                 <p className="flex flex-wrap items-center gap-2">
                     <CalendarOff className="size-4" />
@@ -91,78 +93,73 @@ export function WeeklyOffForm({
                     Ubah libur mingguan
                 </Button>
             </div>
-        );
-    }
 
-    return (
-        <Form
-            action={`/akademik/kalender/${calendarId}/libur-mingguan`}
-            method="post"
-            errorBag="weekly-off"
-            options={{ preserveScroll: true }}
-            onSuccess={() => setEditing(false)}
-            className="space-y-3 rounded-xl border border-border bg-muted/20 p-4"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <div className="space-y-1">
-                        <h4 className="font-medium">Hari libur mingguan</h4>
-                        <p className="text-sm text-muted-foreground">
-                            Hari yang dicentang tidak dihitung sebagai hari
-                            efektif di semua tahun ajaran kalender ini.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
-                        {options.map((option) => {
-                            const day = Number(option.value);
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title="Hari libur mingguan"
+                description="Hari yang dicentang tidak dihitung sebagai hari efektif di semua tahun ajaran kalender ini."
+            >
+                <Form
+                    action={`/akademik/kalender/${calendarId}/libur-mingguan`}
+                    method="post"
+                    errorBag="weekly-off"
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => setEditing(false)}
+                    className="space-y-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
+                                {options.map((option) => {
+                                    const day = Number(option.value);
 
-                            return (
-                                <label
-                                    key={option.value}
-                                    className="flex cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-sm hover:bg-muted"
+                                    return (
+                                        <label
+                                            key={option.value}
+                                            className="flex cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-sm hover:bg-muted"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                name="weekly_off_days[]"
+                                                value={option.value}
+                                                checked={selected.includes(day)}
+                                                onChange={() => toggle(day)}
+                                                className="size-4 accent-foreground"
+                                            />
+                                            {option.label}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            <InputError
+                                message={
+                                    errors.weekly_off_days ??
+                                    errors['weekly_off_days.0'] ??
+                                    errors.form
+                                }
+                            />
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Menyimpan…' : 'Simpan'}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setEditing(false)}
                                 >
-                                    <input
-                                        type="checkbox"
-                                        name="weekly_off_days[]"
-                                        value={option.value}
-                                        checked={selected.includes(day)}
-                                        onChange={() => toggle(day)}
-                                        className="size-4 accent-foreground"
-                                    />
-                                    {option.label}
-                                </label>
-                            );
-                        })}
-                    </div>
-                    <InputError
-                        message={
-                            errors.weekly_off_days ??
-                            errors['weekly_off_days.0'] ??
-                            errors.form
-                        }
-                    />
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan…' : 'Simpan'}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditing(false)}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                                    Batal
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+            </FormDialog>
+        </>
     );
 }
 
-type OpenAction =
-    | { kind: 'add' }
-    | { kind: 'edit'; id: string }
-    | { kind: 'remove'; id: string };
+type OpenAction = { kind: 'add' } | { kind: 'edit'; id: string };
 
 /** Daftar hari libur satu tahun ajaran beserta tambah/ubah/hapus. */
 export function HolidayList({
@@ -178,20 +175,11 @@ export function HolidayList({
 }) {
     const [action, setAction] = useState<OpenAction | null>(null);
     const close = () => setAction(null);
-    const isOpen = (kind: 'edit' | 'remove', id: string) =>
+    const isOpen = (kind: 'edit', id: string) =>
         action !== null &&
         action.kind === kind &&
         'id' in action &&
         action.id === id;
-    const toggle = (next: OpenAction) =>
-        setAction((current) =>
-            current &&
-            current.kind === next.kind &&
-            ('id' in current ? current.id : '') ===
-                ('id' in next ? next.id : '')
-                ? null
-                : next,
-        );
 
     return (
         <div className="space-y-2">
@@ -202,8 +190,8 @@ export function HolidayList({
                 <Button
                     type="button"
                     size="sm"
-                    variant={action?.kind === 'add' ? 'default' : 'outline'}
-                    onClick={() => toggle({ kind: 'add' })}
+                    variant="outline"
+                    onClick={() => setAction({ kind: 'add' })}
                 >
                     <Plus />
                     Tambah hari libur
@@ -247,13 +235,9 @@ export function HolidayList({
                                     <Button
                                         type="button"
                                         size="sm"
-                                        variant={
-                                            isOpen('edit', holiday.id)
-                                                ? 'default'
-                                                : 'outline'
-                                        }
+                                        variant="outline"
                                         onClick={() =>
-                                            toggle({
+                                            setAction({
                                                 kind: 'edit',
                                                 id: holiday.id,
                                             })
@@ -262,24 +246,24 @@ export function HolidayList({
                                         <Pencil />
                                         Ubah
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant={
-                                            isOpen('remove', holiday.id)
-                                                ? 'destructive'
-                                                : 'outline'
+                                    <ConfirmAction
+                                        trigger={
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <Trash2 />
+                                                Hapus
+                                            </Button>
                                         }
-                                        onClick={() =>
-                                            toggle({
-                                                kind: 'remove',
-                                                id: holiday.id,
-                                            })
-                                        }
-                                    >
-                                        <Trash2 />
-                                        Hapus
-                                    </Button>
+                                        title={`Hapus hari libur ${holiday.name}?`}
+                                        description="Tanggalnya kembali dihitung sebagai hari efektif."
+                                        action={`/akademik/hari-libur/${holiday.id}`}
+                                        method="delete"
+                                        confirmLabel="Hapus hari libur"
+                                        errorBag={`holiday-remove-${holiday.id}`}
+                                    />
                                 </div>
                             </div>
 
@@ -294,47 +278,6 @@ export function HolidayList({
                                     initial={holiday}
                                     onDone={close}
                                 />
-                            )}
-
-                            {isOpen('remove', holiday.id) && (
-                                <Form
-                                    action={`/akademik/hari-libur/${holiday.id}`}
-                                    method="delete"
-                                    errorBag={`holiday-remove-${holiday.id}`}
-                                    options={{ preserveScroll: true }}
-                                    onSuccess={close}
-                                    className="space-y-3 rounded-md border border-red-500/40 bg-red-50/50 p-3 text-sm dark:bg-red-950/20"
-                                >
-                                    {({ processing, errors }) => (
-                                        <>
-                                            <p>
-                                                Hapus hari libur{' '}
-                                                <strong>{holiday.name}</strong>?
-                                                Tanggalnya kembali dihitung
-                                                sebagai hari efektif.
-                                            </p>
-                                            <InputError message={errors.form} />
-                                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                                <Button
-                                                    type="submit"
-                                                    variant="destructive"
-                                                    disabled={processing}
-                                                >
-                                                    {processing
-                                                        ? 'Menghapus…'
-                                                        : 'Hapus hari libur'}
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={close}
-                                                >
-                                                    Batal
-                                                </Button>
-                                            </div>
-                                        </>
-                                    )}
-                                </Form>
                             )}
                         </li>
                     ))}
@@ -368,88 +311,100 @@ function HolidayForm({
     const prefix = `${errorBag}-`;
 
     return (
-        <Form
-            action={action}
-            method={method}
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
+            }}
+            title={title}
+            wide
         >
-            {({ processing, errors }) => (
-                <>
-                    <p className="text-sm font-medium">{title}</p>
-                    <InputError message={errors.form} />
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                        <div className="grid content-start gap-1.5">
-                            <Label htmlFor={`${prefix}name`}>Nama</Label>
-                            <Input
-                                id={`${prefix}name`}
-                                name="name"
-                                defaultValue={initial?.name ?? ''}
-                                maxLength={100}
-                                placeholder="mis. Libur akhir semester"
-                                required
-                            />
-                            <InputError message={errors.name} />
-                        </div>
-                        <div className="grid content-start gap-1.5">
-                            <Label htmlFor={`${prefix}start`}>
-                                Tanggal mulai
-                            </Label>
-                            <Input
-                                id={`${prefix}start`}
-                                type="date"
-                                name="start_date"
-                                value={start}
-                                min={min}
-                                max={max}
-                                onChange={(event) => {
-                                    setStart(event.target.value);
+            <Form
+                action={action}
+                method={method}
+                errorBag={errorBag}
+                options={{ preserveScroll: true }}
+                onSuccess={onDone}
+                className="space-y-3"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <InputError message={errors.form} />
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                            <div className="grid content-start gap-1.5">
+                                <Label htmlFor={`${prefix}name`}>Nama</Label>
+                                <Input
+                                    id={`${prefix}name`}
+                                    name="name"
+                                    defaultValue={initial?.name ?? ''}
+                                    maxLength={100}
+                                    placeholder="mis. Libur akhir semester"
+                                    required
+                                />
+                                <InputError message={errors.name} />
+                            </div>
+                            <div className="grid content-start gap-1.5">
+                                <Label htmlFor={`${prefix}start`}>
+                                    Tanggal mulai
+                                </Label>
+                                <Input
+                                    id={`${prefix}start`}
+                                    type="date"
+                                    name="start_date"
+                                    value={start}
+                                    min={min}
+                                    max={max}
+                                    onChange={(event) => {
+                                        setStart(event.target.value);
 
-                                    // Libur satu hari: tanggal selesai ikut terisi.
-                                    if (
-                                        end === '' ||
-                                        end < event.target.value
-                                    ) {
-                                        setEnd(event.target.value);
+                                        // Libur satu hari: tanggal selesai ikut terisi.
+                                        if (
+                                            end === '' ||
+                                            end < event.target.value
+                                        ) {
+                                            setEnd(event.target.value);
+                                        }
+                                    }}
+                                    required
+                                />
+                                <InputError message={errors.start_date} />
+                            </div>
+                            <div className="grid content-start gap-1.5">
+                                <Label htmlFor={`${prefix}end`}>
+                                    Tanggal selesai
+                                </Label>
+                                <Input
+                                    id={`${prefix}end`}
+                                    type="date"
+                                    name="end_date"
+                                    value={end}
+                                    min={start || min}
+                                    max={max}
+                                    onChange={(event) =>
+                                        setEnd(event.target.value)
                                     }
-                                }}
-                                required
-                            />
-                            <InputError message={errors.start_date} />
+                                    required
+                                />
+                                <InputError message={errors.end_date} />
+                            </div>
                         </div>
-                        <div className="grid content-start gap-1.5">
-                            <Label htmlFor={`${prefix}end`}>
-                                Tanggal selesai
-                            </Label>
-                            <Input
-                                id={`${prefix}end`}
-                                type="date"
-                                name="end_date"
-                                value={end}
-                                min={start || min}
-                                max={max}
-                                onChange={(event) => setEnd(event.target.value)}
-                                required
-                            />
-                            <InputError message={errors.end_date} />
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                            <Button type="submit" disabled={processing}>
+                                {processing ? 'Menyimpan…' : 'Simpan'}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
                         </div>
-                    </div>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan…' : 'Simpan'}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }

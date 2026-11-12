@@ -1,9 +1,10 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Form, Head } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -191,7 +192,7 @@ function CategoryItem({
                         </Badge>
                     )}
                 </div>
-                {!category.is_system && !editing && (
+                {!category.is_system && (
                     <div className="flex gap-2">
                         <Button
                             type="button"
@@ -201,20 +202,35 @@ function CategoryItem({
                         >
                             Ubah nama
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                                router.post(
-                                    `${itemUrl}/${category.is_active ? 'nonaktifkan' : 'aktifkan'}`,
-                                    {},
-                                    { preserveScroll: true },
-                                )
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    {category.is_active
+                                        ? 'Nonaktifkan'
+                                        : 'Aktifkan'}
+                                </Button>
                             }
-                        >
-                            {category.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                        </Button>
+                            title={
+                                category.is_active
+                                    ? `Nonaktifkan kategori ${category.name}?`
+                                    : `Aktifkan kategori ${category.name}?`
+                            }
+                            description={
+                                category.is_active
+                                    ? 'Kategori tidak bisa dipilih untuk transaksi baru. Transaksi lama tetap memakai kategori ini.'
+                                    : 'Kategori bisa dipilih lagi untuk transaksi baru.'
+                            }
+                            action={`${itemUrl}/${category.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                            confirmLabel={
+                                category.is_active ? 'Nonaktifkan' : 'Aktifkan'
+                            }
+                            destructive={category.is_active}
+                            errorBag={`status-${category.id}`}
+                        />
                     </div>
                 )}
             </div>
@@ -224,7 +240,11 @@ function CategoryItem({
                     manual.
                 </p>
             )}
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Ubah nama ${category.name}`}
+            >
                 <Form
                     action={itemUrl}
                     method="patch"
@@ -235,13 +255,10 @@ function CategoryItem({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <Label
-                                htmlFor={`rename-${category.id}`}
-                                className="sr-only"
-                            >
+                            <Label htmlFor={`rename-${category.id}`}>
                                 Nama baru
                             </Label>
-                            <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="flex flex-col gap-2">
                                 <Input
                                     id={`rename-${category.id}`}
                                     name="name"
@@ -267,7 +284,7 @@ function CategoryItem({
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </li>
     );
 }

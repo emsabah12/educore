@@ -10,6 +10,7 @@ import {
     School,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -68,6 +69,7 @@ export default function Organizations({
 }: Props) {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+    const [creatingRoot, setCreatingRoot] = useState(false);
 
     const childrenOf = useMemo(() => {
         const map = new Map<string, OrganizationNode[]>();
@@ -199,11 +201,32 @@ export default function Organizations({
                                 options={options}
                             />
                         ) : canCreateRoot ? (
-                            <CreateForm
-                                parentId={null}
-                                title="Tambah langsung di bawah Yayasan"
-                                options={options}
-                            />
+                            <div className="space-y-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Pilih lembaga di pohon untuk melihat
+                                    detailnya, atau tambah langsung di bawah
+                                    Yayasan.
+                                </p>
+                                <Button
+                                    type="button"
+                                    onClick={() => setCreatingRoot(true)}
+                                >
+                                    <Plus />
+                                    Tambah di bawah Yayasan
+                                </Button>
+                                <FormDialog
+                                    open={creatingRoot}
+                                    onOpenChange={setCreatingRoot}
+                                    title="Tambah langsung di bawah Yayasan"
+                                    wide
+                                >
+                                    <CreateForm
+                                        parentId={null}
+                                        options={options}
+                                        onDone={() => setCreatingRoot(false)}
+                                    />
+                                </FormDialog>
+                            </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">
                                 Pilih lembaga di pohon untuk melihat detailnya.
@@ -739,79 +762,34 @@ function MoveForm({
 }
 
 function StatusForm({ node }: { node: OrganizationNode }) {
-    const [confirming, setConfirming] = useState(false);
-
-    if (!node.is_active) {
-        return (
-            <FormSection title="Status">
-                <Form
-                    action={`/lembaga/${node.id}/aktifkan`}
-                    method="post"
-                    errorBag="status"
-                    options={{ preserveScroll: true }}
-                    className="space-y-2"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <Button type="submit" disabled={processing}>
-                                Aktifkan kembali
-                            </Button>
-                            <InputError message={errors.form} />
-                        </>
-                    )}
-                </Form>
-            </FormSection>
-        );
-    }
-
     return (
         <FormSection title="Status">
-            <Form
-                action={`/lembaga/${node.id}/nonaktifkan`}
-                method="post"
+            <ConfirmAction
+                trigger={
+                    <Button
+                        type="button"
+                        variant={node.is_active ? 'outline' : 'default'}
+                    >
+                        {node.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
+                    </Button>
+                }
+                title={
+                    node.is_active
+                        ? `Nonaktifkan ${node.name}?`
+                        : `Aktifkan kembali ${node.name}?`
+                }
+                description={
+                    node.is_active
+                        ? 'Data lama tetap tersimpan dan node bisa diaktifkan kembali.'
+                        : 'Node ini bisa dipakai lagi.'
+                }
+                action={`/lembaga/${node.id}/${node.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                confirmLabel={
+                    node.is_active ? 'Ya, nonaktifkan' : 'Aktifkan kembali'
+                }
+                destructive={node.is_active}
                 errorBag="status"
-                options={{ preserveScroll: true }}
-                onSuccess={() => setConfirming(false)}
-                className="space-y-2"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        {confirming ? (
-                            <div className="space-y-2 rounded-md border border-destructive/40 p-3">
-                                <p className="text-sm">
-                                    Nonaktifkan {node.name}? Data lama tetap
-                                    tersimpan dan node bisa diaktifkan kembali.
-                                </p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="submit"
-                                        variant="destructive"
-                                        disabled={processing}
-                                    >
-                                        Ya, nonaktifkan
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setConfirming(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setConfirming(true)}
-                            >
-                                Nonaktifkan
-                            </Button>
-                        )}
-                        <InputError message={errors.form} />
-                    </>
-                )}
-            </Form>
+            />
         </FormSection>
     );
 }

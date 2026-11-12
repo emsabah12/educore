@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import { NikField } from '@/components/nik-field';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -456,27 +458,24 @@ export function MakePrimaryButton({
     placementId: string;
 }) {
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                >
+                    Jadikan utama
+                </Button>
+            }
+            title="Jadikan penempatan utama?"
+            description="Penempatan utama dipakai untuk lembaga & jabatan yang tampil di daftar pegawai."
             action={`/pegawai/${employeeId}/penempatan/${placementId}/utama`}
-            method="post"
+            confirmLabel="Jadikan utama"
+            destructive={false}
             errorBag={`primary-${placementId}`}
-            options={{ preserveScroll: true }}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        disabled={processing}
-                        className="w-full"
-                    >
-                        Jadikan utama
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
+        />
     );
 }
 
@@ -630,49 +629,55 @@ function ActionForm({
     onDone: () => void;
     children: (errors: Record<string, string | undefined>) => React.ReactNode;
 }) {
+    // UX-3: form aksi pegawai selalu tampil di pop-up; induk hanya memasangnya saat aksi dipilih.
     return (
-        <Form
-            action={action}
-            method={method}
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
+            }}
+            title={title}
+            description={note}
+            wide
         >
-            {({ processing, errors }) => (
-                <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">{title}</h3>
-                        {note && (
-                            <p className="text-sm text-muted-foreground">
-                                {note}
-                            </p>
-                        )}
-                    </div>
+            <Form
+                action={action}
+                method={method}
+                errorBag={errorBag}
+                options={{ preserveScroll: true }}
+                onSuccess={onDone}
+                className="space-y-4"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <InputError message={errors.form} />
 
-                    <InputError message={errors.form} />
+                        <div className={gridClass}>{children(errors)}</div>
 
-                    <div className={gridClass}>{children(errors)}</div>
-
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            variant={destructive ? 'destructive' : 'default'}
-                            disabled={processing}
-                        >
-                            {processing ? 'Menyimpan…' : submitLabel}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="submit"
+                                variant={
+                                    destructive ? 'destructive' : 'default'
+                                }
+                                disabled={processing}
+                            >
+                                {processing ? 'Menyimpan…' : submitLabel}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }
 

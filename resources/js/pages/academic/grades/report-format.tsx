@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { ReportHeader } from '@/components/academic/report-header';
 import { selectClass } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -477,8 +479,6 @@ function ItemsSection({
     const mine = items.filter((item) => item.kind === kind);
     const [open, setOpen] = useState<string | null>(null);
     const personality = kind === 'KEPRIBADIAN';
-    const toggle = (key: string) =>
-        setOpen((current) => (current === key ? null : key));
 
     return (
         <section className="space-y-3 rounded-xl border p-4">
@@ -495,28 +495,24 @@ function ItemsSection({
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {personality && (
-                        <Form
-                            action={`${BASE_URL}/${organizationId}/butir/contoh`}
-                            method="post"
-                            options={{ preserveScroll: true }}
-                        >
-                            {({ processing }) => (
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled={processing}
-                                >
+                        <ConfirmAction
+                            trigger={
+                                <Button type="button" size="sm" variant="ghost">
                                     Isi contoh 6 aspek
                                 </Button>
-                            )}
-                        </Form>
+                            }
+                            title="Isi contoh 6 aspek kepribadian?"
+                            description="Aspek contoh beserta keterangannya ditambahkan ke daftar dan bisa diubah sesudahnya."
+                            action={`${BASE_URL}/${organizationId}/butir/contoh`}
+                            confirmLabel="Isi contoh"
+                            destructive={false}
+                        />
                     )}
                     <Button
                         type="button"
                         size="sm"
-                        variant={open === 'new' ? 'default' : 'outline'}
-                        onClick={() => toggle('new')}
+                        variant="outline"
+                        onClick={() => setOpen('new')}
                     >
                         <Plus />
                         Tambah
@@ -574,29 +570,29 @@ function ItemsSection({
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => toggle(item.id)}
+                                        onClick={() => setOpen(item.id)}
                                     >
                                         <Pencil />
                                         Ubah
                                     </Button>
                                     {!item.used && (
-                                        <Form
-                                            action={`${BASE_URL}/butir/${item.id}`}
-                                            method="delete"
-                                            options={{ preserveScroll: true }}
-                                        >
-                                            {({ processing }) => (
+                                        <ConfirmAction
+                                            trigger={
                                                 <Button
-                                                    type="submit"
+                                                    type="button"
                                                     size="sm"
-                                                    variant="destructive"
-                                                    disabled={processing}
+                                                    variant="outline"
                                                     aria-label={`Hapus ${item.name}`}
                                                 >
                                                     <Trash2 />
                                                 </Button>
-                                            )}
-                                        </Form>
+                                            }
+                                            title={`Hapus ${item.name}?`}
+                                            description="Butir ini belum pernah dinilai, jadi bisa dihapus."
+                                            action={`${BASE_URL}/butir/${item.id}`}
+                                            method="delete"
+                                            confirmLabel="Hapus"
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -635,119 +631,140 @@ function ItemForm({
     onDone: () => void;
 }) {
     const key = item?.id ?? `new-${kind}`;
+    const noun =
+        kind === 'KEPRIBADIAN' ? 'aspek kepribadian' : 'ekstrakurikuler';
 
     return (
-        <Form
-            action={
-                item
-                    ? `${BASE_URL}/butir/${item.id}`
-                    : `${BASE_URL}/${organizationId}/butir`
-            }
-            method={item ? 'patch' : 'post'}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-3 rounded-lg border bg-muted/20 p-3"
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
+            }}
+            title={item ? `Ubah ${item.name}` : `Tambah ${noun}`}
         >
-            {({ processing, errors }) => (
-                <>
-                    {!item && <input type="hidden" name="kind" value={kind} />}
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
-                        <div className="grid gap-1.5">
-                            <Label htmlFor={`ri-name-${key}`}>Nama</Label>
-                            <Input
-                                id={`ri-name-${key}`}
-                                name="name"
-                                defaultValue={item?.name ?? ''}
-                                maxLength={limits.itemName}
-                                placeholder={
-                                    kind === 'KEPRIBADIAN'
-                                        ? 'Mis. Kelakuan'
-                                        : 'Mis. Pramuka'
-                                }
-                                required
-                            />
-                            <InputError message={errors.name} />
+            <Form
+                action={
+                    item
+                        ? `${BASE_URL}/butir/${item.id}`
+                        : `${BASE_URL}/${organizationId}/butir`
+                }
+                method={item ? 'patch' : 'post'}
+                options={{ preserveScroll: true }}
+                onSuccess={onDone}
+                className="space-y-3"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        {!item && (
+                            <input type="hidden" name="kind" value={kind} />
+                        )}
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor={`ri-name-${key}`}>Nama</Label>
+                                <Input
+                                    id={`ri-name-${key}`}
+                                    name="name"
+                                    defaultValue={item?.name ?? ''}
+                                    maxLength={limits.itemName}
+                                    placeholder={
+                                        kind === 'KEPRIBADIAN'
+                                            ? 'Mis. Kelakuan'
+                                            : 'Mis. Pramuka'
+                                    }
+                                    required
+                                />
+                                <InputError message={errors.name} />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor={`ri-order-${key}`}>
+                                    Urutan
+                                </Label>
+                                <Input
+                                    id={`ri-order-${key}`}
+                                    name="sort_order"
+                                    type="number"
+                                    min={0}
+                                    max={999}
+                                    defaultValue={item?.sort_order ?? 1}
+                                />
+                            </div>
                         </div>
-                        <div className="grid gap-1.5">
-                            <Label htmlFor={`ri-order-${key}`}>Urutan</Label>
-                            <Input
-                                id={`ri-order-${key}`}
-                                name="sort_order"
-                                type="number"
-                                min={0}
-                                max={999}
-                                defaultValue={item?.sort_order ?? 1}
-                            />
-                        </div>
-                    </div>
 
-                    {kind === 'KEPRIBADIAN' && (
-                        <fieldset className="grid gap-2">
-                            <legend className="mb-1 text-sm font-medium">
-                                Keterangan otomatis per huruf
-                            </legend>
-                            {predicates.map((level) => (
-                                <div
-                                    key={level.letter}
-                                    className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2"
-                                >
-                                    <Label
-                                        htmlFor={`ri-desc-${key}-${level.letter}`}
-                                        className="text-sm"
-                                        title={level.label ?? undefined}
+                        {kind === 'KEPRIBADIAN' && (
+                            <fieldset className="grid gap-2">
+                                <legend className="mb-1 text-sm font-medium">
+                                    Keterangan otomatis per huruf
+                                </legend>
+                                {predicates.map((level) => (
+                                    <div
+                                        key={level.letter}
+                                        className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2"
                                     >
-                                        {level.letter}
-                                    </Label>
-                                    <Input
-                                        id={`ri-desc-${key}-${level.letter}`}
-                                        name={`descriptions[${level.letter}]`}
-                                        defaultValue={
-                                            item?.descriptions[level.letter] ??
-                                            ''
-                                        }
-                                        maxLength={limits.itemDescription}
-                                        placeholder={
-                                            level.label
-                                                ? `Keterangan untuk ${level.label}`
-                                                : 'Keterangan'
-                                        }
-                                    />
-                                </div>
-                            ))}
-                            <InputError message={errors.descriptions} />
-                        </fieldset>
-                    )}
+                                        <Label
+                                            htmlFor={`ri-desc-${key}-${level.letter}`}
+                                            className="text-sm"
+                                            title={level.label ?? undefined}
+                                        >
+                                            {level.letter}
+                                        </Label>
+                                        <Input
+                                            id={`ri-desc-${key}-${level.letter}`}
+                                            name={`descriptions[${level.letter}]`}
+                                            defaultValue={
+                                                item?.descriptions[
+                                                    level.letter
+                                                ] ?? ''
+                                            }
+                                            maxLength={limits.itemDescription}
+                                            placeholder={
+                                                level.label
+                                                    ? `Keterangan untuk ${level.label}`
+                                                    : 'Keterangan'
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                                <InputError message={errors.descriptions} />
+                            </fieldset>
+                        )}
 
-                    {item && (
-                        <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                name="is_active"
-                                value="1"
-                                defaultChecked={item.is_active}
-                                className="size-4"
-                            />
-                            Aktif (bisa dinilai)
-                        </label>
-                    )}
+                        {item && (
+                            <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    name="is_active"
+                                    value="1"
+                                    defaultChecked={item.is_active}
+                                    className="size-4"
+                                />
+                                Aktif (bisa dinilai)
+                            </label>
+                        )}
 
-                    <InputError message={errors.form} />
-                    <div className="flex flex-wrap gap-2">
-                        <Button type="submit" size="sm" disabled={processing}>
-                            <Save />
-                            {processing ? 'Menyimpan…' : 'Simpan'}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                        <InputError message={errors.form} />
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={processing}
+                            >
+                                <Save />
+                                {processing ? 'Menyimpan…' : 'Simpan'}
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }

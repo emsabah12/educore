@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
@@ -437,7 +438,7 @@ function AccountCard({
                         </p>
                     )}
                 </div>
-                {canManage && !editing && !custody && (
+                {canManage && !custody && (
                     <Button
                         type="button"
                         variant="ghost"
@@ -477,58 +478,96 @@ function AccountCard({
             {canManage &&
                 canReceive &&
                 account.kind === 'BANK' &&
-                account.is_active &&
-                !editing && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                            router.post(
-                                `/keuangan/kas/rekening/${account.id}/penerima-transfer`,
-                                { receives: !account.receives_transfers },
-                                { preserveScroll: true },
-                            )
+                account.is_active && (
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                            >
+                                {account.receives_transfers
+                                    ? 'Lepas penerima transfer'
+                                    : 'Jadikan penerima transfer siswa'}
+                            </Button>
                         }
-                    >
-                        {account.receives_transfers
-                            ? 'Lepas penerima transfer'
-                            : 'Jadikan penerima transfer siswa'}
-                    </Button>
+                        title={
+                            account.receives_transfers
+                                ? `Lepas ${account.name} sebagai penerima transfer?`
+                                : `Jadikan ${account.name} penerima transfer siswa?`
+                        }
+                        description={
+                            account.receives_transfers
+                                ? 'Rekening ini tidak lagi ditawarkan untuk transfer pembayaran siswa.'
+                                : 'Rekening ini dipakai untuk mencatat pembayaran siswa lewat transfer.'
+                        }
+                        action={`/keuangan/kas/rekening/${account.id}/penerima-transfer`}
+                        confirmLabel={
+                            account.receives_transfers
+                                ? 'Lepas'
+                                : 'Jadikan penerima'
+                        }
+                        destructive={account.receives_transfers}
+                        errorBag={`receives-transfer-${account.id}`}
+                        hidden={{
+                            receives: account.receives_transfers ? '0' : '1',
+                        }}
+                    />
                 )}
             {canManage &&
                 canReceive &&
                 account.kind === 'BANK' &&
-                account.is_active &&
-                !editing && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                            router.post(
-                                `/keuangan/kas/rekening/${account.id}/penerima-online`,
-                                { receives: !account.receives_online },
-                                { preserveScroll: true },
-                            )
+                account.is_active && (
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                            >
+                                {account.receives_online
+                                    ? 'Lepas penerima pembayaran online'
+                                    : 'Jadikan penerima pembayaran online'}
+                            </Button>
                         }
-                    >
-                        {account.receives_online
-                            ? 'Lepas penerima pembayaran online'
-                            : 'Jadikan penerima pembayaran online'}
-                    </Button>
+                        title={
+                            account.receives_online
+                                ? `Lepas ${account.name} sebagai penerima pembayaran online?`
+                                : `Jadikan ${account.name} penerima pembayaran online?`
+                        }
+                        description={
+                            account.receives_online
+                                ? 'Pembayaran online tidak lagi dibukukan ke rekening ini.'
+                                : 'Pembayaran online yang lunas dibukukan ke rekening ini.'
+                        }
+                        action={`/keuangan/kas/rekening/${account.id}/penerima-online`}
+                        confirmLabel={
+                            account.receives_online
+                                ? 'Lepas'
+                                : 'Jadikan penerima'
+                        }
+                        destructive={account.receives_online}
+                        errorBag={`receives-online-${account.id}`}
+                        hidden={{
+                            receives: account.receives_online ? '0' : '1',
+                        }}
+                    />
                 )}
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Ubah ${account.name}`}
+            >
                 <Form
                     action={`/keuangan/kas/rekening/${account.id}`}
                     method="patch"
                     errorBag={`account-${account.id}`}
                     options={{ preserveScroll: true }}
                     onSuccess={() => setEditing(false)}
-                    className="space-y-2 border-t pt-2"
+                    className="space-y-3"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -569,7 +608,7 @@ function AccountCard({
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </div>
     );
 }
@@ -990,7 +1029,6 @@ function LedgerItem({
     canManage: boolean;
     reasonMax: number;
 }) {
-    const [voiding, setVoiding] = useState(false);
     const voided = row.status === 'BATAL';
     const incoming = row.direction === 'MASUK';
     // Mutasi dibatalkan dari sisi pengirim (baris KELUAR); transaksi lain dari asalnya.
@@ -1060,68 +1098,34 @@ function LedgerItem({
                             Kuitansi
                         </Link>
                     )}
-                    {canVoid && !voiding && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setVoiding(true)}
-                        >
-                            Batalkan
-                        </Button>
+                    {canVoid && (
+                        <ConfirmAction
+                            trigger={
+                                <Button type="button" variant="ghost" size="sm">
+                                    Batalkan
+                                </Button>
+                            }
+                            title={
+                                voidsTransfer
+                                    ? 'Batalkan mutasi ini?'
+                                    : 'Batalkan transaksi ini?'
+                            }
+                            description={`${formatRupiah(row.amount)}. Transaksi tetap tercatat dengan status dibatalkan.`}
+                            action={
+                                voidsTransfer
+                                    ? `/keuangan/kas/mutasi/${row.source_id}/batalkan`
+                                    : `/keuangan/kas/transaksi/${row.id}/batalkan`
+                            }
+                            confirmLabel="Batalkan transaksi"
+                            reason={{
+                                label: 'Alasan pembatalan',
+                                max: reasonMax,
+                            }}
+                            errorBag={`void-${row.id}`}
+                        />
                     )}
                 </div>
             </div>
-            {voiding && (
-                <Form
-                    action={
-                        voidsTransfer
-                            ? `/keuangan/kas/mutasi/${row.source_id}/batalkan`
-                            : `/keuangan/kas/transaksi/${row.id}/batalkan`
-                    }
-                    method="post"
-                    errorBag={`void-${row.id}`}
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setVoiding(false)}
-                    className="space-y-2 rounded-lg border p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <Label htmlFor={`void-${row.id}`}>
-                                Alasan pembatalan
-                            </Label>
-                            <Input
-                                id={`void-${row.id}`}
-                                name="reason"
-                                maxLength={reasonMax}
-                                required
-                                autoFocus
-                            />
-                            <InputError
-                                message={errors.reason ?? errors.form}
-                            />
-                            <div className="flex gap-2">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={processing}
-                                >
-                                    Batalkan transaksi
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setVoiding(false)}
-                                >
-                                    Tutup
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
         </li>
     );
 }

@@ -54,6 +54,7 @@
 | 2026-11-10 | **Tema visual UX-2** gaya Materio (owner, menggantikan UX-1 yang tidak di-push): latar abu-ungu + kartu putih melayang, aksen ungu #8C57FF, menu aktif pil gradasi; tombol utama #7E4EE6 demi kontras AA                                                                                                                                      | STATUS § Perapian tampilan                               |
 | 2026-11-11 | **HR menyusul**: urutan HR-7 disiplin & offboarding → HR-8 → HR-9 → HR-4d presensi lokasi HP (mesin absen cadangan) → HR-10 formulir A05 Simpatika; disiplin dicatat Admin SDM/Admin Yayasan, dilihat Kepala Lembaga & pegawai sendiri, SP berlaku 6 bulan; akun pegawai berhenti dinonaktifkan lewat tombol checklist                        | PRD-001 §3, §18, OD-HR-13 s.d. 15                        |
 | 2026-11-11 | **HR-8**: riwayat pelatihan dicatat Admin SDM atau diajukan pegawai lalu diverifikasi; penilaian kinerja ringkas 0–100 berbobot (komponen guru & staf), predikat ala PKG, dinilai Kepala Lembaga, hasil terlihat pegawai setelah periode dikunci                                                                                              | PRD-001 §19, OD-HR-16 s.d. 18                            |
+| 2026-11-12 | **UX-3 semua tambah/ubah/hapus lewat pop-up** (owner, contoh mockup Kasir): `FormDialog` untuk tambah/ubah, `ConfirmAction` untuk hapus/batal/cabut/nonaktifkan/setujui/tolak; tema ungu UX-2 tetap; lembar isian & form panjang tetap halaman; fitur lain di mockup dicatat sebagai usulan                                                   | STATUS § Pedoman tampilan, § Usulan dari mockup UX-3     |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -976,11 +977,27 @@
 - Beranda: kartu ringkasan berikon kotak warna (ungu normal, kuning peringatan, merah bahaya). Halaman masuk: formulir di kartu putih.
 - Tanpa perubahan backend, data, menu, atau perilaku.
 
+**UX-3 — Semua tambah/ubah/hapus lewat pop-up: DIBANGUN, menunggu uji owner (2026-11-12)** — permintaan owner 2026-11-12 (mockup Kasir; pilihan owner: pola pop-up saja, tema ungu tetap, lembar isian & form panjang tetap halaman, fitur lain dicatat sebagai usulan). Paket ini **juga membawa HR-8a** (belum di-push).
+
+- Komponen baru `components/confirm-action.tsx` (`ConfirmAction`: tombol pemicu → pop-up konfirmasi, isian alasan opsional, isian tersembunyi, `onConfirm` untuk alur sandi sementara). `RuleDialog` di `components/core/scoped-rules.tsx` untuk form aturan berjenjang. Pembungkus bersama `ActionForm` (pegawai & akademik) dan `AccessForm` (akun login) kini selalu tampil di `FormDialog`, sehingga semua aksi di detail pegawai/siswa/kelas ikut jadi pop-up.
+- **Kepegawaian**: disiplin, offboarding, pelatihan, dokumen, aksi pegawai, katalog SDM, persetujuan & pembatalan cuti, saldo cuti (sesuaikan jatah), pengaturan cuti (jenis cuti, libur mingguan, tanggal merah, alur persetujuan, jam kerja), pengaturan gaji (komponen, tarif jabatan, honor JP, potongan presensi), rekap gaji (kunci/buka kunci, penyesuaian), cuti saya (tarik).
+- **Akademik**: kalender (nama kalender, tahun ajaran, tahun berjalan, pemakaian, hari libur & libur mingguan, mode presensi, aturan penilaian), kelas & mapel (status, masukkan siswa, tambah mapel), orang tua/wali (kontak utama, akun login), guru piket, presensi mengajar & guru pengganti, format rapor (butir ekskul/kepribadian, isi contoh), lembar nilai (finalkan, buka kembali, terapkan aturan terbaru).
+- **Keuangan**: kas (ubah rekening, penerima transfer/online, batalkan transaksi), kasir (batalkan kuitansi & transaksi tabungan), tagihan (batalkan), potongan (hapus), kategori kas, pengeluaran (batalkan pengajuan), pengaturan keuangan (jenis biaya, jatuh tempo, batas persetujuan, tarif khusus tingkat, hapus tarif), pembukuan (status akun, hapus saldo awal, kunci/buka kunci periode).
+- **Lembaga & akses**: status lembaga, tambah di bawah Yayasan; role yayasan (pasang/cabut), penugasan (tambah/cabut), akun login pegawai.
+- Tanpa perubahan backend; `tsc`, format & lint bersih; build lulus; test lihat PANDUAN-UX-3.
+
+### Usulan dari mockup UX-3 (belum dikerjakan, perlu dirinci & disetujui owner)
+
+1. Cetak struk kasir termal **80/58 mm** lewat printer Bluetooth.
+2. Cetak **buku tabungan** di printer dot-matrix (posisi baris lanjutan).
+3. **QR verifikasi** di kuitansi (pindai → halaman cek keaslian kuitansi).
+4. **Pintasan keyboard** di Kasir (cari siswa, pilih tagihan, bayar).
+
 ### Pedoman tampilan (berlaku untuk halaman baru) [owner 2026-10-31]
 
 1. Menu baru masuk ke salah satu kelompok di atas; pengaturan selalu di **Pengaturan**.
 2. Satu tampilan = satu fungsi utama. Bagian yang berbeda (mis. daftar vs pengaturan vs riwayat) dipisah dengan `PageTabs`; tab tercatat di alamat dan ikut dikirim saat mengganti saringan.
-3. Form tambahan (tambah, catat, ajukan, setujui, batalkan) dibuka dengan `FormDialog`, bukan disisipkan di atas daftar. Form sangat panjang (mis. tambah siswa/pegawai) boleh tetap halaman tersendiri.
+3. [UX-3, owner 2026-11-12] **Semua tambah/ubah/hapus lewat pop-up** agar daftar tetap bersih: tambah, catat, ajukan, ubah, dan form aturan berjenjang ("Atur …", `RuleDialog`) dibuka dengan `FormDialog`; hapus, batalkan, tarik, cabut, nonaktifkan/aktifkan, setujui/tolak, kunci/buka kunci memakai `ConfirmAction` (judul pertanyaan, penjelasan akibat, isian alasan bila wajib). Tidak ada lagi aksi yang langsung terkirim dari satu klik tanpa konfirmasi. Yang tetap halaman: lembar isian (nilai, presensi, ekskul/kepribadian, catatan rapor, akhir tahun, tarif per tingkat, metode pembayaran online), form panjang (tambah siswa/pegawai, catat cuti, gaji pegawai, format rapor), impor, dan tombol absen/“Sudah mengajar”.
 4. Saringan di atas daftar; ringkasan angka (kotak statistik) paling banyak satu baris.
 5. [UX-2] Ungu (tombol `default`) hanya untuk **satu aksi utama** per tampilan; aksi lain `outline`/`ghost`. Kotak isi cukup ditulis `rounded-xl border` — otomatis jadi kartu putih melayang (pakai `border-dashed` untuk kotak kosong yang tidak ingin jadi kartu). Pakai komponen `components/ui` dan `selectClass` dari `components/native-select.ts`, jangan menulis ulang kelas isian/tombol. Angka negatif & galat memakai `text-destructive`, bukan warna merek.
 
@@ -1035,5 +1052,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → uji manual HR-8a pelatihan → HR-8b penilaian kinerja ringkas → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → uji manual HR-8a pelatihan + UX-3 pop-up (satu paket) → HR-8b penilaian kinerja ringkas → HR-8 → HR-9 → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

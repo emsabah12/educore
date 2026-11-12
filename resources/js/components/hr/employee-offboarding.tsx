@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { CircleAlert, ClipboardList, LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { selectClass } from '@/components/native-select';
 import { Badge } from '@/components/ui/badge';
@@ -129,34 +131,23 @@ export function OffboardingSection({
             {checks.account === 'ACTIVE' &&
                 checks.membership_id &&
                 (data.canManageAccess ? (
-                    <Form
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                            >
+                                <LogOut />
+                                Nonaktifkan akun login
+                            </Button>
+                        }
+                        title="Nonaktifkan akun login?"
+                        description="Pegawai ini tidak bisa masuk lagi. Akun bisa diaktifkan kembali lewat Kelola akses."
                         action={`/akses/anggota/${checks.membership_id}/akun/nonaktifkan`}
-                        method="post"
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing, errors }) => (
-                            <div className="space-y-1">
-                                <Button
-                                    type="submit"
-                                    variant="destructive"
-                                    size="sm"
-                                    disabled={processing}
-                                >
-                                    <LogOut />
-                                    {processing
-                                        ? 'Menonaktifkan…'
-                                        : 'Nonaktifkan akun login'}
-                                </Button>
-                                <InputError
-                                    message={
-                                        Object.values(errors)[0] as
-                                            | string
-                                            | undefined
-                                    }
-                                />
-                            </div>
-                        )}
-                    </Form>
+                        confirmLabel="Nonaktifkan"
+                        errorBag="offboarding-account"
+                    />
                 ) : (
                     <p className="text-xs text-muted-foreground">
                         Minta Admin Yayasan menonaktifkan akun login pegawai ini
@@ -165,31 +156,26 @@ export function OffboardingSection({
                 ))}
 
             {data.canStart && (
-                <Form
-                    action={`/pegawai/${employeeId}/offboarding`}
-                    method="post"
-                    options={{ preserveScroll: true }}
-                    className="space-y-2 rounded-lg border border-dashed p-3 text-sm"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <p className="text-muted-foreground">
-                                Pegawai ini berhenti sebelum checklist
-                                offboarding tersedia.
-                            </p>
-                            <Button
-                                type="submit"
-                                size="sm"
-                                variant="outline"
-                                disabled={processing}
-                            >
+                <div className="space-y-2 rounded-lg border border-dashed p-3 text-sm">
+                    <p className="text-muted-foreground">
+                        Pegawai ini berhenti sebelum checklist offboarding
+                        tersedia.
+                    </p>
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" size="sm" variant="outline">
                                 <ClipboardList />
                                 Buat checklist offboarding
                             </Button>
-                            <InputError message={errors.form} />
-                        </>
-                    )}
-                </Form>
+                        }
+                        title="Buat checklist offboarding?"
+                        description="Checklist dibuat dari item offboarding yang aktif di Katalog SDM."
+                        action={`/pegawai/${employeeId}/offboarding`}
+                        confirmLabel="Buat checklist"
+                        destructive={false}
+                        errorBag="offboarding-start"
+                    />
+                </div>
             )}
 
             {current && (
@@ -281,7 +267,7 @@ function TaskRow({
                 </div>
                 <div className="flex items-center gap-2">
                     <StatusBadge status={task.status} />
-                    {!task.auto && !editing && (
+                    {!task.auto && (
                         <Button
                             type="button"
                             size="sm"
@@ -296,14 +282,19 @@ function TaskRow({
                 </div>
             </div>
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={task.name}
+                description="Tandai status item ini dan tambahkan catatan bila perlu."
+            >
                 <Form
                     action={`/pegawai/${employeeId}/offboarding/${task.id}`}
                     method="post"
                     errorBag={`task-${task.id}`}
                     options={{ preserveScroll: true }}
                     onSuccess={() => setEditing(false)}
-                    className="grid gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-[10rem_minmax(0,1fr)]"
+                    className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -366,7 +357,7 @@ function TaskRow({
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </li>
     );
 }

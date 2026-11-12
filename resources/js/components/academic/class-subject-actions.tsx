@@ -15,6 +15,7 @@ import {
     Field,
     SelectOptions,
 } from '@/components/academic/student-actions';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 
@@ -348,108 +349,110 @@ function AddSubjectsForm({
         );
 
     return (
-        <Form
-            action={`/kelas/${classId}/mapel`}
-            method="post"
-            errorBag="addClassSubjects"
-            options={{ preserveScroll: true }}
-            onSuccess={() => {
-                setSelected([]);
-                onDone();
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
             }}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+            title={`Tambah mata pelajaran ke ${className}`}
+            description="Pilihan: mata pelajaran aktif di lembaga ini yang dipakai di tingkat kelas ini dan belum ada di kelas. Guru pengampu diatur sesudahnya."
+            wide
         >
-            {({ processing, errors }) => (
-                <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">
-                            Tambah mata pelajaran ke {className}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Pilihan: mata pelajaran aktif di lembaga ini yang
-                            dipakai di tingkat kelas ini dan belum ada di kelas.
-                            Guru pengampu diatur sesudahnya.
-                        </p>
-                    </div>
+            <Form
+                action={`/kelas/${classId}/mapel`}
+                method="post"
+                errorBag="addClassSubjects"
+                options={{ preserveScroll: true }}
+                onSuccess={() => {
+                    setSelected([]);
+                    onDone();
+                }}
+                className="space-y-4"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        {options.length === 0 ? (
+                            <p className="text-sm">
+                                Tidak ada mata pelajaran yang bisa ditambahkan.
+                                Tambahkan dulu di menu Mata pelajaran.
+                            </p>
+                        ) : (
+                            <>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        className="size-4 accent-foreground"
+                                        checked={allSelected}
+                                        onChange={() =>
+                                            setSelected(
+                                                allSelected
+                                                    ? []
+                                                    : options.map(
+                                                          (option) =>
+                                                              option.value,
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                    Pilih semua ({options.length})
+                                </label>
+                                <ul className="grid max-h-80 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-1 overflow-y-auto rounded-md border bg-card p-2">
+                                    {options.map((option) => (
+                                        <li key={option.value}>
+                                            <label className="flex cursor-pointer items-start gap-2 rounded p-2 text-sm hover:bg-muted">
+                                                <input
+                                                    type="checkbox"
+                                                    name="subject_ids[]"
+                                                    value={option.value}
+                                                    checked={selected.includes(
+                                                        option.value,
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleOne(option.value)
+                                                    }
+                                                    className="mt-0.5 size-4 accent-foreground"
+                                                />
+                                                <span className="break-words">
+                                                    {option.label}
+                                                </span>
+                                            </label>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
 
-                    {options.length === 0 ? (
-                        <p className="text-sm">
-                            Tidak ada mata pelajaran yang bisa ditambahkan.
-                            Tambahkan dulu di menu Mata pelajaran.
-                        </p>
-                    ) : (
-                        <>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="size-4 accent-foreground"
-                                    checked={allSelected}
-                                    onChange={() =>
-                                        setSelected(
-                                            allSelected
-                                                ? []
-                                                : options.map(
-                                                      (option) => option.value,
-                                                  ),
-                                        )
-                                    }
-                                />
-                                Pilih semua ({options.length})
-                            </label>
-                            <ul className="grid max-h-80 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-1 overflow-y-auto rounded-md border bg-card p-2">
-                                {options.map((option) => (
-                                    <li key={option.value}>
-                                        <label className="flex cursor-pointer items-start gap-2 rounded p-2 text-sm hover:bg-muted">
-                                            <input
-                                                type="checkbox"
-                                                name="subject_ids[]"
-                                                value={option.value}
-                                                checked={selected.includes(
-                                                    option.value,
-                                                )}
-                                                onChange={() =>
-                                                    toggleOne(option.value)
-                                                }
-                                                className="mt-0.5 size-4 accent-foreground"
-                                            />
-                                            <span className="break-words">
-                                                {option.label}
-                                            </span>
-                                        </label>
-                                    </li>
-                                ))}
-                            </ul>
-                        </>
-                    )}
+                        <InputError
+                            message={
+                                errors.subject_ids ??
+                                errors['subject_ids.0'] ??
+                                errors.form
+                            }
+                        />
 
-                    <InputError
-                        message={
-                            errors.subject_ids ??
-                            errors['subject_ids.0'] ??
-                            errors.form
-                        }
-                    />
-
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            disabled={processing || selected.length === 0}
-                        >
-                            {processing
-                                ? 'Menyimpan…'
-                                : `Tambah ${selected.length} mata pelajaran`}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="submit"
+                                disabled={processing || selected.length === 0}
+                            >
+                                {processing
+                                    ? 'Menyimpan…'
+                                    : `Tambah ${selected.length} mata pelajaran`}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }
 

@@ -2,6 +2,8 @@ import { Form } from '@inertiajs/react';
 import { Ban, Download, FilePlus2, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import type { DocumentTypeOption } from '@/components/hr/employee-actions';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,7 +90,7 @@ export function DocumentSection({
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-base font-medium">Dokumen &amp; SK</h2>
-                {manage && !adding && (
+                {manage && (
                     <Button
                         type="button"
                         variant="outline"
@@ -101,12 +103,20 @@ export function DocumentSection({
                 )}
             </div>
 
-            {manage && adding && (
-                <DocumentForm
-                    employeeId={employeeId}
-                    manage={manage}
-                    onDone={() => setAdding(false)}
-                />
+            {manage && (
+                <FormDialog
+                    open={adding}
+                    onOpenChange={setAdding}
+                    title="Tambah dokumen"
+                    description={`File PDF, JPG, atau PNG, maksimal ${manage.maxMb} MB. Hanya bisa diunduh oleh yang berhak melihat data pribadi pegawai.`}
+                    wide
+                >
+                    <DocumentForm
+                        employeeId={employeeId}
+                        manage={manage}
+                        onDone={() => setAdding(false)}
+                    />
+                </FormDialog>
             )}
 
             {shown.length === 0 ? (
@@ -159,7 +169,7 @@ function DocumentRow({
     manage: DocumentManage | null;
     downloadUrl?: (document: EmployeeDocument) => string;
 }) {
-    const [mode, setMode] = useState<'view' | 'edit' | 'void'>('view');
+    const [editing, setEditing] = useState(false);
     const baseUrl = `/pegawai/${employeeId}/dokumen/${document.id}`;
     const validity =
         document.valid_from || document.valid_until
@@ -252,44 +262,54 @@ function DocumentRow({
                 </p>
             )}
 
-            {manage && !document.voided && mode === 'view' && (
+            {manage && !document.voided && (
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setMode('edit')}
+                        onClick={() => setEditing(true)}
                     >
                         <Pencil />
                         Ubah isian
                     </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setMode('void')}
-                    >
-                        <Ban />
-                        Batalkan
-                    </Button>
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                <Ban />
+                                Batalkan
+                            </Button>
+                        }
+                        title="Batalkan dokumen ini?"
+                        description="Dokumen dan file-nya tetap tersimpan sebagai riwayat, tetapi tidak lagi dihitung berlaku dan tidak bisa diubah."
+                        action={`${baseUrl}/batalkan`}
+                        confirmLabel="Ya, batalkan"
+                        reason={{
+                            name: 'void_reason',
+                            label: 'Alasan pembatalan',
+                            max: 300,
+                            placeholder: 'mis. Salah unggah file',
+                        }}
+                        errorBag={`void-${document.id}`}
+                    />
                 </div>
             )}
 
-            {manage && mode === 'edit' && (
-                <DocumentForm
-                    employeeId={employeeId}
-                    manage={manage}
-                    document={document}
-                    onDone={() => setMode('view')}
-                />
-            )}
-
-            {manage && mode === 'void' && (
-                <VoidForm
-                    action={`${baseUrl}/batalkan`}
-                    errorBag={`void-${document.id}`}
-                    onDone={() => setMode('view')}
-                />
+            {manage && !document.voided && (
+                <FormDialog
+                    open={editing}
+                    onOpenChange={setEditing}
+                    title="Ubah isian dokumen"
+                    description="File tidak bisa diganti. Bila file-nya salah, batalkan dokumen ini lalu unggah dokumen baru."
+                    wide
+                >
+                    <DocumentForm
+                        employeeId={employeeId}
+                        manage={manage}
+                        document={document}
+                        onDone={() => setEditing(false)}
+                    />
+                </FormDialog>
             )}
         </li>
     );
@@ -326,21 +346,10 @@ function DocumentForm({
             errorBag={document ? `doc-${document.id}` : 'doc-new'}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors, progress }) => (
                 <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">
-                            {document ? 'Ubah isian dokumen' : 'Tambah dokumen'}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            {document
-                                ? 'File tidak bisa diganti. Bila file-nya salah, batalkan dokumen ini lalu unggah dokumen baru.'
-                                : `File PDF, JPG, atau PNG, maksimal ${manage.maxMb} MB. Hanya bisa diunduh oleh yang berhak melihat data pribadi pegawai.`}
-                        </p>
-                    </div>
-
                     <InputError message={errors.form} />
 
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -500,69 +509,6 @@ function DocumentForm({
                             onClick={onDone}
                         >
                             Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
-    );
-}
-
-function VoidForm({
-    action,
-    errorBag,
-    onDone,
-}: {
-    action: string;
-    errorBag: string;
-    onDone: () => void;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-3 rounded-md border border-destructive/40 p-3"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <p className="text-sm">
-                        Batalkan dokumen ini? Dokumen dan file-nya tetap
-                        tersimpan sebagai riwayat, tetapi tidak lagi dihitung
-                        berlaku dan tidak bisa diubah.
-                    </p>
-                    <Field
-                        id={`${errorBag}-reason`}
-                        label="Alasan pembatalan"
-                        required
-                        error={errors.void_reason ?? errors.form}
-                    >
-                        <Input
-                            id={`${errorBag}-reason`}
-                            name="void_reason"
-                            maxLength={300}
-                            placeholder="mis. Salah unggah file"
-                            required
-                        />
-                    </Field>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            size="sm"
-                            disabled={processing}
-                        >
-                            Ya, batalkan
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onDone}
-                        >
-                            Kembali
                         </Button>
                     </div>
                 </>

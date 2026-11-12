@@ -3,6 +3,7 @@ import {
     ChevronDown,
     Download,
     Lock,
+    Plus,
     LockOpen,
     Printer,
     Trash2,
@@ -10,6 +11,8 @@ import {
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { formatRupiah } from '@/components/hr/pay-format';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -204,9 +207,6 @@ export default function PayrollRecap(props: Props) {
 }
 
 function LockPanel(props: Props) {
-    const [unlocking, setUnlocking] = useState(false);
-    const [confirming, setConfirming] = useState(false);
-
     if (props.lock) {
         return (
             <div className="space-y-3 rounded-xl border border-emerald-500/50 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/30">
@@ -220,71 +220,35 @@ function LockPanel(props: Props) {
                     dihitung s.d. {props.lock.until},{' '}
                     {props.lock.employee_count} pegawai.
                 </p>
-                {unlocking ? (
-                    <Form
-                        action={`${BASE_URL}/${props.month}/buka-kunci`}
-                        method="post"
-                        errorBag="unlock"
-                        options={{ preserveScroll: true }}
-                        onSuccess={() => setUnlocking(false)}
-                        className="space-y-2"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <Label htmlFor="unlock-reason">
-                                    Alasan buka kunci
-                                </Label>
-                                <Input
-                                    id="unlock-reason"
-                                    name="reason"
-                                    maxLength={300}
-                                    placeholder="mis. Ada koreksi presensi"
-                                    required
-                                />
-                                <InputError
-                                    message={errors.reason ?? errors.form}
-                                />
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                    <Button
-                                        type="submit"
-                                        variant="destructive"
-                                        disabled={processing}
-                                    >
-                                        Buka kunci
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setUnlocking(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </Form>
-                ) : (
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
-                        <Button size="sm" asChild>
-                            <a
-                                href={`${BASE_URL}/${props.month}/slip${props.organization ? `?lembaga=${props.organization}` : ''}`}
-                            >
-                                <Printer />
-                                Cetak slip
-                                {props.organization ? ' lembaga ini' : ' semua'}
-                            </a>
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setUnlocking(true)}
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                    <Button size="sm" asChild>
+                        <a
+                            href={`${BASE_URL}/${props.month}/slip${props.organization ? `?lembaga=${props.organization}` : ''}`}
                         >
-                            <LockOpen />
-                            Buka kunci
-                        </Button>
-                    </div>
-                )}
+                            <Printer />
+                            Cetak slip
+                            {props.organization ? ' lembaga ini' : ' semua'}
+                        </a>
+                    </Button>
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                <LockOpen />
+                                Buka kunci
+                            </Button>
+                        }
+                        title={`Buka kunci ${props.label}?`}
+                        description="Angka gaji dihitung ulang dari data terkini dan penyesuaian bisa diubah lagi."
+                        action={`${BASE_URL}/${props.month}/buka-kunci`}
+                        confirmLabel="Buka kunci"
+                        reason={{
+                            label: 'Alasan buka kunci',
+                            max: 300,
+                            placeholder: 'mis. Ada koreksi presensi',
+                        }}
+                        errorBag="unlock"
+                    />
+                </div>
             </div>
         );
     }
@@ -297,49 +261,20 @@ function LockPanel(props: Props) {
                     ` (presensi & jam hidup s.d. ${props.until})`}
                 . Periksa peringatan di tiap pegawai sebelum mengunci.
             </p>
-            {confirming ? (
-                <Form
-                    action={`${BASE_URL}/${props.month}/kunci`}
-                    method="post"
-                    errorBag="lock"
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setConfirming(false)}
-                    className="space-y-2"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <p>
-                                Kunci {props.label} untuk{' '}
-                                <strong>semua lembaga</strong>? Penyesuaian
-                                tidak bisa diubah sampai kunci dibuka.
-                            </p>
-                            <InputError message={errors.form} />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                <Button type="submit" disabled={processing}>
-                                    <Lock />
-                                    Ya, kunci
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setConfirming(false)}
-                                >
-                                    Batal
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            ) : (
-                <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setConfirming(true)}
-                >
-                    <Lock />
-                    Kunci {props.label}
-                </Button>
-            )}
+            <ConfirmAction
+                trigger={
+                    <Button type="button" size="sm">
+                        <Lock />
+                        Kunci {props.label}
+                    </Button>
+                }
+                title={`Kunci ${props.label}?`}
+                description="Berlaku untuk semua lembaga. Penyesuaian tidak bisa diubah sampai kunci dibuka."
+                action={`${BASE_URL}/${props.month}/kunci`}
+                confirmLabel="Ya, kunci"
+                destructive={false}
+                errorBag="lock"
+            />
         </div>
     );
 }
@@ -503,10 +438,24 @@ function Adjustments({
     locked: boolean;
 }) {
     const baseUrl = `${BASE_URL}/${month}/penyesuaian`;
+    const [adding, setAdding] = useState(false);
 
     return (
         <div className="space-y-2">
-            <p className="text-xs font-medium">Penyesuaian manual</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-medium">Penyesuaian manual</p>
+                {!locked && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAdding(true)}
+                    >
+                        <Plus />
+                        Tambah penyesuaian
+                    </Button>
+                )}
+            </div>
             {row.adjustments.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                     Belum ada penyesuaian.
@@ -536,24 +485,24 @@ function Adjustments({
                                     {formatRupiah(adjustment.amount)}
                                 </span>
                                 {!locked && (
-                                    <Form
-                                        action={`${baseUrl}/${adjustment.id}`}
-                                        method="delete"
-                                        errorBag={`adj-del-${adjustment.id}`}
-                                        options={{ preserveScroll: true }}
-                                    >
-                                        {({ processing }) => (
+                                    <ConfirmAction
+                                        trigger={
                                             <Button
-                                                type="submit"
+                                                type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                disabled={processing}
                                                 aria-label={`Hapus penyesuaian ${adjustment.note}`}
                                             >
                                                 <Trash2 />
                                             </Button>
-                                        )}
-                                    </Form>
+                                        }
+                                        title="Hapus penyesuaian ini?"
+                                        description={`${adjustment.note} (${formatRupiah(adjustment.amount)})`}
+                                        action={`${baseUrl}/${adjustment.id}`}
+                                        method="delete"
+                                        confirmLabel="Hapus"
+                                        errorBag={`adj-del-${adjustment.id}`}
+                                    />
                                 )}
                             </span>
                         </li>
@@ -562,64 +511,76 @@ function Adjustments({
             )}
 
             {!locked && (
-                <Form
-                    action={baseUrl}
-                    method="post"
-                    errorBag={`adj-${row.employee_id}`}
-                    resetOnSuccess
-                    options={{ preserveScroll: true }}
-                    className="grid gap-2 sm:grid-cols-[8.5rem_9rem_minmax(0,1fr)_auto] sm:items-start"
+                <FormDialog
+                    open={adding}
+                    onOpenChange={setAdding}
+                    title="Tambah penyesuaian"
+                    description="Tambahan atau potongan manual untuk bulan ini."
                 >
-                    {({ processing, errors }) => (
-                        <>
-                            <input
-                                type="hidden"
-                                name="employee_id"
-                                value={row.employee_id}
-                            />
-                            <select
-                                name="kind"
-                                className={selectClass}
-                                defaultValue="PENDAPATAN"
-                                aria-label="Jenis penyesuaian"
-                            >
-                                <option value="PENDAPATAN">Tambahan</option>
-                                <option value="POTONGAN">Potongan</option>
-                            </select>
-                            <div className="grid gap-1">
-                                <Input
-                                    name="amount"
-                                    inputMode="numeric"
-                                    placeholder="Nominal"
-                                    aria-label="Nominal"
-                                    maxLength={20}
-                                    required
+                    <Form
+                        action={baseUrl}
+                        method="post"
+                        errorBag={`adj-${row.employee_id}`}
+                        resetOnSuccess
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setAdding(false)}
+                        className="grid gap-3"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="employee_id"
+                                    value={row.employee_id}
                                 />
-                                <InputError message={errors.amount} />
-                            </div>
-                            <div className="grid gap-1">
-                                <Input
-                                    name="note"
-                                    placeholder="Keterangan, mis. Lembur kegiatan"
-                                    aria-label="Keterangan"
-                                    maxLength={200}
-                                    required
-                                />
-                                <InputError
-                                    message={errors.note ?? errors.form}
-                                />
-                            </div>
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={processing}
-                                className="h-9"
-                            >
-                                Tambah
-                            </Button>
-                        </>
-                    )}
-                </Form>
+                                <select
+                                    name="kind"
+                                    className={selectClass}
+                                    defaultValue="PENDAPATAN"
+                                    aria-label="Jenis penyesuaian"
+                                >
+                                    <option value="PENDAPATAN">Tambahan</option>
+                                    <option value="POTONGAN">Potongan</option>
+                                </select>
+                                <div className="grid gap-1">
+                                    <Input
+                                        name="amount"
+                                        inputMode="numeric"
+                                        placeholder="Nominal"
+                                        aria-label="Nominal"
+                                        maxLength={20}
+                                        required
+                                    />
+                                    <InputError message={errors.amount} />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Input
+                                        name="note"
+                                        placeholder="Keterangan, mis. Lembur kegiatan"
+                                        aria-label="Keterangan"
+                                        maxLength={200}
+                                        required
+                                    />
+                                    <InputError
+                                        message={errors.note ?? errors.form}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="submit" disabled={processing}>
+                                        Tambah
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setAdding(false)}
+                                    >
+                                        Batal
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </Form>
+                </FormDialog>
             )}
         </div>
     );

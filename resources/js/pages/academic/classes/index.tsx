@@ -1,4 +1,4 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     CircleAlert,
     Pencil,
@@ -16,6 +16,7 @@ import {
     selectClass,
 } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -499,33 +500,34 @@ function ClassForm({
 
 function StatusButton({ item }: { item: ClassRow }) {
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                >
+                    {item.is_active ? <PowerOff /> : <Power />}
+                    {item.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
+                </Button>
+            }
+            title={
+                item.is_active
+                    ? `Nonaktifkan kelas ${item.name}?`
+                    : `Aktifkan kembali kelas ${item.name}?`
+            }
+            description={
+                item.is_active
+                    ? 'Kelas nonaktif tidak muncul di pilihan baru. Data yang sudah tercatat tetap tersimpan.'
+                    : 'Kelas bisa dipakai lagi.'
+            }
             action={`${BASE_URL}/${item.id}/status`}
-            method="post"
+            confirmLabel={item.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
+            destructive={item.is_active}
             errorBag="classStatus"
-            options={{ preserveScroll: true }}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <input
-                        type="hidden"
-                        name="active"
-                        value={item.is_active ? '0' : '1'}
-                    />
-                    <Button
-                        type="submit"
-                        size="sm"
-                        variant="outline"
-                        disabled={processing}
-                        className="w-full"
-                    >
-                        {item.is_active ? <PowerOff /> : <Power />}
-                        {item.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
+            hidden={{ active: item.is_active ? '0' : '1' }}
+        />
     );
 }
 

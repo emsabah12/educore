@@ -1,6 +1,8 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { RuleDialog } from '@/components/core/scoped-rules';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -220,51 +222,58 @@ function TypesSection({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant={
-                                        editing === type.id
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        setEditing((current) =>
-                                            current === type.id
-                                                ? null
-                                                : type.id,
-                                        )
-                                    }
+                                    variant="outline"
+                                    onClick={() => setEditing(type.id)}
                                 >
                                     <Pencil />
                                     Ubah
                                 </Button>
-                                <Form
-                                    action={`${BASE_URL}/jenis/${type.id}/${type.is_active ? 'nonaktifkan' : 'aktifkan'}`}
-                                    method="post"
-                                    errorBag={`leave-type-status-${type.id}`}
-                                    options={{ preserveScroll: true }}
-                                    className="grid"
-                                >
-                                    {({ processing }) => (
+                                <ConfirmAction
+                                    trigger={
                                         <Button
-                                            type="submit"
+                                            type="button"
                                             size="sm"
                                             variant="outline"
-                                            disabled={processing}
                                         >
                                             {type.is_active
                                                 ? 'Nonaktifkan'
                                                 : 'Aktifkan'}
                                         </Button>
-                                    )}
-                                </Form>
+                                    }
+                                    title={
+                                        type.is_active
+                                            ? `Nonaktifkan ${type.name}?`
+                                            : `Aktifkan ${type.name}?`
+                                    }
+                                    description={
+                                        type.is_active
+                                            ? 'Jenis ini tidak bisa dipilih lagi di pengajuan baru. Riwayat cuti tetap tersimpan.'
+                                            : 'Jenis ini bisa dipilih lagi di pengajuan baru.'
+                                    }
+                                    action={`${BASE_URL}/jenis/${type.id}/${type.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                                    confirmLabel={
+                                        type.is_active
+                                            ? 'Nonaktifkan'
+                                            : 'Aktifkan'
+                                    }
+                                    destructive={type.is_active}
+                                    errorBag={`leave-type-status-${type.id}`}
+                                />
                             </div>
                         </div>
-                        {editing === type.id && (
+                        <FormDialog
+                            open={editing === type.id}
+                            onOpenChange={(open) =>
+                                setEditing(open ? type.id : null)
+                            }
+                            title={`Ubah ${type.name}`}
+                        >
                             <TypeForm
                                 type={type}
                                 maxDays={maxDays}
                                 onDone={() => setEditing(null)}
                             />
-                        )}
+                        </FormDialog>
                     </li>
                 ))}
             </ul>
@@ -291,13 +300,10 @@ function TypeForm({
             errorBag={type ? `leave-type-${type.id}` : 'leave-type-new'}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border border-border bg-muted/20 p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">
-                        {type ? `Ubah ${type.name}` : 'Tambah jenis cuti'}
-                    </h3>
                     <InputError message={errors.form} />
                     <div className="grid gap-3 sm:grid-cols-2">
                         {!type && (
@@ -598,85 +604,88 @@ function EnforcedCheckbox({ text }: { text: string }) {
 function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
     return (
         <section aria-label="Libur mingguan" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Libur mingguan"
-                description="Hari kerja pegawai: dipakai menghitung hari cuti dan jam wajib absen staf, per jenjang atau lembaga/unit. Bawaan: Ahad. Terpisah dari libur mingguan kalender akademik (hari sekolah, presensi siswa & mengajar)."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action={`${BASE_URL}/libur-mingguan`}
-                    method="post"
-                    errorBag="weeklyOff"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="wo"
-                                options={options}
-                                errors={errors}
-                            />
-                            <fieldset className="space-y-1.5">
-                                <legend className="text-sm font-medium">
-                                    Hari libur
-                                </legend>
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
-                                    {dayOptions.map((option) => (
-                                        <label
-                                            key={option.value}
-                                            className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm hover:bg-muted"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                name="weekly_off_days[]"
-                                                value={option.value}
-                                                defaultChecked={
-                                                    option.value === '7'
-                                                }
-                                                className="size-4 accent-foreground"
-                                            />
-                                            {option.label}
-                                        </label>
-                                    ))}
-                                </div>
-                                <InputError
-                                    message={
-                                        errors.weekly_off_days ??
-                                        errors['weekly_off_days.0'] ??
-                                        errors.form
-                                    }
-                                />
-                            </fieldset>
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai libur mingguan lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan libur mingguan
-                            </Button>
-                        </>
-                    )}
-                </Form>
-
-                <div className="space-y-3">
-                    {weeklyOff.differs > 0 && (
-                        <p
-                            role="status"
-                            className="rounded-xl border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Libur mingguan"
+                    description="Hari kerja pegawai: dipakai menghitung hari cuti dan jam wajib absen staf, per jenjang atau lembaga/unit. Bawaan: Ahad. Terpisah dari libur mingguan kalender akademik (hari sekolah, presensi siswa & mengajar)."
+                />
+                <RuleDialog label="Atur libur mingguan">
+                    {(close) => (
+                        <Form
+                            action={`${BASE_URL}/libur-mingguan`}
+                            method="post"
+                            errorBag="weeklyOff"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
                         >
-                            ⚠ {weeklyOff.differs} lembaga punya libur mingguan
-                            yang berbeda dengan kalender akademiknya. Tidak
-                            apa-apa bila memang disengaja (mis. staf tetap masuk
-                            saat siswa libur); bila tidak, samakan di sini.
-                            Libur mingguan kalender akademik hanya dipakai untuk
-                            hari sekolah.
-                        </p>
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="wo"
+                                        options={options}
+                                        errors={errors}
+                                    />
+                                    <fieldset className="space-y-1.5">
+                                        <legend className="text-sm font-medium">
+                                            Hari libur
+                                        </legend>
+                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
+                                            {dayOptions.map((option) => (
+                                                <label
+                                                    key={option.value}
+                                                    className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm hover:bg-muted"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        name="weekly_off_days[]"
+                                                        value={option.value}
+                                                        defaultChecked={
+                                                            option.value === '7'
+                                                        }
+                                                        className="size-4 accent-foreground"
+                                                    />
+                                                    {option.label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <InputError
+                                            message={
+                                                errors.weekly_off_days ??
+                                                errors['weekly_off_days.0'] ??
+                                                errors.form
+                                            }
+                                        />
+                                    </fieldset>
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai libur mingguan lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan libur mingguan
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
                     )}
-                    <RulesPanel
-                        data={weeklyOff}
-                        emptyText="Belum ada pengaturan. Semua lembaga libur hari Ahad."
-                        usageTitle="Libur mingguan yang berlaku di tiap lembaga"
-                    />
-                </div>
+                </RuleDialog>
+            </div>
+            <div className="space-y-3">
+                {weeklyOff.differs > 0 && (
+                    <p
+                        role="status"
+                        className="rounded-xl border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                    >
+                        ⚠ {weeklyOff.differs} lembaga punya libur mingguan yang
+                        berbeda dengan kalender akademiknya. Tidak apa-apa bila
+                        memang disengaja (mis. staf tetap masuk saat siswa
+                        libur); bila tidak, samakan di sini. Libur mingguan
+                        kalender akademik hanya dipakai untuk hari sekolah.
+                    </p>
+                )}
+                <RulesPanel
+                    data={weeklyOff}
+                    emptyText="Belum ada pengaturan. Semua lembaga libur hari Ahad."
+                    usageTitle="Libur mingguan yang berlaku di tiap lembaga"
+                />
             </div>
         </section>
     );
@@ -687,60 +696,67 @@ function WeeklyOffSection({ weeklyOff, dayOptions, options }: Props) {
 function ApprovalSection({ approval, options }: Props) {
     return (
         <section aria-label="Alur persetujuan" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Alur persetujuan"
-                description="2 tahap: Kepala Lembaga lalu Admin SDM (bawaan). 1 tahap: cukup Kepala Lembaga. Berlaku untuk pengajuan baru; pengajuan yang sudah masuk tetap memakai alur saat diajukan."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action={`${BASE_URL}/alur-persetujuan`}
-                    method="post"
-                    errorBag="approval"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="ap"
-                                options={options}
-                                errors={errors}
-                            />
-                            <div className="grid gap-1.5">
-                                <Label htmlFor="ap-steps">Alur</Label>
-                                <select
-                                    id="ap-steps"
-                                    name="steps"
-                                    className={selectClass}
-                                    defaultValue="2"
-                                    required
-                                >
-                                    <option value="2">
-                                        2 tahap: Kepala Lembaga → Admin SDM
-                                    </option>
-                                    <option value="1">
-                                        1 tahap: Kepala Lembaga saja
-                                    </option>
-                                </select>
-                                <InputError
-                                    message={errors.steps ?? errors.form}
-                                />
-                            </div>
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai alur lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan alur persetujuan
-                            </Button>
-                        </>
-                    )}
-                </Form>
-
-                <RulesPanel
-                    data={approval}
-                    emptyText="Belum ada pengaturan. Semua lembaga memakai alur 2 tahap."
-                    usageTitle="Alur yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Alur persetujuan"
+                    description="2 tahap: Kepala Lembaga lalu Admin SDM (bawaan). 1 tahap: cukup Kepala Lembaga. Berlaku untuk pengajuan baru; pengajuan yang sudah masuk tetap memakai alur saat diajukan."
                 />
+                <RuleDialog label="Atur alur persetujuan">
+                    {(close) => (
+                        <Form
+                            action={`${BASE_URL}/alur-persetujuan`}
+                            method="post"
+                            errorBag="approval"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="ap"
+                                        options={options}
+                                        errors={errors}
+                                    />
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="ap-steps">Alur</Label>
+                                        <select
+                                            id="ap-steps"
+                                            name="steps"
+                                            className={selectClass}
+                                            defaultValue="2"
+                                            required
+                                        >
+                                            <option value="2">
+                                                2 tahap: Kepala Lembaga → Admin
+                                                SDM
+                                            </option>
+                                            <option value="1">
+                                                1 tahap: Kepala Lembaga saja
+                                            </option>
+                                        </select>
+                                        <InputError
+                                            message={
+                                                errors.steps ?? errors.form
+                                            }
+                                        />
+                                    </div>
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai alur lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan alur persetujuan
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={approval}
+                emptyText="Belum ada pengaturan. Semua lembaga memakai alur 2 tahap."
+                usageTitle="Alur yang berlaku di tiap lembaga"
+            />
         </section>
     );
 }
@@ -756,7 +772,6 @@ function HolidaysSection({
 }) {
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
-    const [removing, setRemoving] = useState<string | null>(null);
 
     return (
         <section aria-label="Hari libur" className="space-y-3">
@@ -828,79 +843,44 @@ function HolidaysSection({
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() =>
-                                        setEditing((current) =>
-                                            current === holiday.id
-                                                ? null
-                                                : holiday.id,
-                                        )
-                                    }
+                                    onClick={() => setEditing(holiday.id)}
                                 >
                                     <Pencil />
                                     Ubah
                                 </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setRemoving((current) =>
-                                            current === holiday.id
-                                                ? null
-                                                : holiday.id,
-                                        )
+                                <ConfirmAction
+                                    trigger={
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Trash2 />
+                                            Hapus
+                                        </Button>
                                     }
-                                >
-                                    <Trash2 />
-                                    Hapus
-                                </Button>
+                                    title={`Hapus hari libur ${holiday.name}?`}
+                                    description="Tanggal ini kembali dihitung sebagai hari kerja untuk pengajuan cuti baru."
+                                    action={`${BASE_URL}/hari-libur/${holiday.id}`}
+                                    method="delete"
+                                    confirmLabel="Hapus hari libur"
+                                    errorBag={`hr-holiday-remove-${holiday.id}`}
+                                />
                             </div>
                         </div>
-                        {editing === holiday.id && (
+                        <FormDialog
+                            open={editing === holiday.id}
+                            onOpenChange={(open) =>
+                                setEditing(open ? holiday.id : null)
+                            }
+                            title={`Ubah ${holiday.name}`}
+                        >
                             <HolidayForm
                                 year={year}
                                 holiday={holiday}
                                 onDone={() => setEditing(null)}
                             />
-                        )}
-                        {removing === holiday.id && (
-                            <Form
-                                action={`${BASE_URL}/hari-libur/${holiday.id}`}
-                                method="delete"
-                                errorBag={`hr-holiday-remove-${holiday.id}`}
-                                options={{ preserveScroll: true }}
-                                onSuccess={() => setRemoving(null)}
-                                className="space-y-2 rounded-md border border-red-500/40 p-3 text-sm"
-                            >
-                                {({ processing, errors }) => (
-                                    <>
-                                        <p>
-                                            Hapus hari libur{' '}
-                                            <strong>{holiday.name}</strong>?
-                                        </p>
-                                        <InputError message={errors.form} />
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                            <Button
-                                                type="submit"
-                                                variant="destructive"
-                                                disabled={processing}
-                                            >
-                                                Hapus hari libur
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    setRemoving(null)
-                                                }
-                                            >
-                                                Batal
-                                            </Button>
-                                        </div>
-                                    </>
-                                )}
-                            </Form>
-                        )}
+                        </FormDialog>
                     </li>
                 ))}
             </ul>
@@ -932,7 +912,7 @@ function HolidayForm({
             errorBag={holiday ? `hr-holiday-${holiday.id}` : 'hr-holiday-new'}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-xl border border-border bg-muted/20 p-4"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
@@ -1014,80 +994,92 @@ function HolidayForm({
 function WorkHoursSection({ workHours, options }: Props) {
     return (
         <section aria-label="Jam kerja" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Jam kerja (presensi)"
-                description="Jam masuk & pulang staf pada hari kerja, dan toleransi terlambat. Guru memakai jam pelajaran pertama–terakhir dari jadwal mengajar, dengan toleransi yang sama. Bawaan 07.00–14.00, toleransi 15 menit."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action={`${BASE_URL}/jam-kerja`}
-                    method="post"
-                    errorBag="workHours"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="wh"
-                                options={options}
-                                errors={errors}
-                            />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="wh-start">Jam masuk</Label>
-                                    <Input
-                                        id="wh-start"
-                                        type="time"
-                                        name="start"
-                                        defaultValue="07:00"
-                                        required
-                                    />
-                                    <InputError message={errors.start} />
-                                </div>
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="wh-end">Jam pulang</Label>
-                                    <Input
-                                        id="wh-end"
-                                        type="time"
-                                        name="end"
-                                        defaultValue="14:00"
-                                        required
-                                    />
-                                    <InputError message={errors.end} />
-                                </div>
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="wh-tolerance">
-                                        Toleransi (menit)
-                                    </Label>
-                                    <Input
-                                        id="wh-tolerance"
-                                        type="number"
-                                        name="tolerance"
-                                        min={0}
-                                        max={120}
-                                        defaultValue={15}
-                                        required
-                                    />
-                                    <InputError message={errors.tolerance} />
-                                </div>
-                            </div>
-                            <InputError message={errors.form} />
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai jam kerja lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan jam kerja
-                            </Button>
-                        </>
-                    )}
-                </Form>
-
-                <RulesPanel
-                    data={workHours}
-                    emptyText="Belum ada pengaturan. Semua lembaga memakai 07.00–14.00, toleransi 15 menit."
-                    usageTitle="Jam kerja yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Jam kerja (presensi)"
+                    description="Jam masuk & pulang staf pada hari kerja, dan toleransi terlambat. Guru memakai jam pelajaran pertama–terakhir dari jadwal mengajar, dengan toleransi yang sama. Bawaan 07.00–14.00, toleransi 15 menit."
                 />
+                <RuleDialog label="Atur jam kerja">
+                    {(close) => (
+                        <Form
+                            action={`${BASE_URL}/jam-kerja`}
+                            method="post"
+                            errorBag="workHours"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="wh"
+                                        options={options}
+                                        errors={errors}
+                                    />
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="wh-start">
+                                                Jam masuk
+                                            </Label>
+                                            <Input
+                                                id="wh-start"
+                                                type="time"
+                                                name="start"
+                                                defaultValue="07:00"
+                                                required
+                                            />
+                                            <InputError
+                                                message={errors.start}
+                                            />
+                                        </div>
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="wh-end">
+                                                Jam pulang
+                                            </Label>
+                                            <Input
+                                                id="wh-end"
+                                                type="time"
+                                                name="end"
+                                                defaultValue="14:00"
+                                                required
+                                            />
+                                            <InputError message={errors.end} />
+                                        </div>
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="wh-tolerance">
+                                                Toleransi (menit)
+                                            </Label>
+                                            <Input
+                                                id="wh-tolerance"
+                                                type="number"
+                                                name="tolerance"
+                                                min={0}
+                                                max={120}
+                                                defaultValue={15}
+                                                required
+                                            />
+                                            <InputError
+                                                message={errors.tolerance}
+                                            />
+                                        </div>
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai jam kerja lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan jam kerja
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={workHours}
+                emptyText="Belum ada pengaturan. Semua lembaga memakai 07.00–14.00, toleransi 15 menit."
+                usageTitle="Jam kerja yang berlaku di tiap lembaga"
+            />
         </section>
     );
 }

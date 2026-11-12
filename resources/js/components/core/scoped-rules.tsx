@@ -1,7 +1,10 @@
-import { Lock } from 'lucide-react';
+import { Lock, Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { selectClass } from '@/components/native-select';
 
@@ -195,5 +198,35 @@ export function RulesPanel({
                 </details>
             )}
         </div>
+    );
+}
+
+/**
+ * Tombol "Atur …" yang membuka form aturan berjenjang dalam pop-up (pedoman tampilan #3, UX-3); `close` dipanggil
+ * sesudah tersimpan.
+ */
+export function RuleDialog({
+    label,
+    children,
+}: {
+    label: string;
+    children: (close: () => void) => ReactNode;
+}) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <>
+            <Button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="w-full sm:w-auto"
+            >
+                <Plus />
+                {label}
+            </Button>
+            <FormDialog open={open} onOpenChange={setOpen} title={label} wide>
+                {children(() => setOpen(false))}
+            </FormDialog>
+        </>
     );
 }

@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { Plus, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,8 +49,6 @@ export function MemberAccessPanel({
 }) {
     const base = `/akses/anggota/${membershipId}`;
     const [adding, setAdding] = useState(false);
-    // Kunci baris yang sedang meminta konfirmasi cabut: "role:<key>" atau "assignment:<id>".
-    const [confirming, setConfirming] = useState<string | null>(null);
 
     return (
         <div className="space-y-4 border-t pt-4">
@@ -72,8 +72,6 @@ export function MemberAccessPanel({
 
                 <ul className="divide-y rounded-lg border">
                     {member.tenantRoles.map((role) => {
-                        const key = `role:${role.key}`;
-
                         return (
                             <li key={role.key} className="space-y-2 p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -90,25 +88,44 @@ export function MemberAccessPanel({
                                     </div>
 
                                     {role.granted
-                                        ? !role.lockedReason &&
-                                          confirming !== key && (
-                                              <Button
-                                                  type="button"
-                                                  variant="outline"
-                                                  size="sm"
-                                                  className="text-destructive"
-                                                  onClick={() =>
-                                                      setConfirming(key)
+                                        ? !role.lockedReason && (
+                                              <ConfirmAction
+                                                  trigger={
+                                                      <Button
+                                                          type="button"
+                                                          variant="outline"
+                                                          size="sm"
+                                                          className="text-destructive"
+                                                      >
+                                                          Cabut
+                                                      </Button>
                                                   }
-                                              >
-                                                  Cabut
-                                              </Button>
+                                                  title={`Cabut role ${role.name}?`}
+                                                  description="Berlaku saat pemiliknya membuka halaman berikutnya."
+                                                  action={`${base}/role-yayasan/cabut`}
+                                                  confirmLabel="Ya, cabut"
+                                                  errorBag="revokeAccess"
+                                                  hidden={{ role: role.key }}
+                                              />
                                           )
                                         : member.membershipActive && (
-                                              <RoleForm
+                                              <ConfirmAction
+                                                  trigger={
+                                                      <Button
+                                                          type="button"
+                                                          variant="outline"
+                                                          size="sm"
+                                                      >
+                                                          Pasang
+                                                      </Button>
+                                                  }
+                                                  title={`Pasang role ${role.name}?`}
+                                                  description="Role berlaku di seluruh yayasan lewat lembaga kerja Seluruh Yayasan."
                                                   action={`${base}/role-yayasan`}
-                                                  role={role.key}
-                                                  label="Pasang"
+                                                  confirmLabel="Pasang role"
+                                                  destructive={false}
+                                                  errorBag={`tenantRole-${role.key}`}
+                                                  hidden={{ role: role.key }}
                                               />
                                           )}
                                 </div>
@@ -117,15 +134,6 @@ export function MemberAccessPanel({
                                     <p className="text-xs text-muted-foreground">
                                         {role.lockedReason}
                                     </p>
-                                )}
-
-                                {confirming === key && (
-                                    <ConfirmRevoke
-                                        action={`${base}/role-yayasan/cabut`}
-                                        fields={{ role: role.key }}
-                                        message={`Cabut role ${role.name}? Berlaku saat pemiliknya membuka halaman berikutnya.`}
-                                        onCancel={() => setConfirming(null)}
-                                    />
                                 )}
                             </li>
                         );
@@ -149,8 +157,6 @@ export function MemberAccessPanel({
                 ) : (
                     <ul className="divide-y rounded-lg border">
                         {member.assignments.map((assignment) => {
-                            const key = `assignment:${assignment.id}`;
-
                             return (
                                 <li
                                     key={assignment.id}
@@ -187,140 +193,57 @@ export function MemberAccessPanel({
                                             </div>
                                         </div>
 
-                                        {confirming !== key && (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-destructive"
-                                                onClick={() =>
-                                                    setConfirming(key)
-                                                }
-                                            >
-                                                Cabut
-                                            </Button>
-                                        )}
-                                    </div>
-
-                                    {confirming === key && (
-                                        <ConfirmRevoke
+                                        <ConfirmAction
+                                            trigger={
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-destructive"
+                                                >
+                                                    Cabut
+                                                </Button>
+                                            }
+                                            title="Cabut penugasan ini beserta role-nya?"
+                                            description={`${assignment.label}. Datanya tetap tersimpan di riwayat.`}
                                             action={`${base}/penugasan/${assignment.id}/cabut`}
-                                            fields={{}}
-                                            message="Cabut penugasan ini beserta role-nya? Datanya tetap tersimpan di riwayat."
-                                            onCancel={() => setConfirming(null)}
+                                            confirmLabel="Ya, cabut"
+                                            errorBag="revokeAccess"
                                         />
-                                    )}
+                                    </div>
                                 </li>
                             );
                         })}
                     </ul>
                 )}
 
-                {member.membershipActive &&
-                    (adding ? (
-                        <AddAssignmentForm
-                            action={`${base}/penugasan`}
-                            options={member.options}
-                            onDone={() => setAdding(false)}
-                        />
-                    ) : (
-                        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setAdding(true)}
-                            >
-                                <Plus />
-                                Tambah penugasan
-                            </Button>
-                        </div>
-                    ))}
-            </div>
-        </div>
-    );
-}
-
-function RoleForm({
-    action,
-    role,
-    label,
-}: {
-    action: string;
-    role: string;
-    label: string;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={`tenantRole-${role}`}
-            options={{ preserveScroll: true }}
-            transform={(data) => ({ ...data, role })}
-            className="space-y-1"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        disabled={processing}
-                    >
-                        {processing ? 'Memproses…' : label}
-                    </Button>
-                    <InputError message={errors.role ?? errors.form} />
-                </>
-            )}
-        </Form>
-    );
-}
-
-function ConfirmRevoke({
-    action,
-    fields,
-    message,
-    onCancel,
-}: {
-    action: string;
-    fields: Record<string, string>;
-    message: string;
-    onCancel: () => void;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag="revokeAccess"
-            options={{ preserveScroll: true }}
-            transform={(data) => ({ ...data, ...fields })}
-            onSuccess={onCancel}
-            className="space-y-2 rounded-lg border border-destructive/30 bg-muted/20 p-3"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <p className="text-sm">{message}</p>
-                    <InputError message={errors.role ?? errors.form} />
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            size="sm"
-                            disabled={processing}
-                        >
-                            {processing ? 'Memproses…' : 'Ya, cabut'}
-                        </Button>
+                {member.membershipActive && (
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2 sm:flex">
                         <Button
                             type="button"
                             variant="outline"
-                            size="sm"
-                            onClick={onCancel}
+                            onClick={() => setAdding(true)}
                         >
-                            Batal
+                            <Plus />
+                            Tambah penugasan
                         </Button>
                     </div>
-                </>
-            )}
-        </Form>
+                )}
+                <FormDialog
+                    open={adding}
+                    onOpenChange={setAdding}
+                    title="Tambah penugasan"
+                    description="Struktural: memimpin/bertugas di satu lembaga beserta turunannya. Fungsional: membina semua lembaga berjenjang tertentu di seluruh yayasan, mis. Koordinator MDA."
+                    wide
+                >
+                    <AddAssignmentForm
+                        action={`${base}/penugasan`}
+                        options={member.options}
+                        onDone={() => setAdding(false)}
+                    />
+                </FormDialog>
+            </div>
+        </div>
     );
 }
 
@@ -342,22 +265,10 @@ function AddAssignmentForm({
             errorBag="addAssignment"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h4 className="text-base font-medium">
-                            Tambah penugasan
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                            Struktural: memimpin/bertugas di satu lembaga
-                            beserta turunannya. Fungsional: membina semua
-                            lembaga berjenjang tertentu di seluruh yayasan, mis.
-                            Koordinator MDA.
-                        </p>
-                    </div>
-
                     <InputError message={errors.form} />
 
                     <fieldset className="space-y-2">

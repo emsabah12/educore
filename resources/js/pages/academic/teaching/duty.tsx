@@ -2,6 +2,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -157,32 +158,32 @@ function DayCard({
         <li className="space-y-2 rounded-xl border p-4 text-sm">
             <div className="flex items-center justify-between gap-2">
                 <h2 className="font-medium">{day.name}</h2>
-                {!editing && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditing(true)}
-                    >
-                        <Pencil />
-                        Atur
-                    </Button>
-                )}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditing(true)}
+                >
+                    <Pencil />
+                    Atur
+                </Button>
             </div>
 
-            {!editing ? (
-                day.employees.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        Belum ada guru piket.
-                    </p>
-                ) : (
-                    <ul className="list-inside list-disc">
-                        {day.employees.map((employee) => (
-                            <li key={employee.id}>{employee.name}</li>
-                        ))}
-                    </ul>
-                )
+            {day.employees.length === 0 ? (
+                <p className="text-muted-foreground">Belum ada guru piket.</p>
             ) : (
+                <ul className="list-inside list-disc">
+                    {day.employees.map((employee) => (
+                        <li key={employee.id}>{employee.name}</li>
+                    ))}
+                </ul>
+            )}
+
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Guru piket hari ${day.name}`}
+            >
                 <Form
                     action={BASE_URL}
                     method="post"
@@ -250,7 +251,7 @@ function DayCard({
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </li>
     );
 }

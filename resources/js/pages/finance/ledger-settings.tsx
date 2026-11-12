@@ -9,6 +9,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
 import { FormDialog } from '@/components/form-dialog';
 import { formatDateTime } from '@/components/finance/online-order';
 import {
@@ -341,20 +342,29 @@ function AccountItem({
                     Ubah
                 </Button>
                 {!account.system_key && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                            router.post(
-                                `${url}/${account.is_active ? 'nonaktifkan' : 'aktifkan'}`,
-                                {},
-                                { preserveScroll: true },
-                            )
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                {account.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                            </Button>
                         }
-                    >
-                        {account.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                    </Button>
+                        title={
+                            account.is_active
+                                ? `Nonaktifkan akun ${account.name}?`
+                                : `Aktifkan akun ${account.name}?`
+                        }
+                        description={
+                            account.is_active
+                                ? 'Akun tidak bisa dipilih untuk jurnal baru. Jurnal yang sudah ada tetap tersimpan.'
+                                : 'Akun bisa dipilih lagi untuk jurnal baru.'
+                        }
+                        action={`${url}/${account.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                        confirmLabel={
+                            account.is_active ? 'Nonaktifkan' : 'Aktifkan'
+                        }
+                        destructive={account.is_active}
+                        errorBag={`account-status-${account.id}`}
+                    />
                 )}
             </div>
 
@@ -996,6 +1006,7 @@ function PeriodLockSection({
     lock: PeriodLock;
     settings: LedgerSettings;
 }) {
+    const [locking, setLocking] = useState(false);
     const [unlocking, setUnlocking] = useState(false);
     const blocked = settings.needs_rebuild || settings.rebuilding;
 
@@ -1026,15 +1037,39 @@ function PeriodLockSection({
                     bisa dikunci setelah berakhir.
                 </p>
             ) : (
+                <div className="space-y-1">
+                    <Button
+                        type="button"
+                        onClick={() => setLocking(true)}
+                        disabled={blocked}
+                    >
+                        <Lock />
+                        Kunci periode…
+                    </Button>
+                    {blocked && (
+                        <p className="text-xs text-muted-foreground">
+                            Selesaikan susun ulang jurnal dulu sebelum mengunci.
+                        </p>
+                    )}
+                </div>
+            )}
+
+            <FormDialog
+                open={locking && lock.lock_options.length > 0}
+                onOpenChange={setLocking}
+                title="Kunci periode"
+                description="Transaksi dan pembatalan bertanggal sampai akhir bulan yang dipilih akan ditolak."
+            >
                 <Form
                     action={`${BASE}/kunci-periode`}
                     method="post"
                     options={{ preserveScroll: true }}
-                    className="flex flex-wrap items-end gap-3"
+                    onSuccess={() => setLocking(false)}
+                    className="space-y-3"
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid min-w-56 flex-1 gap-1.5">
+                            <div className="grid gap-1.5">
                                 <Label htmlFor="lock-through">
                                     Kunci sampai akhir bulan
                                 </Label>
@@ -1059,36 +1094,44 @@ function PeriodLockSection({
                                 </select>
                                 <InputError message={errors.locked_through} />
                             </div>
-                            <Button
-                                type="submit"
-                                disabled={processing || blocked}
-                            >
-                                <Lock />
-                                {processing ? 'Mengunci…' : 'Kunci periode'}
-                            </Button>
-                            {blocked && (
-                                <p className="w-full text-xs text-muted-foreground">
-                                    Selesaikan susun ulang jurnal dulu sebelum
-                                    mengunci.
-                                </p>
-                            )}
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="submit"
+                                    disabled={processing || blocked}
+                                >
+                                    <Lock />
+                                    {processing ? 'Mengunci…' : 'Kunci periode'}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setLocking(false)}
+                                >
+                                    Batal
+                                </Button>
+                            </div>
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
 
             {lock.through !== null && (
                 <div className="space-y-3 border-t pt-3">
-                    {!unlocking ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setUnlocking(true)}
-                        >
-                            <LockOpen />
-                            Buka kunci…
-                        </Button>
-                    ) : (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setUnlocking(true)}
+                    >
+                        <LockOpen />
+                        Buka kunci…
+                    </Button>
+                    <FormDialog
+                        open={unlocking}
+                        onOpenChange={setUnlocking}
+                        title="Buka kunci periode"
+                        description="Buka kunci hanya untuk koreksi yang perlu. Laporan yang sudah dilaporkan bisa berubah; alasan dicatat di log aktivitas."
+                        wide
+                    >
                         <Form
                             action={`${BASE}/buka-kunci-periode`}
                             method="post"
@@ -1098,12 +1141,6 @@ function PeriodLockSection({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    <p className="text-muted-foreground">
-                                        Buka kunci hanya untuk koreksi yang
-                                        perlu. Laporan yang sudah dilaporkan
-                                        bisa berubah; alasan dicatat di log
-                                        aktivitas.
-                                    </p>
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <div className="grid gap-1.5">
                                             <Label htmlFor="unlock-through">
@@ -1174,7 +1211,7 @@ function PeriodLockSection({
                                 </>
                             )}
                         </Form>
-                    )}
+                    </FormDialog>
                 </div>
             )}
         </div>
@@ -1291,20 +1328,24 @@ function OpeningTab({
                                         <Pencil />
                                         Ubah
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            router.delete(
-                                                `${BASE}/saldo-awal/${item.id}`,
-                                                { preserveScroll: true },
-                                            )
+                                    <ConfirmAction
+                                        trigger={
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                <Trash2 />
+                                                Hapus
+                                            </Button>
                                         }
-                                    >
-                                        <Trash2 />
-                                        Hapus
-                                    </Button>
+                                        title="Hapus baris saldo awal ini?"
+                                        description="Selisih saldo awal dihitung ulang ke Aset neto tanpa pembatasan."
+                                        action={`${BASE}/saldo-awal/${item.id}`}
+                                        method="delete"
+                                        confirmLabel="Hapus"
+                                        errorBag={`opening-remove-${item.id}`}
+                                    />
                                 </div>
                             </li>
                         ))}

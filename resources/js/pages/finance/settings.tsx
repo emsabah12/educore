@@ -5,11 +5,13 @@ import { FormDialog } from '@/components/form-dialog';
 import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
 import {
     EnforcedCheckbox,
+    RuleDialog,
     RulesPanel,
     TargetFields,
 } from '@/components/core/scoped-rules';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -210,53 +212,60 @@ function DueDaySection({
 }) {
     return (
         <section aria-label="Jatuh tempo" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Jatuh tempo tagihan bulanan"
-                description="Tanggal jatuh tempo SPP dan tagihan bulanan lain di bulan tagihannya. Bawaan tanggal 10. Tagihan yang sudah dibuat tidak berubah."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action="/keuangan/jatuh-tempo"
-                    method="post"
-                    errorBag="dueDay"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="due"
-                                options={targets}
-                                errors={errors}
-                            />
-                            <div className="grid gap-1.5 sm:max-w-48">
-                                <Label htmlFor="due-day">Tanggal (1–28)</Label>
-                                <Input
-                                    id="due-day"
-                                    name="day"
-                                    type="number"
-                                    min={1}
-                                    max={28}
-                                    defaultValue={10}
-                                    required
-                                />
-                                <InputError message={errors.day} />
-                            </div>
-                            <InputError message={errors.form} />
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai tanggal lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan jatuh tempo
-                            </Button>
-                        </>
-                    )}
-                </Form>
-                <RulesPanel
-                    data={data}
-                    emptyText="Belum ada pengaturan. Semua lembaga: tanggal 10 setiap bulan."
-                    usageTitle="Jatuh tempo yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Jatuh tempo tagihan bulanan"
+                    description="Tanggal jatuh tempo SPP dan tagihan bulanan lain di bulan tagihannya. Bawaan tanggal 10. Tagihan yang sudah dibuat tidak berubah."
                 />
+                <RuleDialog label="Atur jatuh tempo">
+                    {(close) => (
+                        <Form
+                            action="/keuangan/jatuh-tempo"
+                            method="post"
+                            errorBag="dueDay"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="due"
+                                        options={targets}
+                                        errors={errors}
+                                    />
+                                    <div className="grid gap-1.5 sm:max-w-48">
+                                        <Label htmlFor="due-day">
+                                            Tanggal (1–28)
+                                        </Label>
+                                        <Input
+                                            id="due-day"
+                                            name="day"
+                                            type="number"
+                                            min={1}
+                                            max={28}
+                                            defaultValue={10}
+                                            required
+                                        />
+                                        <InputError message={errors.day} />
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai tanggal lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan jatuh tempo
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={data}
+                emptyText="Belum ada pengaturan. Semua lembaga: tanggal 10 setiap bulan."
+                usageTitle="Jatuh tempo yang berlaku di tiap lembaga"
+            />
         </section>
     );
 }
@@ -277,51 +286,58 @@ function ApprovalLimitSection({
             aria-label="Batas persetujuan pengeluaran"
             className="space-y-3"
         >
-            <Heading
-                variant="small"
-                title="Batas persetujuan pengeluaran"
-                description="Pengeluaran kas lembaga yang disetujui Kepala Lembaga di atas batas ini perlu persetujuan kedua dari Pimpinan/Admin Keuangan Yayasan. Isi 0 untuk tanpa batas (bawaan)."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action="/keuangan/batas-persetujuan"
-                    method="post"
-                    errorBag="approvalLimit"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="limit"
-                                options={targets}
-                                errors={errors}
-                            />
-                            <div className="grid gap-1.5 sm:max-w-64">
-                                <Label htmlFor="limit-value">Batas (Rp)</Label>
-                                <Input
-                                    id="limit-value"
-                                    name="limit"
-                                    inputMode="numeric"
-                                    placeholder="mis. 5.000.000"
-                                    required
-                                />
-                                <InputError message={errors.limit} />
-                            </div>
-                            <InputError message={errors.form} />
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai batas lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan batas
-                            </Button>
-                        </>
-                    )}
-                </Form>
-                <RulesPanel
-                    data={data}
-                    emptyText="Belum ada pengaturan. Semua lembaga: tanpa batas (cukup Kepala Lembaga)."
-                    usageTitle="Batas yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Batas persetujuan pengeluaran"
+                    description="Pengeluaran kas lembaga yang disetujui Kepala Lembaga di atas batas ini perlu persetujuan kedua dari Pimpinan/Admin Keuangan Yayasan. Isi 0 untuk tanpa batas (bawaan)."
                 />
+                <RuleDialog label="Atur batas persetujuan">
+                    {(close) => (
+                        <Form
+                            action="/keuangan/batas-persetujuan"
+                            method="post"
+                            errorBag="approvalLimit"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="limit"
+                                        options={targets}
+                                        errors={errors}
+                                    />
+                                    <div className="grid gap-1.5 sm:max-w-64">
+                                        <Label htmlFor="limit-value">
+                                            Batas (Rp)
+                                        </Label>
+                                        <Input
+                                            id="limit-value"
+                                            name="limit"
+                                            inputMode="numeric"
+                                            placeholder="mis. 5.000.000"
+                                            required
+                                        />
+                                        <InputError message={errors.limit} />
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai batas lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan batas
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={data}
+                emptyText="Belum ada pengaturan. Semua lembaga: tanpa batas (cukup Kepala Lembaga)."
+                usageTitle="Batas yang berlaku di tiap lembaga"
+            />
         </section>
     );
 }
@@ -409,7 +425,6 @@ function CreateTypeForm({
 
 function TypeRow({ type }: { type: FeeTypeRow }) {
     const [editing, setEditing] = useState(false);
-    const [confirming, setConfirming] = useState(false);
     const itemUrl = `${TYPES_URL}/${type.id}`;
 
     return (
@@ -434,39 +449,52 @@ function TypeRow({ type }: { type: FeeTypeRow }) {
                     </div>
                 </div>
 
-                {!editing && !confirming && (
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditing(true)}
-                        >
-                            <Pencil />
-                            Ubah nama
-                        </Button>
-                        {type.is_active ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirming(true)}
-                            >
-                                Nonaktifkan
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(true)}
+                    >
+                        <Pencil />
+                        Ubah nama
+                    </Button>
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                {type.is_active
+                                    ? 'Nonaktifkan'
+                                    : 'Aktifkan kembali'}
                             </Button>
-                        ) : (
-                            <PostButton
-                                action={`${itemUrl}/aktifkan`}
-                                errorBag={`status-${type.id}`}
-                            >
-                                Aktifkan kembali
-                            </PostButton>
-                        )}
-                    </div>
-                )}
+                        }
+                        title={
+                            type.is_active
+                                ? `Nonaktifkan ${type.name}?`
+                                : `Aktifkan kembali ${type.name}?`
+                        }
+                        description={
+                            type.is_active
+                                ? 'Jenis biaya ini tidak bisa diberi tarif baru dan tidak ditagihkan lagi. Tarif & tagihan yang sudah ada tetap tersimpan.'
+                                : 'Jenis biaya ini bisa diberi tarif dan ditagihkan lagi.'
+                        }
+                        action={`${itemUrl}/${type.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                        confirmLabel={
+                            type.is_active
+                                ? 'Ya, nonaktifkan'
+                                : 'Aktifkan kembali'
+                        }
+                        destructive={type.is_active}
+                        errorBag={`status-${type.id}`}
+                    />
+                </div>
             </div>
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Ubah nama ${type.name}`}
+                description="Kode dan jenis tidak bisa diubah."
+            >
                 <Form
                     action={itemUrl}
                     method="patch"
@@ -477,13 +505,10 @@ function TypeRow({ type }: { type: FeeTypeRow }) {
                 >
                     {({ processing, errors }) => (
                         <>
-                            <Label
-                                htmlFor={`rename-${type.id}`}
-                                className="sr-only"
-                            >
+                            <Label htmlFor={`rename-${type.id}`}>
                                 Nama baru
                             </Label>
-                            <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="flex flex-col gap-2">
                                 <Input
                                     id={`rename-${type.id}`}
                                     name="name"
@@ -509,35 +534,7 @@ function TypeRow({ type }: { type: FeeTypeRow }) {
                         </>
                     )}
                 </Form>
-            )}
-
-            {confirming && (
-                <div className="space-y-2 rounded-md border border-destructive/40 p-3">
-                    <p className="text-sm">
-                        Nonaktifkan {type.name}? Jenis biaya ini tidak bisa
-                        diberi tarif baru dan tidak ditagihkan lagi. Tarif &
-                        tagihan yang sudah ada tetap tersimpan.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        <PostButton
-                            action={`${itemUrl}/nonaktifkan`}
-                            errorBag={`status-${type.id}`}
-                            variant="destructive"
-                            onSuccess={() => setConfirming(false)}
-                        >
-                            Ya, nonaktifkan
-                        </PostButton>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirming(false)}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </div>
-            )}
+            </FormDialog>
         </li>
     );
 }
@@ -713,16 +710,8 @@ function RateRowEditor({
                 />
             ))}
 
-            {row.is_active &&
-                (addingGrade ? (
-                    <AddGradeForm
-                        action={action}
-                        errorBag={`rate-${row.type_id}-grade`}
-                        organizationId={organizationId}
-                        yearId={yearId}
-                        onDone={() => setAddingGrade(false)}
-                    />
-                ) : (
+            {row.is_active && (
+                <>
                     <Button
                         type="button"
                         variant="ghost"
@@ -732,7 +721,22 @@ function RateRowEditor({
                         <Plus />
                         Tarif khusus tingkat
                     </Button>
-                ))}
+                    <FormDialog
+                        open={addingGrade}
+                        onOpenChange={setAddingGrade}
+                        title={`Tarif khusus tingkat · ${row.name}`}
+                        description="Tarif per tingkat didahulukan daripada tarif semua tingkat. Menyimpan tingkat yang sudah ada = mengubah nominalnya."
+                    >
+                        <AddGradeForm
+                            action={action}
+                            errorBag={`rate-${row.type_id}-grade`}
+                            organizationId={organizationId}
+                            yearId={yearId}
+                            onDone={() => setAddingGrade(false)}
+                        />
+                    </FormDialog>
+                </>
+            )}
         </li>
     );
 }
@@ -862,7 +866,7 @@ function AddGradeForm({
             errorBag={errorBag}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-2 rounded-md border border-border bg-muted/20 p-3"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
@@ -932,67 +936,26 @@ function RemoveRateButton({
     label: string;
 }) {
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Hapus tarif ${label}`}
+                    className="text-destructive"
+                >
+                    <Trash2 />
+                    Hapus tarif {label.toLowerCase()}
+                </Button>
+            }
+            title={`Hapus tarif ${label.toLowerCase()}?`}
+            description="Tagihan yang sudah dibuat tidak berubah."
             action={`/keuangan/tarif/${rateId}`}
             method="delete"
+            confirmLabel="Hapus tarif"
             errorBag={`remove-${rateId}`}
-            options={{ preserveScroll: true }}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        size="sm"
-                        variant="ghost"
-                        disabled={processing}
-                        aria-label={`Hapus tarif ${label}`}
-                        className="text-destructive"
-                    >
-                        <Trash2 />
-                        Hapus tarif {label.toLowerCase()}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
-    );
-}
-
-function PostButton({
-    action,
-    errorBag,
-    variant = 'outline',
-    onSuccess,
-    children,
-}: {
-    action: string;
-    errorBag: string;
-    variant?: 'outline' | 'destructive';
-    onSuccess?: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onSuccess}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant={variant}
-                        size="sm"
-                        disabled={processing}
-                    >
-                        {children}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
+        />
     );
 }
 

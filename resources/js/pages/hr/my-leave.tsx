@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { CircleAlert, Plane, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -449,8 +450,6 @@ function PreviewLine({
 }
 
 function History({ requests }: { requests: LeaveRow[] }) {
-    const [confirm, setConfirm] = useState<string | null>(null);
-
     return (
         <section aria-label="Riwayat pengajuan" className="space-y-2">
             <h2 className="text-base font-medium">Riwayat pengajuan</h2>
@@ -492,60 +491,26 @@ function History({ requests }: { requests: LeaveRow[] }) {
                                     {row.status_label}
                                 </Badge>
                             </div>
-                            {row.status === 'MENUNGGU' &&
-                                (confirm === row.id ? (
-                                    <Form
-                                        action={`/cuti-saya/${row.id}/tarik`}
-                                        method="post"
-                                        errorBag={`withdraw-${row.id}`}
-                                        options={{ preserveScroll: true }}
-                                        onSuccess={() => setConfirm(null)}
-                                        className="space-y-2 rounded-md border p-3"
-                                    >
-                                        {({ processing, errors }) => (
-                                            <>
-                                                <p>
-                                                    Tarik pengajuan ini?
-                                                    Pengajuan tidak bisa
-                                                    dikembalikan; ajukan lagi
-                                                    bila perlu.
-                                                </p>
-                                                <InputError
-                                                    message={errors.form}
-                                                />
-                                                <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                                    <Button
-                                                        type="submit"
-                                                        variant="destructive"
-                                                        disabled={processing}
-                                                    >
-                                                        Ya, tarik
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            setConfirm(null)
-                                                        }
-                                                    >
-                                                        Batal
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </Form>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setConfirm(row.id)}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        <Undo2 />
-                                        Tarik pengajuan
-                                    </Button>
-                                ))}
+                            {row.status === 'MENUNGGU' && (
+                                <ConfirmAction
+                                    trigger={
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <Undo2 />
+                                            Tarik pengajuan
+                                        </Button>
+                                    }
+                                    title="Tarik pengajuan ini?"
+                                    description="Pengajuan tidak bisa dikembalikan; ajukan lagi bila perlu."
+                                    action={`/cuti-saya/${row.id}/tarik`}
+                                    confirmLabel="Ya, tarik"
+                                    errorBag={`withdraw-${row.id}`}
+                                />
+                            )}
                         </li>
                     ))}
                 </ul>

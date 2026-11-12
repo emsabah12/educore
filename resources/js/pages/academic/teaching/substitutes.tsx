@@ -16,6 +16,8 @@ import {
     TEACHING_STATUS_CLASS,
 } from '@/components/academic/teaching';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,7 +173,7 @@ function NeedCard({
     noteMax: number;
 }) {
     const assigned = lesson.record?.status === 'DIGANTIKAN';
-    const [editing, setEditing] = useState(!assigned);
+    const [editing, setEditing] = useState(false);
 
     return (
         <li className="space-y-3 rounded-xl border p-4 text-sm">
@@ -206,56 +208,46 @@ function NeedCard({
                 )}
             </div>
 
-            {assigned && !editing && (
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditing(true)}
-                    >
-                        <UserRoundCheck />
-                        Ganti pengganti
-                    </Button>
-                    <Form
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2 sm:flex">
+                <Button
+                    type="button"
+                    variant={assigned ? 'outline' : 'default'}
+                    size="sm"
+                    onClick={() => setEditing(true)}
+                >
+                    <UserRoundCheck />
+                    {assigned ? 'Ganti pengganti' : 'Tunjuk pengganti'}
+                </Button>
+                {assigned && (
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                <X />
+                                Batalkan
+                            </Button>
+                        }
+                        title="Batalkan guru pengganti?"
+                        description={`${lesson.subject} · ${lesson.class_name}. Pertemuan ini kembali tercatat belum ada pengganti.`}
                         action={`/akademik/presensi-mengajar/${lesson.entry_id}/batalkan-pengganti`}
-                        method="post"
+                        confirmLabel="Batalkan pengganti"
                         errorBag={`clear-${lesson.key}`}
-                        options={{ preserveScroll: true }}
-                        className="grid gap-1"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <input
-                                    type="hidden"
-                                    name="date"
-                                    value={lesson.date}
-                                />
-                                <Button
-                                    type="submit"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={processing}
-                                    className="w-full"
-                                >
-                                    <X />
-                                    Batalkan
-                                </Button>
-                                <InputError message={errors.form} />
-                            </>
-                        )}
-                    </Form>
-                </div>
-            )}
+                        hidden={{ date: lesson.date }}
+                    />
+                )}
+            </div>
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Guru pengganti · ${lesson.subject} · ${lesson.class_name}`}
+            >
                 <Form
                     action={`/akademik/presensi-mengajar/${lesson.entry_id}`}
                     method="post"
                     errorBag={`assign-${lesson.key}`}
                     options={{ preserveScroll: true }}
                     onSuccess={() => setEditing(false)}
-                    className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
+                    className="space-y-3"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -308,20 +300,18 @@ function NeedCard({
                                         ? 'Menyimpan…'
                                         : 'Tunjuk pengganti'}
                                 </Button>
-                                {assigned && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setEditing(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setEditing(false)}
+                                >
+                                    Batal
+                                </Button>
                             </div>
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
         </li>
     );
 }

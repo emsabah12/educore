@@ -9,6 +9,7 @@ import type {
 import { DEFAULT_ASPECT_CODE } from '@/components/academic/grading';
 import type { Option } from '@/components/academic/student-actions';
 import { selectClass } from '@/components/academic/student-actions';
+import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -87,26 +88,49 @@ export function GradingSection({
         key: 'default',
         value: data.defaults,
     });
+    const [open, setOpen] = useState(false);
 
     return (
         <section aria-label="Aturan penilaian" className="space-y-4">
-            <Heading
-                variant="small"
-                title="Aturan penilaian"
-                description="KKM, komponen nilai beserta bobotnya, dan batas predikat. Nilai = jumlah (nilai komponen × bobot) ÷ 100. Lembaga yang menilai dari beberapa sisi (mis. ujian tulis & praktik) bisa memakai aspek: tiap aspek punya komponen sendiri, nilai akhir = rata-rata aspek. Bawaan: KKM 75, Nilai harian 40%, PTS 30%, PAS 30%."
-            />
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Aturan penilaian"
+                    description="KKM, komponen nilai beserta bobotnya, dan batas predikat. Nilai = jumlah (nilai komponen × bobot) ÷ 100. Lembaga yang menilai dari beberapa sisi (mis. ujian tulis & praktik) bisa memakai aspek: tiap aspek punya komponen sendiri, nilai akhir = rata-rata aspek. Bawaan: KKM 75, Nilai harian 40%, PTS 30%, PAS 30%."
+                />
+                <Button
+                    type="button"
+                    onClick={() => {
+                        setBase({
+                            key: `default-${Date.now()}`,
+                            value: data.defaults,
+                        });
+                        setOpen(true);
+                    }}
+                    className="w-full sm:w-auto"
+                >
+                    <Plus />
+                    Atur aturan penilaian
+                </Button>
+            </div>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <div className="rounded-xl border p-4">
-                    <GradingForm
-                        key={base.key}
-                        initial={base.value}
-                        maxComponents={data.maxComponents}
-                        maxAspects={data.maxAspects}
-                        options={options}
-                    />
-                </div>
+            <FormDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Atur aturan penilaian"
+                wide
+            >
+                <GradingForm
+                    key={base.key}
+                    initial={base.value}
+                    maxComponents={data.maxComponents}
+                    maxAspects={data.maxAspects}
+                    options={options}
+                    onDone={() => setOpen(false)}
+                />
+            </FormDialog>
 
+            <div>
                 <div className="space-y-4">
                     <div className="rounded-xl border">
                         {data.rules.length === 0 ? (
@@ -135,12 +159,13 @@ export function GradingSection({
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     setBase({
                                                         key: `${rule.id}-${Date.now()}`,
                                                         value: rule.value,
-                                                    })
-                                                }
+                                                    });
+                                                    setOpen(true);
+                                                }}
                                             >
                                                 <Copy />
                                                 Pakai sebagai dasar
@@ -194,11 +219,13 @@ function GradingForm({
     maxComponents,
     maxAspects,
     options,
+    onDone,
 }: {
     initial: RulesValue;
     maxComponents: number;
     maxAspects: number;
     options: { jenjang: Option[]; organizations: Option[] };
+    onDone: () => void;
 }) {
     const [target, setTarget] = useState<'jenjang' | 'lembaga'>('jenjang');
     // Kunci baris tetap saat baris lain dihapus, agar isian tidak bergeser.
@@ -278,13 +305,11 @@ function GradingForm({
             method="post"
             errorBag="grading"
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">
-                        Atur aturan penilaian
-                    </h3>
                     <InputError message={errors.form} />
 
                     <div

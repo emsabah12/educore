@@ -1,8 +1,7 @@
-import { Form, Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Check, X } from 'lucide-react';
-import { useState } from 'react';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { ConfirmAction } from '@/components/confirm-action';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -71,7 +70,6 @@ export default function LeaveApprovals({ requests, noteMax }: Props) {
 }
 
 function Item({ row, noteMax }: { row: InboxRow; noteMax: number }) {
-    const [mode, setMode] = useState<'setuju' | 'tolak' | null>(null);
     const available =
         row.quota === null
             ? null
@@ -126,75 +124,47 @@ function Item({ row, noteMax }: { row: InboxRow; noteMax: number }) {
                 )}
             </div>
 
-            {mode === null ? (
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                    <Button type="button" onClick={() => setMode('setuju')}>
-                        <Check />
-                        Setujui
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setMode('tolak')}
-                    >
-                        <X />
-                        Tolak
-                    </Button>
-                </div>
-            ) : (
-                <Form
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                <ConfirmAction
+                    trigger={
+                        <Button type="button">
+                            <Check />
+                            Setujui
+                        </Button>
+                    }
+                    title={`Setujui cuti ${row.employee}?`}
                     action={`/persetujuan-cuti/${row.id}`}
-                    method="post"
+                    confirmLabel="Setujui cuti"
+                    destructive={false}
+                    hidden={{ decision: 'setuju' }}
+                    reason={{
+                        name: 'note',
+                        label: 'Catatan (opsional)',
+                        max: noteMax,
+                        required: false,
+                    }}
                     errorBag={`decide-${row.id}`}
-                    options={{ preserveScroll: true }}
-                    className="space-y-2 rounded-md border border-border bg-muted/20 p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <input type="hidden" name="decision" value={mode} />
-                            <label
-                                htmlFor={`note-${row.id}`}
-                                className="text-sm font-medium"
-                            >
-                                {mode === 'tolak'
-                                    ? 'Alasan penolakan (dibaca pengaju)'
-                                    : 'Catatan (opsional)'}
-                            </label>
-                            <textarea
-                                id={`note-${row.id}`}
-                                name="note"
-                                rows={2}
-                                maxLength={noteMax}
-                                required={mode === 'tolak'}
-                                className="w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60 md:text-sm"
-                            />
-                            <InputError message={errors.note ?? errors.form} />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                                <Button
-                                    type="submit"
-                                    variant={
-                                        mode === 'tolak'
-                                            ? 'destructive'
-                                            : 'default'
-                                    }
-                                    disabled={processing}
-                                >
-                                    {mode === 'tolak'
-                                        ? 'Tolak cuti'
-                                        : 'Setujui cuti'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setMode(null)}
-                                >
-                                    Batal
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
+                />
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" variant="outline">
+                            <X />
+                            Tolak
+                        </Button>
+                    }
+                    title={`Tolak cuti ${row.employee}?`}
+                    description="Alasan penolakan dibaca pengaju."
+                    action={`/persetujuan-cuti/${row.id}`}
+                    confirmLabel="Tolak cuti"
+                    hidden={{ decision: 'tolak' }}
+                    reason={{
+                        name: 'note',
+                        label: 'Alasan penolakan',
+                        max: noteMax,
+                    }}
+                    errorBag={`reject-${row.id}`}
+                />
+            </div>
         </li>
     );
 }

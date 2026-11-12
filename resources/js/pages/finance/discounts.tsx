@@ -5,6 +5,7 @@ import type { StudentHit } from '@/components/finance/student-search';
 import { StudentSearch } from '@/components/finance/student-search';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -188,7 +189,6 @@ function DiscountItem({
     discount: DiscountRow;
     canManage: boolean;
 }) {
-    const [confirming, setConfirming] = useState(false);
     const identity = [
         discount.class,
         discount.student_number ? `NIS ${discount.student_number}` : null,
@@ -222,58 +222,28 @@ function DiscountItem({
                         </span>
                     </p>
                 </div>
-                {canManage && !confirming && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => setConfirming(true)}
-                    >
-                        <Trash2 />
-                        Hapus
-                    </Button>
+                {canManage && (
+                    <ConfirmAction
+                        trigger={
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                            >
+                                <Trash2 />
+                                Hapus
+                            </Button>
+                        }
+                        title={`Hapus potongan ${discount.fee_type} untuk ${discount.name}?`}
+                        description="Tagihan yang sudah dibuat tidak berubah."
+                        action={`/keuangan/potongan/${discount.id}`}
+                        method="delete"
+                        confirmLabel="Ya, hapus"
+                        errorBag={`remove-${discount.id}`}
+                    />
                 )}
             </div>
-
-            {confirming && (
-                <Form
-                    action={`/keuangan/potongan/${discount.id}`}
-                    method="delete"
-                    errorBag={`remove-${discount.id}`}
-                    options={{ preserveScroll: true }}
-                    className="space-y-2 rounded-md border border-destructive/40 p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <p className="text-sm">
-                                Hapus potongan {discount.fee_type} untuk{' '}
-                                {discount.name}? Tagihan yang sudah dibuat tidak
-                                berubah.
-                            </p>
-                            <InputError message={errors.form} />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={processing}
-                                >
-                                    Ya, hapus
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setConfirming(false)}
-                                >
-                                    Batal
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            )}
         </li>
     );
 }

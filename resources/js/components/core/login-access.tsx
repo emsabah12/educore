@@ -7,6 +7,7 @@ import {
     IssuedPasswordDialog,
     useIssuedPassword,
 } from '@/components/core/issued-password';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -248,45 +249,55 @@ function AccessForm({
     onDone: () => void;
     children?: (errors: Record<string, string | undefined>) => React.ReactNode;
 }) {
+    // UX-3: aksi akun login tampil di pop-up; induk hanya memasangnya saat aksi dipilih.
     return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={ERROR_BAG}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
+            }}
+            title={title}
+            description={note}
+            wide={children !== undefined}
         >
-            {({ processing, errors }) => (
-                <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">{title}</h3>
-                        <p className="text-sm text-muted-foreground">{note}</p>
-                    </div>
+            <Form
+                action={action}
+                method="post"
+                errorBag={ERROR_BAG}
+                options={{ preserveScroll: true }}
+                onSuccess={onDone}
+                className="space-y-4"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <InputError message={errors.form} />
 
-                    <InputError message={errors.form} />
+                        {children?.(errors)}
 
-                    {children?.(errors)}
-
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            variant={destructive ? 'destructive' : 'default'}
-                            disabled={processing}
-                        >
-                            {processing ? 'Memproses…' : submitLabel}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="submit"
+                                variant={
+                                    destructive ? 'destructive' : 'default'
+                                }
+                                disabled={processing}
+                            >
+                                {processing ? 'Memproses…' : submitLabel}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }
 

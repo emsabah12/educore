@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { Paperclip, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -544,20 +545,22 @@ function ExpenseCard({
                         </Button>
                     )}
                     {expense.can_cancel && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                                router.post(
-                                    `${base}/batalkan`,
-                                    {},
-                                    { preserveScroll: true },
-                                )
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    Batalkan pengajuan
+                                </Button>
                             }
-                        >
-                            Batalkan pengajuan
-                        </Button>
+                            title="Batalkan pengajuan ini?"
+                            description="Pengajuan tidak diproses lagi dan tetap tercatat dengan status dibatalkan."
+                            action={`${base}/batalkan`}
+                            confirmLabel="Batalkan pengajuan"
+                            errorBag={`cancel-${expense.id}`}
+                        />
                     )}
                     {expense.can_void && (
                         <Button

@@ -1,11 +1,13 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
 import type { RulesData, TargetOptions } from '@/components/core/scoped-rules';
 import {
     EnforcedCheckbox,
+    RuleDialog,
     RulesPanel,
     TargetFields,
 } from '@/components/core/scoped-rules';
@@ -276,7 +278,6 @@ function ComponentRow({
     organizations: Option[];
 }) {
     const [editing, setEditing] = useState(false);
-    const [confirming, setConfirming] = useState(false);
     const itemUrl = `${BASE_URL}/${component.id}`;
 
     return (
@@ -314,56 +315,66 @@ function ComponentRow({
                     </div>
                 </div>
 
-                {!editing && !confirming && (
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditing(true)}
-                        >
-                            <Pencil />
-                            Ubah nama
-                        </Button>
-                        {component.is_active ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirming(true)}
-                            >
-                                Nonaktifkan
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(true)}
+                    >
+                        <Pencil />
+                        Ubah nama
+                    </Button>
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" variant="outline" size="sm">
+                                {component.is_active
+                                    ? 'Nonaktifkan'
+                                    : 'Aktifkan kembali'}
                             </Button>
-                        ) : (
-                            <StatusButton
-                                action={`${itemUrl}/aktifkan`}
-                                errorBag={`status-${component.id}`}
-                            >
-                                Aktifkan kembali
-                            </StatusButton>
-                        )}
-                    </div>
-                )}
+                        }
+                        title={
+                            component.is_active
+                                ? `Nonaktifkan ${component.name}?`
+                                : `Aktifkan kembali ${component.name}?`
+                        }
+                        description={
+                            component.is_active
+                                ? 'Komponen tidak bisa diisi dan tidak ikut rekap gaji baru. Nominal & tarif yang sudah tercatat tetap tersimpan.'
+                                : 'Komponen bisa diisi lagi dan ikut rekap gaji berikutnya.'
+                        }
+                        action={`${itemUrl}/${component.is_active ? 'nonaktifkan' : 'aktifkan'}`}
+                        confirmLabel={
+                            component.is_active
+                                ? 'Ya, nonaktifkan'
+                                : 'Aktifkan kembali'
+                        }
+                        destructive={component.is_active}
+                        errorBag={`status-${component.id}`}
+                    />
+                </div>
             </div>
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={`Ubah nama ${component.name}`}
+                description="Kode, jenis, dan cara hitung tidak bisa diubah."
+            >
                 <Form
                     action={itemUrl}
                     method="patch"
                     errorBag={`rename-${component.id}`}
                     options={{ preserveScroll: true }}
                     onSuccess={() => setEditing(false)}
-                    className="space-y-2"
+                    className="space-y-3"
                 >
                     {({ processing, errors }) => (
                         <>
-                            <Label
-                                htmlFor={`rename-${component.id}`}
-                                className="sr-only"
-                            >
-                                Nama baru
-                            </Label>
-                            <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor={`rename-${component.id}`}>
+                                    Nama baru
+                                </Label>
                                 <Input
                                     id={`rename-${component.id}`}
                                     name="name"
@@ -372,24 +383,26 @@ function ComponentRow({
                                     required
                                     autoFocus
                                 />
-                                <div className="flex gap-2">
-                                    <Button type="submit" disabled={processing}>
-                                        Simpan
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setEditing(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
+                                <InputError
+                                    message={errors.name ?? errors.form}
+                                />
                             </div>
-                            <InputError message={errors.name ?? errors.form} />
+                            <div className="flex gap-2">
+                                <Button type="submit" disabled={processing}>
+                                    Simpan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setEditing(false)}
+                                >
+                                    Batal
+                                </Button>
+                            </div>
                         </>
                     )}
                 </Form>
-            )}
+            </FormDialog>
 
             {component.basis === 'MENURUT_JABATAN' && (
                 <RateEditor
@@ -397,34 +410,6 @@ function ComponentRow({
                     positions={positions}
                     organizations={organizations}
                 />
-            )}
-
-            {confirming && (
-                <div className="space-y-2 rounded-md border border-destructive/40 p-3">
-                    <p className="text-sm">
-                        Nonaktifkan {component.name}? Komponen tidak bisa diisi
-                        dan tidak ikut rekap gaji baru. Nominal & tarif yang
-                        sudah tercatat tetap tersimpan.
-                    </p>
-                    <div className="flex gap-2">
-                        <StatusButton
-                            action={`${itemUrl}/nonaktifkan`}
-                            errorBag={`status-${component.id}`}
-                            variant="destructive"
-                            onSuccess={() => setConfirming(false)}
-                        >
-                            Ya, nonaktifkan
-                        </StatusButton>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirming(false)}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </div>
             )}
         </li>
     );
@@ -444,6 +429,7 @@ function RateEditor({
     organizations: Option[];
 }) {
     const baseUrl = `${BASE_URL}/${component.id}/tarif`;
+    const [adding, setAdding] = useState(false);
 
     return (
         <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
@@ -471,24 +457,24 @@ function RateEditor({
                                     Rp {rupiah.format(rate.amount)}
                                 </span>
                                 {component.is_active && (
-                                    <Form
-                                        action={`${baseUrl}/${rate.id}`}
-                                        method="delete"
-                                        errorBag={`rate-remove-${rate.id}`}
-                                        options={{ preserveScroll: true }}
-                                    >
-                                        {({ processing }) => (
+                                    <ConfirmAction
+                                        trigger={
                                             <Button
-                                                type="submit"
+                                                type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                disabled={processing}
                                                 aria-label={`Hapus tarif ${rate.position}`}
                                             >
                                                 <Trash2 />
                                             </Button>
-                                        )}
-                                    </Form>
+                                        }
+                                        title={`Hapus tarif ${rate.position}?`}
+                                        description={`${rate.organization ?? 'Semua lembaga'} · Rp ${rupiah.format(rate.amount)}`}
+                                        action={`${baseUrl}/${rate.id}`}
+                                        method="delete"
+                                        confirmLabel="Hapus tarif"
+                                        errorBag={`rate-remove-${rate.id}`}
+                                    />
                                 )}
                             </span>
                         </li>
@@ -497,99 +483,125 @@ function RateEditor({
             )}
 
             {component.is_active && (
-                <Form
-                    action={baseUrl}
-                    method="post"
-                    errorBag={`rate-${component.id}`}
-                    resetOnSuccess={['amount']}
-                    options={{ preserveScroll: true }}
-                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_auto] sm:items-start"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-1">
-                                <Label
-                                    htmlFor={`rate-position-${component.id}`}
-                                    className="text-xs"
-                                >
-                                    Jabatan
-                                </Label>
-                                <select
-                                    id={`rate-position-${component.id}`}
-                                    name="position_id"
-                                    className={selectClass}
-                                    defaultValue=""
-                                    required
-                                >
-                                    <option value="" disabled>
-                                        Pilih jabatan
-                                    </option>
-                                    {positions.map((position) => (
-                                        <option
-                                            key={position.value}
-                                            value={position.value}
+                <>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAdding(true)}
+                    >
+                        <Plus />
+                        Tambah tarif
+                    </Button>
+                    <FormDialog
+                        open={adding}
+                        onOpenChange={setAdding}
+                        title={`Tambah tarif ${component.name}`}
+                    >
+                        <Form
+                            action={baseUrl}
+                            method="post"
+                            errorBag={`rate-${component.id}`}
+                            resetOnSuccess={['amount']}
+                            options={{ preserveScroll: true }}
+                            onSuccess={() => setAdding(false)}
+                            className="grid gap-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <div className="grid gap-1">
+                                        <Label
+                                            htmlFor={`rate-position-${component.id}`}
+                                            className="text-xs"
                                         >
-                                            {position.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.position_id} />
-                            </div>
-                            <div className="grid gap-1">
-                                <Label
-                                    htmlFor={`rate-org-${component.id}`}
-                                    className="text-xs"
-                                >
-                                    Lembaga
-                                </Label>
-                                <select
-                                    id={`rate-org-${component.id}`}
-                                    name="organization_id"
-                                    className={selectClass}
-                                    defaultValue=""
-                                >
-                                    <option value="">Semua lembaga</option>
-                                    {organizations.map((organization) => (
-                                        <option
-                                            key={organization.value}
-                                            value={organization.value}
+                                            Jabatan
+                                        </Label>
+                                        <select
+                                            id={`rate-position-${component.id}`}
+                                            name="position_id"
+                                            className={selectClass}
+                                            defaultValue=""
+                                            required
                                         >
-                                            {organization.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.organization_id} />
-                            </div>
-                            <div className="grid gap-1">
-                                <Label
-                                    htmlFor={`rate-amount-${component.id}`}
-                                    className="text-xs"
-                                >
-                                    Nominal / bulan
-                                </Label>
-                                <Input
-                                    id={`rate-amount-${component.id}`}
-                                    name="amount"
-                                    inputMode="numeric"
-                                    placeholder="1.000.000"
-                                    maxLength={20}
-                                    required
-                                />
-                                <InputError message={errors.amount} />
-                            </div>
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                className="sm:mt-5"
-                            >
-                                Simpan tarif
-                            </Button>
-                            <div className="sm:col-span-4">
-                                <InputError message={errors.form} />
-                            </div>
-                        </>
-                    )}
-                </Form>
+                                            <option value="" disabled>
+                                                Pilih jabatan
+                                            </option>
+                                            {positions.map((position) => (
+                                                <option
+                                                    key={position.value}
+                                                    value={position.value}
+                                                >
+                                                    {position.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError
+                                            message={errors.position_id}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label
+                                            htmlFor={`rate-org-${component.id}`}
+                                            className="text-xs"
+                                        >
+                                            Lembaga
+                                        </Label>
+                                        <select
+                                            id={`rate-org-${component.id}`}
+                                            name="organization_id"
+                                            className={selectClass}
+                                            defaultValue=""
+                                        >
+                                            <option value="">
+                                                Semua lembaga
+                                            </option>
+                                            {organizations.map(
+                                                (organization) => (
+                                                    <option
+                                                        key={organization.value}
+                                                        value={
+                                                            organization.value
+                                                        }
+                                                    >
+                                                        {organization.label}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        <InputError
+                                            message={errors.organization_id}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1">
+                                        <Label
+                                            htmlFor={`rate-amount-${component.id}`}
+                                            className="text-xs"
+                                        >
+                                            Nominal / bulan
+                                        </Label>
+                                        <Input
+                                            id={`rate-amount-${component.id}`}
+                                            name="amount"
+                                            inputMode="numeric"
+                                            placeholder="1.000.000"
+                                            maxLength={20}
+                                            required
+                                        />
+                                        <InputError message={errors.amount} />
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <p className="text-xs text-muted-foreground">
+                                        Jabatan × lembaga yang sudah punya tarif
+                                        akan diganti nominalnya.
+                                    </p>
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan tarif
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    </FormDialog>
+                </>
             )}
         </div>
     );
@@ -608,88 +620,97 @@ function TeachingPaySection({
 }) {
     return (
         <section aria-label="Honor mengajar" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Honor mengajar (JP)"
-                description="Untuk pegawai yang jenis pegawai atau status kepegawaiannya dicentang “Menerima honor per JP” di Katalog SDM. Jam mati = JP per minggu dari jadwal × tarif. Jam hidup = JP yang terlaksana sebulan penuh (mengajar + menggantikan) × tarif. JP = durasi pelajaran ÷ menit per JP."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action="/pegawai/gaji/honor-jp"
-                    method="post"
-                    errorBag="teachingPay"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="tp"
-                                options={targets}
-                                errors={errors}
-                            />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="tp-mode">Cara hitung</Label>
-                                    <select
-                                        id="tp-mode"
-                                        name="mode"
-                                        className={selectClass}
-                                        defaultValue="JAM_MATI"
-                                    >
-                                        <option value="JAM_MATI">
-                                            Jam mati
-                                        </option>
-                                        <option value="JAM_HIDUP">
-                                            Jam hidup
-                                        </option>
-                                    </select>
-                                    <InputError message={errors.mode} />
-                                </div>
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="tp-minutes">
-                                        Menit per JP
-                                    </Label>
-                                    <Input
-                                        id="tp-minutes"
-                                        name="minutes"
-                                        type="number"
-                                        min={10}
-                                        max={120}
-                                        defaultValue={45}
-                                        required
-                                    />
-                                    <InputError message={errors.minutes} />
-                                </div>
-                                <div className="grid content-start gap-1.5">
-                                    <Label htmlFor="tp-rate">
-                                        Tarif per JP
-                                    </Label>
-                                    <Input
-                                        id="tp-rate"
-                                        name="rate"
-                                        inputMode="numeric"
-                                        placeholder="30.000"
-                                        maxLength={20}
-                                        required
-                                    />
-                                    <InputError message={errors.rate} />
-                                </div>
-                            </div>
-                            <InputError message={errors.form} />
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan honor mengajar
-                            </Button>
-                        </>
-                    )}
-                </Form>
-                <RulesPanel
-                    data={data}
-                    emptyText="Belum ada pengaturan. Semua lembaga: jam mati, 45 menit per JP, tarif Rp 0 (honor JP belum dihitung)."
-                    usageTitle="Honor mengajar yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Honor mengajar (JP)"
+                    description="Untuk pegawai yang jenis pegawai atau status kepegawaiannya dicentang “Menerima honor per JP” di Katalog SDM. Jam mati = JP per minggu dari jadwal × tarif. Jam hidup = JP yang terlaksana sebulan penuh (mengajar + menggantikan) × tarif. JP = durasi pelajaran ÷ menit per JP."
                 />
+                <RuleDialog label="Atur honor mengajar">
+                    {(close) => (
+                        <Form
+                            action="/pegawai/gaji/honor-jp"
+                            method="post"
+                            errorBag="teachingPay"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="tp"
+                                        options={targets}
+                                        errors={errors}
+                                    />
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="tp-mode">
+                                                Cara hitung
+                                            </Label>
+                                            <select
+                                                id="tp-mode"
+                                                name="mode"
+                                                className={selectClass}
+                                                defaultValue="JAM_MATI"
+                                            >
+                                                <option value="JAM_MATI">
+                                                    Jam mati
+                                                </option>
+                                                <option value="JAM_HIDUP">
+                                                    Jam hidup
+                                                </option>
+                                            </select>
+                                            <InputError message={errors.mode} />
+                                        </div>
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="tp-minutes">
+                                                Menit per JP
+                                            </Label>
+                                            <Input
+                                                id="tp-minutes"
+                                                name="minutes"
+                                                type="number"
+                                                min={10}
+                                                max={120}
+                                                defaultValue={45}
+                                                required
+                                            />
+                                            <InputError
+                                                message={errors.minutes}
+                                            />
+                                        </div>
+                                        <div className="grid content-start gap-1.5">
+                                            <Label htmlFor="tp-rate">
+                                                Tarif per JP
+                                            </Label>
+                                            <Input
+                                                id="tp-rate"
+                                                name="rate"
+                                                inputMode="numeric"
+                                                placeholder="30.000"
+                                                maxLength={20}
+                                                required
+                                            />
+                                            <InputError message={errors.rate} />
+                                        </div>
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan honor mengajar
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={data}
+                emptyText="Belum ada pengaturan. Semua lembaga: jam mati, 45 menit per JP, tarif Rp 0 (honor JP belum dihitung)."
+                usageTitle="Honor mengajar yang berlaku di tiap lembaga"
+            />
         </section>
     );
 }
@@ -707,106 +728,78 @@ function DeductionSection({
 }) {
     return (
         <section aria-label="Potongan presensi" className="space-y-3">
-            <Heading
-                variant="small"
-                title="Potongan presensi"
-                description="Dihitung dari rekap presensi pegawai bulan itu, menurut lembaga penempatan utama. Sakit, Izin, Dinas luar, dan Cuti tidak dipotong. Hari yang belum diisi tidak dipotong, tetapi diperingatkan."
-            />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Form
-                    action="/pegawai/gaji/potongan-presensi"
-                    method="post"
-                    errorBag="deduction"
-                    options={{ preserveScroll: true }}
-                    className="space-y-3 rounded-xl border p-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <TargetFields
-                                idPrefix="dd"
-                                options={targets}
-                                errors={errors}
-                            />
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
-                                {(
-                                    [
-                                        ['absent', 'Per hari Alpa'],
-                                        ['late', 'Per kali Terlambat'],
-                                        ['early', 'Per kali Pulang cepat'],
-                                    ] as const
-                                ).map(([name, label]) => (
-                                    <div
-                                        key={name}
-                                        className="grid content-start gap-1.5"
-                                    >
-                                        <Label htmlFor={`dd-${name}`}>
-                                            {label}
-                                        </Label>
-                                        <Input
-                                            id={`dd-${name}`}
-                                            name={name}
-                                            inputMode="numeric"
-                                            placeholder="0"
-                                            defaultValue="0"
-                                            maxLength={20}
-                                            required
-                                        />
-                                        <InputError message={errors[name]} />
-                                    </div>
-                                ))}
-                            </div>
-                            <InputError message={errors.form} />
-                            <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
-                            <Button type="submit" disabled={processing}>
-                                Simpan potongan presensi
-                            </Button>
-                        </>
-                    )}
-                </Form>
-                <RulesPanel
-                    data={data}
-                    emptyText="Belum ada pengaturan. Semua lembaga tanpa potongan presensi."
-                    usageTitle="Potongan presensi yang berlaku di tiap lembaga"
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <Heading
+                    variant="small"
+                    title="Potongan presensi"
+                    description="Dihitung dari rekap presensi pegawai bulan itu, menurut lembaga penempatan utama. Sakit, Izin, Dinas luar, dan Cuti tidak dipotong. Hari yang belum diisi tidak dipotong, tetapi diperingatkan."
                 />
+                <RuleDialog label="Atur potongan presensi">
+                    {(close) => (
+                        <Form
+                            action="/pegawai/gaji/potongan-presensi"
+                            method="post"
+                            errorBag="deduction"
+                            options={{ preserveScroll: true }}
+                            onSuccess={close}
+                            className="space-y-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <TargetFields
+                                        idPrefix="dd"
+                                        options={targets}
+                                        errors={errors}
+                                    />
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                                        {(
+                                            [
+                                                ['absent', 'Per hari Alpa'],
+                                                ['late', 'Per kali Terlambat'],
+                                                [
+                                                    'early',
+                                                    'Per kali Pulang cepat',
+                                                ],
+                                            ] as const
+                                        ).map(([name, label]) => (
+                                            <div
+                                                key={name}
+                                                className="grid content-start gap-1.5"
+                                            >
+                                                <Label htmlFor={`dd-${name}`}>
+                                                    {label}
+                                                </Label>
+                                                <Input
+                                                    id={`dd-${name}`}
+                                                    name={name}
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    defaultValue="0"
+                                                    maxLength={20}
+                                                    required
+                                                />
+                                                <InputError
+                                                    message={errors[name]}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <InputError message={errors.form} />
+                                    <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
+                                    <Button type="submit" disabled={processing}>
+                                        Simpan potongan presensi
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </RuleDialog>
             </div>
+            <RulesPanel
+                data={data}
+                emptyText="Belum ada pengaturan. Semua lembaga tanpa potongan presensi."
+                usageTitle="Potongan presensi yang berlaku di tiap lembaga"
+            />
         </section>
-    );
-}
-
-function StatusButton({
-    action,
-    errorBag,
-    variant = 'outline',
-    onSuccess,
-    children,
-}: {
-    action: string;
-    errorBag: string;
-    variant?: 'outline' | 'destructive';
-    onSuccess?: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onSuccess}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant={variant}
-                        size="sm"
-                        disabled={processing}
-                    >
-                        {children}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
     );
 }

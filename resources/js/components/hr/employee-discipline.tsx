@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { Ban, Download, ShieldAlert, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { selectClass } from '@/components/native-select';
 import { Badge } from '@/components/ui/badge';
@@ -117,7 +119,7 @@ export function DisciplineSection({
         <section aria-label={title} className="space-y-3 rounded-xl border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-base font-medium">{title}</h2>
-                {manage && !adding && (
+                {manage && (
                     <Button
                         type="button"
                         variant="outline"
@@ -130,13 +132,21 @@ export function DisciplineSection({
                 )}
             </div>
 
-            {manage && adding && (
-                <DisciplineForm
-                    employeeId={employeeId}
-                    manage={manage}
-                    active={active}
-                    onDone={() => setAdding(false)}
-                />
+            {manage && (
+                <FormDialog
+                    open={adding}
+                    onOpenChange={setAdding}
+                    title="Catat disiplin"
+                    description="Catatan tidak bisa diubah atau dihapus; bila salah, cabut lalu catat ulang. Isi pelanggaran hanya terlihat oleh pengelola, kepala lembaganya, dan pegawai itu sendiri."
+                    wide
+                >
+                    <DisciplineForm
+                        employeeId={employeeId}
+                        manage={manage}
+                        active={active}
+                        onDone={() => setAdding(false)}
+                    />
+                </FormDialog>
             )}
 
             {records.length === 0 ? (
@@ -171,7 +181,6 @@ function DisciplineRow({
     manage: DisciplineManage | null;
     downloadUrl?: (record: DisciplineRecord) => string;
 }) {
-    const [revoking, setRevoking] = useState(false);
     const baseUrl = `/pegawai/${employeeId}/disiplin/${record.id}`;
 
     return (
@@ -230,67 +239,26 @@ function DisciplineRow({
                 </p>
             )}
 
-            {manage && record.status !== 'DICABUT' && !revoking && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRevoking(true)}
-                >
-                    <Ban />
-                    Cabut
-                </Button>
-            )}
-
-            {manage && revoking && (
-                <Form
+            {manage && record.status !== 'DICABUT' && (
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" variant="outline" size="sm">
+                            <Ban />
+                            Cabut
+                        </Button>
+                    }
+                    title={`Cabut ${record.kind_label}?`}
+                    description="Catatan tetap tersimpan sebagai riwayat dengan status Dicabut beserta alasannya."
                     action={`${baseUrl}/cabut`}
-                    method="post"
+                    confirmLabel="Cabut catatan"
+                    reason={{
+                        name: 'revoke_reason',
+                        label: 'Alasan pencabutan',
+                        max: manage.reasonMax,
+                        placeholder: 'mis. Salah input pegawai',
+                    }}
                     errorBag={`revoke-${record.id}`}
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => setRevoking(false)}
-                    className="space-y-3 rounded-lg border bg-muted/20 p-3"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-1.5">
-                                <Label htmlFor={`revoke-${record.id}`}>
-                                    Alasan pencabutan
-                                </Label>
-                                <Input
-                                    id={`revoke-${record.id}`}
-                                    name="revoke_reason"
-                                    maxLength={manage.reasonMax}
-                                    placeholder="mis. Salah input pegawai"
-                                    required
-                                />
-                                <InputError
-                                    message={
-                                        errors.revoke_reason ?? errors.form
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={processing}
-                                >
-                                    {processing ? 'Mencabut…' : 'Cabut catatan'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setRevoking(false)}
-                                >
-                                    Batal
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                />
             )}
         </li>
     );
@@ -325,22 +293,10 @@ function DisciplineForm({
             errorBag="discipline-new"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">
-                            Catat disiplin
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Catatan tidak bisa diubah atau dihapus; bila salah,
-                            cabut lalu catat ulang. Isi pelanggaran hanya
-                            terlihat oleh pengelola, kepala lembaganya, dan
-                            pegawai itu sendiri.
-                        </p>
-                    </div>
-
                     {active.length > 0 && (
                         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
                             <p className="flex items-center gap-1.5 font-medium">

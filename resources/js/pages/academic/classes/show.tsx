@@ -29,6 +29,7 @@ import {
 import type { Option } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -514,180 +515,182 @@ function AddMembersForm({
         );
 
     return (
-        <Form
-            action={`/kelas/${item.id}/anggota`}
-            method="post"
-            errorBag="addMembers"
-            options={{ preserveScroll: true }}
-            onSuccess={() => {
-                setSelected([]);
-                onDone();
+        <FormDialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onDone();
+                }
             }}
-            className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"
+            title={`Masukkan siswa ke ${item.name}`}
+            description={`Pilihan: siswa aktif di lembaga ini yang belum punya kelas di tahun ajaran ${year.name}. Paling banyak ${maxPerSave} siswa sekali simpan.`}
+            wide
         >
-            {({ processing, errors }) => (
-                <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">
-                            Masukkan siswa ke {item.name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Pilihan: siswa aktif di lembaga ini yang belum punya
-                            kelas di tahun ajaran {year.name}. Paling banyak{' '}
-                            {maxPerSave} siswa sekali simpan.
-                        </p>
-                    </div>
-
-                    {candidates.length === 0 ? (
-                        <p className="text-sm">
-                            Semua siswa aktif di lembaga ini sudah punya kelas
-                            di tahun ajaran ini.
-                        </p>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] items-end gap-3">
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="am-search">Cari</Label>
-                                    <Input
-                                        id="am-search"
-                                        type="search"
-                                        value={query}
-                                        placeholder="Nama, NISN, atau nomor induk"
-                                        onChange={(event) =>
-                                            setQuery(event.target.value)
-                                        }
-                                    />
-                                </div>
-                                {!year.starts_in_future && (
+            <Form
+                action={`/kelas/${item.id}/anggota`}
+                method="post"
+                errorBag="addMembers"
+                options={{ preserveScroll: true }}
+                onSuccess={() => {
+                    setSelected([]);
+                    onDone();
+                }}
+                className="space-y-4"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        {candidates.length === 0 ? (
+                            <p className="text-sm">
+                                Semua siswa aktif di lembaga ini sudah punya
+                                kelas di tahun ajaran ini.
+                            </p>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] items-end gap-3">
                                     <div className="grid gap-1.5">
-                                        <Label htmlFor="am-date">
-                                            Tanggal masuk kelas
-                                        </Label>
+                                        <Label htmlFor="am-search">Cari</Label>
                                         <Input
-                                            id="am-date"
-                                            name="start_date"
-                                            type="date"
-                                            min={year.start_date}
-                                            max={today}
-                                            defaultValue={today}
-                                            required
-                                        />
-                                        <InputError
-                                            message={errors.start_date}
+                                            id="am-search"
+                                            type="search"
+                                            value={query}
+                                            placeholder="Nama, NISN, atau nomor induk"
+                                            onChange={(event) =>
+                                                setQuery(event.target.value)
+                                            }
                                         />
                                     </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        className="size-4 accent-foreground"
-                                        checked={allShownSelected}
-                                        onChange={toggleShown}
-                                    />
-                                    Pilih semua yang tampil ({shown.length})
-                                </label>
-                                <span className="font-medium">
-                                    {selected.length} dipilih
-                                </span>
-                            </div>
-
-                            <ul className="max-h-96 divide-y overflow-y-auto rounded-md border bg-card">
-                                {shown.map((candidate) => (
-                                    <li key={candidate.enrollment_id}>
-                                        <label className="flex cursor-pointer items-start gap-3 p-3 text-sm">
-                                            <input
-                                                type="checkbox"
-                                                checked={selected.includes(
-                                                    candidate.enrollment_id,
-                                                )}
-                                                onChange={() =>
-                                                    toggleOne(
-                                                        candidate.enrollment_id,
-                                                    )
-                                                }
-                                                className="mt-0.5 size-4 accent-foreground"
+                                    {!year.starts_in_future && (
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="am-date">
+                                                Tanggal masuk kelas
+                                            </Label>
+                                            <Input
+                                                id="am-date"
+                                                name="start_date"
+                                                type="date"
+                                                min={year.start_date}
+                                                max={today}
+                                                defaultValue={today}
+                                                required
                                             />
-                                            <span className="min-w-0">
-                                                <span className="block font-medium break-words">
-                                                    {candidate.name}
+                                            <InputError
+                                                message={errors.start_date}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            className="size-4 accent-foreground"
+                                            checked={allShownSelected}
+                                            onChange={toggleShown}
+                                        />
+                                        Pilih semua yang tampil ({shown.length})
+                                    </label>
+                                    <span className="font-medium">
+                                        {selected.length} dipilih
+                                    </span>
+                                </div>
+
+                                <ul className="max-h-96 divide-y overflow-y-auto rounded-md border bg-card">
+                                    {shown.map((candidate) => (
+                                        <li key={candidate.enrollment_id}>
+                                            <label className="flex cursor-pointer items-start gap-3 p-3 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected.includes(
+                                                        candidate.enrollment_id,
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleOne(
+                                                            candidate.enrollment_id,
+                                                        )
+                                                    }
+                                                    className="mt-0.5 size-4 accent-foreground"
+                                                />
+                                                <span className="min-w-0">
+                                                    <span className="block font-medium break-words">
+                                                        {candidate.name}
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        {[
+                                                            candidate.gender,
+                                                            candidate.nisn
+                                                                ? `NISN ${candidate.nisn}`
+                                                                : null,
+                                                            candidate.student_number
+                                                                ? `No. induk ${candidate.student_number}`
+                                                                : null,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
+                                                    </span>
                                                 </span>
-                                                <span className="text-muted-foreground">
-                                                    {[
-                                                        candidate.gender,
-                                                        candidate.nisn
-                                                            ? `NISN ${candidate.nisn}`
-                                                            : null,
-                                                        candidate.student_number
-                                                            ? `No. induk ${candidate.student_number}`
-                                                            : null,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                                </span>
-                                            </span>
-                                        </label>
-                                    </li>
-                                ))}
-                                {shown.length === 0 && (
-                                    <li className="p-3 text-sm text-muted-foreground">
-                                        Tidak ada yang cocok dengan pencarian.
-                                    </li>
-                                )}
-                            </ul>
-                        </>
-                    )}
+                                            </label>
+                                        </li>
+                                    ))}
+                                    {shown.length === 0 && (
+                                        <li className="p-3 text-sm text-muted-foreground">
+                                            Tidak ada yang cocok dengan
+                                            pencarian.
+                                        </li>
+                                    )}
+                                </ul>
+                            </>
+                        )}
 
-                    {/* Yang dikirim = semua yang dipilih, termasuk yang tersembunyi oleh pencarian. */}
-                    {selected.map((id) => (
-                        <input
-                            key={id}
-                            type="hidden"
-                            name="enrollment_ids[]"
-                            value={id}
-                        />
-                    ))}
+                        {/* Yang dikirim = semua yang dipilih, termasuk yang tersembunyi oleh pencarian. */}
+                        {selected.map((id) => (
+                            <input
+                                key={id}
+                                type="hidden"
+                                name="enrollment_ids[]"
+                                value={id}
+                            />
+                        ))}
 
-                    <InputError
-                        message={
-                            errors.enrollment_ids ??
-                            errors['enrollment_ids.0'] ??
-                            errors.form
-                        }
-                    />
-                    {selected.length > maxPerSave && (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                            Terlalu banyak: paling banyak {maxPerSave} siswa
-                            sekali simpan.
-                        </p>
-                    )}
-
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
-                        <Button
-                            type="submit"
-                            disabled={
-                                processing ||
-                                selected.length === 0 ||
-                                selected.length > maxPerSave
+                        <InputError
+                            message={
+                                errors.enrollment_ids ??
+                                errors['enrollment_ids.0'] ??
+                                errors.form
                             }
-                        >
-                            {processing
-                                ? 'Menyimpan…'
-                                : `Masukkan ${selected.length} siswa`}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
+                        />
+                        {selected.length > maxPerSave && (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                Terlalu banyak: paling banyak {maxPerSave} siswa
+                                sekali simpan.
+                            </p>
+                        )}
+
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                            <Button
+                                type="submit"
+                                disabled={
+                                    processing ||
+                                    selected.length === 0 ||
+                                    selected.length > maxPerSave
+                                }
+                            >
+                                {processing
+                                    ? 'Menyimpan…'
+                                    : `Masukkan ${selected.length} siswa`}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onDone}
+                            >
+                                Batal
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </FormDialog>
     );
 }
 

@@ -2,6 +2,8 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,7 @@ const BASE_URL = '/pegawai/katalog';
 export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
     const kind = kinds.find((candidate) => candidate.value === activeKind);
     const label = kind?.label ?? 'Katalog';
+    const [creating, setCreating] = useState(false);
 
     return (
         <>
@@ -91,13 +94,31 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                     })}
                 </nav>
 
-                {kind && (
-                    <p className="text-sm text-muted-foreground">
-                        {kind.description}
-                    </p>
-                )}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    {kind && (
+                        <p className="max-w-3xl text-sm text-muted-foreground">
+                            {kind.description}
+                        </p>
+                    )}
+                    <Button type="button" onClick={() => setCreating(true)}>
+                        <Plus />
+                        Tambah {label.toLowerCase()}
+                    </Button>
+                </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <FormDialog
+                    open={creating}
+                    onOpenChange={setCreating}
+                    title={`Tambah ${label.toLowerCase()}`}
+                >
+                    <CreateForm
+                        kind={activeKind}
+                        flag={flag}
+                        onDone={() => setCreating(false)}
+                    />
+                </FormDialog>
+
+                <div>
                     <section
                         aria-label={`Daftar ${label.toLowerCase()}`}
                         className="rounded-xl border"
@@ -105,7 +126,7 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                         {items.length === 0 ? (
                             <p className="p-4 text-sm text-muted-foreground">
                                 Belum ada {label.toLowerCase()}. Tambahkan yang
-                                pertama lewat formulir di samping.
+                                pertama lewat tombol Tambah.
                             </p>
                         ) : (
                             <ul className="divide-y">
@@ -120,17 +141,6 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
                             </ul>
                         )}
                     </section>
-
-                    <section
-                        aria-label={`Tambah ${label.toLowerCase()}`}
-                        className="h-fit rounded-xl border p-4"
-                    >
-                        <CreateForm
-                            kind={activeKind}
-                            label={label}
-                            flag={flag}
-                        />
-                    </section>
                 </div>
             </div>
         </>
@@ -139,12 +149,12 @@ export default function HrCatalog({ kinds, activeKind, flag, items }: Props) {
 
 function CreateForm({
     kind,
-    label,
     flag,
+    onDone,
 }: {
     kind: string;
-    label: string;
     flag: CatalogFlag;
+    onDone: () => void;
 }) {
     return (
         <Form
@@ -154,14 +164,11 @@ function CreateForm({
             errorBag="create"
             resetOnSuccess
             options={{ preserveScroll: true }}
+            onSuccess={onDone}
             className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>
-                    <h3 className="text-sm font-medium">
-                        Tambah {label.toLowerCase()}
-                    </h3>
-
                     <div className="grid gap-1.5">
                         <Label htmlFor="catalog-code">Kode</Label>
                         <Input
@@ -219,7 +226,6 @@ function CatalogRow({
     flag: CatalogFlag;
 }) {
     const [editing, setEditing] = useState(false);
-    const [confirming, setConfirming] = useState(false);
     const itemUrl = `${BASE_URL}/${kind}/${item.id}`;
 
     return (
@@ -247,40 +253,62 @@ function CatalogRow({
                     </div>
                 </div>
 
-                {!editing && !confirming && (
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditing(true)}
-                        >
-                            <Pencil />
-                            {flag ? 'Ubah' : 'Ubah nama'}
-                        </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(true)}
+                    >
+                        <Pencil />
+                        {flag ? 'Ubah' : 'Ubah nama'}
+                    </Button>
 
-                        {item.is_active ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirming(true)}
-                            >
-                                Nonaktifkan
-                            </Button>
-                        ) : (
-                            <StatusButton
-                                action={`${itemUrl}/aktifkan`}
-                                errorBag={`status-${item.id}`}
-                            >
-                                Aktifkan kembali
-                            </StatusButton>
-                        )}
-                    </div>
-                )}
+                    {item.is_active ? (
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    Nonaktifkan
+                                </Button>
+                            }
+                            title={`Nonaktifkan ${item.name}?`}
+                            description="Pilihan ini tidak bisa dipakai untuk data baru, tetapi data lama yang memakainya tetap tersimpan."
+                            action={`${itemUrl}/nonaktifkan`}
+                            confirmLabel="Ya, nonaktifkan"
+                            errorBag={`status-${item.id}`}
+                        />
+                    ) : (
+                        <ConfirmAction
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    Aktifkan kembali
+                                </Button>
+                            }
+                            title={`Aktifkan kembali ${item.name}?`}
+                            description="Pilihan ini bisa dipakai lagi untuk data baru."
+                            action={`${itemUrl}/aktifkan`}
+                            confirmLabel="Aktifkan"
+                            destructive={false}
+                            errorBag={`status-${item.id}`}
+                        />
+                    )}
+                </div>
             </div>
 
-            {editing && (
+            <FormDialog
+                open={editing}
+                onOpenChange={setEditing}
+                title={flag ? `Ubah ${item.code}` : `Ubah nama ${item.code}`}
+                description="Kode tidak bisa diubah."
+            >
                 <Form
                     action={itemUrl}
                     method="patch"
@@ -291,13 +319,10 @@ function CatalogRow({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <Label
-                                htmlFor={`rename-${item.id}`}
-                                className="sr-only"
-                            >
-                                Nama baru
-                            </Label>
-                            <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor={`rename-${item.id}`}>
+                                    Nama
+                                </Label>
                                 <Input
                                     id={`rename-${item.id}`}
                                     name="name"
@@ -306,18 +331,7 @@ function CatalogRow({
                                     required
                                     autoFocus
                                 />
-                                <div className="flex gap-2">
-                                    <Button type="submit" disabled={processing}>
-                                        Simpan
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setEditing(false)}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
+                                <InputError message={errors.name} />
                             </div>
                             {flag && (
                                 <FlagCheckbox
@@ -326,40 +340,23 @@ function CatalogRow({
                                     defaultChecked={item.flag ?? false}
                                 />
                             )}
-                            <InputError message={errors.name} />
                             <InputError message={errors.flag} />
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="submit" disabled={processing}>
+                                    Simpan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setEditing(false)}
+                                >
+                                    Batal
+                                </Button>
+                            </div>
                         </>
                     )}
                 </Form>
-            )}
-
-            {confirming && (
-                <div className="space-y-2 rounded-md border border-destructive/40 p-3">
-                    <p className="text-sm">
-                        Nonaktifkan {item.name}? Pilihan ini tidak bisa dipakai
-                        untuk data baru, tetapi data lama yang memakainya tetap
-                        tersimpan.
-                    </p>
-                    <div className="flex gap-2">
-                        <StatusButton
-                            action={`${itemUrl}/nonaktifkan`}
-                            errorBag={`status-${item.id}`}
-                            variant="destructive"
-                            onSuccess={() => setConfirming(false)}
-                        >
-                            Ya, nonaktifkan
-                        </StatusButton>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirming(false)}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </div>
-            )}
+            </FormDialog>
         </li>
     );
 }
@@ -396,43 +393,5 @@ function FlagCheckbox({
                 {label}
             </label>
         </div>
-    );
-}
-
-function StatusButton({
-    action,
-    errorBag,
-    variant = 'outline',
-    onSuccess,
-    children,
-}: {
-    action: string;
-    errorBag: string;
-    variant?: 'outline' | 'destructive';
-    onSuccess?: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onSuccess}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant={variant}
-                        size="sm"
-                        disabled={processing}
-                    >
-                        {children}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
     );
 }

@@ -317,9 +317,9 @@ function EmployeeCard({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setOpen((value) => !value)}
+                        onClick={() => setOpen(true)}
                     >
-                        {open ? 'Tutup' : 'Sesuaikan jatah'}
+                        Sesuaikan jatah
                     </Button>
                 )}
             </div>
@@ -381,14 +381,19 @@ function EmployeeCard({
                 </div>
             )}
 
-            {open && (
+            <FormDialog
+                open={open}
+                onOpenChange={setOpen}
+                title={`Sesuaikan jatah ${employee.name}`}
+                description={`Tahun ${year}. Tambah (+) atau kurangi (−) jatah hari dengan alasan.`}
+            >
                 <AdjustForm
                     employee={employee}
                     year={year}
                     limits={limits}
                     onDone={() => setOpen(false)}
                 />
-            )}
+            </FormDialog>
 
             {employee.adjustments.length > 0 && (
                 <details>
@@ -442,7 +447,7 @@ function AdjustForm({
             errorBag={`adjust-${employee.id}`}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-3 rounded-md border border-border bg-muted/20 p-3"
+            className="space-y-3"
         >
             {({ processing, errors }) => (
                 <>

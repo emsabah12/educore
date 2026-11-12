@@ -1,4 +1,3 @@
-import { Form } from '@inertiajs/react';
 import { Search, Star } from 'lucide-react';
 import { useState } from 'react';
 import type { StudentManageData } from '@/components/academic/student-actions';
@@ -9,7 +8,7 @@ import {
 } from '@/components/academic/student-actions';
 import type { GuardianHit } from '@/components/academic/guardian-search';
 import { GuardianSearch } from '@/components/academic/guardian-search';
-import InputError from '@/components/input-error';
+import { ConfirmAction } from '@/components/confirm-action';
 import { NikField } from '@/components/nik-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -379,27 +378,24 @@ export function MakePrimaryButton({
     guardian: GuardianRow;
 }) {
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                >
+                    <Star />
+                    Jadikan kontak utama
+                </Button>
+            }
+            title={`Jadikan ${guardian.name} kontak utama?`}
+            description="Kontak utama dihubungi lebih dulu untuk urusan siswa ini."
             action={`/siswa/${studentId}/orang-tua/${guardian.id}/kontak-utama`}
-            method="post"
+            confirmLabel="Jadikan kontak utama"
+            destructive={false}
             errorBag="primaryGuardian"
-            options={{ preserveScroll: true }}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        size="sm"
-                        variant="outline"
-                        disabled={processing}
-                        className="w-full"
-                    >
-                        <Star />
-                        Jadikan kontak utama
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
+        />
     );
 }

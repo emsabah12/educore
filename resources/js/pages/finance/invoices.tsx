@@ -5,6 +5,7 @@ import type { StudentHit } from '@/components/finance/student-search';
 import { StudentSearch } from '@/components/finance/student-search';
 import { FormDialog } from '@/components/form-dialog';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -408,7 +409,6 @@ function InvoiceItem({
     canManage: boolean;
     voidReasonMax: number;
 }) {
-    const [voiding, setVoiding] = useState(false);
     const canVoid =
         canManage && invoice.status !== 'BATAL' && invoice.paid_amount === 0;
 
@@ -470,64 +470,31 @@ function InvoiceItem({
                 </div>
             </div>
 
-            {canVoid &&
-                (voiding ? (
-                    <Form
-                        action={`/keuangan/tagihan/${invoice.id}/batalkan`}
-                        method="post"
-                        errorBag={`void-${invoice.id}`}
-                        options={{ preserveScroll: true }}
-                        onSuccess={() => setVoiding(false)}
-                        className="space-y-2 rounded-md border border-destructive/40 p-3"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <Label htmlFor={`void-${invoice.id}`}>
-                                    Alasan pembatalan
-                                </Label>
-                                <Input
-                                    id={`void-${invoice.id}`}
-                                    name="reason"
-                                    maxLength={voidReasonMax}
-                                    placeholder="mis. Salah tingkat, siswa pindah"
-                                    required
-                                />
-                                <InputError
-                                    message={errors.reason ?? errors.form}
-                                />
-                                <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2 sm:flex">
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        variant="destructive"
-                                        disabled={processing}
-                                    >
-                                        Batalkan tagihan
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setVoiding(false)}
-                                    >
-                                        Kembali
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </Form>
-                ) : (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => setVoiding(true)}
-                    >
-                        <XCircle />
-                        Batalkan
-                    </Button>
-                ))}
+            {canVoid && (
+                <ConfirmAction
+                    trigger={
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                        >
+                            <XCircle />
+                            Batalkan
+                        </Button>
+                    }
+                    title={`Batalkan tagihan ${invoice.description}?`}
+                    description={`${invoice.name} · ${formatRupiah(invoice.amount)}. Tagihan tetap tercatat dengan status batal.`}
+                    action={`/keuangan/tagihan/${invoice.id}/batalkan`}
+                    confirmLabel="Batalkan tagihan"
+                    reason={{
+                        label: 'Alasan pembatalan',
+                        max: voidReasonMax,
+                        placeholder: 'mis. Salah tingkat, siswa pindah',
+                    }}
+                    errorBag={`void-${invoice.id}`}
+                />
+            )}
         </li>
     );
 }

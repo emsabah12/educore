@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { Ban, Check, Download, GraduationCap, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
+import { ConfirmAction } from '@/components/confirm-action';
+import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
 import { selectClass } from '@/components/native-select';
 import { Badge } from '@/components/ui/badge';
@@ -118,7 +120,7 @@ export function TrainingSection({
                         {totalHours > 0 && ` · ${totalHours} jam`}
                     </p>
                 </div>
-                {form && !adding && (
+                {form && (
                     <Button
                         type="button"
                         variant="outline"
@@ -133,13 +135,27 @@ export function TrainingSection({
                 )}
             </div>
 
-            {form && adding && (
-                <TrainingForm
-                    form={form}
-                    action={storeUrl}
-                    bySelf={mode === 'self'}
-                    onDone={() => setAdding(false)}
-                />
+            {form && (
+                <FormDialog
+                    open={adding}
+                    onOpenChange={setAdding}
+                    title={
+                        mode === 'self' ? 'Ajukan pelatihan' : 'Catat pelatihan'
+                    }
+                    description={
+                        mode === 'self'
+                            ? 'Pengajuan diperiksa Admin SDM dulu. Lampirkan sertifikat agar cepat diverifikasi.'
+                            : 'Catatan oleh Admin langsung diterima. Isian tidak bisa diubah; bila salah, batalkan lalu catat ulang.'
+                    }
+                    wide
+                >
+                    <TrainingForm
+                        form={form}
+                        action={storeUrl}
+                        bySelf={mode === 'self'}
+                        onDone={() => setAdding(false)}
+                    />
+                </FormDialog>
             )}
 
             {records.length === 0 ? (
@@ -181,9 +197,6 @@ function TrainingRow({
     actionUrl: string;
     downloadUrl: string | null;
 }) {
-    const [reasonFor, setReasonFor] = useState<'tolak' | 'batalkan' | null>(
-        null,
-    );
     const inactive =
         record.status === 'DITOLAK' || record.status === 'DIBATALKAN';
 
@@ -267,150 +280,80 @@ function TrainingRow({
                 </p>
             )}
 
-            {mode === 'admin' && record.status === 'MENUNGGU' && !reasonFor && (
+            {mode === 'admin' && record.status === 'MENUNGGU' && (
                 <div className="flex flex-wrap gap-2">
-                    <Form
-                        action={`${actionUrl}/terima`}
-                        method="post"
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={processing}
-                            >
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" size="sm">
                                 <Check />
                                 Terima
                             </Button>
-                        )}
-                    </Form>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReasonFor('tolak')}
-                    >
-                        <X />
-                        Tolak
-                    </Button>
+                        }
+                        title="Terima pengajuan pelatihan?"
+                        description={`${record.title} masuk riwayat resmi dan rekap jam pegawai ini.`}
+                        action={`${actionUrl}/terima`}
+                        confirmLabel="Terima"
+                        destructive={false}
+                        errorBag={`verify-${record.id}`}
+                    />
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" size="sm" variant="outline">
+                                <X />
+                                Tolak
+                            </Button>
+                        }
+                        title="Tolak pengajuan pelatihan?"
+                        description="Alasan penolakan terlihat oleh pegawai."
+                        action={`${actionUrl}/tolak`}
+                        confirmLabel="Tolak pengajuan"
+                        reason={{
+                            label: 'Alasan penolakan',
+                            max: reasonMax,
+                            placeholder: 'mis. Sertifikat belum dilampirkan',
+                        }}
+                        errorBag={`reject-${record.id}`}
+                    />
                 </div>
             )}
 
-            {mode === 'admin' && record.status === 'DITERIMA' && !reasonFor && (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setReasonFor('batalkan')}
-                >
-                    <Ban />
-                    Batalkan
-                </Button>
+            {mode === 'admin' && record.status === 'DITERIMA' && (
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" size="sm" variant="outline">
+                            <Ban />
+                            Batalkan
+                        </Button>
+                    }
+                    title="Batalkan catatan pelatihan?"
+                    description="Catatan tetap tersimpan sebagai riwayat dengan status Dibatalkan dan keluar dari rekap jam."
+                    action={`${actionUrl}/batalkan`}
+                    confirmLabel="Batalkan catatan"
+                    reason={{
+                        label: 'Alasan pembatalan',
+                        max: reasonMax,
+                        placeholder: 'mis. Salah pegawai',
+                    }}
+                    errorBag={`cancel-${record.id}`}
+                />
             )}
 
             {mode === 'self' && record.status === 'MENUNGGU' && (
-                <Form
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" size="sm" variant="outline">
+                            <Undo2 />
+                            Tarik pengajuan
+                        </Button>
+                    }
+                    title="Tarik pengajuan ini?"
+                    description="Pengajuan dan lampirannya dihapus. Anda bisa mengajukan ulang kapan saja."
                     action={`${actionUrl}/tarik`}
-                    method="post"
-                    options={{ preserveScroll: true }}
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <Button
-                                type="submit"
-                                size="sm"
-                                variant="outline"
-                                disabled={processing}
-                            >
-                                <Undo2 />
-                                Tarik pengajuan
-                            </Button>
-                            <InputError message={errors.form} />
-                        </>
-                    )}
-                </Form>
-            )}
-
-            {reasonFor && (
-                <ReasonForm
-                    action={`${actionUrl}/${reasonFor}`}
-                    label={
-                        reasonFor === 'tolak'
-                            ? 'Alasan penolakan (terlihat oleh pegawai)'
-                            : 'Alasan pembatalan'
-                    }
-                    submit={
-                        reasonFor === 'tolak'
-                            ? 'Tolak pengajuan'
-                            : 'Batalkan catatan'
-                    }
-                    reasonMax={reasonMax}
-                    errorBag={`training-${record.id}`}
-                    onDone={() => setReasonFor(null)}
+                    confirmLabel="Tarik pengajuan"
+                    errorBag={`withdraw-${record.id}`}
                 />
             )}
         </li>
-    );
-}
-
-export function ReasonForm({
-    action,
-    label,
-    submit,
-    reasonMax,
-    errorBag,
-    onDone,
-}: {
-    action: string;
-    label: string;
-    submit: string;
-    reasonMax: number;
-    errorBag: string;
-    onDone: () => void;
-}) {
-    return (
-        <Form
-            action={action}
-            method="post"
-            errorBag={errorBag}
-            options={{ preserveScroll: true }}
-            onSuccess={onDone}
-            className="space-y-3 rounded-lg border bg-muted/20 p-3"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <div className="grid gap-1.5">
-                        <Label htmlFor={`${errorBag}-reason`}>{label}</Label>
-                        <Input
-                            id={`${errorBag}-reason`}
-                            name="reason"
-                            maxLength={reasonMax}
-                            required
-                        />
-                        <InputError message={errors.reason ?? errors.form} />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="submit"
-                            size="sm"
-                            variant="destructive"
-                            disabled={processing}
-                        >
-                            {submit}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={onDone}
-                        >
-                            Batal
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
     );
 }
 
@@ -435,21 +378,10 @@ function TrainingForm({
             errorBag="training-new"
             options={{ preserveScroll: true }}
             onSuccess={onDone}
-            className="space-y-4 rounded-xl border bg-muted/20 p-4"
+            className="space-y-4"
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-medium">
-                            {bySelf ? 'Ajukan pelatihan' : 'Catat pelatihan'}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            {bySelf
-                                ? 'Pengajuan diperiksa Admin SDM dulu. Lampirkan sertifikat agar cepat diverifikasi.'
-                                : 'Catatan oleh Admin langsung diterima. Isian tidak bisa diubah; bila salah, batalkan lalu catat ulang.'}
-                        </p>
-                    </div>
-
                     <InputError message={errors.form} />
 
                     <div className="grid gap-4 sm:grid-cols-2">

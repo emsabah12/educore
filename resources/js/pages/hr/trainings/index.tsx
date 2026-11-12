@@ -1,11 +1,8 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Check, Download, X } from 'lucide-react';
-import { useState } from 'react';
 import Heading from '@/components/heading';
-import {
-    formatTrainingDate,
-    ReasonForm,
-} from '@/components/hr/employee-trainings';
+import { ConfirmAction } from '@/components/confirm-action';
+import { formatTrainingDate } from '@/components/hr/employee-trainings';
 import { selectClass } from '@/components/native-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -150,7 +147,6 @@ export default function TrainingIndex({ pending, recap, year, years }: Props) {
 }
 
 function PendingItem({ row }: { row: PendingRow }) {
-    const [rejecting, setRejecting] = useState(false);
     const base = `/pegawai/${row.employee_id}/pelatihan/${row.id}`;
 
     return (
@@ -186,44 +182,40 @@ function PendingItem({ row }: { row: PendingRow }) {
                     </Button>
                 )}
             </div>
-            {!rejecting ? (
-                <div className="flex flex-wrap gap-2">
-                    <Form
-                        action={`${base}/terima`}
-                        method="post"
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={processing}
-                            >
-                                <Check />
-                                Terima
-                            </Button>
-                        )}
-                    </Form>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setRejecting(true)}
-                    >
-                        <X />
-                        Tolak
-                    </Button>
-                </div>
-            ) : (
-                <ReasonForm
-                    action={`${base}/tolak`}
-                    label="Alasan penolakan (terlihat oleh pegawai)"
-                    submit="Tolak pengajuan"
-                    reasonMax={300}
-                    errorBag={`pending-${row.id}`}
-                    onDone={() => setRejecting(false)}
+            <div className="flex flex-wrap gap-2">
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" size="sm">
+                            <Check />
+                            Terima
+                        </Button>
+                    }
+                    title="Terima pengajuan pelatihan?"
+                    description={`${row.title} (${row.employee_name}) masuk riwayat resmi dan rekap jam.`}
+                    action={`${base}/terima`}
+                    confirmLabel="Terima"
+                    destructive={false}
+                    errorBag={`pending-verify-${row.id}`}
                 />
-            )}
+                <ConfirmAction
+                    trigger={
+                        <Button type="button" size="sm" variant="outline">
+                            <X />
+                            Tolak
+                        </Button>
+                    }
+                    title="Tolak pengajuan pelatihan?"
+                    description="Alasan penolakan terlihat oleh pegawai."
+                    action={`${base}/tolak`}
+                    confirmLabel="Tolak pengajuan"
+                    reason={{
+                        label: 'Alasan penolakan',
+                        max: 300,
+                        placeholder: 'mis. Sertifikat belum dilampirkan',
+                    }}
+                    errorBag={`pending-reject-${row.id}`}
+                />
+            </div>
         </li>
     );
 }

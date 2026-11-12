@@ -1,4 +1,4 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     FolderTree,
     Pencil,
@@ -16,6 +16,7 @@ import {
     selectClass,
 } from '@/components/academic/student-actions';
 import Heading from '@/components/heading';
+import { ConfirmAction } from '@/components/confirm-action';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -779,33 +780,36 @@ function GroupForm({
 
 function StatusButton({ subject }: { subject: SubjectRow }) {
     return (
-        <Form
+        <ConfirmAction
+            trigger={
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                >
+                    {subject.is_active ? <PowerOff /> : <Power />}
+                    {subject.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
+                </Button>
+            }
+            title={
+                subject.is_active
+                    ? `Nonaktifkan mata pelajaran ${subject.name}?`
+                    : `Aktifkan kembali mata pelajaran ${subject.name}?`
+            }
+            description={
+                subject.is_active
+                    ? 'Mata pelajaran nonaktif tidak muncul di pilihan baru. Data yang sudah tercatat tetap tersimpan.'
+                    : 'Mata pelajaran bisa dipakai lagi.'
+            }
             action={`${BASE_URL}/${subject.id}/status`}
-            method="post"
+            confirmLabel={
+                subject.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'
+            }
+            destructive={subject.is_active}
             errorBag="subjectStatus"
-            options={{ preserveScroll: true }}
-        >
-            {({ processing, errors }) => (
-                <>
-                    <input
-                        type="hidden"
-                        name="active"
-                        value={subject.is_active ? '0' : '1'}
-                    />
-                    <Button
-                        type="submit"
-                        size="sm"
-                        variant="outline"
-                        disabled={processing}
-                        className="w-full"
-                    >
-                        {subject.is_active ? <PowerOff /> : <Power />}
-                        {subject.is_active ? 'Nonaktifkan' : 'Aktifkan kembali'}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
-            )}
-        </Form>
+            hidden={{ active: subject.is_active ? '0' : '1' }}
+        />
     );
 }
 
