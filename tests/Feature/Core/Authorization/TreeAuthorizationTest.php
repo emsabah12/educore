@@ -231,7 +231,7 @@ test('daftar permission di lembaga kerja dikirim ke browser sebagai petunjuk men
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
             HrAccess::LEAVE_APPROVE,
             HrAccess::PERFORMANCE_ASSESS,
-        HrAccess::RECRUITMENT_VIEW,
+            HrAccess::RECRUITMENT_VIEW,
         ]));
 });
 

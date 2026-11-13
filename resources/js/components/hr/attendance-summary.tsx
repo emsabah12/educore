@@ -15,6 +15,8 @@ export type AttendanceCounts = {
     leave: number;
     absent: number;
     empty: number;
+    /** Absen mandiri di luar radius lembaga (HR-4d). */
+    outside: number;
 };
 
 export type AttendanceSummaryData = {
@@ -39,6 +41,7 @@ export const ATTENDANCE_COLUMNS: {
     { key: 'leave', label: 'Cuti' },
     { key: 'absent', label: 'Alpa' },
     { key: 'empty', label: 'Belum diisi' },
+    { key: 'outside', label: 'Di luar lokasi' },
 ];
 
 /** Isi sel: terlambat & pulang cepat menampilkan kali + total menit. */

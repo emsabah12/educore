@@ -3,6 +3,7 @@
 namespace Modules\HR\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,12 +42,12 @@ final class MyAttendanceController
         ]);
     }
 
-    public function checkIn(ManageAttendance $attendance): RedirectResponse
+    public function checkIn(Request $request, ManageAttendance $attendance): RedirectResponse
     {
         [$tenantId, $employeeId] = $this->employee();
 
         try {
-            $result = $attendance->checkIn($tenantId, $employeeId);
+            $result = $attendance->checkIn($tenantId, $employeeId, self::position($request));
         } catch (AttendanceException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
@@ -61,12 +62,12 @@ final class MyAttendanceController
         return redirect()->route('hr.my-attendance.index');
     }
 
-    public function checkOut(ManageAttendance $attendance): RedirectResponse
+    public function checkOut(Request $request, ManageAttendance $attendance): RedirectResponse
     {
         [$tenantId, $employeeId] = $this->employee();
 
         try {
-            $result = $attendance->checkOut($tenantId, $employeeId);
+            $result = $attendance->checkOut($tenantId, $employeeId, self::position($request));
         } catch (AttendanceException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
@@ -79,6 +80,20 @@ final class MyAttendanceController
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return redirect()->route('hr.my-attendance.index');
+    }
+
+    /**
+     * Posisi HP dari browser (HR-4d). Hanya dipakai untuk menghitung jarak; tidak disimpan maupun dicatat.
+     *
+     * @return array{latitude: mixed, longitude: mixed, accuracy: mixed}
+     */
+    private static function position(Request $request): array
+    {
+        return [
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            'accuracy' => $request->input('accuracy'),
+        ];
     }
 
     /**

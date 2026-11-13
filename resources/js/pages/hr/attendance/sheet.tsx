@@ -24,7 +24,40 @@ type SheetRecord = {
     early: number;
     note: string | null;
     updated_by: string | null;
+    /** Hasil lokasi absen mandiri (HR-4d); null bila tidak diperiksa / diisi petugas. */
+    check_in_location: LocationInfo | null;
+    check_out_location: LocationInfo | null;
 };
+
+type LocationInfo = {
+    result: 'DI_DALAM' | 'DI_LUAR' | 'TIDAK_TERSEDIA';
+    distance: number | null;
+    accuracy: number | null;
+    place: string | null;
+};
+
+/** "Di luar lokasi · 420 m dari MI Al-Falah" — hanya hasil & jarak; koordinat tidak pernah disimpan. */
+function locationText(prefix: string, info: LocationInfo): string {
+    const where =
+        info.distance === null
+            ? ''
+            : ` · ${info.distance} m${info.place ? ` dari ${info.place}` : ''}`;
+
+    // Akurasi HP lebih buruk dari 100 m ditandai (aturan "Catat lokasi", PRD-001 §14.6).
+    const weak =
+        info.accuracy !== null && info.accuracy > 100
+            ? ` · akurasi ±${info.accuracy} m`
+            : '';
+
+    switch (info.result) {
+        case 'DI_DALAM':
+            return `${prefix} di lokasi${where}${weak}`;
+        case 'DI_LUAR':
+            return `${prefix} di luar lokasi${where}${weak}`;
+        default:
+            return `${prefix}: lokasi tidak tersedia`;
+    }
+}
 
 type SheetRow = {
     employee_id: string;
@@ -254,6 +287,29 @@ function EmployeeRow({
                         {(row.record.check_in_source === 'MANDIRI' ||
                             row.record.check_out_source === 'MANDIRI') && (
                             <Badge variant="secondary">Absen mandiri</Badge>
+                        )}
+                        {(
+                            [
+                                ['Masuk', row.record.check_in_location],
+                                ['Pulang', row.record.check_out_location],
+                            ] as const
+                        ).map(
+                            ([prefix, info]) =>
+                                info && (
+                                    <Badge
+                                        key={prefix}
+                                        variant="outline"
+                                        className={
+                                            info.result === 'DI_LUAR'
+                                                ? 'border-red-500/50 text-red-800 dark:text-red-200'
+                                                : info.result === 'DI_DALAM'
+                                                  ? 'border-emerald-500/50 text-emerald-800 dark:text-emerald-200'
+                                                  : 'border-dashed text-muted-foreground'
+                                        }
+                                    >
+                                        {locationText(prefix, info)}
+                                    </Badge>
+                                ),
                         )}
                     </div>
                 ) : (

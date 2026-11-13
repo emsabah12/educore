@@ -1,5 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Crosshair, Lock, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmAction } from '@/components/confirm-action';
 import { RuleDialog } from '@/components/core/scoped-rules';
@@ -21,6 +21,7 @@ const TABS = [
     'tanggal-merah',
     'persetujuan',
     'jam-kerja',
+    'lokasi-absen',
 ] as const;
 
 type LeaveType = {
@@ -49,6 +50,15 @@ type UsageRow = {
     /** Hanya libur mingguan: nilai di kalender akademik lembaga itu (pembanding). */
     academic?: string | null;
     differs?: boolean;
+};
+
+type WorkLocation = {
+    organization_id: string;
+    organization: string;
+    code: string;
+    latitude: number | null;
+    longitude: number | null;
+    radius: number | null;
 };
 
 type Props = {
@@ -81,6 +91,18 @@ type Props = {
             enforced: boolean;
         }[];
         usage: { id: string; name: string; days: string; source: string }[];
+    };
+    attendanceLocation: {
+        rules: {
+            id: string;
+            target: string;
+            days: string;
+            enforced: boolean;
+        }[];
+        usage: { id: string; name: string; days: string; source: string }[];
+        locations: WorkLocation[];
+        modes: Option[];
+        radius: { min: number; max: number; default: number };
     };
     holidays: Holiday[];
     dayOptions: Option[];
@@ -127,6 +149,7 @@ export default function LeaveSettings(props: Props) {
                         { value: 'tanggal-merah', label: 'Tanggal merah' },
                         { value: 'persetujuan', label: 'Alur persetujuan' },
                         { value: 'jam-kerja', label: 'Jam kerja' },
+                        { value: 'lokasi-absen', label: 'Lokasi absen' },
                     ]}
                     value={tab}
                     onChange={setTab}
@@ -147,6 +170,9 @@ export default function LeaveSettings(props: Props) {
                 )}
                 {tab === 'persetujuan' && <ApprovalSection {...props} />}
                 {tab === 'jam-kerja' && <WorkHoursSection {...props} />}
+                {tab === 'lokasi-absen' && (
+                    <AttendanceLocationSection {...props} />
+                )}
             </div>
         </>
     );
@@ -1081,5 +1107,336 @@ function WorkHoursSection({ workHours, options }: Props) {
                 usageTitle="Jam kerja yang berlaku di tiap lembaga"
             />
         </section>
+    );
+}
+
+// ── Lokasi absen HP (HR-4d) ──────────────────────────────────────────────────
+
+/**
+ * Aturan lokasi absen per jenjang/lembaga + titik & radius tiap lembaga (PRD-001 §14.6).
+ * Koordinat HP pegawai tidak pernah disimpan; hanya hasil & jarak (OD-HR-22).
+ */
+function AttendanceLocationSection({ attendanceLocation, options }: Props) {
+    const [editing, setEditing] = useState<string | null>(null);
+    const configured = attendanceLocation.locations.filter(
+        (row) => row.latitude !== null,
+    ).length;
+
+    return (
+        <div className="space-y-8">
+            <section aria-label="Aturan lokasi absen" className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <Heading
+                        variant="small"
+                        title="Aturan lokasi absen mandiri"
+                        description="Tidak memakai lokasi (bawaan); Catat lokasi — absen tetap tersimpan, hasilnya ditandai di lembar presensi; Wajib di dalam radius — absen di luar radius ditolak, petugas presensi tetap bisa mencatatkan."
+                    />
+                    <RuleDialog label="Atur lokasi absen">
+                        {(close) => (
+                            <Form
+                                action={`${BASE_URL}/lokasi-absen`}
+                                method="post"
+                                errorBag="attendanceLocation"
+                                options={{ preserveScroll: true }}
+                                onSuccess={close}
+                                className="space-y-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        <TargetFields
+                                            idPrefix="al"
+                                            options={options}
+                                            errors={errors}
+                                        />
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="al-mode">
+                                                Aturan
+                                            </Label>
+                                            <select
+                                                id="al-mode"
+                                                name="mode"
+                                                className={selectClass}
+                                                defaultValue="CATAT"
+                                                required
+                                            >
+                                                {attendanceLocation.modes.map(
+                                                    (option) => (
+                                                        <option
+                                                            key={option.value}
+                                                            value={option.value}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+                                            <InputError message={errors.mode} />
+                                        </div>
+                                        <InputError message={errors.form} />
+                                        <EnforcedCheckbox text="Kunci: lembaga di bawahnya tidak bisa memakai aturan lain." />
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Simpan aturan
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        )}
+                    </RuleDialog>
+                </div>
+                <RulesPanel
+                    data={attendanceLocation}
+                    emptyText="Belum ada pengaturan. Semua lembaga tidak memakai lokasi saat absen mandiri."
+                    usageTitle="Aturan lokasi yang berlaku di tiap lembaga"
+                />
+            </section>
+
+            <section aria-label="Titik lokasi lembaga" className="space-y-3">
+                <Heading
+                    variant="small"
+                    title={`Titik lokasi lembaga (${configured}/${attendanceLocation.locations.length} diatur)`}
+                    description={`Titik pusat & radius ${attendanceLocation.radius.min}–${attendanceLocation.radius.max} m. Pegawai yang ditempatkan di beberapa lembaga dinilai terhadap titik lembaga mana pun yang paling memenuhi.`}
+                />
+                <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    Keterbatasan: lokasi HP bisa dipalsukan aplikasi "fake GPS",
+                    dan akurasi di dalam gedung bisa meleset puluhan meter.
+                    Browser hanya memberi lokasi bila situs dibuka lewat HTTPS.
+                    Pakai fitur ini sebagai alat bantu, bukan bukti mutlak.
+                </p>
+                <ul className="divide-y rounded-xl border">
+                    {attendanceLocation.locations.length === 0 && (
+                        <li className="p-4 text-sm text-muted-foreground">
+                            Belum ada lembaga aktif.
+                        </li>
+                    )}
+                    {attendanceLocation.locations.map((row) => (
+                        <li key={row.organization_id} className="space-y-3 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 text-sm">
+                                    <p className="font-medium break-words">
+                                        {row.organization}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                        {row.latitude === null ||
+                                        row.longitude === null ? (
+                                            'Titik belum diatur'
+                                        ) : (
+                                            <>
+                                                <a
+                                                    className="underline underline-offset-2"
+                                                    href={`https://www.openstreetmap.org/?mlat=${row.latitude}&mlon=${row.longitude}#map=18/${row.latitude}/${row.longitude}`}
+                                                    target="_blank"
+                                                    rel="noreferrer noopener"
+                                                >
+                                                    {row.latitude},{' '}
+                                                    {row.longitude}
+                                                </a>{' '}
+                                                · radius {row.radius} m
+                                            </>
+                                        )}
+                                    </p>
+                                </div>
+                                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2 sm:flex sm:w-auto">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            setEditing(row.organization_id)
+                                        }
+                                    >
+                                        <MapPin />
+                                        Atur titik
+                                    </Button>
+                                    {row.latitude !== null && (
+                                        <ConfirmAction
+                                            trigger={
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <Trash2 />
+                                                    Hapus
+                                                </Button>
+                                            }
+                                            title={`Hapus titik lokasi ${row.organization}?`}
+                                            description='Bila aturan lembaga ini "Wajib di dalam radius", pegawainya tidak bisa absen mandiri sampai titik diatur lagi.'
+                                            action={`${BASE_URL}/titik-lokasi/${row.organization_id}`}
+                                            method="delete"
+                                            confirmLabel="Hapus titik"
+                                            errorBag={`hr-work-location-remove-${row.organization_id}`}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                            <FormDialog
+                                open={editing === row.organization_id}
+                                onOpenChange={(open) =>
+                                    setEditing(
+                                        open ? row.organization_id : null,
+                                    )
+                                }
+                                title={`Titik lokasi ${row.organization}`}
+                            >
+                                <WorkLocationForm
+                                    row={row}
+                                    radius={attendanceLocation.radius}
+                                    onDone={() => setEditing(null)}
+                                />
+                            </FormDialog>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        </div>
+    );
+}
+
+function WorkLocationForm({
+    row,
+    radius,
+    onDone,
+}: {
+    row: WorkLocation;
+    radius: Props['attendanceLocation']['radius'];
+    onDone: () => void;
+}) {
+    const [latitude, setLatitude] = useState(
+        row.latitude === null ? '' : String(row.latitude),
+    );
+    const [longitude, setLongitude] = useState(
+        row.longitude === null ? '' : String(row.longitude),
+    );
+    const [locating, setLocating] = useState(false);
+    const [locateMessage, setLocateMessage] = useState<string | null>(null);
+
+    // Mengisi titik dari lokasi HP admin yang sedang berdiri di lembaga (hanya mengisi form, tidak dikirim otomatis).
+    const useCurrentLocation = () => {
+        if (!('geolocation' in navigator)) {
+            setLocateMessage(
+                'Browser ini tidak mendukung lokasi. Isi koordinat manual.',
+            );
+
+            return;
+        }
+
+        setLocating(true);
+        setLocateMessage(null);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setLatitude(position.coords.latitude.toFixed(6));
+                setLongitude(position.coords.longitude.toFixed(6));
+                setLocateMessage(
+                    `Lokasi terbaca (akurasi ±${Math.round(position.coords.accuracy)} m). Periksa lalu simpan.`,
+                );
+                setLocating(false);
+            },
+            () => {
+                setLocateMessage(
+                    'Lokasi tidak terbaca. Izinkan akses lokasi (situs harus HTTPS) atau isi koordinat manual.',
+                );
+                setLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        );
+    };
+
+    return (
+        <Form
+            action={`${BASE_URL}/titik-lokasi/${row.organization_id}`}
+            method="put"
+            errorBag={`hr-work-location-${row.organization_id}`}
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <p className="text-sm text-muted-foreground">
+                        Salin koordinat dari Google Maps / OpenStreetMap (klik
+                        kanan titik → koordinat), atau berdiri di lembaga lalu
+                        pakai lokasi HP Anda.
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={locating}
+                        onClick={useCurrentLocation}
+                    >
+                        <Crosshair />
+                        {locating
+                            ? 'Membaca lokasi…'
+                            : 'Pakai lokasi saya sekarang'}
+                    </Button>
+                    {locateMessage !== null && (
+                        <p
+                            className="text-sm text-muted-foreground"
+                            role="status"
+                        >
+                            {locateMessage}
+                        </p>
+                    )}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor={`wl-lat-${row.organization_id}`}>
+                                Garis lintang
+                            </Label>
+                            <Input
+                                id={`wl-lat-${row.organization_id}`}
+                                name="latitude"
+                                inputMode="decimal"
+                                placeholder="-6.914744"
+                                value={latitude}
+                                onChange={(event) =>
+                                    setLatitude(event.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={errors.latitude} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor={`wl-lng-${row.organization_id}`}>
+                                Garis bujur
+                            </Label>
+                            <Input
+                                id={`wl-lng-${row.organization_id}`}
+                                name="longitude"
+                                inputMode="decimal"
+                                placeholder="107.609810"
+                                value={longitude}
+                                onChange={(event) =>
+                                    setLongitude(event.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={errors.longitude} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor={`wl-radius-${row.organization_id}`}>
+                                Radius (meter)
+                            </Label>
+                            <Input
+                                id={`wl-radius-${row.organization_id}`}
+                                name="radius"
+                                type="number"
+                                min={radius.min}
+                                max={radius.max}
+                                defaultValue={row.radius ?? radius.default}
+                                required
+                            />
+                            <InputError message={errors.radius} />
+                        </div>
+                    </div>
+                    <InputError message={errors.organization_id} />
+                    <Button type="submit" disabled={processing}>
+                        Simpan titik
+                    </Button>
+                </>
+            )}
+        </Form>
     );
 }

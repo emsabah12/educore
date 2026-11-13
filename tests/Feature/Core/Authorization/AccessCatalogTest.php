@@ -73,7 +73,7 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
             HrAccess::LEAVE_APPROVE,
             HrAccess::PERFORMANCE_ASSESS,
-        HrAccess::RECRUITMENT_VIEW,
+            HrAccess::RECRUITMENT_VIEW,
         ]);
 });
 

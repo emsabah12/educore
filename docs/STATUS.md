@@ -56,6 +56,7 @@
 | 2026-11-11 | **HR-8**: riwayat pelatihan dicatat Admin SDM atau diajukan pegawai lalu diverifikasi; penilaian kinerja ringkas 0–100 berbobot (komponen guru & staf), predikat ala PKG, dinilai Kepala Lembaga, hasil terlihat pegawai setelah periode dikunci                                                                                              | PRD-001 §19, OD-HR-16 s.d. 18                            |
 | 2026-11-12 | **UX-3 semua tambah/ubah/hapus lewat pop-up** (owner, contoh mockup Kasir): `FormDialog` untuk tambah/ubah, `ConfirmAction` untuk hapus/batal/cabut/nonaktifkan/setujui/tolak; tema ungu UX-2 tetap; lembar isian & form panjang tetap halaman; fitur lain di mockup dicatat sebagai usulan                                                   | STATUS § Pedoman tampilan, § Usulan dari mockup UX-3     |
 | 2026-11-13 | **HR-9 Rekrutmen**: pelamar diinput Admin SDM (tanpa formulir publik); tahap seleksi tetap Berkas → Tes/wawancara → Diterima/Tidak lolos; data pelamar yang tidak jadi pegawai dihapus otomatis 1 tahun sesudah lowongan ditutup                                                                                                              | PRD-001 §20, OD-HR-19 s.d. OD-HR-21                      |
+| 2026-11-13 | **HR-4d Presensi lokasi HP**: titik & radius per lembaga; aturan per jenjang/lembaga (tidak memakai / catat / wajib di dalam radius); hanya jarak yang disimpan, bukan koordinat HP; di luar radius pada aturan wajib ditolak; mesin absen ditunda                                                                                            | PRD-001 §14.6, OD-HR-22 s.d. OD-HR-24                    |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -725,7 +726,17 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-9b — Rekrutmen: jadikan pegawai, rekap, hapus otomatis: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §20.2 (OD-HR-21)
+**HR-4d — Presensi lokasi HP: DIBANGUN (2026-11-13, menunggu uji owner)** — PRD-001 §14.6 (OD-HR-22 s.d. OD-HR-24)
+
+- Migrasi `2026_11_13_100022`: `hr_work_locations` (titik per lembaga: lintang/bujur 6 desimal, radius 50–1.000 m) dan kolom hasil lokasi di `hr_attendances` (`check_in|check_out` × `_location` DI_DALAM/DI_LUAR/TIDAK_TERSEDIA, `_distance`, `_accuracy`, `_location_org_id`). **Tidak ada kolom koordinat HP.**
+- Aturan berjenjang baru `hr.attendance_location` (`AttendanceLocationSetting`: Tidak memakai lokasi [bawaan] / Catat lokasi / Wajib di dalam radius); `WorkLocations` (atur/hapus titik, pemeriksaan haversine ke titik semua lembaga penempatan berjalan, pilih yang paling memenuhi; akurasi > 100 m ditolak pada Wajib).
+- Pengaturan cuti & presensi → tab **Lokasi absen**: aturan per jenjang/lembaga (pop-up), daftar titik per lembaga (Atur titik dengan tombol **Pakai lokasi saya sekarang**, Hapus), catatan keterbatasan (fake GPS, akurasi gedung, wajib HTTPS). Izin tetap `hr.leave.manage` tingkat Yayasan.
+- **Presensi saya**: bila aturan bukan "Tidak", browser membaca lokasi sekali saat tombol absen ditekan lalu mengirim lintang/bujur/akurasi; server hanya menyimpan hasil & jarak. Riwayat menampilkan "Di lokasi · 56 m" / "Di luar lokasi · 556 m" / "Lokasi tidak tersedia".
+- **Lembar presensi**: badge lokasi per absen mandiri (mis. "Masuk di luar lokasi · 556 m dari MA Unit 1"); petugas yang mengubah jam masuk/pulang mengosongkan data lokasi jam itu. **Rekap** & .xlsx: kolom baru **Di luar lokasi** (hari).
+- Audit: `hr.work_location_set|removed` (lembaga, radius; tanpa koordinat); absen mandiri menambah `lokasi` & `jarak_m`.
+- Bukti: 808 test lulus (6 test baru `AttendanceLocationTest`, awalan `lks`; `AttendanceRecapTest` menambah hitungan `outside`); Pint, Larastan, tsc, `vp check`, build lulus. Tanpa izin baru.
+
+**HR-9b — Rekrutmen: jadikan pegawai, rekap, hapus otomatis: SELESAI (2026-11-13, commit `75c3328`, uji owner lancar)** — **HR-9 SELESAI** — PRD-001 §20.2 (OD-HR-21)
 
 - Migrasi `2026_11_13_100021`: `hr_applicants.employee_id` (unik, tertaut sekali) & `hr_vacancies.purged_counts` (jumlah per tahap yang sudah dihapus).
 - **Jadikan pegawai**: tombol di pelamar Diterima → form Tambah pegawai terisi (`/pegawai/tambah?pelamar=`; nama, L/P, HP, pendidikan, lembaga & jabatan lowongan); `HireApplicant` membuat pegawai lewat `CreateEmployee` lalu menautkan pelamar dalam satu transaksi (NIK wajib & dicek seperti biasa). Butuh izin kelola rekrutmen **dan** kelola pegawai. Pelamar yang sudah jadi pegawai tidak bisa dikembalikan/dijadikan lagi.
@@ -1084,5 +1095,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → **HR-9 rekrutmen** (§20: 9a SELESAI → uji manual 9b) → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → **HR-4d presensi lokasi HP DIBANGUN, menunggu uji owner** (§14.6; mesin absen ditunda) → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

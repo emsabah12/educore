@@ -12,7 +12,7 @@ use Modules\HR\Domain\Leave\LeaveStatus;
  * Data halaman Presensi saya (PRD-001 §14.2, HR-4a): jam wajib & presensi hari ini, riwayat bulan
  * berjalan s.d. hari ini. Hak akses (pegawai itu sendiri) dicek pemanggil.
  *
- * @phpstan-type Day array{date: string, required: bool, expected: string, status: string|null, status_label: string, check_in: string|null, check_out: string|null, check_in_self: bool, check_out_self: bool, late: int, early: int, note: string|null}
+ * @phpstan-type Day array{date: string, required: bool, expected: string, status: string|null, status_label: string, check_in: string|null, check_out: string|null, check_in_self: bool, check_out_self: bool, late: int, early: int, note: string|null, check_in_location: string|null, check_out_location: string|null}
  */
 final class MyAttendance
 {
@@ -22,10 +22,11 @@ final class MyAttendance
 
     public function __construct(
         private readonly ExpectedHours $expected,
+        private readonly AttendanceLocationSetting $location,
     ) {}
 
     /**
-     * @return array{organization: string|null, today: Day|null, days: list<Day>, canCheckIn: bool, canCheckOut: bool}
+     * @return array{organization: string|null, today: Day|null, days: list<Day>, canCheckIn: bool, canCheckOut: bool, locationMode: string}
      */
     public function build(string $tenantId, string $employeeId): array
     {
@@ -36,7 +37,7 @@ final class MyAttendance
             ->value('organization_id');
 
         if (! is_string($organizationId)) {
-            return ['organization' => null, 'today' => null, 'days' => [], 'canCheckIn' => false, 'canCheckOut' => false];
+            return ['organization' => null, 'today' => null, 'days' => [], 'canCheckIn' => false, 'canCheckOut' => false, 'locationMode' => AttendanceLocationSetting::OFF];
         }
 
         $today = BusinessClock::todayString();
@@ -90,6 +91,9 @@ final class MyAttendance
                 'late' => $row === null ? 0 : (int) $row->late_minutes,
                 'early' => $row === null ? 0 : (int) $row->early_minutes,
                 'note' => $row === null || $row->note === null ? null : (string) $row->note,
+                // Hasil lokasi HP absen mandiri (HR-4d), tanpa koordinat.
+                'check_in_location' => $row === null || $row->check_in_location === null ? null : self::locationLabel((string) $row->check_in_location, $row->check_in_distance),
+                'check_out_location' => $row === null || $row->check_out_location === null ? null : self::locationLabel((string) $row->check_out_location, $row->check_out_distance),
             ];
 
             $day = $day->addDay();
@@ -106,6 +110,19 @@ final class MyAttendance
             'days' => array_reverse($days),
             'canCheckIn' => $todayStatus !== self::STATE_LEAVE && ($todayRecord === null || ($todayRecord->check_in === null && $todayRecord->status === AttendanceStatus::Present->value)),
             'canCheckOut' => $todayRecord !== null && $todayRecord->check_in !== null && $todayRecord->check_out === null,
+            // Aturan lokasi absen lembaga penempatan utama (HR-4d): TIDAK / CATAT / WAJIB.
+            'locationMode' => $this->location->for($tenantId, $organizationId),
         ];
+    }
+
+    public static function locationLabel(string $result, mixed $distance): string
+    {
+        $meters = $distance === null ? '' : ' · '.(int) $distance.' m';
+
+        return match ($result) {
+            WorkLocations::INSIDE => 'Di lokasi'.$meters,
+            WorkLocations::OUTSIDE => 'Di luar lokasi'.$meters,
+            default => 'Lokasi tidak tersedia',
+        };
     }
 }

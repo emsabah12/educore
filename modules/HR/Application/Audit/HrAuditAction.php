@@ -122,6 +122,13 @@ final class HrAuditAction
 
     public const SUBJECT_TRAINING = 'hr_training';
 
+    /** Titik lokasi absen lembaga (HR-4d): lembaga & radius, tanpa koordinat. */
+    public const WORK_LOCATION_SET = 'hr.work_location_set';
+
+    public const WORK_LOCATION_REMOVED = 'hr.work_location_removed';
+
+    public const SUBJECT_WORK_LOCATION = 'hr_work_location';
+
     /** Rekrutmen (HR-9a): lowongan & pelamar — tanpa nama/kontak pelamar dan isi catatan. */
     public const VACANCY_CREATED = 'hr.vacancy_created';
 
@@ -253,6 +260,8 @@ final class HrAuditAction
             self::TRAINING_REJECTED => 'Riwayat pelatihan ditolak',
             self::TRAINING_CANCELLED => 'Riwayat pelatihan dibatalkan',
             self::TRAINING_WITHDRAWN => 'Pegawai menarik pengajuan pelatihan',
+            self::WORK_LOCATION_SET => 'Titik lokasi absen lembaga diatur',
+            self::WORK_LOCATION_REMOVED => 'Titik lokasi absen lembaga dihapus',
             self::VACANCY_CREATED => 'Lowongan dibuat',
             self::VACANCY_UPDATED => 'Lowongan diubah',
             self::VACANCY_OPENED => 'Lowongan dibuka',

@@ -9,7 +9,9 @@ use Modules\Core\Application\Settings\SetScopedSetting;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Settings\ScopedSetting;
+use Modules\HR\Application\Attendance\AttendanceLocationSetting;
 use Modules\HR\Application\Attendance\WorkHoursSetting;
+use Modules\HR\Application\Attendance\WorkLocations;
 use Modules\HR\Contracts\SchoolWeeklyOff;
 use Modules\HR\Domain\Leave\Holiday;
 use Modules\HR\Domain\Leave\LeaveType;
@@ -32,6 +34,7 @@ final class LeaveSettingsOverview
         private readonly SetScopedSetting $setScopedSetting,
         private readonly SchoolWeeklyOff $schoolWeeklyOff,
         private readonly ScopedSettingOverview $overview,
+        private readonly WorkLocations $workLocations,
     ) {}
 
     /**
@@ -40,6 +43,7 @@ final class LeaveSettingsOverview
      *     weeklyOff: array{rules: list<RuleRow>, usage: list<WeeklyOffUsageRow>, differs: int},
      *     approval: array{rules: list<RuleRow>, usage: list<UsageRow>},
      *     workHours: array{rules: list<RuleRow>, usage: list<UsageRow>},
+     *     attendanceLocation: array{rules: list<RuleRow>, usage: list<UsageRow>, locations: list<array{organization_id: string, organization: string, code: string, latitude: float|null, longitude: float|null, radius: int|null}>, modes: list<OptionRow>, radius: array{min: int, max: int, default: int}},
      *     holidays: list<HolidayRow>,
      *     dayOptions: list<OptionRow>,
      *     options: array{jenjang: list<OptionRow>, organizations: list<OptionRow>},
@@ -110,6 +114,14 @@ final class LeaveSettingsOverview
                 'rules' => $this->rules($tenantId, WorkHoursSetting::KEY, fn (mixed $value): string => WorkHoursSetting::label(WorkHoursSetting::normalize($value))),
                 'usage' => $this->usage($tenantId, WorkHoursSetting::KEY, fn (mixed $value): string => WorkHoursSetting::label(WorkHoursSetting::normalize($value))),
             ],
+            // Lokasi absen HP per jenjang/lembaga + titik lokasi per lembaga (HR-4d).
+            'attendanceLocation' => [
+                'rules' => $this->rules($tenantId, AttendanceLocationSetting::KEY, fn (mixed $value): string => AttendanceLocationSetting::label($value)),
+                'usage' => $this->usage($tenantId, AttendanceLocationSetting::KEY, fn (mixed $value): string => AttendanceLocationSetting::label($value)),
+                'locations' => $this->workLocations->all($tenantId),
+                'modes' => AttendanceLocationSetting::options(),
+                'radius' => ['min' => WorkLocations::RADIUS_MIN, 'max' => WorkLocations::RADIUS_MAX, 'default' => WorkLocations::RADIUS_DEFAULT],
+            ],
             'holidays' => $holidays,
             'dayOptions' => $dayOptions,
             'options' => $this->overview->targetOptions($tenantId),
@@ -151,6 +163,17 @@ final class LeaveSettingsOverview
     public function assignWorkHours(?string $organizationId, ?Jenjang $jenjang, string $start, string $end, int $tolerance, bool $enforced): ScopedSetting
     {
         return $this->setScopedSetting->handle(WorkHoursSetting::KEY, $organizationId, $jenjang, ['start' => $start, 'end' => $end, 'tolerance' => $tolerance], $enforced);
+    }
+
+    /**
+     * Lokasi absen HP: TIDAK / CATAT / WAJIB (HR-4d).
+     *
+     * @throws AuthorizationException
+     * @throws SettingException
+     */
+    public function assignAttendanceLocation(?string $organizationId, ?Jenjang $jenjang, string $mode, bool $enforced): ScopedSetting
+    {
+        return $this->setScopedSetting->handle(AttendanceLocationSetting::KEY, $organizationId, $jenjang, $mode, $enforced);
     }
 
     /**

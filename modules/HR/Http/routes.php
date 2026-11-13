@@ -79,6 +79,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('persetujuan-cuti', [LeaveApprovalController::class, 'index'])->name('hr.leave-approvals.index');
     Route::post('persetujuan-cuti/{leave}', [LeaveApprovalController::class, 'decide'])->whereUuid('leave')->name('hr.leave-approvals.decide');
     Route::post('pegawai/cuti/jam-kerja', [LeaveSettingsController::class, 'assignWorkHours'])->name('hr.work-hours.assign');
+    Route::post('pegawai/cuti/lokasi-absen', [LeaveSettingsController::class, 'assignAttendanceLocation'])->name('hr.attendance-location.assign');
+    Route::put('pegawai/cuti/titik-lokasi/{organization}', [LeaveSettingsController::class, 'setWorkLocation'])->whereUuid('organization')->name('hr.work-locations.set');
+    Route::delete('pegawai/cuti/titik-lokasi/{organization}', [LeaveSettingsController::class, 'removeWorkLocation'])->whereUuid('organization')->name('hr.work-locations.remove');
     Route::post('pegawai/cuti/alur-persetujuan', [LeaveSettingsController::class, 'assignApproval'])->name('hr.leave-approval-flow.assign');
 
     // Kelola cuti — Admin SDM (PRD-001 §13.5, HR-3d): daftar, detail, catat atas nama, batalkan.

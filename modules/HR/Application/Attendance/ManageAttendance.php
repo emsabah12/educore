@@ -24,6 +24,8 @@ use stdClass;
  * - Absen masuk sekali; absen pulang sekali, sesudah absen masuk. Satuan menit (detik dibuang).
  * - Ditolak bila hari itu tercatat cuti disetujui, atau petugas sudah mengisi status selain Hadir.
  * - Hari tidak wajib tetap boleh absen, tanpa hitungan terlambat/pulang cepat.
+ * - HR-4d (§14.6): bila aturan lokasi lembaga penempatan utama bukan "Tidak memakai lokasi", posisi HP diperiksa
+ *   `WorkLocations`; hasilnya (tanpa koordinat) disimpan per absen masuk/pulang. Aturan Wajib bisa menolak absen.
  *
  * Hak akses (pegawai itu sendiri) dicek pemanggil.
  */
@@ -36,16 +38,18 @@ final class ManageAttendance
     public function __construct(
         private readonly ExpectedHours $expected,
         private readonly AuditLogger $audit,
+        private readonly WorkLocations $locations,
     ) {}
 
     /**
+     * @param  array{latitude?: mixed, longitude?: mixed, accuracy?: mixed}  $position  posisi HP (HR-4d), boleh kosong
      * @return array{time: string, late: int}
      *
      * @throws AttendanceException
      */
-    public function checkIn(string $tenantId, string $employeeId): array
+    public function checkIn(string $tenantId, string $employeeId, array $position = []): array
     {
-        return DB::transaction(function () use ($tenantId, $employeeId): array {
+        return DB::transaction(function () use ($tenantId, $employeeId, $position): array {
             [$organizationId, $today, $now] = $this->prepare($tenantId, $employeeId);
             $row = $this->row($employeeId, $today);
 
@@ -61,8 +65,9 @@ final class ManageAttendance
                 ?? ['required' => false, 'start' => null, 'end' => null, 'tolerance' => 0];
             $start = $expected['required'] ? $expected['start'] : null;
             $late = ExpectedHours::lateMinutes($start, $expected['tolerance'], $now);
+            $location = $this->locations->check($tenantId, $employeeId, $organizationId, $position);
 
-            $values = [
+            $values = self::locationValues('check_in', $location) + [
                 'status' => AttendanceStatus::Present->value,
                 'check_in' => $now.':00',
                 'check_in_source' => self::SOURCE_SELF,
@@ -89,7 +94,7 @@ final class ManageAttendance
                 HrAuditAction::ATTENDANCE_CHECKED_IN,
                 HrAuditAction::SUBJECT_EMPLOYEE,
                 $employeeId,
-                ['tanggal' => $today, 'jam' => $now, 'terlambat_menit' => $late],
+                ['tanggal' => $today, 'jam' => $now, 'terlambat_menit' => $late] + self::locationAudit($location),
                 organizationId: $organizationId,
                 tenantId: $tenantId,
             );
@@ -99,13 +104,14 @@ final class ManageAttendance
     }
 
     /**
+     * @param  array{latitude?: mixed, longitude?: mixed, accuracy?: mixed}  $position  posisi HP (HR-4d), boleh kosong
      * @return array{time: string, early: int}
      *
      * @throws AttendanceException
      */
-    public function checkOut(string $tenantId, string $employeeId): array
+    public function checkOut(string $tenantId, string $employeeId, array $position = []): array
     {
-        return DB::transaction(function () use ($tenantId, $employeeId): array {
+        return DB::transaction(function () use ($tenantId, $employeeId, $position): array {
             [$organizationId, $today, $now] = $this->prepare($tenantId, $employeeId);
             $row = $this->row($employeeId, $today);
 
@@ -121,8 +127,9 @@ final class ManageAttendance
             // Jam server tidak mundur; pengaman bila jam masuk dikoreksi petugas ke jam yang lebih siang.
             $time = max($now, $checkIn);
             $early = ExpectedHours::earlyMinutes($row->expected_end === null ? null : substr((string) $row->expected_end, 0, 5), $time);
+            $location = $this->locations->check($tenantId, $employeeId, $organizationId, $position);
 
-            DB::table('hr_attendances')->where('id', $row->id)->update([
+            DB::table('hr_attendances')->where('id', $row->id)->update(self::locationValues('check_out', $location) + [
                 'check_out' => $time.':00',
                 'check_out_source' => self::SOURCE_SELF,
                 'early_minutes' => $early,
@@ -133,7 +140,7 @@ final class ManageAttendance
                 HrAuditAction::ATTENDANCE_CHECKED_OUT,
                 HrAuditAction::SUBJECT_EMPLOYEE,
                 $employeeId,
-                ['tanggal' => $today, 'jam' => $time, 'pulang_cepat_menit' => $early],
+                ['tanggal' => $today, 'jam' => $time, 'pulang_cepat_menit' => $early] + self::locationAudit($location),
                 organizationId: (string) $row->organization_id,
                 tenantId: $tenantId,
             );
@@ -151,6 +158,32 @@ final class ManageAttendance
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Kolom hasil lokasi untuk absen masuk/pulang; semua kosong bila lokasi tidak dipakai.
+     *
+     * @param  'check_in'|'check_out'  $prefix
+     * @param  array{result: string, distance: int|null, accuracy: int|null, organization_id: string|null}|null  $location
+     * @return array<string, mixed>
+     */
+    public static function locationValues(string $prefix, ?array $location): array
+    {
+        return [
+            "{$prefix}_location" => $location['result'] ?? null,
+            "{$prefix}_distance" => $location['distance'] ?? null,
+            "{$prefix}_accuracy" => $location['accuracy'] ?? null,
+            "{$prefix}_location_org_id" => $location['organization_id'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array{result: string, distance: int|null, accuracy: int|null, organization_id: string|null}|null  $location
+     * @return array<string, mixed>
+     */
+    private static function locationAudit(?array $location): array
+    {
+        return $location === null ? [] : ['lokasi' => $location['result'], 'jarak_m' => $location['distance']];
+    }
 
     /**
      * Kunci pegawai (antrean per pegawai), periksa syarat, dan kembalikan lembaga, hari ini, jam kini.

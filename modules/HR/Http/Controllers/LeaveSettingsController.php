@@ -14,11 +14,14 @@ use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Settings\Exceptions\SettingException;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
+use Modules\HR\Application\Attendance\AttendanceLocationSetting;
 use Modules\HR\Application\Attendance\WorkHoursSetting;
+use Modules\HR\Application\Attendance\WorkLocations;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Leave\LeaveSettingsOverview;
 use Modules\HR\Application\Leave\ManageLeaveTypes;
 use Modules\HR\Application\Leave\ManageWorkHolidays;
+use Modules\HR\Domain\Attendance\Exceptions\AttendanceException;
 use Modules\HR\Domain\Leave\Exceptions\LeaveException;
 use Modules\HR\Domain\Leave\Holiday;
 use Modules\HR\Domain\Leave\LeaveType;
@@ -229,6 +232,76 @@ final class LeaveSettingsController
         }
 
         return $this->done('Jam kerja disimpan. Presensi yang sudah tercatat tidak berubah.');
+    }
+
+    // ── Lokasi absen HP (HR-4d) ──────────────────────────────────────────────
+
+    public function assignAttendanceLocation(Request $request, LeaveSettingsOverview $overview): RedirectResponse
+    {
+        $this->authorize();
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['jenjang', 'lembaga'])],
+            'jenjang' => ['nullable', 'required_if:target,jenjang', Rule::enum(Jenjang::class)],
+            'organization_id' => ['nullable', 'required_if:target,lembaga', 'uuid'],
+            'mode' => ['required', Rule::in([AttendanceLocationSetting::OFF, AttendanceLocationSetting::RECORD, AttendanceLocationSetting::REQUIRED])],
+            'enforced' => ['nullable', 'boolean'],
+        ], [
+            'jenjang.required_if' => 'Pilih jenjang.',
+            'organization_id.required_if' => 'Pilih lembaga atau unit.',
+            'mode.required' => 'Pilih aturan lokasi.',
+            'mode.in' => 'Pilih aturan lokasi dari daftar.',
+        ], ['jenjang' => 'jenjang', 'organization_id' => 'lembaga', 'mode' => 'aturan lokasi']);
+
+        $byJenjang = $validated['target'] === 'jenjang';
+
+        try {
+            $overview->assignAttendanceLocation(
+                $byJenjang ? null : (string) $validated['organization_id'],
+                $byJenjang ? Jenjang::from((string) $validated['jenjang']) : null,
+                (string) $validated['mode'],
+                $request->boolean('enforced'),
+            );
+        } catch (SettingException $exception) {
+            throw ValidationException::withMessages(['mode' => $exception->getMessage()]);
+        }
+
+        return $this->done('Aturan lokasi absen disimpan. Presensi yang sudah tercatat tidak berubah.');
+    }
+
+    public function setWorkLocation(Request $request, string $organization, WorkLocations $locations): RedirectResponse
+    {
+        $this->authorize();
+
+        $request->validate([
+            'latitude' => ['required', 'string', 'max:20'],
+            'longitude' => ['required', 'string', 'max:20'],
+            'radius' => ['required', 'string', 'max:5'],
+        ], [], ['latitude' => 'garis lintang', 'longitude' => 'garis bujur', 'radius' => 'radius']);
+
+        try {
+            $locations->set(
+                $this->tenantId(),
+                $organization,
+                $request->string('latitude')->value(),
+                $request->string('longitude')->value(),
+                $request->string('radius')->value(),
+                $this->tenantContext->require()->membershipId,
+            );
+        } catch (AttendanceException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+
+        return $this->done('Titik lokasi lembaga disimpan.');
+    }
+
+    public function removeWorkLocation(string $organization, WorkLocations $locations): RedirectResponse
+    {
+        $this->authorize();
+
+        $locations->remove($this->tenantId(), $organization);
+
+        return $this->done('Titik lokasi lembaga dihapus. Bila aturannya "Wajib", pegawai lembaga itu tidak bisa absen mandiri sampai titiknya diatur lagi.');
     }
 
     // ── Hari libur ───────────────────────────────────────────────────────────

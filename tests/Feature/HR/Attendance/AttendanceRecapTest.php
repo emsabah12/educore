@@ -60,7 +60,7 @@ function rpgCounts(int $required, int $present = 0, int $late = 0, int $lateMinu
 {
     return [
         'required' => $required, 'present' => $present, 'late' => $late, 'late_minutes' => $lateMinutes, 'early' => $early,
-        'early_minutes' => $earlyMinutes, 'sick' => $sick, 'permit' => 0, 'duty' => 0, 'leave' => $leave, 'absent' => 0, 'empty' => $empty,
+        'early_minutes' => $earlyMinutes, 'sick' => $sick, 'permit' => 0, 'duty' => 0, 'leave' => $leave, 'absent' => 0, 'empty' => $empty, 'outside' => 0,
     ];
 }
 

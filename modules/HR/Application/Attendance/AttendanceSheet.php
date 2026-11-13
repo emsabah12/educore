@@ -30,7 +30,8 @@ use stdClass;
  *
  * @phpstan-import-type Expected from ExpectedHours
  *
- * @phpstan-type SheetRecord array{status: string, status_label: string, check_in: string|null, check_out: string|null, check_in_source: string|null, check_out_source: string|null, late: int, early: int, note: string|null, updated_by: string|null}
+ * @phpstan-type SheetRecord array{status: string, status_label: string, check_in: string|null, check_out: string|null, check_in_source: string|null, check_out_source: string|null, late: int, early: int, note: string|null, updated_by: string|null, check_in_location: LocationInfo|null, check_out_location: LocationInfo|null}
+ * @phpstan-type LocationInfo array{result: string, distance: int|null, accuracy: int|null, place: string|null}
  * @phpstan-type SheetRow array{employee_id: string, name: string, employee_number: string|null, expected: array{required: bool, label: string}, leave: string|null, record: SheetRecord|null}
  */
 final class AttendanceSheet
@@ -70,9 +71,11 @@ final class AttendanceSheet
         $records = DB::table('hr_attendances as a')
             ->leftJoin('memberships as m', 'm.id', '=', 'a.updated_by_membership_id')
             ->leftJoin('persons as p', 'p.id', '=', 'm.person_id')
+            ->leftJoin('organizations as li', 'li.id', '=', 'a.check_in_location_org_id')
+            ->leftJoin('organizations as lo', 'lo.id', '=', 'a.check_out_location_org_id')
             ->whereIn('a.employee_id', $ids)
             ->where('a.date', $date)
-            ->get(['a.*', 'p.name as updated_by'])
+            ->get(['a.*', 'p.name as updated_by', 'li.name as check_in_place', 'lo.name as check_out_place'])
             ->keyBy('employee_id');
 
         $rows = [];
@@ -265,6 +268,13 @@ final class AttendanceSheet
             'updated_at' => CarbonImmutable::now(),
         ];
 
+        // Hasil lokasi HP (HR-4d) hanya berlaku untuk jam absen mandiri; jam yang diisi/diubah petugas tanpa lokasi.
+        foreach (['check_in', 'check_out'] as $column) {
+            if ($values[$column.'_source'] !== ManageAttendance::SOURCE_SELF) {
+                $values += ManageAttendance::locationValues($column, null);
+            }
+        }
+
         if ($current === null) {
             DB::table('hr_attendances')->insert($values + [
                 'id' => (string) Str::uuid7(),
@@ -375,6 +385,33 @@ final class AttendanceSheet
             'early' => (int) $record->early_minutes,
             'note' => $record->note === null ? null : (string) $record->note,
             'updated_by' => $record->updated_by === null ? null : (string) $record->updated_by,
+            'check_in_location' => self::location($record, 'check_in'),
+            'check_out_location' => self::location($record, 'check_out'),
+        ];
+    }
+
+    /**
+     * Hasil lokasi HP absen mandiri (HR-4d), atau null bila tidak diperiksa.
+     *
+     * @return LocationInfo|null
+     */
+    public static function location(stdClass $record, string $prefix): ?array
+    {
+        $result = $record->{$prefix.'_location'} ?? null;
+
+        if ($result === null) {
+            return null;
+        }
+
+        $distance = $record->{$prefix.'_distance'} ?? null;
+        $accuracy = $record->{$prefix.'_accuracy'} ?? null;
+        $place = $record->{$prefix.'_place'} ?? null;
+
+        return [
+            'result' => (string) $result,
+            'distance' => $distance === null ? null : (int) $distance,
+            'accuracy' => $accuracy === null ? null : (int) $accuracy,
+            'place' => $place === null ? null : (string) $place,
         ];
     }
 }

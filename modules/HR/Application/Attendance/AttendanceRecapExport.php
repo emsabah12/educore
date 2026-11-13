@@ -34,6 +34,7 @@ final class AttendanceRecapExport
         'leave' => 'Cuti',
         'absent' => 'Alpa',
         'empty' => 'Belum diisi',
+        'outside' => 'Di luar lokasi (kali)',
     ];
 
     public static function fileName(string $organizationCode, string $month): string

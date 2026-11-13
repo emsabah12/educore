@@ -24,8 +24,8 @@ use stdClass;
  *
  * @phpstan-import-type Expected from ExpectedHours
  *
- * @phpstan-type Counts array{required: int, present: int, late: int, late_minutes: int, early: int, early_minutes: int, sick: int, permit: int, duty: int, leave: int, absent: int, empty: int}
- * @phpstan-type EmployeeCounts array{employee_id: string, name: string, employee_number: string|null, required: int, present: int, late: int, late_minutes: int, early: int, early_minutes: int, sick: int, permit: int, duty: int, leave: int, absent: int, empty: int}
+ * @phpstan-type Counts array{required: int, present: int, late: int, late_minutes: int, early: int, early_minutes: int, sick: int, permit: int, duty: int, leave: int, absent: int, empty: int, outside: int}
+ * @phpstan-type EmployeeCounts array{employee_id: string, name: string, employee_number: string|null, required: int, present: int, late: int, late_minutes: int, early: int, early_minutes: int, sick: int, permit: int, duty: int, leave: int, absent: int, empty: int, outside: int}
  * @phpstan-type DayDetail array{date: string, employee_id: string, name: string, expected: string, status: string, check_in: string|null, check_out: string|null, late: int, early: int}
  */
 final class AttendanceRecap
@@ -215,6 +215,11 @@ final class AttendanceRecap
                 $counts['early_minutes'] += (int) $record->early_minutes;
             }
 
+            // Absen mandiri di luar radius lembaga (HR-4d, aturan "Catat lokasi"): dihitung per hari.
+            if (($record->check_in_location ?? null) === WorkLocations::OUTSIDE || ($record->check_out_location ?? null) === WorkLocations::OUTSIDE) {
+                $counts['outside']++;
+            }
+
             $days[] = self::detail($date, $plan, $status->label(), $record);
         }
 
@@ -287,6 +292,6 @@ final class AttendanceRecap
      */
     private static function emptyCounts(): array
     {
-        return ['required' => 0, 'present' => 0, 'late' => 0, 'late_minutes' => 0, 'early' => 0, 'early_minutes' => 0, 'sick' => 0, 'permit' => 0, 'duty' => 0, 'leave' => 0, 'absent' => 0, 'empty' => 0];
+        return ['required' => 0, 'present' => 0, 'late' => 0, 'late_minutes' => 0, 'early' => 0, 'early_minutes' => 0, 'sick' => 0, 'permit' => 0, 'duty' => 0, 'leave' => 0, 'absent' => 0, 'empty' => 0, 'outside' => 0];
     }
 }

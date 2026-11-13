@@ -1,5 +1,6 @@
-import { Form, Head } from '@inertiajs/react';
-import { LogIn, LogOut } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { LogIn, LogOut, MapPin } from 'lucide-react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
@@ -21,7 +22,13 @@ type Day = {
     late: number;
     early: number;
     note: string | null;
+    /** Hasil lokasi absen mandiri (HR-4d), mis. "Di lokasi · 35 m". */
+    check_in_location: string | null;
+    check_out_location: string | null;
 };
+
+/** Aturan lokasi lembaga penempatan utama (HR-4d): TIDAK / CATAT / WAJIB. */
+type LocationMode = 'TIDAK' | 'CATAT' | 'WAJIB';
 
 type Props =
     | { linked: false }
@@ -32,6 +39,7 @@ type Props =
           days: Day[];
           canCheckIn: boolean;
           canCheckOut: boolean;
+          locationMode: LocationMode;
           /** Ringkasan bulan berjalan (HR-4c). */
           summary: AttendanceSummaryData | null;
       };
@@ -79,6 +87,7 @@ export default function MyAttendance(props: Props) {
                             organization={props.organization}
                             canCheckIn={props.canCheckIn}
                             canCheckOut={props.canCheckOut}
+                            locationMode={props.locationMode}
                         />
                         {props.summary && (
                             <section className="space-y-3 rounded-xl border p-4">
@@ -101,11 +110,13 @@ function TodayCard({
     organization,
     canCheckIn,
     canCheckOut,
+    locationMode,
 }: {
     today: Day;
     organization: string | null;
     canCheckIn: boolean;
     canCheckOut: boolean;
+    locationMode: LocationMode;
 }) {
     return (
         <section
@@ -138,6 +149,11 @@ function TodayCard({
                             Terlambat {today.late} menit
                         </dd>
                     )}
+                    {today.check_in_location && (
+                        <dd className="text-muted-foreground">
+                            {today.check_in_location}
+                        </dd>
+                    )}
                 </div>
                 <div>
                     <dt className="text-muted-foreground">Pulang</dt>
@@ -149,63 +165,125 @@ function TodayCard({
                             {today.early} menit lebih awal
                         </dd>
                     )}
+                    {today.check_out_location && (
+                        <dd className="text-muted-foreground">
+                            {today.check_out_location}
+                        </dd>
+                    )}
                 </div>
             </dl>
 
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
-                <ActionForm
-                    action="/presensi-saya/masuk"
-                    label="Absen masuk"
-                    icon={<LogIn />}
-                    disabled={!canCheckIn}
-                />
-                <ActionForm
-                    action="/presensi-saya/pulang"
-                    label="Absen pulang"
-                    icon={<LogOut />}
-                    disabled={!canCheckOut}
-                    variant="outline"
-                />
-            </div>
+            <AttendanceActions
+                canCheckIn={canCheckIn}
+                canCheckOut={canCheckOut}
+                locationMode={locationMode}
+            />
         </section>
     );
 }
 
-function ActionForm({
-    action,
-    label,
-    icon,
-    disabled,
-    variant = 'default',
+type Position = { latitude: number; longitude: number; accuracy: number };
+
+/**
+ * Membaca lokasi HP sekali (HR-4d). Null bila ditolak, tidak didukung, atau habis waktu; server yang
+ * memutuskan apakah absen tetap boleh (Catat) atau ditolak (Wajib).
+ */
+function readPosition(): Promise<Position | null> {
+    return new Promise((resolve) => {
+        if (!('geolocation' in navigator)) {
+            resolve(null);
+
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) =>
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        );
+    });
+}
+
+function AttendanceActions({
+    canCheckIn,
+    canCheckOut,
+    locationMode,
 }: {
-    action: string;
-    label: string;
-    icon: React.ReactNode;
-    disabled: boolean;
-    variant?: 'default' | 'outline';
+    canCheckIn: boolean;
+    canCheckOut: boolean;
+    locationMode: LocationMode;
 }) {
+    const [busy, setBusy] = useState<'masuk' | 'pulang' | null>(null);
+    const [locating, setLocating] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const usesLocation = locationMode !== 'TIDAK';
+
+    const submit = async (kind: 'masuk' | 'pulang') => {
+        setBusy(kind);
+        setErrors({});
+        let position: Position | null = null;
+
+        if (usesLocation) {
+            setLocating(true);
+            position = await readPosition();
+            setLocating(false);
+        }
+
+        router.post(`/presensi-saya/${kind}`, position ?? {}, {
+            preserveScroll: true,
+            onError: (pageErrors) => setErrors(pageErrors),
+            onFinish: () => setBusy(null),
+        });
+    };
+
+    const label = (kind: 'masuk' | 'pulang', text: string) => {
+        if (busy !== kind) {
+            return text;
+        }
+
+        return locating ? 'Membaca lokasi…' : 'Menyimpan…';
+    };
+
     return (
-        <Form
-            action={action}
-            method="post"
-            options={{ preserveScroll: true }}
-            className="grid gap-1"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <Button
-                        type="submit"
-                        variant={variant}
-                        disabled={disabled || processing}
-                        className="h-11 w-full"
-                    >
-                        {icon}
-                        {processing ? 'Menyimpan…' : label}
-                    </Button>
-                    <InputError message={errors.form} />
-                </>
+        <div className="space-y-2">
+            {usesLocation && (
+                <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <MapPin className="mt-0.5 size-4 shrink-0" />
+                    {locationMode === 'WAJIB'
+                        ? 'Absen mandiri harus di dalam radius lembaga. '
+                        : 'Lokasi Anda diperiksa saat absen. '}
+                    Lokasi dipakai hanya untuk memeriksa jarak ke lembaga; titik
+                    lokasi Anda tidak disimpan.
+                </p>
             )}
-        </Form>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2">
+                <Button
+                    type="button"
+                    disabled={!canCheckIn || busy !== null}
+                    className="h-11 w-full"
+                    onClick={() => submit('masuk')}
+                >
+                    <LogIn />
+                    {label('masuk', 'Absen masuk')}
+                </Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!canCheckOut || busy !== null}
+                    className="h-11 w-full"
+                    onClick={() => submit('pulang')}
+                >
+                    <LogOut />
+                    {label('pulang', 'Absen pulang')}
+                </Button>
+            </div>
+            <InputError message={errors.location ?? errors.form} />
+        </div>
     );
 }
 
@@ -253,6 +331,19 @@ function History({ days }: { days: Day[] }) {
                                         {day.check_out &&
                                             !day.check_out_self &&
                                             ' (petugas)'}
+                                    </p>
+                                )}
+                                {(day.check_in_location ||
+                                    day.check_out_location) && (
+                                    <p className="text-muted-foreground">
+                                        {[
+                                            day.check_in_location &&
+                                                `Masuk: ${day.check_in_location}`,
+                                            day.check_out_location &&
+                                                `Pulang: ${day.check_out_location}`,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
                                     </p>
                                 )}
                                 {(day.late > 0 || day.early > 0) && (

@@ -11,6 +11,7 @@ use Modules\Core\Application\Dashboard\DashboardCards;
 use Modules\Core\Application\Settings\SettingRegistry;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\ModuleServiceProvider;
+use Modules\HR\Application\Attendance\AttendanceLocationSetting;
 use Modules\HR\Application\Attendance\NoTeachingSchedule;
 use Modules\HR\Application\Attendance\WorkHoursSetting;
 use Modules\HR\Application\Audit\HrAuditAction;
@@ -79,6 +80,8 @@ class HRServiceProvider extends ModuleServiceProvider
             ->define(LeaveApprovalSetting::definition())
             // Jam kerja staf per jenjang/lembaga (PRD-001 §14.1).
             ->define(WorkHoursSetting::definition())
+            // Lokasi absen pegawai per jenjang/lembaga (PRD-001 §14.6, HR-4d).
+            ->define(AttendanceLocationSetting::definition())
             // Honor mengajar & potongan presensi per jenjang/lembaga (PRD-001 §16.2).
             ->define(TeachingPaySetting::definition())
             ->define(AttendanceDeductionSetting::definition());
