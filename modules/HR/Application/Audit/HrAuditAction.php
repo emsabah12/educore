@@ -122,6 +122,23 @@ final class HrAuditAction
 
     public const SUBJECT_TRAINING = 'hr_training';
 
+    /** Penilaian kinerja (HR-8b): periode, komponen per kelompok, penilaian — tanpa nilai & catatan. */
+    public const PERFORMANCE_PERIOD_CREATED = 'hr.performance_period_created';
+
+    public const PERFORMANCE_PERIOD_UPDATED = 'hr.performance_period_updated';
+
+    public const PERFORMANCE_PERIOD_DELETED = 'hr.performance_period_deleted';
+
+    public const PERFORMANCE_COMPONENTS_UPDATED = 'hr.performance_components_updated';
+
+    public const PERFORMANCE_ASSESSED = 'hr.performance_assessed';
+
+    public const SUBJECT_PERFORMANCE_PERIOD = 'hr_performance_period';
+
+    public const SUBJECT_PERFORMANCE_COMPONENTS = 'hr_performance_components';
+
+    public const SUBJECT_PERFORMANCE_ASSESSMENT = 'hr_performance_assessment';
+
     /** Komponen gaji (HR-5a). Nominal tidak pernah dicatat di audit. */
     public const PAY_COMPONENT_CREATED = 'hr.pay_component_created';
 
@@ -203,6 +220,11 @@ final class HrAuditAction
             self::TRAINING_REJECTED => 'Riwayat pelatihan ditolak',
             self::TRAINING_CANCELLED => 'Riwayat pelatihan dibatalkan',
             self::TRAINING_WITHDRAWN => 'Pegawai menarik pengajuan pelatihan',
+            self::PERFORMANCE_PERIOD_CREATED => 'Periode penilaian kinerja dibuat',
+            self::PERFORMANCE_PERIOD_UPDATED => 'Periode penilaian kinerja diubah',
+            self::PERFORMANCE_PERIOD_DELETED => 'Periode penilaian kinerja dihapus',
+            self::PERFORMANCE_COMPONENTS_UPDATED => 'Komponen penilaian kinerja diubah',
+            self::PERFORMANCE_ASSESSED => 'Kinerja pegawai dinilai',
             self::OFFBOARDING_STARTED => 'Checklist offboarding pegawai dibuat',
             self::OFFBOARDING_TASK_UPDATED => 'Item checklist offboarding diubah',
             self::DISCIPLINE_RECORDED => 'Catatan disiplin pegawai dicatat',

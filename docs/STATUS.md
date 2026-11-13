@@ -724,7 +724,15 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-8a — Riwayat pelatihan & sertifikasi: DIBANGUN, menunggu uji owner (2026-11-11)** — PRD-001 §19.1 (OD-HR-16 s.d. OD-HR-18 disetujui untuk seluruh HR-8)
+**HR-8b-1 — Penilaian kinerja: periode, komponen, lembar penilaian: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §19.2 (OD-HR-17, OD-HR-18); rincian teknis §19.3 [ASUMSI disetujui owner 2026-11-12]
+
+- Migrasi `2026_11_13_100019`: `hr_performance_components` (kelompok GURU/STAF, nama, bobot, urutan; kosong = isi bawaan), `hr_performance_periods` (nama unik, mulai–selesai, kolom kunci untuk 8b-2), `hr_performance_assessments` (satu per pegawai per periode; salinan komponen+bobot+nilai di `scores`, nilai akhir 1 desimal, predikat, kekuatan, saran, lembaga penempatan utama saat dinilai).
+- Izin baru `hr.performance.assess` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.performance.manage` (Admin SDM, Admin Yayasan) → **jalankan `educore:sync-access`**.
+- `Domain/Performance/{PerformanceGroup, Predicate}`, `Application/Performance/{PerformanceComponents, ManagePerformancePeriods, AssessPerformance, PerformanceSheet}`, `PerformanceController`; kelompok usulan Guru bila punya jadwal mengajar (kontrak `TeachingLoad`). Audit `hr.performance_period_created|updated|deleted`, `hr.performance_components_updated`, `hr.performance_assessed` tanpa nilai & catatan.
+- Halaman **Penilaian kinerja** (`/pegawai/kinerja`, menu Kepegawaian): tab Penilaian (pilih periode & lembaga, nilai di pop-up dengan pratinjau nilai akhir & predikat), tab Periode & tab Komponen & bobot (Admin SDM/Admin Yayasan, semua lewat pop-up).
+- Bukti: 794 test lulus (4 test baru `PerformanceTest`, awalan `pkn`; jumlah permission di `AccessCatalogTest`/`TreeAuthorizationTest` disesuaikan); Pint, Larastan, tsc, `vp check`, build lulus.
+
+**HR-8a — Riwayat pelatihan & sertifikasi: SELESAI (2026-11-12, commit `8088e0d`, uji owner lancar)** — PRD-001 §19.1 (OD-HR-16 s.d. OD-HR-18 disetujui untuk seluruh HR-8)
 
 - Migrasi `2026_11_11_100018`: `hr_trainings` (jenis, nama, penyelenggara, tanggal, jam, no. sertifikat, berlaku sampai, lampiran privat; status Menunggu/Diterima/Ditolak/Dibatalkan).
 - `Application/Training/{ManageTrainings, TrainingRecords, TrainingRecapExport}`; `TrainingController` (Admin SDM/Admin Yayasan) & `MyTrainingController` (pegawai). Audit `hr.training_recorded|submitted|verified|rejected|cancelled|withdrawn` tanpa isi.
@@ -977,14 +985,14 @@
 - Beranda: kartu ringkasan berikon kotak warna (ungu normal, kuning peringatan, merah bahaya). Halaman masuk: formulir di kartu putih.
 - Tanpa perubahan backend, data, menu, atau perilaku.
 
-**UX-3 — Semua tambah/ubah/hapus lewat pop-up: DIBANGUN, menunggu uji owner (2026-11-12)** — permintaan owner 2026-11-12 (mockup Kasir; pilihan owner: pola pop-up saja, tema ungu tetap, lembar isian & form panjang tetap halaman, fitur lain dicatat sebagai usulan). Paket ini **juga membawa HR-8a** (belum di-push).
+**UX-3 — Semua tambah/ubah/hapus lewat pop-up: SELESAI (2026-11-12, commit `c453186`, uji owner lancar)** — permintaan owner 2026-11-12 (mockup Kasir; pilihan owner: pola pop-up saja, tema ungu tetap, lembar isian & form panjang tetap halaman, fitur lain dicatat sebagai usulan). Paket ini juga membawa HR-8a.
 
 - Komponen baru `components/confirm-action.tsx` (`ConfirmAction`: tombol pemicu → pop-up konfirmasi, isian alasan opsional, isian tersembunyi, `onConfirm` untuk alur sandi sementara). `RuleDialog` di `components/core/scoped-rules.tsx` untuk form aturan berjenjang. Pembungkus bersama `ActionForm` (pegawai & akademik) dan `AccessForm` (akun login) kini selalu tampil di `FormDialog`, sehingga semua aksi di detail pegawai/siswa/kelas ikut jadi pop-up.
 - **Kepegawaian**: disiplin, offboarding, pelatihan, dokumen, aksi pegawai, katalog SDM, persetujuan & pembatalan cuti, saldo cuti (sesuaikan jatah), pengaturan cuti (jenis cuti, libur mingguan, tanggal merah, alur persetujuan, jam kerja), pengaturan gaji (komponen, tarif jabatan, honor JP, potongan presensi), rekap gaji (kunci/buka kunci, penyesuaian), cuti saya (tarik).
 - **Akademik**: kalender (nama kalender, tahun ajaran, tahun berjalan, pemakaian, hari libur & libur mingguan, mode presensi, aturan penilaian), kelas & mapel (status, masukkan siswa, tambah mapel), orang tua/wali (kontak utama, akun login), guru piket, presensi mengajar & guru pengganti, format rapor (butir ekskul/kepribadian, isi contoh), lembar nilai (finalkan, buka kembali, terapkan aturan terbaru).
 - **Keuangan**: kas (ubah rekening, penerima transfer/online, batalkan transaksi), kasir (batalkan kuitansi & transaksi tabungan), tagihan (batalkan), potongan (hapus), kategori kas, pengeluaran (batalkan pengajuan), pengaturan keuangan (jenis biaya, jatuh tempo, batas persetujuan, tarif khusus tingkat, hapus tarif), pembukuan (status akun, hapus saldo awal, kunci/buka kunci periode).
 - **Lembaga & akses**: status lembaga, tambah di bawah Yayasan; role yayasan (pasang/cabut), penugasan (tambah/cabut), akun login pegawai.
-- Tanpa perubahan backend; `tsc`, format & lint bersih; build lulus; test lihat PANDUAN-UX-3.
+- Tanpa perubahan backend; `tsc`, format & lint bersih; build lulus; 790 test lulus.
 
 ### Usulan dari mockup UX-3 (belum dikerjakan, perlu dirinci & disetujui owner)
 
@@ -1052,5 +1060,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → uji manual HR-8a pelatihan + UX-3 pop-up (satu paket) → HR-8b penilaian kinerja ringkas → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8a SELESAI → uji manual HR-8b-1 → **HR-8b-2** (kunci periode, Kinerja saya, rekap .xlsx) → HR-8 → HR-9 → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

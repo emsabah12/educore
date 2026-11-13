@@ -24,6 +24,7 @@ use Modules\HR\Http\Controllers\PayrollEmployeeController;
 use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 use Modules\HR\Http\Controllers\PayslipController;
+use Modules\HR\Http\Controllers\PerformanceController;
 use Modules\HR\Http\Controllers\TrainingController;
 
 /*
@@ -109,6 +110,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pelatihan-saya', [MyTrainingController::class, 'store'])->name('hr.my-trainings.store');
     Route::post('pelatihan-saya/{training}/tarik', [MyTrainingController::class, 'withdraw'])->whereUuid('training')->name('hr.my-trainings.withdraw');
     Route::get('pelatihan-saya/{training}/unduh', [MyTrainingController::class, 'download'])->whereUuid('training')->name('hr.my-trainings.download');
+
+    // Penilaian kinerja ringkas (PRD-001 §19.2, HR-8b).
+    Route::get('pegawai/kinerja', [PerformanceController::class, 'index'])->name('hr.performance.index');
+    Route::post('pegawai/kinerja/periode', [PerformanceController::class, 'storePeriod'])->name('hr.performance.periods.store');
+    Route::patch('pegawai/kinerja/periode/{period}', [PerformanceController::class, 'updatePeriod'])->whereUuid('period')->name('hr.performance.periods.update');
+    Route::delete('pegawai/kinerja/periode/{period}', [PerformanceController::class, 'destroyPeriod'])->whereUuid('period')->name('hr.performance.periods.destroy');
+    Route::post('pegawai/kinerja/komponen/{group}', [PerformanceController::class, 'saveComponents'])->whereIn('group', ['guru', 'staf'])->name('hr.performance.components.save');
+    Route::post('pegawai/kinerja/periode/{period}/pegawai/{employee}', [PerformanceController::class, 'assess'])->whereUuid(['period', 'employee'])->name('hr.performance.assess');
 
     // Pengaturan gaji (PRD-001 §16, HR-5a): komponen gaji. Admin SDM / Admin Yayasan.
     Route::get('pegawai/gaji/pengaturan', [PayrollSettingsController::class, 'index'])->name('hr.payroll-settings.index');

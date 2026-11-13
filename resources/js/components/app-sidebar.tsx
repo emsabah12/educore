@@ -19,6 +19,7 @@ import {
     Coins,
     CreditCard,
     FileClock,
+    Gauge,
     FileSpreadsheet,
     FileText,
     FolderTree,
@@ -148,6 +149,12 @@ const trainingsNavItem: NavItem = {
     title: 'Pelatihan pegawai',
     href: '/pegawai/pelatihan',
     icon: Award,
+};
+
+const performanceNavItem: NavItem = {
+    title: 'Penilaian kinerja',
+    href: '/pegawai/kinerja',
+    icon: Gauge,
 };
 
 const offboardingNavItem: NavItem = {
@@ -424,6 +431,9 @@ export function AppSidebar() {
                 ),
                 ...when(permissions.includes('hr.discipline.view'), [
                     disciplineNavItem,
+                ]),
+                ...when(permissions.includes('hr.performance.assess'), [
+                    performanceNavItem,
                 ]),
                 ...when(
                     atTenantLevel && permissions.includes('hr.payroll.manage'),
