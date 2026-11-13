@@ -45,6 +45,7 @@ import {
     Tags,
     UserCheck,
     UserMinus,
+    UserSearch,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -155,6 +156,12 @@ const myPerformanceNavItem: NavItem = {
     title: 'Kinerja saya',
     href: '/kinerja-saya',
     icon: Gauge,
+};
+
+const recruitmentNavItem: NavItem = {
+    title: 'Rekrutmen',
+    href: '/pegawai/rekrutmen',
+    icon: UserSearch,
 };
 
 const performanceNavItem: NavItem = {
@@ -441,6 +448,9 @@ export function AppSidebar() {
                 ]),
                 ...when(permissions.includes('hr.performance.assess'), [
                     performanceNavItem,
+                ]),
+                ...when(permissions.includes('hr.recruitment.view'), [
+                    recruitmentNavItem,
                 ]),
                 ...when(
                     atTenantLevel && permissions.includes('hr.payroll.manage'),

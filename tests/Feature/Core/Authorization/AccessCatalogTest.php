@@ -47,9 +47,10 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     // Kepala Lembaga +1 (lihat).
     // Penilaian kinerja (PRD-001 §19.2, HR-8b): +2 permission (nilai & kelola) — Admin SDM, Admin Yayasan +2,
     // Kepala Lembaga +1 (nilai).
-    expect(Permission::query()->count())->toBe(35)
+    // Rekrutmen (PRD-001 §20, HR-9a): +2 permission (lihat & kelola) — Admin SDM, Admin Yayasan +2, Kepala Lembaga +1.
+    expect(Permission::query()->count())->toBe(37)
         ->and(Role::query()->count())->toBe(10)
-        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8 + 2 + 2 + 1 + 1 + 5 + 5);
+        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8 + 2 + 2 + 1 + 1 + 5 + 5 + 5);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
@@ -72,6 +73,7 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             HrAccess::EMPLOYEES_VIEW_PERSONAL,
             HrAccess::LEAVE_APPROVE,
             HrAccess::PERFORMANCE_ASSESS,
+        HrAccess::RECRUITMENT_VIEW,
         ]);
 });
 

@@ -55,6 +55,7 @@
 | 2026-11-11 | **HR menyusul**: urutan HR-7 disiplin & offboarding → HR-8 → HR-9 → HR-4d presensi lokasi HP (mesin absen cadangan) → HR-10 formulir A05 Simpatika; disiplin dicatat Admin SDM/Admin Yayasan, dilihat Kepala Lembaga & pegawai sendiri, SP berlaku 6 bulan; akun pegawai berhenti dinonaktifkan lewat tombol checklist                        | PRD-001 §3, §18, OD-HR-13 s.d. 15                        |
 | 2026-11-11 | **HR-8**: riwayat pelatihan dicatat Admin SDM atau diajukan pegawai lalu diverifikasi; penilaian kinerja ringkas 0–100 berbobot (komponen guru & staf), predikat ala PKG, dinilai Kepala Lembaga, hasil terlihat pegawai setelah periode dikunci                                                                                              | PRD-001 §19, OD-HR-16 s.d. 18                            |
 | 2026-11-12 | **UX-3 semua tambah/ubah/hapus lewat pop-up** (owner, contoh mockup Kasir): `FormDialog` untuk tambah/ubah, `ConfirmAction` untuk hapus/batal/cabut/nonaktifkan/setujui/tolak; tema ungu UX-2 tetap; lembar isian & form panjang tetap halaman; fitur lain di mockup dicatat sebagai usulan                                                   | STATUS § Pedoman tampilan, § Usulan dari mockup UX-3     |
+| 2026-11-13 | **HR-9 Rekrutmen**: pelamar diinput Admin SDM (tanpa formulir publik); tahap seleksi tetap Berkas → Tes/wawancara → Diterima/Tidak lolos; data pelamar yang tidak jadi pegawai dihapus otomatis 1 tahun sesudah lowongan ditutup                                                                                                              | PRD-001 §20, OD-HR-19 s.d. OD-HR-21                      |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -724,7 +725,15 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-8b-2 — Penilaian kinerja: kunci periode, Kinerja saya, rekap: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §19.2, §19.3
+**HR-9a — Rekrutmen: lowongan, pelamar, seleksi: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §20.1 (OD-HR-19, OD-HR-20)
+
+- Migrasi `2026_11_13_100020`: `hr_vacancies` (lembaga tujuan, jabatan, jumlah, batas lamaran, persyaratan; Draf/Dibuka/Ditutup), `hr_applicants` (bukan Person; tahap BERKAS/TES/DITERIMA/TIDAK_LOLOS; berkas lamaran privat), `hr_applicant_steps` (riwayat aksi, nilai 0–100 opsional, catatan).
+- Izin baru `hr.recruitment.view` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.recruitment.manage` (Admin SDM, Admin Yayasan) → **jalankan `educore:sync-access`**.
+- `Domain/Recruitment/{VacancyStatus, ApplicantStage, StepAction}`, `Application/Recruitment/{ManageVacancies, ManageApplicants, RecruitmentRecords}`, `RecruitmentController`. Audit `hr.vacancy_*`, `hr.applicant_added|updated|step|file_downloaded` tanpa nama/kontak & isi catatan.
+- Halaman menu **Rekrutmen** (`/pegawai/rekrutmen`: daftar lowongan + saringan) dan detail lowongan (pelamar per tahap, Lolos berkas / Diterima / Tidak lolos / Kembalikan / Catatan / Ubah data, unduh berkas) — semua lewat pop-up. Kepala Lembaga: hanya lihat & catatan wawancara di tahap Tes.
+- Bukti: 799 test lulus (3 test baru `RecruitmentTest`, awalan `rkt`; jumlah permission di `AccessCatalogTest`/`TreeAuthorizationTest` disesuaikan); Pint, Larastan, tsc, `vp check`, build lulus.
+
+**HR-8b-2 — Penilaian kinerja: kunci periode, Kinerja saya, rekap: SELESAI (2026-11-13, commit `bf60979`, uji owner lancar)** — **HR-8 SELESAI** — PRD-001 §19.2, §19.3
 
 - `ManagePerformancePeriods::lock|unlock` (kunci sesudah periode dimulai; buka kunci wajib alasan 5–300, dicatat di audit), `PerformanceRecap` (ringkasan per lembaga, rincian per pegawai, hasil pegawai sendiri), `PerformanceRecapExport` (.xlsx: Rekap + Rincian, tanpa catatan), `MyPerformanceController`. Audit `hr.performance_period_locked|unlocked`. Tanpa migrasi & tanpa izin baru.
 - Halaman: tab **Periode** → tombol **Kunci** / **Buka kunci** (pop-up konfirmasi); tab baru **Rekap** (pilih periode, per lembaga: dinilai/aktif, rata-rata, sebaran predikat, **Unduh .xlsx**); menu **Kinerja saya** (Untuk saya) — hasil periode yang sudah dikunci.
@@ -1066,5 +1075,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8a SELESAI → HR-8b-1 SELESAI → uji manual HR-8b-2 → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → **HR-9 rekrutmen** (§20: uji manual 9a → 9b jadikan pegawai, rekap, hapus otomatis) → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

@@ -122,6 +122,29 @@ final class HrAuditAction
 
     public const SUBJECT_TRAINING = 'hr_training';
 
+    /** Rekrutmen (HR-9a): lowongan & pelamar — tanpa nama/kontak pelamar dan isi catatan. */
+    public const VACANCY_CREATED = 'hr.vacancy_created';
+
+    public const VACANCY_UPDATED = 'hr.vacancy_updated';
+
+    public const VACANCY_OPENED = 'hr.vacancy_opened';
+
+    public const VACANCY_CLOSED = 'hr.vacancy_closed';
+
+    public const VACANCY_DELETED = 'hr.vacancy_deleted';
+
+    public const APPLICANT_ADDED = 'hr.applicant_added';
+
+    public const APPLICANT_UPDATED = 'hr.applicant_updated';
+
+    public const APPLICANT_STEP = 'hr.applicant_step';
+
+    public const APPLICANT_FILE_DOWNLOADED = 'hr.applicant_file_downloaded';
+
+    public const SUBJECT_VACANCY = 'hr_vacancy';
+
+    public const SUBJECT_APPLICANT = 'hr_applicant';
+
     /** Penilaian kinerja (HR-8b): periode, komponen per kelompok, penilaian — tanpa nilai & catatan. */
     public const PERFORMANCE_PERIOD_CREATED = 'hr.performance_period_created';
 
@@ -225,6 +248,15 @@ final class HrAuditAction
             self::TRAINING_REJECTED => 'Riwayat pelatihan ditolak',
             self::TRAINING_CANCELLED => 'Riwayat pelatihan dibatalkan',
             self::TRAINING_WITHDRAWN => 'Pegawai menarik pengajuan pelatihan',
+            self::VACANCY_CREATED => 'Lowongan dibuat',
+            self::VACANCY_UPDATED => 'Lowongan diubah',
+            self::VACANCY_OPENED => 'Lowongan dibuka',
+            self::VACANCY_CLOSED => 'Lowongan ditutup',
+            self::VACANCY_DELETED => 'Lowongan dihapus',
+            self::APPLICANT_ADDED => 'Pelamar ditambahkan',
+            self::APPLICANT_UPDATED => 'Data pelamar diubah',
+            self::APPLICANT_STEP => 'Tahap seleksi pelamar dicatat',
+            self::APPLICANT_FILE_DOWNLOADED => 'Berkas lamaran diunduh',
             self::PERFORMANCE_PERIOD_CREATED => 'Periode penilaian kinerja dibuat',
             self::PERFORMANCE_PERIOD_UPDATED => 'Periode penilaian kinerja diubah',
             self::PERFORMANCE_PERIOD_DELETED => 'Periode penilaian kinerja dihapus',

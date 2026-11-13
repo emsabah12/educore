@@ -26,6 +26,7 @@ use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 use Modules\HR\Http\Controllers\PayslipController;
 use Modules\HR\Http\Controllers\PerformanceController;
+use Modules\HR\Http\Controllers\RecruitmentController;
 use Modules\HR\Http\Controllers\TrainingController;
 
 /*
@@ -111,6 +112,19 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pelatihan-saya', [MyTrainingController::class, 'store'])->name('hr.my-trainings.store');
     Route::post('pelatihan-saya/{training}/tarik', [MyTrainingController::class, 'withdraw'])->whereUuid('training')->name('hr.my-trainings.withdraw');
     Route::get('pelatihan-saya/{training}/unduh', [MyTrainingController::class, 'download'])->whereUuid('training')->name('hr.my-trainings.download');
+
+    // Rekrutmen (PRD-001 §20, HR-9a).
+    Route::get('pegawai/rekrutmen', [RecruitmentController::class, 'index'])->name('hr.recruitment.index');
+    Route::post('pegawai/rekrutmen', [RecruitmentController::class, 'storeVacancy'])->name('hr.recruitment.store');
+    Route::get('pegawai/rekrutmen/{vacancy}', [RecruitmentController::class, 'show'])->whereUuid('vacancy')->name('hr.recruitment.show');
+    Route::patch('pegawai/rekrutmen/{vacancy}', [RecruitmentController::class, 'updateVacancy'])->whereUuid('vacancy')->name('hr.recruitment.update');
+    Route::delete('pegawai/rekrutmen/{vacancy}', [RecruitmentController::class, 'destroyVacancy'])->whereUuid('vacancy')->name('hr.recruitment.destroy');
+    Route::post('pegawai/rekrutmen/{vacancy}/buka', [RecruitmentController::class, 'openVacancy'])->whereUuid('vacancy')->name('hr.recruitment.open');
+    Route::post('pegawai/rekrutmen/{vacancy}/tutup', [RecruitmentController::class, 'closeVacancy'])->whereUuid('vacancy')->name('hr.recruitment.close');
+    Route::post('pegawai/rekrutmen/{vacancy}/pelamar', [RecruitmentController::class, 'storeApplicant'])->whereUuid('vacancy')->name('hr.applicants.store');
+    Route::post('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}', [RecruitmentController::class, 'updateApplicant'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.update');
+    Route::post('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}/tahap', [RecruitmentController::class, 'step'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.step');
+    Route::get('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}/unduh', [RecruitmentController::class, 'download'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.download');
 
     // Penilaian kinerja ringkas (PRD-001 §19.2, HR-8b).
     Route::get('pegawai/kinerja', [PerformanceController::class, 'index'])->name('hr.performance.index');
