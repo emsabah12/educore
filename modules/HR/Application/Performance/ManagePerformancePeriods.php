@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Core\Application\Audit\AuditLogger;
+use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Performance\Exceptions\PerformanceException;
 use stdClass;
@@ -16,6 +17,8 @@ use stdClass;
  * - Nama 3–100 karakter, tidak kembar (tanpa beda huruf besar/kecil); tanggal selesai ≥ mulai; paling lama 366 hari.
  * - Periode yang sudah dikunci (HR-8b-2) tidak bisa diubah/dihapus; periode yang sudah punya penilaian tidak bisa
  *   dihapus [ASUMSI].
+ * - Kunci: kapan saja sesudah periode dimulai; nilai tidak bisa diubah lagi dan hasilnya terlihat pegawai (Kinerja
+ *   saya). Buka kunci wajib beralasan (5–300 karakter), alasan dicatat di audit seperti buka kunci rekap gaji.
  *
  * Hak akses dicek pemanggil (controller).
  */
@@ -26,6 +29,10 @@ final class ManagePerformancePeriods
     public const NAME_MAX = 100;
 
     public const MAX_DAYS = 366;
+
+    public const REASON_MIN = 5;
+
+    public const REASON_MAX = 300;
 
     public function __construct(private readonly AuditLogger $audit) {}
 
@@ -116,6 +123,75 @@ final class ManagePerformancePeriods
                 HrAuditAction::SUBJECT_PERFORMANCE_PERIOD,
                 $periodId,
                 ['nama' => (string) $period->name],
+                tenantId: $tenantId,
+            );
+        });
+    }
+
+    /**
+     * @throws PerformanceException
+     */
+    public function lock(string $tenantId, string $periodId, string $membershipId): void
+    {
+        DB::transaction(function () use ($tenantId, $periodId, $membershipId): void {
+            $period = $this->openPeriod($tenantId, $periodId);
+
+            if (substr((string) $period->start_date, 0, 10) > BusinessClock::todayString()) {
+                throw PerformanceException::make('form', 'Periode ini belum dimulai, jadi belum bisa dikunci.');
+            }
+
+            DB::table('hr_performance_periods')->where('id', $periodId)->update([
+                'locked_at' => now(),
+                'locked_by_membership_id' => $membershipId,
+                'updated_at' => now(),
+            ]);
+
+            $this->audit->record(
+                HrAuditAction::PERFORMANCE_PERIOD_LOCKED,
+                HrAuditAction::SUBJECT_PERFORMANCE_PERIOD,
+                $periodId,
+                ['nama' => (string) $period->name, 'jumlah_dinilai' => DB::table('hr_performance_assessments')->where('period_id', $periodId)->count()],
+                tenantId: $tenantId,
+            );
+        });
+    }
+
+    /**
+     * @throws PerformanceException
+     */
+    public function unlock(string $tenantId, string $periodId, string $reason): void
+    {
+        $reason = trim((string) preg_replace('/\s+/u', ' ', $reason));
+        $length = mb_strlen($reason);
+
+        if ($length < self::REASON_MIN || $length > self::REASON_MAX) {
+            throw PerformanceException::make('reason', 'Alasan membuka kunci '.self::REASON_MIN.'–'.self::REASON_MAX.' karakter.');
+        }
+
+        DB::transaction(function () use ($tenantId, $periodId, $reason): void {
+            $period = Str::isUuid($periodId)
+                ? DB::table('hr_performance_periods')->where('tenant_id', $tenantId)->where('id', $periodId)->lockForUpdate()->first()
+                : null;
+
+            if ($period === null) {
+                throw PerformanceException::make('form', 'Periode penilaian tidak ditemukan.');
+            }
+
+            if ($period->locked_at === null) {
+                throw PerformanceException::make('form', 'Periode ini belum dikunci.');
+            }
+
+            DB::table('hr_performance_periods')->where('id', $periodId)->update([
+                'locked_at' => null,
+                'locked_by_membership_id' => null,
+                'updated_at' => now(),
+            ]);
+
+            $this->audit->record(
+                HrAuditAction::PERFORMANCE_PERIOD_UNLOCKED,
+                HrAuditAction::SUBJECT_PERFORMANCE_PERIOD,
+                $periodId,
+                ['nama' => (string) $period->name, 'alasan' => $reason],
                 tenantId: $tenantId,
             );
         });

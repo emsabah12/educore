@@ -129,6 +129,11 @@ final class HrAuditAction
 
     public const PERFORMANCE_PERIOD_DELETED = 'hr.performance_period_deleted';
 
+    /** Periode dikunci (jumlah dinilai) / dibuka kuncinya (dengan alasan, seperti buka kunci rekap gaji). */
+    public const PERFORMANCE_PERIOD_LOCKED = 'hr.performance_period_locked';
+
+    public const PERFORMANCE_PERIOD_UNLOCKED = 'hr.performance_period_unlocked';
+
     public const PERFORMANCE_COMPONENTS_UPDATED = 'hr.performance_components_updated';
 
     public const PERFORMANCE_ASSESSED = 'hr.performance_assessed';
@@ -223,6 +228,8 @@ final class HrAuditAction
             self::PERFORMANCE_PERIOD_CREATED => 'Periode penilaian kinerja dibuat',
             self::PERFORMANCE_PERIOD_UPDATED => 'Periode penilaian kinerja diubah',
             self::PERFORMANCE_PERIOD_DELETED => 'Periode penilaian kinerja dihapus',
+            self::PERFORMANCE_PERIOD_LOCKED => 'Periode penilaian kinerja dikunci',
+            self::PERFORMANCE_PERIOD_UNLOCKED => 'Kunci periode penilaian kinerja dibuka',
             self::PERFORMANCE_COMPONENTS_UPDATED => 'Komponen penilaian kinerja diubah',
             self::PERFORMANCE_ASSESSED => 'Kinerja pegawai dinilai',
             self::OFFBOARDING_STARTED => 'Checklist offboarding pegawai dibuat',

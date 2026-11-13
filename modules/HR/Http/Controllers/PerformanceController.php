@@ -13,21 +13,25 @@ use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Performance\AssessPerformance;
 use Modules\HR\Application\Performance\ManagePerformancePeriods;
 use Modules\HR\Application\Performance\PerformanceComponents;
+use Modules\HR\Application\Performance\PerformanceRecap;
+use Modules\HR\Application\Performance\PerformanceRecapExport;
 use Modules\HR\Application\Performance\PerformanceSheet;
 use Modules\HR\Domain\Performance\Exceptions\PerformanceException;
 use Modules\HR\Domain\Performance\PerformanceGroup;
 use Modules\HR\Domain\Performance\Predicate;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Penilaian kinerja ringkas (PRD-001 §19.2, HR-8b; OD-HR-17).
  *
  * - Lembar penilaian & menilai: `hr.performance.assess` di lembaga penempatan utama pegawai (Kepala Lembaga →
  *   lembaganya; Admin SDM / Admin Yayasan → semua). Tanpa izin 403; pegawai di luar cakupan 404.
- * - Periode & komponen: `hr.performance.manage` tingkat Yayasan.
+ * - Periode & komponen, kunci/buka kunci, rekap & unduhan: `hr.performance.manage` tingkat Yayasan (HR-8b-2).
  */
 final class PerformanceController
 {
@@ -36,7 +40,7 @@ final class PerformanceController
         private readonly TenantContext $tenantContext,
     ) {}
 
-    public function index(Request $request, PerformanceSheet $sheet, PerformanceComponents $components): Response
+    public function index(Request $request, PerformanceSheet $sheet, PerformanceComponents $components, PerformanceRecap $recap): Response
     {
         Gate::authorize(HrAccess::PERFORMANCE_ASSESS);
 
@@ -59,6 +63,8 @@ final class PerformanceController
             ? $sheet->rows($tenantId, $period, $organizationId, $this->selfEmployeeId())
             : [];
 
+        $canManage = $this->canManage();
+
         return Inertia::render('hr/performance/index', [
             'periods' => $periods,
             'organizations' => $organizations,
@@ -73,12 +79,14 @@ final class PerformanceController
                 ['value' => Predicate::Moderate->value, 'label' => Predicate::Moderate->label(), 'range' => '51–60'],
                 ['value' => Predicate::Poor->value, 'label' => Predicate::Poor->label(), 'range' => '≤ 50'],
             ],
-            'canManage' => $this->canManage(),
+            'canManage' => $canManage,
+            'recap' => $canManage && $periodId !== null ? $recap->summary($tenantId, $periodId) : [],
             'limits' => [
                 'note' => AssessPerformance::NOTE_MAX,
                 'periodName' => ManagePerformancePeriods::NAME_MAX,
                 'componentName' => PerformanceComponents::NAME_MAX,
                 'components' => PerformanceComponents::MAX_COMPONENTS,
+                'reason' => ManagePerformancePeriods::REASON_MAX,
             ],
         ]);
     }
@@ -153,6 +161,51 @@ final class PerformanceController
         $this->attempt(fn () => $periods->delete($this->tenantContext->require()->tenantId, $period));
 
         return $this->done('Periode penilaian dihapus.');
+    }
+
+    public function lockPeriod(string $period, ManagePerformancePeriods $periods): RedirectResponse
+    {
+        $this->authorizeManage();
+        $context = $this->tenantContext->require();
+
+        $this->attempt(fn () => $periods->lock($context->tenantId, $period, $context->membershipId));
+
+        return $this->done('Periode dikunci. Nilai tidak bisa diubah lagi dan hasilnya terlihat pegawai di Kinerja saya.');
+    }
+
+    public function unlockPeriod(Request $request, string $period, ManagePerformancePeriods $periods): RedirectResponse
+    {
+        $this->authorizeManage();
+
+        $this->attempt(fn () => $periods->unlock($this->tenantContext->require()->tenantId, $period, $request->string('reason')->value()));
+
+        return $this->done('Kunci periode dibuka. Hasil penilaian disembunyikan dari pegawai sampai dikunci lagi.');
+    }
+
+    public function export(Request $request, PerformanceSheet $sheet, PerformanceRecap $recap, PerformanceRecapExport $export): BinaryFileResponse
+    {
+        $this->authorizeManage();
+        $tenantId = $this->tenantContext->require()->tenantId;
+        $period = $sheet->period($tenantId, $request->string('periode')->value()) ?? abort(404);
+        $path = tempnam(sys_get_temp_dir(), 'educore-kinerja-');
+
+        if ($path === false) {
+            abort(500, 'File unduhan tidak bisa dibuat.');
+        }
+
+        $status = $period->locked_at === null ? 'BELUM DIKUNCI' : 'dikunci';
+        $export->write(
+            $recap->summary($tenantId, (string) $period->id),
+            $recap->details($tenantId, (string) $period->id),
+            "Rekap penilaian kinerja {$period->name} — {$status} (per ".BusinessClock::todayString().')',
+            $path,
+        );
+
+        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', mb_strtolower((string) $period->name)), '-');
+
+        return response()
+            ->download($path, 'rekap-kinerja-'.($slug === '' ? 'periode' : $slug).'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
+            ->deleteFileAfterSend();
     }
 
     public function saveComponents(Request $request, string $group, PerformanceComponents $components): RedirectResponse

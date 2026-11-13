@@ -724,7 +724,13 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-8b-1 — Penilaian kinerja: periode, komponen, lembar penilaian: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §19.2 (OD-HR-17, OD-HR-18); rincian teknis §19.3 [ASUMSI disetujui owner 2026-11-12]
+**HR-8b-2 — Penilaian kinerja: kunci periode, Kinerja saya, rekap: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §19.2, §19.3
+
+- `ManagePerformancePeriods::lock|unlock` (kunci sesudah periode dimulai; buka kunci wajib alasan 5–300, dicatat di audit), `PerformanceRecap` (ringkasan per lembaga, rincian per pegawai, hasil pegawai sendiri), `PerformanceRecapExport` (.xlsx: Rekap + Rincian, tanpa catatan), `MyPerformanceController`. Audit `hr.performance_period_locked|unlocked`. Tanpa migrasi & tanpa izin baru.
+- Halaman: tab **Periode** → tombol **Kunci** / **Buka kunci** (pop-up konfirmasi); tab baru **Rekap** (pilih periode, per lembaga: dinilai/aktif, rata-rata, sebaran predikat, **Unduh .xlsx**); menu **Kinerja saya** (Untuk saya) — hasil periode yang sudah dikunci.
+- Bukti: 796 test lulus (2 test baru `PerformanceLockTest`, awalan `pkk`; satu pemeriksaan audit di `PerformanceTest` dibuat tidak bergantung pada isi UUID); Pint, Larastan, tsc, `vp check`, build lulus.
+
+**HR-8b-1 — Penilaian kinerja: periode, komponen, lembar penilaian: SELESAI (2026-11-13, commit `346baf1`, uji owner lancar)** — PRD-001 §19.2 (OD-HR-17, OD-HR-18); rincian teknis §19.3 [ASUMSI disetujui owner 2026-11-12]
 
 - Migrasi `2026_11_13_100019`: `hr_performance_components` (kelompok GURU/STAF, nama, bobot, urutan; kosong = isi bawaan), `hr_performance_periods` (nama unik, mulai–selesai, kolom kunci untuk 8b-2), `hr_performance_assessments` (satu per pegawai per periode; salinan komponen+bobot+nilai di `scores`, nilai akhir 1 desimal, predikat, kekuatan, saran, lembaga penempatan utama saat dinilai).
 - Izin baru `hr.performance.assess` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.performance.manage` (Admin SDM, Admin Yayasan) → **jalankan `educore:sync-access`**.
@@ -1060,5 +1066,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8a SELESAI → uji manual HR-8b-1 → **HR-8b-2** (kunci periode, Kinerja saya, rekap .xlsx) → HR-8 → HR-9 → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8a SELESAI → HR-8b-1 SELESAI → uji manual HR-8b-2 → HR-8 → HR-9 → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

@@ -151,6 +151,12 @@ const trainingsNavItem: NavItem = {
     icon: Award,
 };
 
+const myPerformanceNavItem: NavItem = {
+    title: 'Kinerja saya',
+    href: '/kinerja-saya',
+    icon: Gauge,
+};
+
 const performanceNavItem: NavItem = {
     title: 'Penilaian kinerja',
     href: '/pegawai/kinerja',
@@ -380,6 +386,7 @@ export function AppSidebar() {
                     myLeaveNavItem,
                     myDocumentsNavItem,
                     myTrainingsNavItem,
+                    myPerformanceNavItem,
                     myPayNavItem,
                 ]),
             ],

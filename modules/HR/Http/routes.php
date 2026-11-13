@@ -18,6 +18,7 @@ use Modules\HR\Http\Controllers\LeaveSettingsController;
 use Modules\HR\Http\Controllers\MyAttendanceController;
 use Modules\HR\Http\Controllers\MyDocumentController;
 use Modules\HR\Http\Controllers\MyLeaveController;
+use Modules\HR\Http\Controllers\MyPerformanceController;
 use Modules\HR\Http\Controllers\MyTrainingController;
 use Modules\HR\Http\Controllers\OffboardingController;
 use Modules\HR\Http\Controllers\PayrollEmployeeController;
@@ -116,6 +117,10 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/kinerja/periode', [PerformanceController::class, 'storePeriod'])->name('hr.performance.periods.store');
     Route::patch('pegawai/kinerja/periode/{period}', [PerformanceController::class, 'updatePeriod'])->whereUuid('period')->name('hr.performance.periods.update');
     Route::delete('pegawai/kinerja/periode/{period}', [PerformanceController::class, 'destroyPeriod'])->whereUuid('period')->name('hr.performance.periods.destroy');
+    Route::post('pegawai/kinerja/periode/{period}/kunci', [PerformanceController::class, 'lockPeriod'])->whereUuid('period')->name('hr.performance.periods.lock');
+    Route::post('pegawai/kinerja/periode/{period}/buka-kunci', [PerformanceController::class, 'unlockPeriod'])->whereUuid('period')->name('hr.performance.periods.unlock');
+    Route::get('pegawai/kinerja/rekap/unduh', [PerformanceController::class, 'export'])->middleware('throttle:10,1')->name('hr.performance.export');
+    Route::get('kinerja-saya', [MyPerformanceController::class, 'index'])->name('hr.my-performance.index');
     Route::post('pegawai/kinerja/komponen/{group}', [PerformanceController::class, 'saveComponents'])->whereIn('group', ['guru', 'staf'])->name('hr.performance.components.save');
     Route::post('pegawai/kinerja/periode/{period}/pegawai/{employee}', [PerformanceController::class, 'assess'])->whereUuid(['period', 'employee'])->name('hr.performance.assess');
 

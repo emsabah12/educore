@@ -2,6 +2,9 @@ import { Form, Head, router } from '@inertiajs/react';
 import {
     CalendarRange,
     ClipboardCheck,
+    Download,
+    Lock,
+    LockOpen,
     Pencil,
     Plus,
     Trash2,
@@ -65,16 +68,25 @@ type Props = {
     groups: { value: string; slug: string; label: string }[];
     predicates: { value: string; label: string; range: string }[];
     canManage: boolean;
+    recap: {
+        organization_id: string;
+        organization: string;
+        active: number;
+        assessed: number;
+        average: number | null;
+        predicates: Record<string, number>;
+    }[];
     limits: {
         note: number;
         periodName: number;
         componentName: number;
         components: number;
+        reason: number;
     };
 };
 
 const BASE_URL = '/pegawai/kinerja';
-const TABS = ['penilaian', 'periode', 'komponen'] as const;
+const TABS = ['penilaian', 'periode', 'komponen', 'rekap'] as const;
 
 const textareaClass =
     'min-h-20 w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground hover:border-foreground/60 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary md:text-sm';
@@ -152,6 +164,7 @@ export default function PerformanceIndex(props: Props) {
                                 badge: props.periods.length,
                             },
                             { value: 'komponen', label: 'Komponen & bobot' },
+                            { value: 'rekap', label: 'Rekap' },
                         ]}
                         value={current}
                         onChange={setTab}
@@ -161,6 +174,7 @@ export default function PerformanceIndex(props: Props) {
                 {current === 'penilaian' && <AssessmentTab {...props} />}
                 {current === 'periode' && <PeriodsTab {...props} />}
                 {current === 'komponen' && <ComponentsTab {...props} />}
+                {current === 'rekap' && <RecapTab {...props} />}
             </div>
         </>
     );
@@ -660,6 +674,7 @@ function PeriodsTab({ periods, limits }: Props) {
                             key={period.id}
                             period={period}
                             nameMax={limits.periodName}
+                            reasonMax={limits.reason}
                         />
                     ))}
                 </ul>
@@ -668,7 +683,15 @@ function PeriodsTab({ periods, limits }: Props) {
     );
 }
 
-function PeriodRow({ period, nameMax }: { period: Period; nameMax: number }) {
+function PeriodRow({
+    period,
+    nameMax,
+    reasonMax,
+}: {
+    period: Period;
+    nameMax: number;
+    reasonMax: number;
+}) {
     const [editing, setEditing] = useState(false);
 
     return (
@@ -699,6 +722,43 @@ function PeriodRow({ period, nameMax }: { period: Period; nameMax: number }) {
                         <Pencil />
                         Ubah
                     </Button>
+                )}
+                {!period.locked && period.started && (
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" size="sm" variant="outline">
+                                <Lock />
+                                Kunci
+                            </Button>
+                        }
+                        title={`Kunci periode ${period.name}?`}
+                        description={`${period.assessed} pegawai sudah dinilai. Sesudah dikunci nilai tidak bisa diubah, dan pegawai bisa melihat hasilnya di menu Kinerja saya.`}
+                        action={`${BASE_URL}/periode/${period.id}/kunci`}
+                        confirmLabel="Kunci periode"
+                        destructive={false}
+                        errorBag={`period-lock-${period.id}`}
+                    />
+                )}
+                {period.locked && (
+                    <ConfirmAction
+                        trigger={
+                            <Button type="button" size="sm" variant="outline">
+                                <LockOpen />
+                                Buka kunci
+                            </Button>
+                        }
+                        title={`Buka kunci periode ${period.name}?`}
+                        description="Nilai bisa diubah lagi dan hasilnya disembunyikan dari pegawai sampai dikunci kembali. Alasan dicatat di log aktivitas."
+                        action={`${BASE_URL}/periode/${period.id}/buka-kunci`}
+                        confirmLabel="Buka kunci"
+                        reason={{
+                            label: 'Alasan membuka kunci',
+                            max: reasonMax,
+                            placeholder:
+                                'mis. Koreksi nilai pegawai yang salah input',
+                        }}
+                        errorBag={`period-unlock-${period.id}`}
+                    />
                 )}
                 {!period.locked && period.assessed === 0 && (
                     <ConfirmAction
@@ -1064,5 +1124,110 @@ function ComponentsForm({
                 </>
             )}
         </Form>
+    );
+}
+
+function RecapTab({ periods, filters, recap, predicates }: Props) {
+    const period = periods.find((item) => item.id === filters.periode) ?? null;
+
+    if (period === null) {
+        return (
+            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Belum ada periode penilaian.
+            </div>
+        );
+    }
+
+    const totals = recap.reduce(
+        (sum, row) => ({
+            active: sum.active + row.active,
+            assessed: sum.assessed + row.assessed,
+        }),
+        { active: 0, assessed: 0 },
+    );
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="grid min-w-56 flex-1 gap-1.5 sm:max-w-sm">
+                    <Label htmlFor="recap-period">Periode</Label>
+                    <select
+                        id="recap-period"
+                        className={selectClass}
+                        value={period.id}
+                        onChange={(event) =>
+                            router.get(
+                                BASE_URL,
+                                { periode: event.target.value, tab: 'rekap' },
+                                { preserveScroll: true, replace: true },
+                            )
+                        }
+                    >
+                        {periods.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                {item.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <Button asChild variant="outline">
+                    <a
+                        href={`${BASE_URL}/rekap/unduh?periode=${encodeURIComponent(period.id)}`}
+                    >
+                        <Download />
+                        Unduh .xlsx
+                    </a>
+                </Button>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+                {period.locked
+                    ? 'Periode sudah dikunci.'
+                    : 'Periode belum dikunci; angka masih bisa berubah.'}{' '}
+                {totals.assessed} dari {totals.active} pegawai aktif sudah
+                dinilai.
+            </p>
+
+            {recap.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Belum ada pegawai aktif maupun penilaian di periode ini.
+                </div>
+            ) : (
+                <ul className="divide-y rounded-xl border">
+                    {recap.map((row) => (
+                        <li
+                            key={row.organization_id}
+                            className="space-y-1 p-4 text-sm"
+                        >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-medium break-words">
+                                    {row.organization}
+                                </p>
+                                <span className="text-muted-foreground tabular-nums">
+                                    {row.assessed}/{row.active} dinilai
+                                    {row.average !== null &&
+                                        ` · rata-rata ${scoreFormat.format(row.average)}`}
+                                </span>
+                            </div>
+                            {row.assessed > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {predicates
+                                        .filter(
+                                            (item) =>
+                                                (row.predicates[item.value] ??
+                                                    0) > 0,
+                                        )
+                                        .map(
+                                            (item) =>
+                                                `${item.label} ${row.predicates[item.value]}`,
+                                        )
+                                        .join(' · ')}
+                                </p>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
     );
 }

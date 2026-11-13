@@ -161,7 +161,7 @@ test('Kepala Lembaga menilai pegawai lembaganya; nilai akhir berbobot & predikat
 
     $audit = DB::table('audit_logs')->where('action', HrAuditAction::PERFORMANCE_ASSESSED)->orderBy('created_at')->get();
     expect($audit)->toHaveCount(2)
-        ->and((string) $audit[1]->changes)->not->toContain('90')
+        ->and(collect(json_decode((string) $audit[1]->changes, true))->keys()->sort()->values()->all())->toBe(['kelompok', 'pegawai', 'periode', 'ubah'])
         ->and((string) $audit[1]->changes)->not->toContain('Tepat');
 
     // Pegawai SMK Unit 3 di luar cakupan → 404; pengelolaan → 403.
