@@ -28,6 +28,7 @@ use Modules\HR\Application\Payroll\AttendanceDeductionSetting;
 use Modules\HR\Application\Payroll\NoTeachingLoad;
 use Modules\HR\Application\Payroll\TeachingPaySetting;
 use Modules\HR\Console\PruneImportsCommand;
+use Modules\HR\Console\PurgeApplicantsCommand;
 use Modules\HR\Contracts\ActiveEmployees;
 use Modules\HR\Contracts\ApprovedLeaves;
 use Modules\HR\Contracts\EmployeeLookup;
@@ -89,12 +90,14 @@ class HRServiceProvider extends ModuleServiceProvider
         Inertia::share('hr', fn (): array => ['isEmployee' => $this->isEmployee()]);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PruneImportsCommand::class]);
+            $this->commands([PruneImportsCommand::class, PurgeApplicantsCommand::class]);
         }
 
         // File impor pegawai sementara tidak boleh tertinggal lebih dari 24 jam (PRD-001 §6.2).
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('hr:prune-imports')->hourly()->withoutOverlapping();
+            // Data pelamar yang tidak menjadi pegawai dihapus 1 tahun sesudah lowongan ditutup (OD-HR-21).
+            $schedule->command('hr:purge-applicants')->dailyAt('02:30')->withoutOverlapping();
         });
     }
 

@@ -39,6 +39,7 @@ use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
 use Modules\HR\Application\Offboarding\ManageOffboarding;
 use Modules\HR\Application\Offboarding\OffboardingChecklist;
+use Modules\HR\Application\Recruitment\HireApplicant;
 use Modules\HR\Application\Training\TrainingRecords;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Catalog\DocumentType;
@@ -47,6 +48,7 @@ use Modules\HR\Domain\Employee\Employee;
 use Modules\HR\Domain\Employee\EndReason;
 use Modules\HR\Domain\Employee\Exceptions\DuplicatePersonException;
 use Modules\HR\Domain\Employee\Exceptions\EmployeeException;
+use Modules\HR\Domain\Recruitment\Exceptions\RecruitmentException;
 use stdClass;
 
 /**
@@ -190,12 +192,13 @@ final class EmployeeController
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request, HireApplicant $hire): Response
     {
         $this->authorize();
 
         return Inertia::render('hr/employees/create', [
             'today' => BusinessClock::todayString(),
+            'applicant' => $this->applicantPrefill($request->string('pelamar')->value(), $hire),
             'members' => $this->memberOptions(),
             'options' => [
                 'employmentTypes' => $this->catalogOptions(CatalogKind::EmploymentType),
@@ -208,7 +211,7 @@ final class EmployeeController
         ]);
     }
 
-    public function store(Request $request, CreateEmployee $createEmployee): RedirectResponse
+    public function store(Request $request, CreateEmployee $createEmployee, HireApplicant $hire): RedirectResponse
     {
         $this->authorize();
 
@@ -243,6 +246,7 @@ final class EmployeeController
             'organization_id' => ['required', 'uuid'],
             'position_id' => ['required', 'uuid'],
             'confirm_duplicate' => ['nullable', 'boolean'],
+            'applicant_id' => ['nullable', 'uuid'],
         ], [
             'membership_id.required_if' => 'Pilih anggota yayasan.',
             'name.required_if' => 'Nama lengkap wajib diisi.',
@@ -284,12 +288,21 @@ final class EmployeeController
             requireNik: true,
         );
 
+        // Jadikan pegawai dari pelamar Diterima (PRD-001 §20.2, HR-9b): hanya orang baru & butuh izin kelola rekrutmen.
+        $applicantId = PersonalData::text($request->input('applicant_id'));
+
+        if ($applicantId !== null && ($isMember || ! $this->authorization->inspectTarget(HrAccess::RECRUITMENT_MANAGE, null, null)->allowed())) {
+            throw ValidationException::withMessages(['form' => 'Pelamar hanya bisa dijadikan pegawai sebagai orang baru oleh pengelola rekrutmen.']);
+        }
+
         try {
-            $employee = $createEmployee->handle($data);
+            $employee = $applicantId === null ? $createEmployee->handle($data) : $hire->handle($applicantId, $data);
         } catch (EmployeeException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         } catch (DuplicatePersonException $exception) {
             throw ValidationException::withMessages(['duplicate' => $exception->getMessage()]);
+        } catch (RecruitmentException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $this->personName($employee).' berhasil ditambahkan sebagai pegawai.']);
@@ -298,6 +311,37 @@ final class EmployeeController
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Isian awal form dari pelamar Diterima yang belum dijadikan pegawai (HR-9b); null bila tidak berlaku.
+     *
+     * @return array{id: string, name: string, gender: string, phone: string|null, education_level: string|null, education_major: string|null, organization_id: string, position_id: string, vacancy_id: string, vacancy_title: string}|null
+     */
+    private function applicantPrefill(string $applicantId, HireApplicant $hire): ?array
+    {
+        if ($applicantId === '' || ! $this->authorization->inspectTarget(HrAccess::RECRUITMENT_MANAGE, null, null)->allowed()) {
+            return null;
+        }
+
+        $applicant = $hire->candidate($this->tenantContext->require()->tenantId, $applicantId);
+
+        if ($applicant === null) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $applicant->id,
+            'name' => (string) $applicant->name,
+            'gender' => (string) $applicant->gender,
+            'phone' => $applicant->phone === null ? null : (string) $applicant->phone,
+            'education_level' => $applicant->education_level === null ? null : (string) $applicant->education_level,
+            'education_major' => $applicant->education_major === null ? null : (string) $applicant->education_major,
+            'organization_id' => (string) $applicant->organization_id,
+            'position_id' => (string) $applicant->position_id,
+            'vacancy_id' => (string) $applicant->vacancy_id,
+            'vacancy_title' => (string) $applicant->vacancy_title,
+        ];
+    }
 
     /**
      * Pegawai hanya dikelola di tingkat Yayasan (OD-HR-02): 403 bila tidak punya izinnya.

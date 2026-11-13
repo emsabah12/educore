@@ -141,6 +141,11 @@ final class HrAuditAction
 
     public const APPLICANT_FILE_DOWNLOADED = 'hr.applicant_file_downloaded';
 
+    /** HR-9b: pelamar dijadikan pegawai; pelamar lama dihapus otomatis (lowongan, jumlah). */
+    public const APPLICANT_HIRED = 'hr.applicant_hired';
+
+    public const APPLICANTS_PURGED = 'hr.applicants_purged';
+
     public const SUBJECT_VACANCY = 'hr_vacancy';
 
     public const SUBJECT_APPLICANT = 'hr_applicant';
@@ -257,6 +262,8 @@ final class HrAuditAction
             self::APPLICANT_UPDATED => 'Data pelamar diubah',
             self::APPLICANT_STEP => 'Tahap seleksi pelamar dicatat',
             self::APPLICANT_FILE_DOWNLOADED => 'Berkas lamaran diunduh',
+            self::APPLICANT_HIRED => 'Pelamar dijadikan pegawai',
+            self::APPLICANTS_PURGED => 'Data pelamar lama dihapus otomatis',
             self::PERFORMANCE_PERIOD_CREATED => 'Periode penilaian kinerja dibuat',
             self::PERFORMANCE_PERIOD_UPDATED => 'Periode penilaian kinerja diubah',
             self::PERFORMANCE_PERIOD_DELETED => 'Periode penilaian kinerja dihapus',

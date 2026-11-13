@@ -20,8 +20,23 @@ type Member = {
     has_nik: boolean;
 };
 
+/** Isian awal dari pelamar Diterima (PRD-001 §20.2, HR-9b). */
+type ApplicantPrefill = {
+    id: string;
+    name: string;
+    gender: string;
+    phone: string | null;
+    education_level: string | null;
+    education_major: string | null;
+    organization_id: string;
+    position_id: string;
+    vacancy_id: string;
+    vacancy_title: string;
+};
+
 type Props = {
     today: string;
+    applicant: ApplicantPrefill | null;
     members: Member[];
     options: {
         employmentTypes: Option[];
@@ -42,12 +57,17 @@ const textareaClass =
  * Form tambah pegawai (PRD-001 §6). Validasi akhir & hak akses tetap di server.
  * Sekali simpan: orang (bila baru), keanggotaan, profil pegawai, periode, dan penempatan pertama.
  */
-export default function CreateEmployee({ today, members, options }: Props) {
+export default function CreateEmployee({
+    today,
+    applicant,
+    members,
+    options,
+}: Props) {
     const [mode, setMode] = useState<Mode>('baru');
     const [memberId, setMemberId] = useState('');
     // Untuk peringatan NIK vs tanggal lahir/jenis kelamin (tidak menghalangi simpan).
     const [birthDate, setBirthDate] = useState('');
-    const [gender, setGender] = useState('');
+    const [gender, setGender] = useState(applicant?.gender ?? '');
     // Kolom NIK menyimpan isiannya sendiri: ganti key agar ikut kosong sesudah simpan.
     const [savedCount, setSavedCount] = useState(0);
 
@@ -85,24 +105,34 @@ export default function CreateEmployee({ today, members, options }: Props) {
                     </p>
                 )}
 
-                <div
-                    role="radiogroup"
-                    aria-label="Siapa yang ditambahkan"
-                    className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2"
-                >
-                    <ModeButton
-                        active={mode === 'baru'}
-                        onClick={() => setMode('baru')}
-                        title="Orang baru"
-                        description="Belum terdaftar di yayasan"
-                    />
-                    <ModeButton
-                        active={mode === 'anggota'}
-                        onClick={() => setMode('anggota')}
-                        title="Anggota yayasan"
-                        description="Sudah terdaftar, mis. sudah punya akun"
-                    />
-                </div>
+                {applicant && (
+                    <p className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+                        Dari pelamar <strong>{applicant.name}</strong> (lowongan{' '}
+                        {applicant.vacancy_title}). Data pelamar sudah terisi;
+                        lengkapi NIK dan data kepegawaian lalu simpan.
+                    </p>
+                )}
+
+                {!applicant && (
+                    <div
+                        role="radiogroup"
+                        aria-label="Siapa yang ditambahkan"
+                        className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2"
+                    >
+                        <ModeButton
+                            active={mode === 'baru'}
+                            onClick={() => setMode('baru')}
+                            title="Orang baru"
+                            description="Belum terdaftar di yayasan"
+                        />
+                        <ModeButton
+                            active={mode === 'anggota'}
+                            onClick={() => setMode('anggota')}
+                            title="Anggota yayasan"
+                            description="Sudah terdaftar, mis. sudah punya akun"
+                        />
+                    </div>
+                )}
 
                 <Form
                     action="/pegawai"
@@ -121,6 +151,13 @@ export default function CreateEmployee({ today, members, options }: Props) {
                     {({ processing, errors }) => (
                         <>
                             <input type="hidden" name="mode" value={mode} />
+                            {applicant && (
+                                <input
+                                    type="hidden"
+                                    name="applicant_id"
+                                    value={applicant.id}
+                                />
+                            )}
 
                             <InputError message={errors.form} />
 
@@ -136,6 +173,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                             <Input
                                                 id="name"
                                                 name="name"
+                                                defaultValue={
+                                                    applicant?.name ?? ''
+                                                }
                                                 maxLength={200}
                                                 autoComplete="off"
                                                 required
@@ -151,7 +191,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                                 id="gender"
                                                 name="gender"
                                                 className={selectClass}
-                                                defaultValue=""
+                                                defaultValue={
+                                                    applicant?.gender ?? ''
+                                                }
                                                 onChange={(event) =>
                                                     setGender(
                                                         event.target.value,
@@ -337,6 +379,7 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                     <Input
                                         id="phone"
                                         name="phone"
+                                        defaultValue={applicant?.phone ?? ''}
                                         type="tel"
                                         inputMode="tel"
                                         placeholder="mis. 0812-3456-7890"
@@ -393,6 +436,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                     <SelectOptions
                                         id="education_level"
                                         name="education_level"
+                                        defaultValue={
+                                            applicant?.education_level ?? ''
+                                        }
                                         options={options.educationLevels}
                                         placeholder="Tidak diisi"
                                     />
@@ -405,6 +451,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                     <Input
                                         id="education_major"
                                         name="education_major"
+                                        defaultValue={
+                                            applicant?.education_major ?? ''
+                                        }
                                         maxLength={150}
                                     />
                                 </Field>
@@ -463,6 +512,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                     <SelectOptions
                                         id="organization_id"
                                         name="organization_id"
+                                        defaultValue={
+                                            applicant?.organization_id ?? ''
+                                        }
                                         options={options.organizations}
                                         placeholder="Pilih lembaga"
                                         required
@@ -477,6 +529,9 @@ export default function CreateEmployee({ today, members, options }: Props) {
                                     <SelectOptions
                                         id="position_id"
                                         name="position_id"
+                                        defaultValue={
+                                            applicant?.position_id ?? ''
+                                        }
                                         options={options.positions}
                                         placeholder="Pilih jabatan"
                                         required
@@ -623,19 +678,21 @@ function SelectOptions({
     options,
     placeholder,
     required = false,
+    defaultValue = '',
 }: {
     id: string;
     name: string;
     options: Option[];
     placeholder: string;
     required?: boolean;
+    defaultValue?: string;
 }) {
     return (
         <select
             id={id}
             name={name}
             className={selectClass}
-            defaultValue=""
+            defaultValue={defaultValue}
             required={required}
         >
             <option value="" disabled={required}>

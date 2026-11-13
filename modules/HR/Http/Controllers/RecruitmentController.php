@@ -14,9 +14,11 @@ use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Core\Support\BusinessClock;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Recruitment\ManageApplicants;
 use Modules\HR\Application\Recruitment\ManageVacancies;
+use Modules\HR\Application\Recruitment\RecruitmentExport;
 use Modules\HR\Application\Recruitment\RecruitmentRecords;
 use Modules\HR\Domain\Catalog\CatalogKind;
 use Modules\HR\Domain\Employee\EducationLevel;
@@ -68,6 +70,8 @@ final class RecruitmentController
             'vacancy' => $row,
             'applicants' => $records->applicants($tenantId, $row['id']),
             'canManage' => $this->canManage(),
+            // Jadikan pegawai (HR-9b) butuh juga izin tambah pegawai (OD-HR-02).
+            'canHire' => $this->canManage() && $this->authorization->inspectTarget(HrAccess::EMPLOYEES_MANAGE, null, null)->allowed(),
             'options' => $this->vacancyOptions($this->organizationOptions($this->scope())) + [
                 'genders' => array_map(fn (Gender $gender): array => ['value' => $gender->value, 'label' => $gender->label()], Gender::cases()),
                 'educationLevels' => array_map(fn (EducationLevel $level): array => ['value' => $level->value, 'label' => $level->label()], EducationLevel::cases()),
@@ -182,6 +186,25 @@ final class RecruitmentController
         }
 
         return DisciplineController::send($file);
+    }
+
+    public function export(string $vacancy, RecruitmentRecords $records, RecruitmentExport $export): BinaryFileResponse
+    {
+        $this->authorizeManage();
+        $tenantId = $this->tenantContext->require()->tenantId;
+        $row = $records->vacancy($tenantId, $vacancy, null) ?? abort(404);
+        $path = tempnam(sys_get_temp_dir(), 'educore-rekrutmen-');
+
+        if ($path === false) {
+            abort(500, 'File unduhan tidak bisa dibuat.');
+        }
+
+        $export->write($row, $records->applicants($tenantId, $row['id']), BusinessClock::todayString(), $path);
+        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($row['title'])), '-');
+
+        return response()
+            ->download($path, 'rekap-lowongan-'.($slug === '' ? 'lowongan' : $slug).'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
+            ->deleteFileAfterSend();
     }
 
     /**

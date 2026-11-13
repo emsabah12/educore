@@ -25,7 +25,12 @@ export type Vacancy = {
     status: 'DRAF' | 'DIBUKA' | 'DITUTUP';
     status_label: string;
     counts: Record<string, number>;
+    /** Jumlah per tahap yang sudah dihapus otomatis (OD-HR-21). */
+    purged: Record<string, number>;
+    purged_total: number;
     total: number;
+    /** Pelamar yang sudah dijadikan pegawai. */
+    hired: number;
 };
 
 export type RecruitmentLimits = {

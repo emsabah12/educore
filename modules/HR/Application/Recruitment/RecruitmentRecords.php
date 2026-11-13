@@ -17,9 +17,9 @@ use stdClass;
  * Tampilan rekrutmen (PRD-001 §20.1, HR-9a): daftar lowongan dengan jumlah pelamar per tahap, dan detail lowongan
  * beserta pelamar & riwayat seleksinya. Cakupan lembaga diberikan pemanggil (`$organizationIds` null = semua).
  *
- * @phpstan-type VacancyRow array{id: string, title: string, organization_id: string, organization: string, position_id: string, position: string, openings: int, closes_on: string|null, requirements: string|null, status: string, status_label: string, counts: array<string, int>, total: int}
+ * @phpstan-type VacancyRow array{id: string, title: string, organization_id: string, organization: string, position_id: string, position: string, openings: int, closes_on: string|null, requirements: string|null, status: string, status_label: string, counts: array<string, int>, purged: array<string, int>, purged_total: int, total: int, hired: int}
  * @phpstan-type StepRow array{action: string, action_label: string, stage_label: string, score: int|null, note: string|null, by: string|null, at: string}
- * @phpstan-type ApplicantRow array{id: string, name: string, gender: string, phone: string|null, email: string|null, education_level: string|null, education_label: string|null, education_major: string|null, note: string|null, stage: string, stage_label: string, file_name: string|null, added_on: string, steps: list<StepRow>}
+ * @phpstan-type ApplicantRow array{id: string, name: string, gender: string, phone: string|null, email: string|null, education_level: string|null, education_label: string|null, education_major: string|null, note: string|null, stage: string, stage_label: string, file_name: string|null, added_on: string, employee_id: string|null, steps: list<StepRow>}
  */
 final class RecruitmentRecords
 {
@@ -125,6 +125,7 @@ final class RecruitmentRecords
                 'stage_label' => $stage->label(),
                 'file_name' => $applicant->original_name === null ? null : (string) $applicant->original_name,
                 'added_on' => self::localDate((string) $applicant->created_at),
+                'employee_id' => $applicant->employee_id === null ? null : (string) $applicant->employee_id,
                 'steps' => $steps[(string) $applicant->id] ?? [],
             ];
         }
@@ -147,7 +148,7 @@ final class RecruitmentRecords
 
     /**
      * @param  list<string>  $vacancyIds
-     * @return array<string, array<string, int>> lowongan → tahap → jumlah
+     * @return array<string, array<string, int>> lowongan → tahap (dan `HIRED` = sudah jadi pegawai) → jumlah
      */
     private function counts(array $vacancyIds): array
     {
@@ -165,6 +166,15 @@ final class RecruitmentRecords
             $counts[(string) $row->vacancy_id][(string) $row->stage] = (int) $row->total;
         }
 
+        foreach (DB::table('hr_applicants')
+            ->whereIn('vacancy_id', $vacancyIds)
+            ->whereNotNull('employee_id')
+            ->groupBy('vacancy_id')
+            ->selectRaw('vacancy_id, count(*) AS total')
+            ->get() as $row) {
+            $counts[(string) $row->vacancy_id]['HIRED'] = (int) $row->total;
+        }
+
         return $counts;
     }
 
@@ -175,10 +185,13 @@ final class RecruitmentRecords
     private function vacancyRow(stdClass $row, array $counts): array
     {
         $status = VacancyStatus::from((string) $row->status);
+        $stored = $row->purged_counts === null ? [] : (array) json_decode((string) $row->purged_counts, true);
         $all = [];
+        $purged = [];
 
         foreach (ApplicantStage::cases() as $stage) {
             $all[$stage->value] = $counts[$stage->value] ?? 0;
+            $purged[$stage->value] = (int) ($stored[$stage->value] ?? 0);
         }
 
         return [
@@ -194,7 +207,10 @@ final class RecruitmentRecords
             'status' => $status->value,
             'status_label' => $status->label(),
             'counts' => $all,
+            'purged' => $purged,
+            'purged_total' => array_sum($purged),
             'total' => array_sum($all),
+            'hired' => $counts['HIRED'] ?? 0,
         ];
     }
 }

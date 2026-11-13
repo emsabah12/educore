@@ -124,6 +124,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('pegawai/rekrutmen/{vacancy}/pelamar', [RecruitmentController::class, 'storeApplicant'])->whereUuid('vacancy')->name('hr.applicants.store');
     Route::post('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}', [RecruitmentController::class, 'updateApplicant'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.update');
     Route::post('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}/tahap', [RecruitmentController::class, 'step'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.step');
+    Route::get('pegawai/rekrutmen/{vacancy}/rekap', [RecruitmentController::class, 'export'])->whereUuid('vacancy')->middleware('throttle:10,1')->name('hr.recruitment.export');
     Route::get('pegawai/rekrutmen/{vacancy}/pelamar/{applicant}/unduh', [RecruitmentController::class, 'download'])->whereUuid(['vacancy', 'applicant'])->name('hr.applicants.download');
 
     // Penilaian kinerja ringkas (PRD-001 §19.2, HR-8b).

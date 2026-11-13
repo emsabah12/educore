@@ -196,6 +196,10 @@ final class ManageApplicants
             $applicant = $this->find($tenantId, $vacancyId, $applicantId);
             $stage = ApplicantStage::from((string) $applicant->stage);
 
+            if ($applicant->employee_id !== null && $actionCase !== StepAction::Note) {
+                throw RecruitmentException::make('form', 'Pelamar ini sudah dijadikan pegawai, jadi tahapnya tidak bisa diubah.');
+            }
+
             [$allowed, $next] = match ($actionCase) {
                 StepAction::PassScreening => [$stage === ApplicantStage::Screening, ApplicantStage::Interview],
                 StepAction::Accept => [$stage === ApplicantStage::Interview, ApplicantStage::Accepted],

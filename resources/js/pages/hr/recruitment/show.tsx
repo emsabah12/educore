@@ -8,6 +8,8 @@ import {
     Plus,
     RotateCcw,
     Trash2,
+    UserCheck,
+    UserPlus,
     X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -57,6 +59,7 @@ type Applicant = {
     stage_label: string;
     file_name: string | null;
     added_on: string;
+    employee_id: string | null;
     steps: Step[];
 };
 
@@ -64,6 +67,7 @@ type Props = {
     vacancy: Vacancy;
     applicants: Applicant[];
     canManage: boolean;
+    canHire: boolean;
     options: {
         organizations: Option[];
         positions: Option[];
@@ -89,6 +93,7 @@ export default function RecruitmentShow({
     vacancy,
     applicants,
     canManage,
+    canHire,
     options,
     limits,
 }: Props) {
@@ -119,6 +124,16 @@ export default function RecruitmentShow({
                         label={vacancy.status_label}
                     />
                 </div>
+
+                <p className="text-sm text-muted-foreground">
+                    Diterima{' '}
+                    {(vacancy.counts.DITERIMA ?? 0) +
+                        (vacancy.purged.DITERIMA ?? 0)}{' '}
+                    dari {vacancy.openings} dibutuhkan · {vacancy.hired} sudah
+                    dijadikan pegawai
+                    {vacancy.purged_total > 0 &&
+                        ` · ${vacancy.purged_total} data pelamar lama sudah dihapus otomatis`}
+                </p>
 
                 {vacancy.requirements && (
                     <section className="space-y-1 rounded-xl border p-4 text-sm">
@@ -169,6 +184,12 @@ export default function RecruitmentShow({
                                 errorBag="vacancy-open"
                             />
                         )}
+                        <Button asChild variant="outline">
+                            <a href={`${base}/rekap`}>
+                                <Download />
+                                Unduh rekap .xlsx
+                            </a>
+                        </Button>
                         {vacancy.status === 'DRAF' && vacancy.total === 0 && (
                             <ConfirmAction
                                 trigger={
@@ -269,6 +290,7 @@ export default function RecruitmentShow({
                                                 applicant={applicant}
                                                 base={base}
                                                 canManage={canManage}
+                                                canHire={canHire}
                                                 options={options}
                                                 limits={limits}
                                             />
@@ -288,12 +310,14 @@ function ApplicantRow({
     applicant,
     base,
     canManage,
+    canHire,
     options,
     limits,
 }: {
     applicant: Applicant;
     base: string;
     canManage: boolean;
+    canHire: boolean;
     options: Props['options'];
     limits: RecruitmentLimits;
 }) {
@@ -384,7 +408,27 @@ function ApplicantRow({
                         destructive
                     />
                 )}
-                {canManage && final && (
+                {applicant.stage === 'DITERIMA' &&
+                    (applicant.employee_id ? (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={`/pegawai/${applicant.employee_id}`}>
+                                <UserCheck />
+                                Lihat pegawai
+                            </Link>
+                        </Button>
+                    ) : (
+                        canHire && (
+                            <Button asChild size="sm">
+                                <Link
+                                    href={`/pegawai/tambah?pelamar=${applicant.id}`}
+                                >
+                                    <UserPlus />
+                                    Jadikan pegawai
+                                </Link>
+                            </Button>
+                        )
+                    ))}
+                {canManage && final && !applicant.employee_id && (
                     <StepButton
                         url={url}
                         action="KEMBALI"

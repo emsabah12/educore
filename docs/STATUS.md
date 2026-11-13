@@ -725,12 +725,21 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-9a — Rekrutmen: lowongan, pelamar, seleksi: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §20.1 (OD-HR-19, OD-HR-20)
+**HR-9b — Rekrutmen: jadikan pegawai, rekap, hapus otomatis: DIBANGUN, menunggu uji owner (2026-11-13)** — PRD-001 §20.2 (OD-HR-21)
+
+- Migrasi `2026_11_13_100021`: `hr_applicants.employee_id` (unik, tertaut sekali) & `hr_vacancies.purged_counts` (jumlah per tahap yang sudah dihapus).
+- **Jadikan pegawai**: tombol di pelamar Diterima → form Tambah pegawai terisi (`/pegawai/tambah?pelamar=`; nama, L/P, HP, pendidikan, lembaga & jabatan lowongan); `HireApplicant` membuat pegawai lewat `CreateEmployee` lalu menautkan pelamar dalam satu transaksi (NIK wajib & dicek seperti biasa). Butuh izin kelola rekrutmen **dan** kelola pegawai. Pelamar yang sudah jadi pegawai tidak bisa dikembalikan/dijadikan lagi.
+- **Rekap .xlsx** per lowongan (`RecruitmentExport`: Ringkasan + Pelamar, tanpa HP/email/catatan); ringkasan "Diterima x dari y dibutuhkan · z sudah dijadikan pegawai" di detail lowongan.
+- **Hapus otomatis**: `PurgeApplicants` + perintah `hr:purge-applicants` (jadwal harian 02.30) — pelamar yang tidak jadi pegawai di lowongan Ditutup > 1 tahun dihapus beserta berkas & riwayat; jumlahnya disimpan di lowongan. Audit `hr.applicant_hired`, `hr.applicants_purged`.
+- Bukti: 802 test lulus (3 test baru `HireAndPurgeTest`, awalan `rkh`); Pint, Larastan, tsc, `vp check`, build lulus. Tanpa izin baru.
+
+**HR-9a — Rekrutmen: lowongan, pelamar, seleksi: SELESAI (2026-11-13, commit `067da96`, uji owner lancar)** — PRD-001 §20.1 (OD-HR-19, OD-HR-20)
 
 - Migrasi `2026_11_13_100020`: `hr_vacancies` (lembaga tujuan, jabatan, jumlah, batas lamaran, persyaratan; Draf/Dibuka/Ditutup), `hr_applicants` (bukan Person; tahap BERKAS/TES/DITERIMA/TIDAK_LOLOS; berkas lamaran privat), `hr_applicant_steps` (riwayat aksi, nilai 0–100 opsional, catatan).
 - Izin baru `hr.recruitment.view` (Admin SDM, Admin Yayasan, Kepala Lembaga) & `hr.recruitment.manage` (Admin SDM, Admin Yayasan) → **jalankan `educore:sync-access`**.
 - `Domain/Recruitment/{VacancyStatus, ApplicantStage, StepAction}`, `Application/Recruitment/{ManageVacancies, ManageApplicants, RecruitmentRecords}`, `RecruitmentController`. Audit `hr.vacancy_*`, `hr.applicant_added|updated|step|file_downloaded` tanpa nama/kontak & isi catatan.
 - Halaman menu **Rekrutmen** (`/pegawai/rekrutmen`: daftar lowongan + saringan) dan detail lowongan (pelamar per tahap, Lolos berkas / Diterima / Tidak lolos / Kembalikan / Catatan / Ubah data, unduh berkas) — semua lewat pop-up. Kepala Lembaga: hanya lihat & catatan wawancara di tahap Tes.
+- Perbaikan saat uji owner: urutan riwayat seleksi/pelamar/lowongan diberi pengurut kedua `id` (UUIDv7 naik monoton) karena `created_at` berpresisi detik bisa sama — test di mesin owner sempat gagal karena urutan tertukar.
 - Bukti: 799 test lulus (3 test baru `RecruitmentTest`, awalan `rkt`; jumlah permission di `AccessCatalogTest`/`TreeAuthorizationTest` disesuaikan); Pint, Larastan, tsc, `vp check`, build lulus.
 
 **HR-8b-2 — Penilaian kinerja: kunci periode, Kinerja saya, rekap: SELESAI (2026-11-13, commit `bf60979`, uji owner lancar)** — **HR-8 SELESAI** — PRD-001 §19.2, §19.3
@@ -1075,5 +1084,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → **HR-9 rekrutmen** (§20: uji manual 9a → 9b jadikan pegawai, rekap, hapus otomatis) → HR-4d → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → **HR-9 rekrutmen** (§20: 9a SELESAI → uji manual 9b) → HR-4d → HR-10.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.
