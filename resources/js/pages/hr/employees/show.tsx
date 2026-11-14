@@ -29,6 +29,8 @@ import type { AttendanceSummaryData } from '@/components/hr/attendance-summary';
 import { AttendanceSummary } from '@/components/hr/attendance-summary';
 import { DocumentSection } from '@/components/hr/employee-documents';
 import { OffboardingSection } from '@/components/hr/employee-offboarding';
+import { PtkSection } from '@/components/hr/employee-ptk';
+import type { PtkData } from '@/components/hr/employee-ptk';
 import { TrainingSection } from '@/components/hr/employee-trainings';
 import type {
     TrainingFormOptions,
@@ -119,6 +121,8 @@ type Props = {
     };
     /** Checklist offboarding (HR-7b), hanya Admin SDM / Admin Yayasan. */
     offboarding: OffboardingData | null;
+    /** Data PTK Simpatika (HR-10a). */
+    ptk: PtkData;
     canManageLeave: boolean;
 };
 
@@ -164,6 +168,7 @@ function formatDate(value: string | null): string {
 const TABS = [
     'data',
     'penempatan',
+    'ptk',
     'cuti',
     'dokumen',
     'pelatihan',
@@ -189,6 +194,7 @@ export default function EmployeeDetail({
     discipline,
     offboarding,
     trainings,
+    ptk,
     canManageLeave,
 }: Props) {
     const lastPeriod = employee.periods[0];
@@ -211,6 +217,7 @@ export default function EmployeeDetail({
     const tabs: { value: EmployeeTab; label: string }[] = [
         { value: 'data', label: 'Data diri' },
         { value: 'penempatan', label: 'Penempatan' },
+        { value: 'ptk', label: 'Data PTK' },
         ...(leave || attendance
             ? [{ value: 'cuti' as const, label: 'Cuti & presensi' }]
             : []),
@@ -610,6 +617,10 @@ export default function EmployeeDetail({
                         records={discipline.records}
                         manage={discipline.manage}
                     />
+                )}
+
+                {tab === 'ptk' && (
+                    <PtkSection employeeId={employee.id} data={ptk} />
                 )}
 
                 {tab === 'pelatihan' && (

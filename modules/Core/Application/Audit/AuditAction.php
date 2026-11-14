@@ -46,6 +46,8 @@ final class AuditAction
 
     public const ORGANIZATION_ACTIVATED = 'organization.activated';
 
+    public const ORGANIZATION_DETAILS_UPDATED = 'organization.details_updated';
+
     public const MEMBERSHIP_GRANTED = 'access.membership_granted';
 
     public const ASSIGNMENT_CREATED = 'access.assignment_created';
@@ -101,6 +103,7 @@ final class AuditAction
             self::ORGANIZATION_MOVED => 'Lembaga dipindahkan',
             self::ORGANIZATION_DEACTIVATED => 'Lembaga dinonaktifkan',
             self::ORGANIZATION_ACTIVATED => 'Lembaga diaktifkan kembali',
+            self::ORGANIZATION_DETAILS_UPDATED => 'Data resmi lembaga diubah',
             self::MEMBERSHIP_GRANTED => 'Anggota didaftarkan',
             self::ASSIGNMENT_CREATED => 'Penugasan dibuat',
             self::ASSIGNMENT_REVOKED => 'Penugasan dicabut',

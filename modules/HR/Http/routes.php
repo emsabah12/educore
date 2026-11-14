@@ -26,6 +26,7 @@ use Modules\HR\Http\Controllers\PayrollRecapController;
 use Modules\HR\Http\Controllers\PayrollSettingsController;
 use Modules\HR\Http\Controllers\PayslipController;
 use Modules\HR\Http\Controllers\PerformanceController;
+use Modules\HR\Http\Controllers\PtkProfileController;
 use Modules\HR\Http\Controllers\RecruitmentController;
 use Modules\HR\Http\Controllers\TrainingController;
 
@@ -187,6 +188,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
 
     // Aksi di detail pegawai (HR-1d). Hanya Admin SDM / Admin Yayasan.
     Route::patch('pegawai/{employee}', [EmployeeActionController::class, 'updateProfile'])->whereUuid('employee')->name('hr.employees.update');
+    Route::patch('pegawai/{employee}/ptk', [PtkProfileController::class, 'update'])->whereUuid('employee')->name('hr.employees.ptk.update');
     Route::post('pegawai/{employee}/status', [EmployeeActionController::class, 'changeStatus'])->whereUuid('employee')->name('hr.employees.status');
     Route::post('pegawai/{employee}/penempatan', [EmployeeActionController::class, 'addPlacement'])->whereUuid('employee')->name('hr.employees.placements.store');
     Route::post('pegawai/{employee}/penempatan/{placement}/akhiri', [EmployeeActionController::class, 'endPlacement'])->whereUuid(['employee', 'placement'])->name('hr.employees.placements.end');

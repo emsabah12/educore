@@ -4,6 +4,7 @@ import {
     Building2,
     ChevronDown,
     ChevronRight,
+    FileBadge,
     Landmark,
     Pencil,
     Plus,
@@ -34,6 +35,17 @@ type OrganizationNode = {
     jenjang_label: string | null;
     is_active: boolean;
     can_manage: boolean;
+    /** Data resmi lembaga (NPSN, status, wilayah); null untuk UNIT/BIRO. */
+    details: OrganizationDetails | null;
+};
+
+type OrganizationDetails = {
+    npsn: string | null;
+    ownership: string | null;
+    ownership_label: string | null;
+    district: string | null;
+    regency: string | null;
+    province: string | null;
 };
 
 type Option = { value: string; label: string };
@@ -46,6 +58,7 @@ type Props = {
         types: Option[];
         categories: Option[];
         jenjangs: Option[];
+        ownerships: Option[];
     };
 };
 
@@ -355,9 +368,9 @@ function NodeDetail({
     canCreateRoot: boolean;
     options: Props['options'];
 }) {
-    const [dialog, setDialog] = useState<'rename' | 'create' | 'move' | null>(
-        null,
-    );
+    const [dialog, setDialog] = useState<
+        'rename' | 'create' | 'move' | 'details' | null
+    >(null);
     const close = () => setDialog(null);
     const openChange = (value: boolean) => {
         if (!value) {
@@ -410,6 +423,8 @@ function NodeDetail({
                 </p>
             </div>
 
+            {node.details && <DetailsSummary details={node.details} />}
+
             {node.can_manage ? (
                 <>
                     {/* Grid otomatis: tombol turun ke baris berikutnya di layar sempit. */}
@@ -441,7 +456,33 @@ function NodeDetail({
                                 Pindahkan
                             </Button>
                         )}
+                        {node.details && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setDialog('details')}
+                            >
+                                <FileBadge />
+                                Data resmi
+                            </Button>
+                        )}
                     </div>
+
+                    {node.details && (
+                        <FormDialog
+                            open={dialog === 'details'}
+                            onOpenChange={openChange}
+                            title={`Data resmi ${node.name}`}
+                            description="NPSN, status, dan wilayah dipakai rekap PTK Simpatika. Semua boleh dikosongkan."
+                        >
+                            <DetailsForm
+                                node={node}
+                                details={node.details}
+                                ownerships={options.ownerships}
+                                onDone={close}
+                            />
+                        </FormDialog>
+                    )}
 
                     <FormDialog
                         open={dialog === 'create'}
@@ -483,6 +524,109 @@ function NodeDetail({
                 </p>
             )}
         </div>
+    );
+}
+
+function DetailsSummary({ details }: { details: OrganizationDetails }) {
+    const region = [details.district, details.regency, details.province]
+        .filter(Boolean)
+        .join(', ');
+
+    return (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border p-3 text-sm">
+            <dt className="text-muted-foreground">NPSN</dt>
+            <dd className="font-mono">{details.npsn ?? '—'}</dd>
+            <dt className="text-muted-foreground">Status</dt>
+            <dd>{details.ownership_label ?? '—'}</dd>
+            <dt className="text-muted-foreground">Wilayah</dt>
+            <dd className="break-words">{region || '—'}</dd>
+        </dl>
+    );
+}
+
+function DetailsForm({
+    node,
+    details,
+    ownerships,
+    onDone,
+}: {
+    node: OrganizationNode;
+    details: OrganizationDetails;
+    ownerships: Option[];
+    onDone: () => void;
+}) {
+    const fields = [
+        { name: 'district', label: 'Kecamatan', value: details.district },
+        { name: 'regency', label: 'Kabupaten/kota', value: details.regency },
+        { name: 'province', label: 'Provinsi', value: details.province },
+    ] as const;
+
+    return (
+        <Form
+            action={`/lembaga/${node.id}/data-resmi`}
+            method="patch"
+            errorBag="details"
+            options={{ preserveScroll: true }}
+            onSuccess={onDone}
+            className="space-y-3"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="details-npsn">NPSN</Label>
+                            <Input
+                                id="details-npsn"
+                                name="npsn"
+                                inputMode="numeric"
+                                maxLength={8}
+                                placeholder="8 angka"
+                                defaultValue={details.npsn ?? ''}
+                            />
+                            <InputError message={errors.npsn} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="details-ownership">Status</Label>
+                            <select
+                                id="details-ownership"
+                                name="ownership"
+                                className={selectClass}
+                                defaultValue={details.ownership ?? ''}
+                            >
+                                <option value="">(belum diisi)</option>
+                                {ownerships.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.ownership} />
+                        </div>
+                    </div>
+                    {fields.map((field) => (
+                        <div key={field.name} className="grid gap-1.5">
+                            <Label htmlFor={`details-${field.name}`}>
+                                {field.label}
+                            </Label>
+                            <Input
+                                id={`details-${field.name}`}
+                                name={field.name}
+                                maxLength={100}
+                                defaultValue={field.value ?? ''}
+                            />
+                            <InputError message={errors[field.name]} />
+                        </div>
+                    ))}
+                    <InputError message={errors.form} />
+                    <Button type="submit" disabled={processing}>
+                        Simpan data resmi
+                    </Button>
+                </>
+            )}
+        </Form>
     );
 }
 

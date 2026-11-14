@@ -1,7 +1,7 @@
 # PRD-000 — Platform Foundation (MVP Pondasi)
 
-- **Versi:** 0.15 (2026-10-23: `person_identifiers` untuk NIK dibangun — HR-1g)
-- **Versi sebelumnya:** 0.14 (F5b penugasan & role dibangun), 0.13 (F5a akun login selesai; aturan pengaman akun global), 0.12 (2026-10-14: kelola akses — akun login, penugasan, role; OD-20 s.d. OD-22)
+- **Versi:** 0.16 (2026-11-13: data resmi lembaga — NPSN, status, wilayah — §4.6; untuk HR-10, PRD-001 OD-HR-26)
+- **Versi sebelumnya:** 0.15 (`person_identifiers` untuk NIK dibangun — HR-1g), 0.14 (F5b penugasan & role dibangun), 0.13 (F5a akun login selesai; aturan pengaman akun global), 0.12 (2026-10-14: kelola akses — akun login, penugasan, role; OD-20 s.d. OD-22)
 - **Status:** APPROVED UNTUK F0–F1 — OD-01, OD-02, OD-03 diputuskan owner (2026-10-09)
 - **Tanggal:** 2026-10-09
 - **Arsitektur:** `ADR-001 — Rebuild sebagai Simplified Modular Monolith`
@@ -138,6 +138,7 @@ Menu **Lembaga** (`/lembaga`) muncul bagi pemilik `core.organizations.view` di l
 - Lembaga kerja yang sedang dipakai tidak bisa dinonaktifkan dari dalamnya, agar pengelola tidak mengunci dirinya sendiri. [ASUMSI]
 - Jawaban akses mengikuti OD-13: di luar cakupan 404, di dalam cakupan tanpa izin 403. Pelanggaran aturan pohon tampil sebagai pesan form berbahasa Indonesia.
 - Dengan role bawaan saat ini, hanya **Admin Yayasan** yang punya izin kelola; Kepala Lembaga hanya melihat (OD-11).
+- **Data resmi lembaga** [OWNER, 2026-11-13 — PRD-001 §21.1, OD-HR-26; dibangun HR-10a]: node bertipe LEMBAGA punya isian opsional **NPSN** (8 angka, unik di yayasan), **status** Negeri/Swasta, **kecamatan**, **kab/kota**, **provinsi** (teks bebas, maks. 100). Diubah lewat pop-up **Data resmi** (`core.organizations.manage`), dicatat di audit tanpa isi. Kolom nullable baru di `organizations`. Dipakai rekap PTK (HR-10) dan bisa dipakai modul lain (mis. kop dokumen).
 
 ### 4.7 Kelola akses (OD-20 s.d. OD-22) [OWNER, 2026-10-14]
 

@@ -38,6 +38,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('lembaga', [OrganizationController::class, 'index'])->name('organizations.index');
     Route::post('lembaga', [OrganizationController::class, 'store'])->name('organizations.store');
     Route::patch('lembaga/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
+    Route::patch('lembaga/{organization}/data-resmi', [OrganizationController::class, 'details'])->name('organizations.details');
     Route::patch('lembaga/{organization}/induk', [OrganizationController::class, 'move'])->name('organizations.move');
     Route::post('lembaga/{organization}/nonaktifkan', [OrganizationController::class, 'deactivate'])->name('organizations.deactivate');
     Route::post('lembaga/{organization}/aktifkan', [OrganizationController::class, 'activate'])->name('organizations.activate');

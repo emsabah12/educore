@@ -29,6 +29,11 @@ use Modules\Core\Domain\Tenancy\Tenant;
  * @property string $code
  * @property string $name
  * @property OrganizationStatus $status
+ * @property string|null $npsn
+ * @property OrganizationOwnership|null $ownership
+ * @property string|null $district
+ * @property string|null $regency
+ * @property string|null $province
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -65,6 +70,7 @@ class Organization extends Model implements OwnedByOrganization
             'category' => OrganizationCategory::class,
             'jenjang' => Jenjang::class,
             'status' => OrganizationStatus::class,
+            'ownership' => OrganizationOwnership::class,
         ];
     }
 

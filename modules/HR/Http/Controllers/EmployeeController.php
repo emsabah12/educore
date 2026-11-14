@@ -39,6 +39,7 @@ use Modules\HR\Application\Employee\PersonalData;
 use Modules\HR\Application\Leave\EmployeeLeaveSummary;
 use Modules\HR\Application\Offboarding\ManageOffboarding;
 use Modules\HR\Application\Offboarding\OffboardingChecklist;
+use Modules\HR\Application\Ptk\PtkProfiles;
 use Modules\HR\Application\Recruitment\HireApplicant;
 use Modules\HR\Application\Training\TrainingRecords;
 use Modules\HR\Domain\Catalog\CatalogKind;
@@ -114,6 +115,7 @@ final class EmployeeController
         DisciplineRecords $disciplineRecords,
         OffboardingChecklist $offboarding,
         TrainingRecords $trainingRecords,
+        PtkProfiles $ptkProfiles,
     ): Response {
         Gate::authorize(HrAccess::EMPLOYEES_VIEW);
 
@@ -164,6 +166,17 @@ final class EmployeeController
                 'records' => $trainingRecords->forEmployee($this->tenantContext->require()->tenantId, $employee),
                 'canDownload' => $withPersonal,
                 'manage' => $canManage ? TrainingController::formOptions() : null,
+            ],
+            // Data PTK Simpatika (HR-10a): nama ibu kandung hanya bagi yang boleh melihat data pribadi.
+            'ptk' => [
+                'values' => $ptkProfiles->forEmployee($this->tenantContext->require()->tenantId, $employee, $withPersonal),
+                'withPersonal' => $withPersonal,
+                'manage' => $canManage ? [
+                    'functions' => PtkProfiles::functionOptions(),
+                    'civilServants' => PtkProfiles::civilServantOptions(),
+                    'yearMin' => PtkProfiles::YEAR_MIN,
+                    'yearMax' => (int) substr(BusinessClock::todayString(), 0, 4),
+                ] : null,
             ],
             'canManageLeave' => $this->authorization->inspectTarget(HrAccess::LEAVE_MANAGE, null, null)->allowed(),
             // Bagian "Akses login" (PRD-000 §4.7): logika milik Core, hanya untuk Admin Yayasan (OD-21).

@@ -19,10 +19,13 @@ use Modules\Core\Application\Organization\MoveOrganization;
 use Modules\Core\Application\Organization\NewOrganizationData;
 use Modules\Core\Application\Organization\ReactivateOrganization;
 use Modules\Core\Application\Organization\RenameOrganization;
+use Modules\Core\Application\Organization\UpdateOrganizationDetails;
+use Modules\Core\Domain\Organization\Exceptions\OrganizationDetailsException;
 use Modules\Core\Domain\Organization\Exceptions\OrganizationTreeException;
 use Modules\Core\Domain\Organization\Jenjang;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationCategory;
+use Modules\Core\Domain\Organization\OrganizationOwnership;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Tenancy\TenantContext;
@@ -79,6 +82,15 @@ final class OrganizationController
                     'jenjang_label' => $organization->jenjang?->label(),
                     'is_active' => $organization->isActive(),
                     'can_manage' => isset($manageable[$organization->id]),
+                    // Data resmi lembaga (PRD-000 §4.6): hanya bermakna untuk node LEMBAGA.
+                    'details' => $organization->type === OrganizationType::Lembaga ? [
+                        'npsn' => $organization->npsn,
+                        'ownership' => $organization->ownership?->value,
+                        'ownership_label' => $organization->ownership?->label(),
+                        'district' => $organization->district,
+                        'regency' => $organization->regency,
+                        'province' => $organization->province,
+                    ] : null,
                 ];
             })
             ->values()
@@ -92,6 +104,7 @@ final class OrganizationController
                 'types' => $this->options(OrganizationType::cases()),
                 'categories' => $this->options(OrganizationCategory::cases()),
                 'jenjangs' => $this->options(Jenjang::cases()),
+                'ownerships' => $this->options(OrganizationOwnership::cases()),
             ],
         ]);
     }
@@ -147,6 +160,39 @@ final class OrganizationController
         $renamed = $this->attempt(fn (): Organization => $renameOrganization->handle($this->tenantId(), $node->id, $request->string('name')->value()));
 
         return $this->done("Nama diubah menjadi {$renamed->name}.");
+    }
+
+    /**
+     * Data resmi lembaga: NPSN, status, wilayah (PRD-000 §4.6; PRD-001 §21.1, OD-HR-26).
+     */
+    public function details(Request $request, string $organization, UpdateOrganizationDetails $updateDetails): RedirectResponse
+    {
+        $node = $this->find($organization);
+        Gate::authorize(CoreAccess::ORGANIZATIONS_MANAGE, $node);
+
+        $request->validate([
+            'npsn' => ['nullable', 'string', 'max:20'],
+            'ownership' => ['nullable', Rule::enum(OrganizationOwnership::class)],
+            'district' => ['nullable', 'string', 'max:'.UpdateOrganizationDetails::REGION_MAX_LENGTH],
+            'regency' => ['nullable', 'string', 'max:'.UpdateOrganizationDetails::REGION_MAX_LENGTH],
+            'province' => ['nullable', 'string', 'max:'.UpdateOrganizationDetails::REGION_MAX_LENGTH],
+        ], [], ['npsn' => 'NPSN', 'ownership' => 'status', 'district' => 'kecamatan', 'regency' => 'kab/kota', 'province' => 'provinsi']);
+
+        try {
+            $updateDetails->handle($this->tenantId(), $node->id, [
+                'npsn' => $request->string('npsn')->value(),
+                'ownership' => $request->string('ownership')->value(),
+                'district' => $request->string('district')->value(),
+                'regency' => $request->string('regency')->value(),
+                'province' => $request->string('province')->value(),
+            ]);
+        } catch (OrganizationDetailsException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        } catch (OrganizationTreeException $exception) {
+            throw ValidationException::withMessages(['form' => $exception->getMessage()]);
+        }
+
+        return $this->done("Data resmi {$node->name} disimpan.");
     }
 
     public function move(Request $request, string $organization, MoveOrganization $moveOrganization): RedirectResponse
@@ -251,12 +297,12 @@ final class OrganizationController
     }
 
     /**
-     * @param  list<OrganizationType|OrganizationCategory|Jenjang>  $cases
+     * @param  list<OrganizationType|OrganizationCategory|Jenjang|OrganizationOwnership>  $cases
      * @return list<array{value: string, label: string}>
      */
     private function options(array $cases): array
     {
-        return array_map(fn (OrganizationType|OrganizationCategory|Jenjang $case): array => [
+        return array_map(fn (OrganizationType|OrganizationCategory|Jenjang|OrganizationOwnership $case): array => [
             'value' => $case->value,
             'label' => $case->label(),
         ], $cases);

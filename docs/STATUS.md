@@ -57,6 +57,7 @@
 | 2026-11-12 | **UX-3 semua tambah/ubah/hapus lewat pop-up** (owner, contoh mockup Kasir): `FormDialog` untuk tambah/ubah, `ConfirmAction` untuk hapus/batal/cabut/nonaktifkan/setujui/tolak; tema ungu UX-2 tetap; lembar isian & form panjang tetap halaman; fitur lain di mockup dicatat sebagai usulan                                                   | STATUS § Pedoman tampilan, § Usulan dari mockup UX-3     |
 | 2026-11-13 | **HR-9 Rekrutmen**: pelamar diinput Admin SDM (tanpa formulir publik); tahap seleksi tetap Berkas → Tes/wawancara → Diterima/Tidak lolos; data pelamar yang tidak jadi pegawai dihapus otomatis 1 tahun sesudah lowongan ditutup                                                                                                              | PRD-001 §20, OD-HR-19 s.d. OD-HR-21                      |
 | 2026-11-13 | **HR-4d Presensi lokasi HP**: titik & radius per lembaga; aturan per jenjang/lembaga (tidak memakai / catat / wajib di dalam radius); hanya jarak yang disimpan, bukan koordinat HP; di luar radius pada aturan wajib ditolak; mesin absen ditunda                                                                                            | PRD-001 §14.6, OD-HR-22 s.d. OD-HR-24                    |
+| 2026-11-13 | **HR-10 Simpatika**: rekap PTK .xlsx dulu, cetak A05 menyusul setelah contoh formulir ada; NIK & nama ibu kandung ikut rekap hanya bagi pemilik izin data pribadi (diaudit); data resmi lembaga (NPSN, status, wilayah) di data Lembaga Core; fungsi PTK daftar tetap                                                                         | PRD-001 §21, OD-HR-25 s.d. OD-HR-27; PRD-000 §4.6        |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -726,7 +727,13 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-4d — Presensi lokasi HP: DIBANGUN (2026-11-13, menunggu uji owner)** — PRD-001 §14.6 (OD-HR-22 s.d. OD-HR-24)
+**HR-10a — Data PTK pegawai & data resmi lembaga: DIBANGUN (2026-11-13, menunggu uji owner)** — PRD-001 §21.1 (OD-HR-25 s.d. OD-HR-27), PRD-000 §4.6
+
+- Migrasi Core `2026_11_13_000014`: kolom opsional `npsn` (8 angka, unik per yayasan), `ownership` (NEGERI/SWASTA), `district`, `regency`, `province` di `organizations`. `UpdateOrganizationDetails` + pop-up **Data resmi** di halaman Lembaga (hanya node LEMBAGA, izin `core.organizations.manage`); ringkasan NPSN/status/wilayah di panel lembaga. Audit `organization.details_updated` (nama isian saja).
+- Migrasi HR `2026_11_13_100023`: `hr_ptk_profiles` (nama ibu kandung terenkripsi, tahun lulus SD, fungsi PTK daftar tetap, status PNS, sertifikasi Belum/Sudah + tahun + no. sertifikat pendidik). `PtkProfiles` + `PtkProfileController`; tab **Data PTK** di detail pegawai dengan pop-up **Ubah data PTK** (Admin SDM/Admin Yayasan). Nama ibu hanya tampil/berubah bagi pemilik izin data pribadi. Audit `hr.ptk_profile_updated` (nama isian saja).
+- Bukti: 8 test baru (`OrganizationDetailsTest` awalan `odt`, `PtkProfileTest` awalan `ptk`); Pint, Larastan, tsc, `vp check`, build lulus. Tanpa izin baru.
+
+**HR-4d — Presensi lokasi HP: SELESAI (2026-11-13, commit `bdcf694`, uji owner lancar)** — PRD-001 §14.6 (OD-HR-22 s.d. OD-HR-24)
 
 - Migrasi `2026_11_13_100022`: `hr_work_locations` (titik per lembaga: lintang/bujur 6 desimal, radius 50–1.000 m) dan kolom hasil lokasi di `hr_attendances` (`check_in|check_out` × `_location` DI_DALAM/DI_LUAR/TIDAK_TERSEDIA, `_distance`, `_accuracy`, `_location_org_id`). **Tidak ada kolom koordinat HP.**
 - Aturan berjenjang baru `hr.attendance_location` (`AttendanceLocationSetting`: Tidak memakai lokasi [bawaan] / Catat lokasi / Wajib di dalam radius); `WorkLocations` (atur/hapus titik, pemeriksaan haversine ke titik semua lembaga penempatan berjalan, pilih yang paling memenuhi; akurasi > 100 m ditolak pada Wajib).
@@ -735,6 +742,7 @@
 - **Lembar presensi**: badge lokasi per absen mandiri (mis. "Masuk di luar lokasi · 556 m dari MA Unit 1"); petugas yang mengubah jam masuk/pulang mengosongkan data lokasi jam itu. **Rekap** & .xlsx: kolom baru **Di luar lokasi** (hari).
 - Audit: `hr.work_location_set|removed` (lembaga, radius; tanpa koordinat); absen mandiri menambah `lokasi` & `jarak_m`.
 - Bukti: 808 test lulus (6 test baru `AttendanceLocationTest`, awalan `lks`; `AttendanceRecapTest` menambah hitungan `outside`); Pint, Larastan, tsc, `vp check`, build lulus. Tanpa izin baru.
+- Uji manual owner lancar.
 
 **HR-9b — Rekrutmen: jadikan pegawai, rekap, hapus otomatis: SELESAI (2026-11-13, commit `75c3328`, uji owner lancar)** — **HR-9 SELESAI** — PRD-001 §20.2 (OD-HR-21)
 
@@ -1095,5 +1103,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → **HR-4d presensi lokasi HP DIBANGUN, menunggu uji owner** (§14.6; mesin absen ditunda) → HR-10.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): **HR-10a DIBANGUN, menunggu uji owner** → HR-10b rekap PTK .xlsx → HR-10c cetak A05 setelah contoh formulir ada.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

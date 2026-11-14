@@ -129,6 +129,9 @@ final class HrAuditAction
 
     public const SUBJECT_WORK_LOCATION = 'hr_work_location';
 
+    /** HR-10a — Data PTK pegawai (PRD-001 §21.1). Hanya nama isian, tanpa isi. */
+    public const PTK_PROFILE_UPDATED = 'hr.ptk_profile_updated';
+
     /** Rekrutmen (HR-9a): lowongan & pelamar — tanpa nama/kontak pelamar dan isi catatan. */
     public const VACANCY_CREATED = 'hr.vacancy_created';
 
@@ -262,6 +265,7 @@ final class HrAuditAction
             self::TRAINING_WITHDRAWN => 'Pegawai menarik pengajuan pelatihan',
             self::WORK_LOCATION_SET => 'Titik lokasi absen lembaga diatur',
             self::WORK_LOCATION_REMOVED => 'Titik lokasi absen lembaga dihapus',
+            self::PTK_PROFILE_UPDATED => 'Data PTK pegawai diubah',
             self::VACANCY_CREATED => 'Lowongan dibuat',
             self::VACANCY_UPDATED => 'Lowongan diubah',
             self::VACANCY_OPENED => 'Lowongan dibuka',
