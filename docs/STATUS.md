@@ -728,7 +728,14 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-10c-1 — Isian PTK & pendidikan disesuaikan A05: DIBANGUN (2026-11-14, menunggu uji owner)** — PRD-001 §21.3 (OD-HR-28, OD-HR-29)
+**HR-10c-2 — Cetak formulir A05: DIBANGUN (2026-11-14, menunggu uji owner)** — PRD-001 §21.3
+
+- `A05Forms` (memakai `PtkRecap::records`, kini publik dengan saringan satu pegawai): formulir per pegawai aktif yang terlihat **dan** boleh dilihat data pribadinya (maks. 200); jenjang dipetakan SMP/MTs → SMP, MA → SMA, SMK → SMK; daftar isian kosong per formulir.
+- `A05Controller` + rute `GET /pegawai/rekap-ptk/a05?pegawai=|lembaga=`: satu pegawai tanpa hak data pribadi → 403, tak terlihat/tidak aktif → 404; massal melewati tanpa hak. Audit `hr.a05_printed` (saringan, jumlah formulir, dilewati; tanpa isi).
+- Halaman `print/a05`: satu A4 per pegawai mengikuti tata letak A05 (kop teks tanpa lambang, kotak NPSN/NIK/nama/tanggal/tahun, pilihan bertanda centang), isian tanda tangan per lembaga induk diketik di layar (tidak disimpan), kotak foto 4×6, catatan kaki & lampiran. Tombol **Cetak A05** di tab Data PTK (hanya bila berhak melihat data pribadi) dan di Rekap PTK.
+- Bukti: 3 test baru `A05PrintTest` (awalan `afp`), 825 test lulus; PDF uji dari browser = tepat 1 halaman A4 per pegawai. Pint, Larastan, tsc, `vp check` (pada file final), build lulus. Tanpa izin & migrasi baru.
+
+**HR-10c-1 — Isian PTK & pendidikan disesuaikan A05: SELESAI (2026-11-14, commit `d09858f`, uji owner lancar, CI hijau)** — PRD-001 §21.3 (OD-HR-28, OD-HR-29)
 
 - Migrasi `2026_11_14_100024`: `hr_ptk_profiles.school_position` (18 jabatan A05); fungsi PTK menjadi GURU/STAF dengan pemindahan data lama otomatis (Kepala → Guru + Ka Mad/Sek; Tenaga Administrasi → Staf + Staf TU; Pustakawan/Laboran → Staf + jabatannya; Lainnya → kosong); pendidikan `D4_S1` → `S1` di pegawai & pelamar, CHECK baru (tambah SMK, D4, S1).
 - `PtkFunction` (Guru/Staf), `SchoolPosition` (label lengkap + label pendek formulir), `EducationLevel` (12 pilihan + `fromImport` menerima kode lama). Tab Data PTK: isian **Jabatan di madrasah/sekolah**. Rekap PTK .xlsx: kolom **Jabatan di madrasah (A05)** (29 kolom).
@@ -1117,5 +1124,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): **10c-1 DIBANGUN, menunggu uji owner** → 10c-2 cetak.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → **10c-2 cetak A05 DIBANGUN, menunggu uji owner**.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

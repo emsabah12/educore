@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import { Lock, Pencil } from 'lucide-react';
+import { Lock, Pencil, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
@@ -94,17 +94,29 @@ export function PtkSection({
                         Data diri.
                     </p>
                 </div>
-                {data.manage && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => setEditing(true)}
-                    >
-                        <Pencil />
-                        Ubah data PTK
-                    </Button>
-                )}
+                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex sm:w-auto">
+                    {/* Formulir A05 memuat NIK & nama ibu: hanya bagi yang berhak melihat data pribadi. */}
+                    {data.withPersonal && (
+                        <Button variant="outline" asChild>
+                            <a
+                                href={`/pegawai/rekap-ptk/a05?pegawai=${employeeId}`}
+                            >
+                                <Printer />
+                                Cetak A05
+                            </a>
+                        </Button>
+                    )}
+                    {data.manage && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setEditing(true)}
+                        >
+                            <Pencil />
+                            Ubah data PTK
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <dl className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">

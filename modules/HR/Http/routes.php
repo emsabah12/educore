@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\HR\Domain\Catalog\CatalogKind;
+use Modules\HR\Http\Controllers\A05Controller;
 use Modules\HR\Http\Controllers\AttendanceSheetController;
 use Modules\HR\Http\Controllers\CatalogController;
 use Modules\HR\Http\Controllers\DisciplineController;
@@ -179,6 +180,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/laporan/unduh', [EmployeeReportController::class, 'exportReport'])->name('hr.employees.report.export');
     // Rekap PTK Simpatika (PRD-001 §21.2, HR-10b).
     Route::get('pegawai/rekap-ptk', [PtkRecapController::class, 'index'])->name('hr.ptk-recap.index');
+    Route::get('pegawai/rekap-ptk/a05', [A05Controller::class, 'print'])->name('hr.a05.print');
     Route::get('pegawai/rekap-ptk/unduh', [PtkRecapController::class, 'export'])->middleware('throttle:10,1')->name('hr.ptk-recap.export');
     Route::post('pegawai', [EmployeeController::class, 'store'])->name('hr.employees.store');
     // Impor pegawai dari Excel/CSV (HR-1e, PRD-001 §6.2). Hanya Admin SDM / Admin Yayasan.

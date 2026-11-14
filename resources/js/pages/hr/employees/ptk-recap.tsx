@@ -1,5 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Download } from 'lucide-react';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    CheckCircle2,
+    Download,
+    Printer,
+} from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { selectClass } from '@/components/native-select';
@@ -85,19 +91,27 @@ export default function PtkRecap({
                         title="Rekap PTK"
                         description={`Kelengkapan data PTK untuk Simpatika per ${today}: pegawai aktif menurut lembaga penempatan utama, hanya yang bisa Anda lihat.`}
                     />
-                    <Button variant="outline" asChild>
-                        <a href={`/pegawai/rekap-ptk/unduh${query}`}>
-                            <Download />
-                            Unduh .xlsx
-                        </a>
-                    </Button>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                        <Button variant="outline" asChild>
+                            <a href={`/pegawai/rekap-ptk/a05${query}`}>
+                                <Printer />
+                                Cetak A05
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a href={`/pegawai/rekap-ptk/unduh${query}`}>
+                                <Download />
+                                Unduh .xlsx
+                            </a>
+                        </Button>
+                    </div>
                 </div>
 
                 <p className="max-w-3xl text-sm text-muted-foreground">
-                    File unduhan memuat NIK, nama ibu kandung, tanggal lahir,
-                    HP, dan alamat untuk pegawai yang boleh Anda lihat data
-                    pribadinya. Setiap unduhan dicatat di audit; simpan file
-                    dengan hati-hati.
+                    File unduhan dan formulir A05 memuat NIK, nama ibu kandung,
+                    tanggal lahir, HP, dan alamat untuk pegawai yang boleh Anda
+                    lihat data pribadinya. Setiap unduhan & cetak dicatat di
+                    audit; simpan file dengan hati-hati.
                 </p>
 
                 <div className="grid max-w-md gap-1.5">

@@ -206,10 +206,11 @@ final class PtkRecap
 
     /**
      * Pegawai aktif terlihat + penempatan utama berjalan + Data PTK + periode terakhir. Urut lembaga, nama.
+     * Dipakai juga cetak A05 (`A05Forms`); `$employeeId` membatasi ke satu pegawai. Mengambil LIMIT + 1 baris.
      *
      * @return list<stdClass>
      */
-    private function records(?string $organizationId): array
+    public function records(?string $organizationId, ?string $employeeId = null): array
     {
         $query = DB::table('hr_employees as e')
             ->join('memberships as m', 'm.id', '=', 'e.membership_id')
@@ -226,6 +227,10 @@ final class PtkRecap
             ->where('e.status', EmployeeStatus::Active->value);
 
         $this->visibility->apply($query, HrAccess::EMPLOYEES_VIEW);
+
+        if ($employeeId !== null) {
+            $query->where('e.id', $employeeId);
+        }
 
         if ($organizationId !== null) {
             $query->whereIn('pp.organization_id', fn (Builder $closure) => $closure->select('descendant_id')->from('organization_closure')->where('ancestor_id', $organizationId));
@@ -279,7 +284,7 @@ final class PtkRecap
         return $value === null || ! is_scalar($value) ? null : (string) $value;
     }
 
-    private static function decrypt(mixed $encrypted): ?string
+    public static function decrypt(mixed $encrypted): ?string
     {
         if ($encrypted === null || ! is_scalar($encrypted)) {
             return null;

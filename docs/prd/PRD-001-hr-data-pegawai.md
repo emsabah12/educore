@@ -726,7 +726,7 @@ Urutan [OWNER, 2026-11-13]: rekap PTK `.xlsx` dulu; cetak formulir **A05 Registr
 
 Acuan: contoh **Formulir Registrasi PTK (VerVal Lv.1) A05** SIMPATIKA ver.201605091317 dari owner (2026-11-14; contoh kosong, tidak disimpan di repo). Dibangun dua langkah:
 
-**HR-10c-1 — Isian disesuaikan dengan A05** (dibangun 2026-11-14)
+**HR-10c-1 — Isian disesuaikan dengan A05** — SELESAI (commit `d09858f`)
 
 - **Fungsi PTK** (OD-HR-28): **Guru / Staf** (menggantikan daftar OD-HR-27).
 - **Jabatan di madrasah/sekolah induk** (isian baru Data PTK, opsional, satu pilihan): Pengawas Sekolah, Kepala Madrasah/Sekolah, Wakil Kepala Madrasah/Sekolah, Kepala Laboratorium, Laboran, Teknisi Laboratorium, Kepala TU, Bendahara, Staf TU, Kepala Perpustakaan, Pustakawan, Pengemudi, Penjaga Sekolah, Pesuruh, Tenaga Kebersihan, Tukang Kebun, Kepala Program (KaProg), Keahlian.
@@ -735,7 +735,7 @@ Acuan: contoh **Formulir Registrasi PTK (VerVal Lv.1) A05** SIMPATIKA ver.201605
 - Rincian teknis HR-10c-1 [ASUMSI]: migrasi `2026_11_14_100024` (kolom `school_position` + CHECK baru; `down()` mengembalikan sebisanya); kode impor lama `D4_S1`/`D4/S1` diterima sebagai S1; unduhan rekap PTK mendapat kolom **Jabatan di madrasah (A05)** dan kolom jabatan lama diberi judul **Jabatan (yayasan)**.
 - Kelengkapan rekap PTK (§21.2) tidak berubah jumlahnya (jabatan tidak dihitung, karena guru biasa memang tidak punya jabatan di A05) [ASUMSI].
 
-**HR-10c-2 — Cetak A05**
+**HR-10c-2 — Cetak A05** (dibangun 2026-11-14)
 
 - **Cetak lewat browser** (halaman khusus cetak A4, tanpa menu, **tanpa pustaka PDF baru** — pola rapor/slip gaji), satu halaman per pegawai, tata letak mengikuti A05:
     - **Kop**: teks Kementerian Agama RI / Direktorat Jenderal Pendidikan Islam, judul "FORMULIR REGISTRASI PTK (VerVal Lv.1)", kode **A05** — tanpa lambang/gambar resmi [ASUMSI].
@@ -746,3 +746,4 @@ Acuan: contoh **Formulir Registrasi PTK (VerVal Lv.1) A05** SIMPATIKA ver.201605
 - **Tempat membuka**: tab **Data PTK** → **Cetak A05** (satu pegawai) dan **Rekap PTK** → **Cetak A05** (semua pegawai aktif yang tampil, per saringan lembaga; maks. 200 per cetak [ASUMSI]).
 - **Akses**: formulir memuat NIK & nama ibu kandung, jadi hanya untuk pegawai yang boleh dilihat **data pribadinya** (`hr.employees.view_personal` di cakupannya). Satu pegawai tanpa hak → 403; cetak massal melewati pegawai tanpa hak dan menyebut jumlahnya.
 - **Audit** `hr.a05_printed`: lembaga/saringan dan jumlah pegawai — tanpa isi data. Tanpa izin baru.
+- Rincian teknis HR-10c-2 [ASUMSI]: rute `GET /pegawai/rekap-ptk/a05?pegawai=|lembaga=` (halaman `print/a05`); nama, tempat lahir & nama ibu ditulis huruf besar; nama 2 baris × 30 kotak, tempat lahir 30 kotak; isian tanda tangan diketik **per lembaga induk** (bila cetak massal mencakup beberapa lembaga); pendidikan "Lainnya" tidak ditandai; pegawai terlihat tetapi tidak aktif → 404; audit juga mencatat jumlah pegawai yang dilewati.
