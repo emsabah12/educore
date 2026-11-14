@@ -727,7 +727,14 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-10a — Data PTK pegawai & data resmi lembaga: DIBANGUN (2026-11-13, menunggu uji owner)** — PRD-001 §21.1 (OD-HR-25 s.d. OD-HR-27), PRD-000 §4.6
+**HR-10b — Rekap PTK & kelengkapan data: DIBANGUN (2026-11-14, menunggu uji owner)** — PRD-001 §21.2 (OD-HR-25)
+
+- `PtkRecap`: pegawai **aktif** yang terlihat (cakupan lihat `hr.employees.view`) menurut lembaga **penempatan utama** berjalan; saringan lembaga beserta turunannya; maks. 5.000 baris. Kelengkapan dari 7 isian (NIK, tanggal lahir, nama ibu kandung, tahun lulus SD, fungsi PTK, status PNS, sertifikasi); NUPTK hanya ditandai. Data resmi lembaga yang kosong ditandai per lembaga.
+- Halaman **Rekap PTK** (`/pegawai/rekap-ptk`, tombol di Laporan pegawai): ringkasan (aktif/lengkap/belum lengkap), peringatan data resmi lembaga (tautan ke halaman Lembaga bagi Admin Yayasan), daftar pegawai dengan isian kosong + tautan ke tab Data PTK; pilihan "Hanya yang belum lengkap".
+- Unduh `.xlsx` (`PtkRecapExport`): lembar **Rekap PTK** (28 kolom §21.2, semua sel teks) + **Kelengkapan**. NIK, tempat/tanggal lahir, nama ibu, HP, alamat hanya terisi bagi pemilik `hr.employees.view_personal` di cakupannya. Audit `hr.ptk_exported` (lembaga, baris, baris berdata pribadi; tanpa isi). Dibatasi 10 unduhan/menit.
+- Bukti: 4 test baru `PtkRecapTest` (awalan `prk`); Pint, Larastan, tsc, `vp check`, build lulus. Tanpa izin & migrasi baru.
+
+**HR-10a — Data PTK pegawai & data resmi lembaga: SELESAI (2026-11-14, commit `bbc83e1`, uji owner lancar)** — PRD-001 §21.1 (OD-HR-25 s.d. OD-HR-27), PRD-000 §4.6
 
 - Migrasi Core `2026_11_13_000014`: kolom opsional `npsn` (8 angka, unik per yayasan), `ownership` (NEGERI/SWASTA), `district`, `regency`, `province` di `organizations`. `UpdateOrganizationDetails` + pop-up **Data resmi** di halaman Lembaga (hanya node LEMBAGA, izin `core.organizations.manage`); ringkasan NPSN/status/wilayah di panel lembaga. Audit `organization.details_updated` (nama isian saja).
 - Migrasi HR `2026_11_13_100023`: `hr_ptk_profiles` (nama ibu kandung terenkripsi, tahun lulus SD, fungsi PTK daftar tetap, status PNS, sertifikasi Belum/Sudah + tahun + no. sertifikat pendidik). `PtkProfiles` + `PtkProfileController`; tab **Data PTK** di detail pegawai dengan pop-up **Ubah data PTK** (Admin SDM/Admin Yayasan). Nama ibu hanya tampil/berubah bagi pemilik izin data pribadi. Audit `hr.ptk_profile_updated` (nama isian saja).
@@ -1103,5 +1110,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): **HR-10a DIBANGUN, menunggu uji owner** → HR-10b rekap PTK .xlsx → HR-10c cetak A05 setelah contoh formulir ada.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → **HR-10b rekap PTK .xlsx DIBANGUN, menunggu uji owner** → HR-10c cetak A05 setelah contoh formulir ada.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

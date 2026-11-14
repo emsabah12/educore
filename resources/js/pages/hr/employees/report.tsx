@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Download } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -65,12 +65,20 @@ export default function EmployeeReport({
                         title="Laporan pegawai"
                         description={`Jumlah pegawai aktif per ${today}, hanya dari lembaga yang bisa Anda lihat. Jabatan dihitung per penempatan (rangkap jabatan terhitung di tiap jabatan).`}
                     />
-                    <Button variant="outline" asChild>
-                        <a href={`/pegawai/laporan/unduh${query}`}>
-                            <Download />
-                            Unduh .xlsx
-                        </a>
-                    </Button>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2 sm:flex">
+                        <Button variant="outline" asChild>
+                            <Link href={`/pegawai/rekap-ptk${query}`}>
+                                <ClipboardCheck />
+                                Rekap PTK
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a href={`/pegawai/laporan/unduh${query}`}>
+                                <Download />
+                                Unduh .xlsx
+                            </a>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid max-w-md gap-1.5">

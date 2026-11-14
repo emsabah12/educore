@@ -132,6 +132,9 @@ final class HrAuditAction
     /** HR-10a — Data PTK pegawai (PRD-001 §21.1). Hanya nama isian, tanpa isi. */
     public const PTK_PROFILE_UPDATED = 'hr.ptk_profile_updated';
 
+    /** HR-10b — rekap PTK .xlsx diunduh (lembaga, jumlah baris, baris berdata pribadi; tanpa isi). */
+    public const PTK_EXPORTED = 'hr.ptk_exported';
+
     /** Rekrutmen (HR-9a): lowongan & pelamar — tanpa nama/kontak pelamar dan isi catatan. */
     public const VACANCY_CREATED = 'hr.vacancy_created';
 
@@ -266,6 +269,7 @@ final class HrAuditAction
             self::WORK_LOCATION_SET => 'Titik lokasi absen lembaga diatur',
             self::WORK_LOCATION_REMOVED => 'Titik lokasi absen lembaga dihapus',
             self::PTK_PROFILE_UPDATED => 'Data PTK pegawai diubah',
+            self::PTK_EXPORTED => 'Rekap PTK diunduh',
             self::VACANCY_CREATED => 'Lowongan dibuat',
             self::VACANCY_UPDATED => 'Lowongan diubah',
             self::VACANCY_OPENED => 'Lowongan dibuka',

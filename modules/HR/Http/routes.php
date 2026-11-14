@@ -27,6 +27,7 @@ use Modules\HR\Http\Controllers\PayrollSettingsController;
 use Modules\HR\Http\Controllers\PayslipController;
 use Modules\HR\Http\Controllers\PerformanceController;
 use Modules\HR\Http\Controllers\PtkProfileController;
+use Modules\HR\Http\Controllers\PtkRecapController;
 use Modules\HR\Http\Controllers\RecruitmentController;
 use Modules\HR\Http\Controllers\TrainingController;
 
@@ -176,6 +177,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('pegawai/unduh', [EmployeeReportController::class, 'exportList'])->name('hr.employees.export');
     Route::get('pegawai/laporan', [EmployeeReportController::class, 'index'])->name('hr.employees.report');
     Route::get('pegawai/laporan/unduh', [EmployeeReportController::class, 'exportReport'])->name('hr.employees.report.export');
+    // Rekap PTK Simpatika (PRD-001 §21.2, HR-10b).
+    Route::get('pegawai/rekap-ptk', [PtkRecapController::class, 'index'])->name('hr.ptk-recap.index');
+    Route::get('pegawai/rekap-ptk/unduh', [PtkRecapController::class, 'export'])->middleware('throttle:10,1')->name('hr.ptk-recap.export');
     Route::post('pegawai', [EmployeeController::class, 'store'])->name('hr.employees.store');
     // Impor pegawai dari Excel/CSV (HR-1e, PRD-001 §6.2). Hanya Admin SDM / Admin Yayasan.
     Route::get('pegawai/impor', [EmployeeImportController::class, 'index'])->name('hr.employees.import');
