@@ -203,10 +203,7 @@ export default function PtkRecap({
                     {recap.total === 0 ? (
                         <Empty text="Tidak ada pegawai aktif di cakupan ini." />
                     ) : rows.length === 0 ? (
-                        <Empty
-                            text="Semua data PTK sudah lengkap."
-                            success
-                        />
+                        <Empty text="Semua data PTK sudah lengkap." success />
                     ) : (
                         <ul className="divide-y rounded-xl border">
                             {rows.map((row) => (
