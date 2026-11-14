@@ -728,7 +728,7 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
-**HR-10c-2 — Cetak formulir A05: DIBANGUN (2026-11-14, menunggu uji owner)** — PRD-001 §21.3
+**HR-10c-2 — Cetak formulir A05: SELESAI (2026-11-14, commit `75bf59c`, uji owner lancar, CI hijau) → HR-10 SELESAI** — PRD-001 §21.3
 
 - `A05Forms` (memakai `PtkRecap::records`, kini publik dengan saringan satu pegawai): formulir per pegawai aktif yang terlihat **dan** boleh dilihat data pribadinya (maks. 200); jenjang dipetakan SMP/MTs → SMP, MA → SMA, SMK → SMK; daftar isian kosong per formulir.
 - `A05Controller` + rute `GET /pegawai/rekap-ptk/a05?pegawai=|lembaga=`: satu pegawai tanpa hak data pribadi → 403, tak terlihat/tidak aktif → 404; massal melewati tanpa hak. Audit `hr.a05_printed` (saringan, jumlah formulir, dilewati; tanpa isi).
@@ -1121,8 +1121,8 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 
 ## Tugas berikutnya
 
-1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
+1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak. Langkah lengkap: `docs/operations/MIDTRANS-PRODUKSI.md` (checklist, 2026-11-14).
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → **10c-2 cetak A05 DIBANGUN, menunggu uji owner**.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → 10c-2 SELESAI. **HR-10 SELESAI** (10a, 10b, 10c).
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

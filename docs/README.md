@@ -1,10 +1,11 @@
 # Dokumentasi EduCore
 
-| Folder            | Isi                                                 | Status                                 |
-| ----------------- | --------------------------------------------------- | -------------------------------------- |
-| `adr/`            | Keputusan arsitektur (Architecture Decision Record) | **CURRENT**                            |
-| `prd/`            | Kebutuhan produk per tahap/modul                    | **CURRENT**                            |
-| `../docs-legacy/` | Seluruh dokumentasi repo lama (isi `docs.zip`)      | **HISTORICAL — referensi domain saja** |
+| Folder            | Isi                                                    | Status                                 |
+| ----------------- | ------------------------------------------------------ | -------------------------------------- |
+| `adr/`            | Keputusan arsitektur (Architecture Decision Record)    | **CURRENT**                            |
+| `prd/`            | Kebutuhan produk per tahap/modul                       | **CURRENT**                            |
+| `operations/`     | Panduan operasional server (backup, Midtrans produksi) | **CURRENT**                            |
+| `../docs-legacy/` | Seluruh dokumentasi repo lama (isi `docs.zip`)         | **HISTORICAL — referensi domain saja** |
 
 ## Urutan baca
 
