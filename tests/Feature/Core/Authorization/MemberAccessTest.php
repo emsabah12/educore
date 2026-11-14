@@ -23,6 +23,7 @@ use Modules\Core\Domain\Person\Gender;
 use Modules\Core\Domain\Person\Person;
 use Modules\Core\Domain\Tenancy\Membership;
 use Modules\Core\Domain\Tenancy\Tenant;
+use Modules\Dormitory\Application\Authorization\DormitoryAccess;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\HR\Application\Authorization\HrAccess;
 use Modules\HR\Application\Employee\CreateEmployee;
@@ -119,6 +120,8 @@ test('katalog menawarkan role tingkat Yayasan dan role penugasan sesuai PRD', fu
         HrAccess::ROLE_PETUGAS_PRESENSI,
         AcademicAccess::ROLE_OPERATOR_AKADEMIK,
         FinanceAccess::ROLE_BENDAHARA,
+        DormitoryAccess::ROLE_PENGURUS_ASRAMA,
+        DormitoryAccess::ROLE_KEPALA_ASRAMA,
     ]);
 
     expect(fn () => (new AccessCatalog)->offerAsTenantRole('tidak-ada'))->toThrow(AccessException::class);
@@ -387,7 +390,7 @@ test('ringkasan akses memuat role tingkat Yayasan, penugasan aktif, dan pilihan 
         ->and(array_column($summary['assignments'], 'label'))->toBe(['Biro Pendidikan dan Koordinator Antar Lembaga', 'Semua MDA (Seluruh Yayasan)'])
         ->and(array_column($summary['assignments'], 'functional'))->toBe([false, true])
         ->and($summary['assignments'][1]['roles'])->toBe(['Koordinator'])
-        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF, HrAccess::ROLE_PETUGAS_PRESENSI, AcademicAccess::ROLE_OPERATOR_AKADEMIK, FinanceAccess::ROLE_BENDAHARA]);
+        ->and(array_column($summary['options']['assignmentRoles'], 'value'))->toBe([CoreAccess::ROLE_PIMPINAN, CoreAccess::ROLE_KEPALA_LEMBAGA, CoreAccess::ROLE_KOORDINATOR, CoreAccess::ROLE_STAF, HrAccess::ROLE_PETUGAS_PRESENSI, AcademicAccess::ROLE_OPERATOR_AKADEMIK, FinanceAccess::ROLE_BENDAHARA, DormitoryAccess::ROLE_PENGURUS_ASRAMA, DormitoryAccess::ROLE_KEPALA_ASRAMA]);
 
     $diriSendiri = app(MemberAccessSummary::class)->forMembership($this->tenant->id, $adminMembership->id, $adminMembership->id);
 

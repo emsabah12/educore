@@ -13,6 +13,7 @@ use Modules\Core\Domain\Authorization\Permission;
 use Modules\Core\Domain\Authorization\Role;
 use Modules\Core\Domain\Identity\User;
 use Modules\Core\Domain\Tenancy\MembershipStatus;
+use Modules\Dormitory\Application\Authorization\DormitoryAccess;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\HR\Application\Authorization\HrAccess;
 use Tests\Support\CoreFixtures;
@@ -48,9 +49,11 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
     // Penilaian kinerja (PRD-001 §19.2, HR-8b): +2 permission (nilai & kelola) — Admin SDM, Admin Yayasan +2,
     // Kepala Lembaga +1 (nilai).
     // Rekrutmen (PRD-001 §20, HR-9a): +2 permission (lihat & kelola) — Admin SDM, Admin Yayasan +2, Kepala Lembaga +1.
-    expect(Permission::query()->count())->toBe(37)
-        ->and(Role::query()->count())->toBe(10)
-        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8 + 2 + 2 + 1 + 1 + 5 + 5 + 5);
+    // Asrama (PRD-008 §7, DM-1): +8 permission, +2 role (Pengurus Asrama 7, Kepala Asrama 3) — Admin Yayasan +8,
+    // Pimpinan, Kepala Lembaga, Koordinator +2 (lihat fasilitas & penghuni).
+    expect(Permission::query()->count())->toBe(45)
+        ->and(Role::query()->count())->toBe(12)
+        ->and(DB::table('role_permission')->count())->toBe(20 + 7 + 10 + 5 + 1 + 8 + 5 + 1 + 3 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 4 + 8 + 2 + 2 + 1 + 1 + 5 + 5 + 5 + 7 + 3 + 8 + 2 + 2 + 2);
 
     $kepala = Role::query()->where('key', CoreAccess::ROLE_KEPALA_LEMBAGA)->with('permissions')->sole();
 
@@ -62,6 +65,8 @@ test('sinkronisasi mengisi katalog bawaan Core, HR, dan Academic dan aman diulan
             CoreAccess::ORGANIZATIONS_VIEW,
             CoreAccess::SETTINGS_MANAGE,
             CoreAccess::SETTINGS_VIEW,
+            DormitoryAccess::FACILITIES_VIEW,
+            DormitoryAccess::RESIDENTS_VIEW,
             FinanceAccess::BILLING_VIEW,
             FinanceAccess::CASH_VIEW,
             FinanceAccess::EXPENSES_APPROVE,
@@ -91,6 +96,7 @@ test('permission yang dihapus dari kode ikut hilang dari database dan dari role'
     HrAccess::register($catalogBaru);
     AcademicAccess::register($catalogBaru);
     FinanceAccess::register($catalogBaru);
+    DormitoryAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();
@@ -181,6 +187,7 @@ test('role yang dihapus dari kode dikosongkan sehingga tidak memberi hak apa pun
     HrAccess::register($catalogBaru);
     AcademicAccess::register($catalogBaru);
     FinanceAccess::register($catalogBaru);
+    DormitoryAccess::register($catalogBaru);
     $this->app->instance(AccessCatalog::class, $catalogBaru);
 
     $result = app(SyncAccessCatalog::class)->handle();

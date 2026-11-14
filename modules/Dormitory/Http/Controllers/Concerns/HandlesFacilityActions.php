@@ -1,0 +1,56 @@
+<?php
+
+namespace Modules\Dormitory\Http\Controllers\Concerns;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
+
+/**
+ * Bantuan bersama controller fasilitas asrama: yayasan aktif, pesan sukses, dan pelanggaran aturan sebagai pesan
+ * di isian form terkait (bukan galat 500).
+ */
+trait HandlesFacilityActions
+{
+    private function tenantId(): string
+    {
+        return app(TenantContext::class)->require()->tenantId;
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $action
+     * @return T
+     */
+    private function attempt(callable $action): mixed
+    {
+        try {
+            return $action();
+        } catch (FacilityException $exception) {
+            throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
+        }
+    }
+
+    private function done(string $message): RedirectResponse
+    {
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+        return back();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function facilityMessages(): array
+    {
+        return [
+            'code.required' => 'Kode wajib diisi.',
+            'name.required' => 'Nama wajib diisi.',
+            'organization_id.required' => 'Pilih lembaga pemilik.',
+            'gender.required' => 'Pilih putra atau putri.',
+        ];
+    }
+}

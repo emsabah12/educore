@@ -1,0 +1,364 @@
+# PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
+
+- **Versi:** 0.3 (2026-11-15: DM-1 dibangun, §15 disesuaikan dengan hasil pembangunan)
+- **Versi sebelumnya:** 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 dibangun 2026-11-15, menunggu uji owner
+- **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
+- **Sumber yang ditulis ulang:**
+    - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
+    - Analisis & keputusan Fase 1.1A–1.1F di sesi ChatGPT 14 Agustus 2026, disetujui owner saat itu → label **[LAMA]**
+    - `docs-legacy/architecture/dormitory.md` dan ADR-019 (repo lama; kodenya **tidak** dibawa, ADR-001 §3)
+
+Label: **[OWNER]** = keputusan owner · **[DOCX]** = dari dokumen Fase 1 owner · **[LAMA]** = keputusan sesi Agustus yang tetap berlaku · **[ASUMSI]** = usulan baru, perlu konfirmasi.
+
+---
+
+## 0. Penyesuaian terhadap arsitektur sekarang
+
+Fase 1 dan analisisnya ditulis untuk **repo lama**: Module Kernel `module.yaml`, `Organization → OrganizationUnit` 2 tingkat, outbox/event envelope, dan job antrean. ADR-001 mengganti mesin itu. Tabel ini merangkum apa yang **dipertahankan** dan apa yang **diterjemahkan**.
+
+| Konsep lama / Fase 1                                         | Di EduCore sekarang                                                                                                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Modules/Dormitory` + `module.yaml`                          | `modules/Dormitory` + `DormitoryServiceProvider` (didaftarkan manual), arch test batas modul                                                                 |
+| Tenant → Organization → OrganizationUnit?                    | Tenant (yayasan) → **satu node pohon lembaga** pemilik asrama (PRD-000 §4). Cakupan lihat/kelola mengikuti closure table (§7)                                |
+| Resident = Membership, bukan Student                         | **Tetap** [LAMA]. Penghuni = Membership; siswa (`ac_students`) dan pegawai (`hr_employees`) hanya sumber kelayakan lewat kontrak publik                      |
+| `tenant_id dari user` (FR-01 docx)                           | Tenant & lembaga kerja dari **session yang divalidasi ulang tiap request** (PRD-000 §6), `BelongsToTenant`, `OwnedByOrganization`                            |
+| Role "Admin Asrama" sebagai syarat keamanan                  | Permission `dormitory.*` di katalog kode + role bawaan (§7). Role hanya bundel izin [LAMA]                                                                   |
+| Event `DormitoryOccupancyChanged` + outbox + idempotency key | Event Laravel biasa yang dikirim **sesudah commit** (pola `EnrollmentClosed` di Academic). Pencegahan dobel lewat kunci baris + unique index database        |
+| Rollover saat Academic Year `CLOSED`                         | Academic tidak punya status CLOSED (hanya "tahun berjalan"). Diganti halaman **Proses akhir tahun asrama**, dijalankan petugas, pola AC-2 (§9)               |
+| Bulk 500 baris, background job, partial success              | Pola impor EduCore: template → unggah → pratinjau Siap/Peringatan/Salah → **simpan semua atau tidak**, sinkron, maks. 1.000 baris (OD-HR-05). Lihat OD-DM-07 |
+| NFR "< 5 detik", "ACID isolation level"                      | Diganti hasil yang bisa diuji: kunci baris kamar + unique index; kamar tidak pernah melebihi kapasitas walau dua petugas menyimpan bersamaan (§11)           |
+| Log `[EMERGENCY BYPASS]` immutable                           | `audit_logs` append-only yang sudah ada (F4) + catatan mutasi yang tidak bisa diubah/dihapus                                                                 |
+
+## 1. Tujuan
+
+Asrama pesantren dikelola dengan rapi dan aman [DOCX §1]:
+
+1. Data gedung, kamar, bed, dan loker satu sumber, per asrama milik lembaga/unit tertentu.
+2. Penempatan santri dan wali kamar **tidak pernah** mencampur putra–putri dan **tidak pernah** melebihi kapasitas.
+3. Perpindahan kamar (mutasi) punya dua jalur: **biasa** (diajukan, lalu disetujui Kepala Asrama) dan **darurat** (langsung dieksekusi, wajib alasan, ditandai untuk ditinjau).
+4. Riwayat hunian tidak pernah hilang: siapa tinggal di kamar mana, sejak kapan, sampai kapan, dan kenapa pindah/keluar.
+
+Prinsip (sama dengan modul lain):
+
+1. Data per yayasan, disaring per pohon lembaga; katalog akses di kode; aksi penting tercatat di audit.
+2. **Riwayat tidak dihapus.** Data yang salah dibatalkan/diakhiri dengan alasan.
+3. Status hunian **dihitung dari penempatan**, bukan diketik di bed/loker [LAMA].
+4. Dibangun bertahap (§12); setiap tahap bisa dipakai sendiri.
+
+## 2. Masalah & ukuran keberhasilan [DOCX §2, disesuaikan]
+
+| Masalah                                                                   | Ukuran keberhasilan (bisa diuji)                                                                                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Salah tempat putra/putri dan kelebihan muatan kamar karena alokasi manual | Server **dan** database menolak 100% penempatan beda jenis kelamin atau melebihi kapasitas, termasuk saat dua petugas menyimpan bersamaan                   |
+| Mutasi darurat terhambat birokrasi                                        | Mutasi darurat selesai dalam **satu pop-up** (pilih santri → kamar tujuan → alasan → simpan), tanpa menunggu persetujuan                                    |
+| Penyalahgunaan jalur darurat                                              | 100% mutasi darurat tercatat (pelaku, waktu, kategori, alasan) dan tampil sebagai **bendera merah** di Beranda Kepala Asrama sampai ditandai Sudah ditinjau |
+| Data asrama tidak tersambung dengan modul lain                            | Data penghuni bisa dibaca modul lain lewat kontrak publik; integrasi biaya asrama diputuskan terpisah (OD-DM-10)                                            |
+
+KPI docx "sinkron keuangan < 5 detik" ditunda sampai integrasi Finance diputuskan (OD-DM-10). [ASUMSI]
+
+## 3. Pengguna [DOCX §3 → peran EduCore]
+
+| Persona docx                    | Di EduCore                                                                   | Kebutuhan                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Super Admin / Tenant Owner      | **Admin Yayasan**, **Pimpinan** (role tingkat Yayasan)                       | Melihat laporan hunian seluruh asrama di cakupannya                                    |
+| Kepala Asrama (Mudir)           | Role penugasan baru **Kepala Asrama** [ASUMSI]                               | Melihat semua data asramanya; menyetujui/menolak mutasi biasa; meninjau mutasi darurat |
+| Admin Asrama (staf operasional) | Role penugasan baru **Pengurus Asrama** [ASUMSI]                             | Kelola gedung/kamar/bed/loker, menempatkan & mengeluarkan penghuni, mutasi darurat     |
+| Wali Kamar / Musyrif / Pengawas | **Tanpa role**; hak dari data penugasan wali kamar (§6), pola **Kelas saya** | Melihat kamarnya, absen asrama, mengajukan mutasi santri di kamarnya                   |
+| Kepala Lembaga / Kepala Unit    | Role yang sudah ada                                                          | Melihat penghuni asrama milik lembaganya/unitnya [ASUMSI]                              |
+
+Satu orang boleh memegang lebih dari satu peran. Pemisahan tugas tetap berlaku: **pengaju mutasi tidak bisa menyetujui pengajuannya sendiri** [LAMA 11.10].
+
+## 4. Model fasilitas
+
+### 4.1 Hierarki & kepemilikan [LAMA 9.1–9.3, 9.13]
+
+```text
+Node pohon lembaga (pemilik)    mis. "Pondok Pesantren" (LEMBAGA) atau "Unit 1" (UNIT)
+ └── Asrama (dm_dormitories)    mis. "Asrama Putra Unit 1"
+      └── Gedung (dm_buildings)  mis. "Gedung A"          ← jenis kelamin Putra/Putri
+           └── Kamar (dm_rooms)  mis. "A-101"             ← mengikuti gender gedung
+                ├── Bed (dm_beds)        A-101-01, A-101-02, …
+                └── Loker (dm_lockers)   A-101-L01, …       ← satu pintu/kompartemen = satu loker
+```
+
+- Asrama dimiliki **tepat satu node** bertipe LEMBAGA atau UNIT yang aktif, di yayasan yang sama. Node BIRO tidak boleh memiliki asrama [ASUMSI, OD-DM-01].
+- Gedung, kamar, bed, dan loker **mewarisi** pemilik asrama dan tidak bisa memilih pemilik lain. Kamar tidak bisa dipindah ke asrama lain [LAMA 9.13].
+- Asrama, gedung, dan kamar **bukan** node pohon lembaga dan bukan cakupan otorisasi. Hak akses tetap dari node pemilik (PRD-000 §7) [LAMA 9.14].
+- Kode unik per induknya (kode asrama unik per yayasan; kode gedung per asrama; kode kamar per gedung; kode bed/loker per kamar). Huruf besar, angka, `-`, maks. 30 karakter [ASUMSI].
+- Pindah asrama ke node pemilik lain **belum didukung** (OD-DM-01).
+
+### 4.2 Jenis kelamin [DOCX BR-1, LAMA 9.7]
+
+- **Gedung** wajib bertanda **Putra** atau **Putri**. Kamar selalu mengikuti gedungnya, sehingga hierarki "Gedung → Kamar → Penghuni sama jenis kelamin" dijaga oleh data, bukan oleh disiplin petugas [DOCX].
+- Jenis kelamin penghuni diambil dari **Person.gender** (`L`/`P`). Orang tanpa jenis kelamin tidak bisa ditempatkan, dengan pesan "Lengkapi jenis kelamin di data siswa/pegawai dulu."
+- Kamar campur putra–putri **tidak ada**. Istilah "Mixed" di docx diganti (§4.3) [LAMA 9.8].
+- Gender gedung tidak bisa diubah selama ada penghuni aktif/direncanakan di dalamnya [ASUMSI].
+
+### 4.3 Komposisi kamar [DOCX Story 1, LAMA 9.8–9.11]
+
+| Komposisi             | Arti                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| **Khusus santri**     | Hanya penghuni reguler. Wali kamar boleh mengawasi tetapi tidak tinggal di kamar ini     |
+| **Santri + pengawas** | Penghuni reguler dan pengawas yang **tinggal** di kamar. Wajib ada **slot pengawas ≥ 1** |
+
+- Slot pengawas adalah **bagian dari kapasitas**, bukan tambahan. Kamar 10 slot dengan 1 slot pengawas = maks. 9 santri + 1 pengawas, bukan 10 + 1 [LAMA 9.10].
+- Jumlah slot pengawas 1–5, tidak boleh ≥ kapasitas kamar [ASUMSI].
+
+### 4.4 Dasar kapasitas [OWNER Agustus 2026, LAMA 1.1B]
+
+Owner menegaskan: ada kamar yang dihitung dari **bed**, ada dari **pintu lemari/loker**, ada dari **bed + pintu lemari**.
+
+| Dasar kapasitas | Kapasitas efektif                         | Penghuni wajib mendapat |
+| --------------- | ----------------------------------------- | ----------------------- |
+| **Bed**         | jumlah bed tersedia                       | 1 bed (loker opsional)  |
+| **Loker**       | jumlah loker tersedia                     | 1 loker (bed opsional)  |
+| **Bed + loker** | **minimum**(bed tersedia, loker tersedia) | 1 bed **dan** 1 loker   |
+
+- Contoh: 20 bed + 16 pintu loker, dasar Bed + loker → kapasitas **16**, bukan 36 [LAMA].
+- Satu lemari dengan 4 pintu yang dipakai 4 santri berbeda = **4 loker** [LAMA 9.4].
+- Kapasitas **tidak diketik**; selalu dihitung dari bed/loker yang berstatus tersedia. Untuk mempercepat daftar, jumlahnya boleh disimpan sebagai kolom ringkasan yang diperbarui di transaksi yang sama [ASUMSI].
+- Bed/loker dibuat sekaligus lewat pop-up **Tambah bed/loker** (mis. "buat 10 bed, kode A-101-01 s.d. A-101-10") [ASUMSI].
+- Dasar kapasitas boleh diganti selama kamar kosong. Kalau ada penghuni, penggantian hanya boleh bila semua penghuni aktif sudah memegang sumber yang diwajibkan dasar baru [ASUMSI].
+
+### 4.5 Status bed/loker & kelebihan muatan [LAMA 9.12, 11.22–11.23]
+
+- Bed/loker punya status **Tersedia** atau **Tidak tersedia** (alasan: rusak, perbaikan, ditutup sementara, lainnya). Status "terisi" **tidak disimpan**; dihitung dari penempatan aktif/direncanakan [LAMA].
+- Bed/loker yang sedang dipakai boleh dinyatakan tidak tersedia (mis. rusak). Penghuninya **tidak** dikeluarkan otomatis. Kamar menjadi **Kelebihan muatan** dan:
+    - penempatan baru ke kamar itu ditolak;
+    - kamar tampil bertanda di daftar, laporan, dan kartu Beranda;
+    - diselesaikan lewat mutasi, perbaikan bed/loker, atau check-out.
+- Bed/loker, kamar, gedung, dan asrama tidak pernah dihapus bila sudah punya riwayat. Yang ada hanya **Nonaktifkan** / **Aktifkan kembali**. Induk nonaktif berarti semua turunannya tidak menerima penempatan baru; riwayat tetap ada [LAMA 9.12]. Hapus permanen hanya untuk data yang belum pernah dipakai [ASUMSI].
+
+## 5. Penghuni & penempatan
+
+### 5.1 Siapa penghuni [LAMA 10.1–10.2, 10.9]
+
+| Kategori     | Siapa                                             | Kelayakan                                                                                              |
+| ------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Santri**   | Siswa (`ac_students`) — lewat kontrak Academic    | Punya **pendaftaran terbuka** di lembaga yang berada di cakupan node pemilik asrama [ASUMSI, OD-DM-02] |
+| **Pengawas** | Pegawai aktif (`hr_employees`) — lewat kontrak HR | Pegawai aktif dengan penempatan berjalan [ASUMSI, OD-DM-03]; hanya di kamar **Santri + pengawas**      |
+
+- Penghuni tetap **Membership**. Dormitory tidak membuat salinan nama, NIS, atau data pribadi; semua dibaca dari Person/Academic/HR [LAMA 10.1].
+- Kategori penghuni **bukan** hak akses [LAMA 10.9].
+
+### 5.2 Status penempatan [LAMA 11.1, 11.21; data-design lama]
+
+```text
+DIRENCANAKAN ──check-in──► AKTIF ──check-out──► SELESAI
+     │                       │
+     └──batalkan──► DIBATALKAN └──mutasi──► SELESAI (alasan Mutasi) + penempatan baru AKTIF
+```
+
+| Status           | Arti                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Direncanakan** | Sudah ditentukan kamar (dan bed/loker), santri belum datang. Belum dihitung sebagai penghuni                    |
+| **Aktif**        | Sedang tinggal; memakai bed/loker; dihitung dalam hunian                                                        |
+| **Selesai**      | Sudah keluar/pindah; tinggal riwayat. Alasan: Keluar asrama, Mutasi, Akhir tahun, Lulus/keluar lembaga, Lainnya |
+| **Dibatalkan**   | Rencana yang tidak jadi. Tidak dianggap pernah tinggal                                                          |
+
+Aturan:
+
+- Satu orang maksimal **satu penempatan Aktif** dan **satu Direncanakan** di seluruh yayasan pada satu waktu [LAMA 10.4]. Dijaga partial unique index.
+- Satu bed/loker maksimal dipakai **satu** penempatan Aktif atau Direncanakan [LAMA 10.7; ASUMSI: rencana ikut memesan, OD-DM-04].
+- Rencana **memesan** bed/loker, jadi kapasitas tersedia = kapasitas efektif − aktif − direncanakan [ASUMSI, OD-DM-04].
+- Penempatan Aktif tidak bisa dibatalkan; hanya diakhiri lewat check-out atau mutasi [LAMA 11.21].
+- Penempatan tidak pernah diubah kamarnya. Pindah kamar = penempatan lama Selesai + penempatan baru Aktif [LAMA 11.7].
+
+### 5.3 Validasi setiap penempatan [LAMA 11.2, 11.4, 10.17]
+
+Dijalankan ulang di setiap langkah (rencana, check-in, mutasi, impor, akhir tahun), di dalam transaksi yang mengunci kamar:
+
+1. Asrama, gedung, kamar **aktif**; kamar tidak kelebihan muatan.
+2. Jenis kelamin orang = gender gedung.
+3. Komposisi: pengawas hanya di kamar Santri + pengawas; santri tidak boleh memakai slot pengawas.
+4. Kapasitas tersedia, dan bed/loker yang diwajibkan dasar kapasitas tersedia dan milik kamar itu.
+5. Orang layak (§5.1) dan belum punya penempatan Aktif/Direncanakan yang bertabrakan.
+6. Petugas punya izin di node pemilik asrama.
+
+Pesan penolakan ramah dan spesifik, mis. "Kamar A-101 penuh", "Kamar ini untuk putri", "Ahmad sudah tinggal di kamar B-203", "Loker A-101-L03 sedang rusak" [LAMA 13.12].
+
+### 5.4 Bed/loker dipilih siapa [ASUMSI, OD-DM-05]
+
+Sistem menyarankan bed/loker tersedia dengan kode terkecil. Petugas boleh menggantinya di pop-up. Server tetap memeriksa ulang.
+
+### 5.5 Check-in, check-out, batal [LAMA 11.4–11.6, 11.21]
+
+- **Tempatkan langsung** (check-in langsung): satu pop-up, langsung Aktif. Semua validasi §5.3 sama [LAMA 11.5].
+- **Rencanakan** lalu **Check-in**: check-in mengulang semua validasi; bila bed/loker yang dipesan rusak, petugas memilih yang lain.
+- **Check-out**: tanggal keluar (≤ hari ini, ≥ tanggal masuk), alasan wajib (pilihan + catatan). Bed/loker langsung lepas.
+- **Batalkan rencana**: alasan wajib.
+- Tanggal masuk/keluar adalah **tanggal** (bukan jam) dalam zona waktu `EDUCORE_TIMEZONE`; tidak boleh di masa depan untuk check-in/check-out [ASUMSI].
+
+### 5.6 Santri keluar/lulus dari lembaga [ASUMSI, OD-DM-06]
+
+Saat Academic mengirim `EnrollmentClosed` dan santri tidak punya lagi pendaftaran terbuka yang memenuhi kelayakan asrama itu, penempatannya **tidak** diakhiri otomatis. Penempatan ditandai **Perlu ditinjau** di daftar penghuni dan kartu Beranda, lalu petugas melakukan check-out. Prinsip lama: sistem tidak mengeluarkan penghuni diam-diam [LAMA 11.29].
+
+## 6. Wali kamar (pengawas) [LAMA 10.11–10.16]
+
+- **Wali kamar = tanggung jawab mengawasi** (`dm_room_supervisors`), terpisah dari **tinggal di kamar** (penempatan kategori Pengawas).
+    - Mengawasi tanpa tinggal → tidak memakai kapasitas.
+    - Mengawasi dan tinggal → dua data: penugasan wali kamar + penempatan Pengawas.
+- Satu kamar boleh punya **0–3 wali kamar** aktif; satu orang boleh mengawasi beberapa kamar [ASUMSI].
+- Calon wali kamar = pegawai aktif (kontrak HR `ActiveEmployees`). Jabatan HR (mis. Musyrif) **tidak** memberi hak apa pun [LAMA 12.22].
+- Jenis kelamin wali kamar **harus sama** dengan gender gedung, juga bila tidak tinggal di kamar [DOCX FR-02]. Sesi lama sempat melonggarkan ini; lihat OD-DM-08.
+- Riwayat penugasan disimpan (mulai, selesai, oleh siapa).
+
+**Hak wali kamar** (pola Kelas saya, AC-3d) [ASUMSI, OD-DM-09]: menu **Kamar saya** muncul bagi pemegang penugasan wali kamar aktif. Isinya daftar penghuni kamarnya (nama, lembaga, kelas, bed/loker), **absen asrama** kamarnya (DM-7), dan **ajukan mutasi** santri kamarnya. Kamar yang tidak diawasinya → 404.
+
+## 7. Hak akses [ASUMSI]
+
+| Permission                      | Isi                                                                          |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `dormitory.facilities.view`     | Lihat asrama, gedung, kamar, bed/loker, ketersediaan                         |
+| `dormitory.facilities.manage`   | Tambah/ubah/nonaktifkan asrama, gedung, kamar, bed/loker; atur wali kamar    |
+| `dormitory.residents.view`      | Lihat penghuni, riwayat, laporan hunian, unduh .xlsx                         |
+| `dormitory.residents.manage`    | Rencanakan, tempatkan, check-in, check-out, batal, impor, proses akhir tahun |
+| `dormitory.mutations.request`   | Ajukan mutasi biasa                                                          |
+| `dormitory.mutations.approve`   | Setujui/tolak mutasi biasa; tinjau mutasi darurat                            |
+| `dormitory.mutations.emergency` | Eksekusi mutasi darurat                                                      |
+| `dormitory.attendance.manage`   | Isi & koreksi absen asrama (DM-7)                                            |
+
+| Role                                  | Izin                                                                                                     | Cakupan                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **Pengurus Asrama** (baru, penugasan) | facilities.view/manage, residents.view/manage, mutations.request, mutations.emergency, attendance.manage | Node penugasan + turunan |
+| **Kepala Asrama** (baru, penugasan)   | facilities.view, residents.view, mutations.approve                                                       | Node penugasan + turunan |
+| Admin Yayasan                         | semua                                                                                                    | Seluruh yayasan          |
+| Pimpinan, Kepala Lembaga, Koordinator | facilities.view, residents.view                                                                          | Cakupannya               |
+| Wali kamar                            | tanpa role; dari data penugasan (§6)                                                                     | Kamar yang diawasi       |
+
+- Matriks docx BR-3 terpenuhi lewat bundel role: Wali kamar hanya mengajukan; Kepala Asrama menyetujui, tidak punya izin darurat; Pengurus Asrama mengajukan dan mengeksekusi darurat [DOCX].
+- Aturan PRD-000 berlaku: di luar cakupan 404, di dalam cakupan tanpa izin 403; daftar disaring di query sebelum paginasi.
+- Kedua role baru ditawarkan di Kelola akses sebagai role penugasan (`AccessCatalog::offerAsAssignmentRole`). Wajib `php artisan educore:sync-access`.
+
+## 8. Mutasi kamar
+
+### 8.1 Mutasi biasa [DOCX Story 2, LAMA 11.7–11.14]
+
+```text
+Pengaju (Pengurus Asrama / wali kamar)          Kepala Asrama                 Sistem
+  ajukan: santri, kamar tujuan, alasan  ──►  setujui (pilih bed/loker) ──► eksekusi atomik
+                                         └─►  tolak (alasan wajib)
+```
+
+- **Status**: Diajukan → Dilaksanakan / Ditolak / Dibatalkan (ditarik pengaju sebelum diputuskan).
+- Saat mengajukan, sistem langsung memeriksa kamar tujuan (§5.3) dan menampilkan sisa slot [DOCX].
+- **Disetujui = langsung dieksekusi** oleh sistem dalam transaksi yang sama: penempatan lama Selesai (alasan Mutasi), penempatan baru Aktif di kamar tujuan, bed/loker lama lepas dan yang baru terpakai. Semua validasi diulang saat itu. Bila tujuan sudah penuh, persetujuan ditolak dengan pesan, dan pengajuan tetap Diajukan [LAMA 11.11–11.12]. Tidak ada status "disetujui tetapi belum dilaksanakan" [ASUMSI].
+- Penyetuju **bukan** pengaju [LAMA 11.10].
+- Satu santri hanya boleh punya satu pengajuan terbuka. Pengajuan otomatis gugur bila santri check-out atau dimutasi lewat jalur darurat [ASUMSI].
+- Notifikasi docx ("Kepala Asrama mendapat notifikasi") = **kartu Beranda** + jumlah di menu. Notifikasi WA/email di luar tahap ini.
+
+### 8.2 Mutasi darurat [DOCX Story 3, LAMA 11.15–11.20]
+
+- Hanya pemilik `dormitory.mutations.emergency` [DOCX].
+- Pop-up wajib berisi **kategori** (Kesehatan, Keamanan/keselamatan, Konflik, Fasilitas rusak, Lainnya) [ASUMSI, saran reviewer docx] **dan** **alasan** minimal 10 karakter. Tombol simpan baru aktif bila keduanya terisi [DOCX].
+- Langsung dieksekusi dengan validasi keras yang sama: jenis kelamin, komposisi, kapasitas, bed/loker, status fasilitas. **Darurat bukan jalan pintas kapasitas** [LAMA 11.19]. Kelebihan muatan darurat di luar tahap ini.
+- Tercatat di `audit_logs` dengan aksi `dormitory.mutation_emergency` (pelaku, waktu, santri, kamar asal & tujuan, kategori; isi alasan disimpan di data mutasi, tidak di audit) [DOCX].
+- **Tinjauan**: kartu Beranda **bendera merah** "Mutasi darurat belum ditinjau" bagi pemilik `mutations.approve`; yang terjadi dalam 24 jam terakhir ditonjolkan [DOCX reviewer]. Kepala Asrama menandai **Sudah ditinjau** (catatan opsional). Mutasi darurat tidak bisa dibatalkan; bila keliru, lakukan mutasi baru [DOCX reviewer, ASUMSI].
+
+### 8.3 Riwayat mutasi
+
+Data mutasi tidak bisa diubah atau dihapus lewat aplikasi. Riwayat per santri bisa dibaca seperti "Kamar A-101 1 Juli–15 September 2026 → pindah (Mutasi) → Kamar B-203 15 September 2026–sekarang" [LAMA 11.14].
+
+## 9. Akhir tahun ajaran [DOCX FR-04 & BR-4, LAMA 11.25–11.30]
+
+- Setiap kamar punya **kebijakan akhir tahun**:
+    - **Dikosongkan**: semua penempatan aktif diakhiri (alasan Akhir tahun), bed/loker lepas, riwayat tetap ada. **Bukan** menghapus data [LAMA 11.27].
+    - **Tetap**: penghuni tetap di kamarnya. Penghuni yang sudah tidak layak (§5.6) ditandai Perlu ditinjau [LAMA 11.28–11.29].
+- Bawaan kebijakan diatur per asrama (berlaku untuk kamar baru), bisa diganti per kamar [ASUMSI].
+- Dijalankan lewat halaman **Proses akhir tahun asrama** (per asrama, pemilik `residents.manage`), bukan otomatis, karena Academic tidak punya status "tahun ditutup":
+    1. pilih tahun ajaran yang berakhir (dari kontrak Academic `AcademicYears`);
+    2. pratinjau per kamar: dikosongkan / tetap / perlu ditinjau, dengan jumlahnya;
+    3. simpan semua dalam satu transaksi, semua-atau-tidak.
+- Satu asrama hanya bisa diproses sekali per tahun ajaran. Ringkasan proses disimpan (`dm_year_end_runs`: tahun, pelaku, waktu, jumlah dikosongkan/tetap/ditinjau) dan tercatat di audit.
+
+## 10. Halaman
+
+Menu kelompok baru **Asrama** (sesudah Akademik), mengikuti Pedoman tampilan: tab per fungsi, semua tambah/ubah/hapus lewat pop-up (`FormDialog`/`ConfirmAction`).
+
+| Halaman                           | Isi                                                                                                                                                            |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Asrama** (`/asrama`)            | Daftar asrama dalam cakupan: pemilik, jumlah gedung/kamar, kapasitas, terisi, tersedia, kelebihan muatan. Tombol Tambah asrama                                 |
+| **Detail asrama**                 | Tab **Gedung & kamar** (pohon gedung → kamar dengan bar hunian), **Penghuni**, **Wali kamar**, **Pengaturan** (kebijakan akhir tahun bawaan, status)           |
+| **Detail kamar**                  | Ringkasan (gender, komposisi, dasar kapasitas, kapasitas efektif, slot pengawas, terisi/direncanakan/tersedia). Tab **Penghuni**, **Bed & loker**, **Riwayat** |
+| **Penghuni** (`/asrama/penghuni`) | Semua penghuni dalam cakupan, saringan asrama/gedung/kamar/status/kategori/lembaga, cari nama/NIS, tanda Perlu ditinjau, unduh .xlsx                           |
+| **Mutasi** (`/asrama/mutasi`)     | Tab **Menunggu persetujuan**, **Darurat** (dengan Sudah ditinjau), **Riwayat**. Tombol Ajukan mutasi dan Mutasi darurat sesuai izin                            |
+| **Impor penempatan**              | Pola impor EduCore (§12 DM-5)                                                                                                                                  |
+| **Proses akhir tahun**            | §9                                                                                                                                                             |
+| **Laporan hunian**                | §12 DM-6                                                                                                                                                       |
+| **Kamar saya**                    | Untuk wali kamar (§6), di kelompok **Untuk saya**                                                                                                              |
+| Detail siswa / detail pegawai     | Bagian ringkas **Asrama**: kamar sekarang & riwayat (bila punya `residents.view` di asrama itu) [ASUMSI]                                                       |
+
+Kartu Beranda [ASUMSI]: **Pengajuan mutasi menunggu** (penyetuju), **Mutasi darurat belum ditinjau** (bendera merah, penyetuju), **Kamar kelebihan muatan** dan **Penghuni perlu ditinjau** (pengurus).
+
+## 11. Kebutuhan non-fungsional [LAMA §13, disederhanakan]
+
+- **Keamanan & isolasi**: semua query lewat `BelongsToTenant` + saringan `visibleNodeIds`; id kamar/bed/loker dari browser tidak dipercaya tanpa cek pemilik [LAMA 13.1]. Impor, ekspor, dan laporan memakai saringan yang sama.
+- **Konsistensi & kebersamaan** [DOCX NFR-03, LAMA 13.3]: setiap penempatan, check-in, mutasi, dan akhir tahun berjalan dalam satu transaksi database yang **mengunci baris kamar** (dan kamar tujuan untuk mutasi; urutan kunci menurut id agar tidak deadlock). Pengaman terakhir di database:
+    - partial unique index: satu penempatan Aktif per orang per yayasan; satu Direncanakan per orang; satu bed/loker per penempatan Aktif/Direncanakan;
+    - FK gabungan `tenant_id` + pemilik di seluruh rantai asrama → gedung → kamar → bed/loker → penempatan;
+    - CHECK untuk nilai status, kategori, dasar kapasitas, komposisi, gender.
+      Uji wajib: dua permintaan berebut loker terakhir → hanya satu berhasil.
+- **Atomik**: mutasi berakhir di salah satu keadaan — lama tetap Aktif dan baru tidak dibuat, **atau** lama Selesai dan baru Aktif [LAMA 13.4].
+- **Kirim ulang aman**: klik ganda/kirim ulang tidak membuat dua penempatan atau dua mutasi (kunci baris + unique index + pengecekan status di dalam transaksi) [LAMA 13.5].
+- **Riwayat**: penempatan, mutasi, penugasan wali kamar, absen, dan proses akhir tahun tidak dihapus [LAMA 13.11]. Audit lewat `audit_logs` (append-only, masa simpan 1 tahun, OD-16); riwayat lengkap tetap di tabel Dormitory.
+- **Kinerja**: daftar 25–50 baris per halaman (maks. 100); impor 1.000 baris diproses ≤ 60 detik di server pengembangan (`ExecutionTime::atLeast`) [ASUMSI]; event ke modul lain dikirim sesudah commit.
+- **Privasi**: Dormitory hanya menampilkan nama, jenis kelamin, lembaga, NIS, dan kelas. Data pribadi lain (HP, alamat, NIK) tidak ditampilkan [LAMA 13.17].
+- **UI**: responsif (kartu di HP), Bahasa Indonesia, kondisi kosong/loading/error, tema UX-2.
+
+## 12. Tahapan [ASUMSI]
+
+| Tahap    | Isi                                                                                                                                                                                                                                                                   |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DM-1** | Kerangka modul + arch test (`Dormitory → Core, Academic\Contracts, HR\Contracts`), katalog akses + 2 role, asrama/gedung/kamar/bed/loker, kapasitas efektif, status & nonaktif, halaman Asrama & Detail kamar                                                         |
+| **DM-2** | Penempatan: tempatkan langsung, rencanakan, check-in, batal rencana, check-out; daftar Penghuni; riwayat kamar & santri; bagian Asrama di detail siswa/pegawai; penanda kelebihan muatan                                                                              |
+| **DM-3** | Wali kamar: penugasan per kamar, penempatan Pengawas, menu **Kamar saya**                                                                                                                                                                                             |
+| **DM-4** | Mutasi biasa & darurat, tinjauan darurat, kartu Beranda                                                                                                                                                                                                               |
+| **DM-5** | Impor penempatan (template per asrama: NIS/NISN, kode kamar, bed/loker opsional) + pilih banyak santri sekaligus ke satu kamar; **Proses akhir tahun asrama**; tanda Perlu ditinjau dari `EnrollmentClosed`                                                           |
+| **DM-6** | Laporan hunian: per asrama/gedung/kamar — bed, loker, kapasitas efektif, terisi, direncanakan, tersedia, % hunian (kapasitas 0 tidak dibagi), kelebihan muatan, bed/loker rusak, jumlah santri & pengawas; riwayat per rentang tanggal; unduh .xlsx [LAMA 12.9–12.12] |
+| **DM-7** | Absen asrama (roll call): sesi per asrama per tanggal (mis. Subuh/Malam, diatur per asrama), status Hadir/Izin/Sakit/Tidak ada per penghuni Aktif, diisi wali kamar/pengurus, rekap bulanan. Terpisah dari presensi kelas AC-4 [LAMA 12.14–12.18]                     |
+
+Setiap tahap: test Feature per aturan (awalan fungsi bantu unik, mis. `dmf`, `dmp`), test constraint di PostgreSQL, audit, `composer lint`, `composer test`, `npm run check`.
+
+## 13. Open decisions
+
+Semua **DIPUTUSKAN sesuai usulan** [OWNER, 2026-11-15].
+
+| ID       | Topik                                         | Keputusan                                                                                                                                                                                                                                             |
+| -------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OD-DM-01 | Node pemilik asrama                           | LEMBAGA atau UNIT (bukan BIRO); pemilik tidak bisa dipindah setelah dibuat                                                                                                                                                                            |
+| OD-DM-02 | Kelayakan santri                              | Santri harus punya pendaftaran terbuka di lembaga **di bawah node pemilik asrama** (asrama Unit 1 hanya untuk santri lembaga Unit 1). Alternatif: lembaga mana pun di yayasan                                                                         |
+| OD-DM-03 | Kelayakan pengawas                            | Pegawai aktif mana pun di yayasan. Alternatif: hanya yang berpenempatan di bawah node pemilik                                                                                                                                                         |
+| OD-DM-04 | Rencana (Direncanakan) memesan bed/loker?     | **Ya**, rencana mengurangi slot tersedia supaya tidak terjadi pemesanan ganda saat penempatan awal tahun                                                                                                                                              |
+| OD-DM-05 | Pemilihan bed/loker                           | Sistem menyarankan kode terkecil yang tersedia; petugas boleh mengganti                                                                                                                                                                               |
+| OD-DM-06 | Santri keluar/lulus dari lembaga              | Ditandai **Perlu ditinjau**, check-out manual oleh pengurus. Alternatif: check-out otomatis (alasan Lulus/keluar lembaga)                                                                                                                             |
+| OD-DM-07 | Impor penempatan                              | Pola EduCore: pratinjau + **simpan semua atau tidak**, sinkron, maks. 1.000 baris. Ini mengganti "partial success + background job" dari sesi lama                                                                                                    |
+| OD-DM-08 | Gender wali kamar yang tidak tinggal di kamar | **Wajib sama** dengan gedung (docx FR-02). Sesi lama sempat membolehkan beda selama tidak tinggal                                                                                                                                                     |
+| OD-DM-09 | Hak wali kamar                                | Dari data penugasan wali kamar (pola Kelas saya, tanpa role). Sesi lama: wali kamar tetap butuh permission                                                                                                                                            |
+| OD-DM-10 | Integrasi biaya asrama (Finance)              | **Belum di tahap ini.** Usulan tahap lanjut: jenis biaya bertanda "Hanya penghuni asrama" sehingga tagihan bulanan dibuat hanya untuk santri yang Aktif di asrama pada bulan itu, dibaca lewat kontrak `Dormitory\Contracts`. Perlu perubahan PRD-003 |
+| OD-DM-11 | Integrasi Academic                            | Hanya baca (kelayakan, tahun ajaran, data tampilan) + mendengar `EnrollmentClosed`. Dormitory tidak mengubah data Academic. Docx "status kelas" dianggap tidak diperlukan                                                                             |
+| OD-DM-12 | Kebijakan akhir tahun bawaan                  | Bawaan **Tetap**; pengurus memilih kamar mana yang Dikosongkan                                                                                                                                                                                        |
+
+## 14. Di luar tahap ini
+
+Perizinan keluar/pulang santri (surat izin, jam kembali), kunjungan wali santri, pelanggaran & poin asrama, inventaris barang kamar, kelebihan muatan darurat dengan izin khusus, notifikasi WA/email, portal orang tua (kamar & wali kamar anak), biaya asrama (OD-DM-10), pindah asrama ke node pemilik lain, aplikasi absen dengan pindai kartu/QR.
+
+## 15. DM-1 Fasilitas asrama [ASUMSI — rincian teknis 2026-11-15, dibangun 2026-11-15]
+
+- **Modul**: `modules/Dormitory` (`DormitoryServiceProvider` sesudah Finance di `bootstrap/providers.php`); arch test: Dormitory hanya memakai Core + `Academic\Contracts` + `HR\Contracts` (tanpa Finance); Core/HR/Academic/Finance tidak bergantung pada Dormitory. Label audit lewat `AuditAction::registerLabels()`.
+- **Akses**: `DormitoryAccess` — 8 permission §7, role penugasan **Pengurus Asrama** (`pengurus-asrama`) & **Kepala Asrama** (`kepala-asrama`); Admin Yayasan semua; Pimpinan, Kepala Lembaga, Koordinator: lihat fasilitas & penghuni → wajib `php artisan educore:sync-access`. Di DM-1 baru `facilities.view|manage` yang dipakai halaman.
+- **Data** (migrasi `2026_11_15_400001_create_dm_facility_tables`; UUIDv7, `tenant_id` + `organization_id` pemilik di setiap tabel):
+    - `dm_dormitories`: organization_id (node LEMBAGA/UNIT aktif, diperiksa service), code (unik per yayasan), name (maks. 100), default_year_end_policy `TETAP|KOSONGKAN` (bawaan TETAP), is_active.
+    - `dm_buildings`: dormitory_id, code (unik per asrama), name, gender `L|P`, is_active. FK gabungan `(tenant, organization, dormitory)` → asrama.
+    - `dm_rooms`: building_id, dormitory_id, code (unik per gedung), name (opsional), capacity_basis `BED|LOKER|BED_LOKER`, composition `KHUSUS_SANTRI|SANTRI_PENGAWAS`, supervisor_slots, year_end_policy, is_active. FK gabungan `(tenant, organization, dormitory, building)` → gedung. CHECK: Khusus santri ⇒ slot 0; Santri + pengawas ⇒ slot 1–5.
+    - `dm_beds` & `dm_lockers`: room_id, code (unik per kamar), status `TERSEDIA|TIDAK_TERSEDIA`, unavailable_reason `RUSAK|PERBAIKAN|DITUTUP|LAINNYA` + unavailable_note (maks. 200), is_active. CHECK: tidak tersedia wajib alasan (dengan `IS NOT NULL`, karena `NULL IN (...)` lolos CHECK), tersedia tanpa alasan/catatan. Status "terisi" tidak disimpan.
+    - CHECK format kode di semua tabel: huruf besar, angka, `-` (`^[A-Z0-9]+(-[A-Z0-9]+)*$`), maks. 30.
+- **Service** (`Application/Facility`): `FacilityCode` (rapikan: huruf besar, spasi → `-`), `ManageDormitories`, `ManageBuildings`, `ManageRooms` + `RoomData`, `ManageRoomResources` (tambah banyak: awalan + nomor mulai 0–999 + jumlah 1–100, nomor min. 2 digit, kode bentrok → tidak ada yang disimpan, maks. 200 aktif per jenis per kamar; ubah kode/status; nonaktif/aktif; hapus — di DM-1 selalu boleh karena belum ada penempatan, DM-2 menambah pengaman "belum pernah dipakai"), `RoomCapacity` (bed/loker aktif & tersedia → kapasitas efektif menurut dasar; slot santri = efektif − slot pengawas, min. 0), `FacilityDirectory` (data halaman, saringan cakupan di query). Slot pengawas ditolak bila ≥ kapasitas efektif yang sudah ada. Aktifkan kembali butuh induk aktif (asrama butuh lembaga pemilik aktif). Tambah gedung/kamar/bed-loker butuh induk aktif.
+- **Hak akses**: daftar = asrama yang node pemiliknya ada di `visibleNodeIds('dormitory.facilities.view')`; aksi pakai Gate dengan datanya (di luar cakupan 404, tanpa izin kelola 403). Pilihan pemilik asrama baru = LEMBAGA/UNIT aktif dalam cakupan `facilities.manage`.
+- **Halaman** (menu kelompok **Asrama** → **Asrama**, pemilik `facilities.view`):
+    - `/asrama`: kartu asrama (kode, pemilik, jumlah gedung aktif & kamar aktif, kapasitas = kamar aktif di gedung aktif, slot santri + pengawas), saringan pemilik & "Tampilkan yang nonaktif"; pop-up **Tambah asrama** → langsung ke detail.
+    - `/asrama/{id}`: tombol Tambah gedung · Ubah asrama · Nonaktifkan; tab **Gedung & kamar** (kartu per gedung dengan badge Putra/Putri, Tambah kamar · Ubah · Nonaktifkan, daftar kamar → halaman kamar) dan **Pengaturan** (pemilik, kode, kebijakan akhir tahun bawaan).
+    - `/asrama/kamar/{id}`: Ubah kamar · Nonaktifkan; kotak Kapasitas, Slot santri, Bed tersedia x/y, Loker tersedia x/y + penjelasan dasar kapasitas; bagian **Bed** dan **Loker** berupa **petak ringkas** (kode + status; rusak merah, nonaktif garis putus) — ketuk petak → pop-up Ubah (kode, status, alasan, keterangan) yang memuat Nonaktifkan/Aktifkan dan Hapus dengan konfirmasi; Tambah bed/loker dengan pratinjau kode ("Akan dibuat: A-101-01 s.d. A-101-20").
+- **Route**: `asrama` (GET/POST), `asrama/{dormitory}` (GET/PATCH, `/status`, `/gedung`), `asrama/gedung/{building}` (PATCH, `/status`, `/kamar`), `asrama/kamar/{room}` (GET/PATCH, `/status`, `/bed-loker`), `asrama/{bed|loker}/{id}` (PATCH/DELETE, `/status`).
+- **Audit**: `dormitory.dormitory_created|updated|deactivated|reactivated`, `dormitory.building_*`, `dormitory.room_*`, `dormitory.resources_added` (kamar, jenis, jumlah, dari–sampai), `dormitory.resource_updated|deactivated|reactivated|deleted` (kode, status, alasan, nama isian; tanpa isi catatan).
+- **Test**: `tests/Feature/Dormitory/FacilityTest.php` (6 test, awalan `dmf`): kapasitas tiga dasar (20 bed + 16 loker → 20/16/16) & slot pengawas; tambah + kode dirapikan + audit; penolakan (biro, kode dobel/format, slot pengawas, bentrok semua-atau-tidak, alasan wajib, alasan Lainnya wajib keterangan); nonaktif berjenjang; hak akses (Pengurus Unit 1 vs Unit 2 → 404, Kepala Asrama & Pimpinan hanya lihat → 403, Kepala Unit 1 hanya asrama Unit 1, guru 403); constraint database (pemilik berantai, format kode, komposisi, status bed). `AccessCatalogTest`, `TreeAuthorizationTest`, `MemberAccessTest` disesuaikan (+8 permission, +2 role).

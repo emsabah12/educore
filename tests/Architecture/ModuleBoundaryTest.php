@@ -8,6 +8,7 @@
  *   HR       → Core
  *   Academic → Core, HR (hanya kontrak publik: Contracts, DTO)
  *   Finance  → Core, Academic (hanya kontrak publik: Contracts) — PRD-003 §7
+ *   Dormitory → Core, Academic & HR (hanya kontrak publik: Contracts) — PRD-008 §0, §15
  *
  * Test ini gagal otomatis bila ada kode yang melanggar,
  * sehingga batas modul tidak bergantung pada ingatan developer.
@@ -15,7 +16,25 @@
 
 arch('Core tidak boleh bergantung pada modul bisnis')
     ->expect('Modules\Core')
-    ->not->toUse(['Modules\HR', 'Modules\Academic', 'Modules\Finance']);
+    ->not->toUse(['Modules\HR', 'Modules\Academic', 'Modules\Finance', 'Modules\Dormitory']);
+
+arch('Modul lain tidak boleh bergantung pada Dormitory')
+    ->expect(['Modules\HR', 'Modules\Academic', 'Modules\Finance'])
+    ->not->toUse('Modules\Dormitory');
+
+arch('Dormitory hanya boleh memakai kontrak publik Academic & HR, tanpa Finance')
+    ->expect('Modules\Dormitory')
+    ->not->toUse([
+        'Modules\Finance',
+        'Modules\Academic\Domain',
+        'Modules\Academic\Application',
+        'Modules\Academic\Http',
+        'Modules\Academic\Database',
+        'Modules\HR\Domain',
+        'Modules\HR\Application',
+        'Modules\HR\Http',
+        'Modules\HR\Database',
+    ]);
 
 arch('HR tidak boleh bergantung pada Academic atau Finance')
     ->expect('Modules\HR')

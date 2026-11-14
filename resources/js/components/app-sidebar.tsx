@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Award,
     Banknote,
+    BedDouble,
     BookOpen,
     BookOpenCheck,
     BookText,
@@ -78,6 +79,12 @@ const organizationsNavItem: NavItem = {
     title: 'Lembaga',
     href: '/lembaga',
     icon: Network,
+};
+
+const dormitoriesNavItem: NavItem = {
+    title: 'Asrama',
+    href: '/asrama',
+    icon: BedDouble,
 };
 
 const auditNavItem: NavItem = {
@@ -413,6 +420,14 @@ export function AppSidebar() {
                     [teachingNavItem],
                 ),
             ],
+        },
+        {
+            // Asrama (PRD-008 DM-1).
+            key: 'dormitory',
+            title: 'Asrama',
+            items: when(permissions.includes('dormitory.facilities.view'), [
+                dormitoriesNavItem,
+            ]),
         },
         {
             key: 'hr',
