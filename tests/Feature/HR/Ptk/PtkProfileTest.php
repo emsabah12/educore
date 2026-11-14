@@ -25,7 +25,7 @@ use Tests\Support\DevAccounts;
  */
 
 const PTK_FULL = [
-    'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'ptk_function' => 'GURU_MAPEL',
+    'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'ptk_function' => 'GURU',
     'civil_servant' => 'NON_PNS', 'certified' => 'SUDAH', 'certification_year' => '2019', 'educator_certificate_number' => '19123456789012',
 ];
 
@@ -66,7 +66,8 @@ test('pegawai baru: Data PTK kosong, pilihan tersedia bagi Admin Yayasan', funct
             ->where('ptk.values.has_mother_name', false)
             ->where('ptk.values.ptk_function', null)
             ->where('ptk.withPersonal', true)
-            ->has('ptk.manage.functions', 8)
+            ->has('ptk.manage.functions', 2)
+            ->has('ptk.manage.positions', 18)
             ->where('ptk.manage.civilServants.1', ['value' => 'NON_PNS', 'label' => 'Non-PNS'])
             ->where('ptk.manage.yearMax', 2026),
         );
@@ -78,7 +79,7 @@ test('Admin Yayasan mengisi Data PTK; nama ibu terenkripsi; audit hanya nama isi
     $row = ptkRow($this);
     expect($row?->mother_name_encrypted)->not->toBeNull()->not->toContain('Siti')
         ->and([(int) $row?->sd_graduation_year, $row?->ptk_function, $row?->civil_servant, (bool) $row?->certified, (int) $row?->certification_year, $row?->educator_certificate_number])
-        ->toBe([2002, 'GURU_MAPEL', 'NON_PNS', true, 2019, '19123456789012']);
+        ->toBe([2002, 'GURU', 'NON_PNS', true, 2019, '19123456789012']);
 
     $audit = DB::table('audit_logs')->where('action', HrAuditAction::PTK_PROFILE_UPDATED)->sole();
     expect(json_decode((string) $audit->changes, true)['isian'])->toBe(['nama ibu kandung', 'tahun lulus SD', 'fungsi PTK', 'status PNS', 'sertifikasi guru', 'tahun sertifikasi', 'nomor sertifikat pendidik'])
@@ -87,7 +88,7 @@ test('Admin Yayasan mengisi Data PTK; nama ibu terenkripsi; audit hanya nama isi
     $this->actingAs($this->admin)->get(route('hr.employees.show', $this->employee))
         ->assertInertia(fn (Assert $page) => $page
             ->where('ptk.values.mother_name', 'Siti Aminah')
-            ->where('ptk.values.ptk_function_label', 'Guru Mapel')
+            ->where('ptk.values.ptk_function_label', 'Guru')
             ->where('ptk.values.civil_servant_label', 'Non-PNS')
             ->where('ptk.values.certified', true),
         );
@@ -118,10 +119,10 @@ test('tanpa izin lihat data pribadi, nama ibu kandung tidak terbaca & tidak beru
     $profiles = app(PtkProfiles::class);
     $membership = (string) DB::table('memberships')->where('tenant_id', $this->tenant->id)->value('id');
     $profiles->update($this->tenant->id, $this->employee, ['mother_name' => 'Siti Aminah'], $membership, withPersonal: true);
-    $profiles->update($this->tenant->id, $this->employee, ['mother_name' => '', 'ptk_function' => 'GURU_KELAS'], $membership, withPersonal: false);
+    $profiles->update($this->tenant->id, $this->employee, ['mother_name' => '', 'ptk_function' => 'STAF'], $membership, withPersonal: false);
 
     $limited = $profiles->forEmployee($this->tenant->id, $this->employee, withPersonal: false);
-    expect([$limited['mother_name'], $limited['has_mother_name'], $limited['ptk_function']])->toBe([null, true, 'GURU_KELAS'])
+    expect([$limited['mother_name'], $limited['has_mother_name'], $limited['ptk_function']])->toBe([null, true, 'STAF'])
         ->and($profiles->forEmployee($this->tenant->id, $this->employee, withPersonal: true)['mother_name'])->toBe('Siti Aminah');
 });
 
@@ -133,4 +134,21 @@ test('ubah Data PTK hanya Admin SDM / Admin Yayasan; pegawai lain yayasan 404', 
     $this->actingAs($this->admin)->patch(route('hr.employees.ptk.update', '01a1caa7-0000-7000-8000-000000000000'), PTK_FULL)->assertNotFound();
 
     expect(ptkRow($this))->toBeNull();
+});
+
+test('jabatan di madrasah sesuai A05: tersimpan, tampil, dan divalidasi', function () {
+    $this->actingAs($this->admin)->patch(route('hr.employees.ptk.update', $this->employee), ['ptk_function' => 'STAF', 'school_position' => 'BENDAHARA'])->assertSessionHasNoErrors();
+    expect([ptkRow($this)?->ptk_function, ptkRow($this)?->school_position])->toBe(['STAF', 'BENDAHARA']);
+
+    $this->actingAs($this->admin)->get(route('hr.employees.show', $this->employee))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('ptk.values.ptk_function_label', 'Staf')
+            ->where('ptk.values.school_position_label', 'Bendahara')
+            ->where('ptk.manage.positions.1', ['value' => 'KEPALA', 'label' => 'Kepala Madrasah/Sekolah']),
+        );
+
+    $this->actingAs($this->admin)->patch(route('hr.employees.ptk.update', $this->employee), ['school_position' => 'REKTOR'])
+        ->assertSessionHasErrors(['school_position' => 'Pilih jabatan dari daftar.']);
+    $this->actingAs($this->admin)->patch(route('hr.employees.ptk.update', $this->employee), ['ptk_function' => 'GURU_MAPEL'])
+        ->assertSessionHasErrors(['ptk_function']);
 });

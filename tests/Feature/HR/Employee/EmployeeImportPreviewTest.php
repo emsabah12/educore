@@ -201,7 +201,7 @@ test('template berisi lembar Pegawai, Petunjuk, dan Kode milik yayasan ini', fun
 
     $codes = array_merge(...array_map(fn (array $row): array => array_values(array_filter($row, 'is_string')), $sheets['Kode']));
 
-    expect($codes)->toContain('TETAP', 'GTY', 'GURU', 'U1-MTS', 'D4_S1', 'L');
+    expect($codes)->toContain('TETAP', 'GTY', 'GURU', 'U1-MTS', 'S1', 'SMK', 'L');
 
     // Template kosong dikenali judul kolomnya, tetapi belum berisi data pegawai.
     expect(fn () => app(EmployeeImportReader::class)->read($path, 'xlsx'))->toThrow(ImportFileException::class, 'Tidak ada baris data pegawai');
@@ -339,7 +339,7 @@ test('isian opsional yang benar ikut siap disimpan, kode tidak peka huruf besar/
         ->and($row->data?->phone)->toBe('+6281234567890')
         ->and($row->data?->employeeNumber)->toBe('YYS/101')
         ->and($row->data?->nuptk)->toBe('1234567890123456')
-        ->and($row->data?->educationLevel)->toBe(EducationLevel::D4S1)
+        ->and($row->data?->educationLevel)->toBe(EducationLevel::S1)
         ->and($row->data?->classificationId)->toBe(imporKatalog($this->tenant, CatalogKind::Classification, 'GTY'))
         ->and($row->data?->confirmDuplicate)->toBeFalse();
 });

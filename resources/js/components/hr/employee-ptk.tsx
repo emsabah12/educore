@@ -18,6 +18,9 @@ export type PtkData = {
         sd_graduation_year: number | null;
         ptk_function: string | null;
         ptk_function_label: string | null;
+        /** Jabatan di madrasah/sekolah induk sesuai formulir A05 (OD-HR-28). */
+        school_position: string | null;
+        school_position_label: string | null;
         civil_servant: string | null;
         civil_servant_label: string | null;
         certified: boolean | null;
@@ -27,6 +30,7 @@ export type PtkData = {
     withPersonal: boolean;
     manage: {
         functions: Option[];
+        positions: Option[];
         civilServants: Option[];
         yearMin: number;
         yearMax: number;
@@ -66,6 +70,10 @@ export function PtkSection({
             value: values.sd_graduation_year?.toString() ?? null,
         },
         { label: 'Fungsi PTK', value: values.ptk_function_label },
+        {
+            label: 'Jabatan di madrasah/sekolah',
+            value: values.school_position_label,
+        },
         { label: 'Status PNS', value: values.civil_servant_label },
         { label: 'Sertifikasi guru', value: certification },
         {
@@ -226,22 +234,51 @@ function PtkForm({
                         </div>
                     </div>
 
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="ptk-function">Fungsi PTK</Label>
-                        <select
-                            id="ptk-function"
-                            name="ptk_function"
-                            className={selectClass}
-                            defaultValue={values.ptk_function ?? ''}
-                        >
-                            <option value="">(belum diisi)</option>
-                            {manage.functions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="ptk-function">Fungsi PTK</Label>
+                            <select
+                                id="ptk-function"
+                                name="ptk_function"
+                                className={selectClass}
+                                defaultValue={values.ptk_function ?? ''}
+                            >
+                                <option value="">(belum diisi)</option>
+                                {manage.functions.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.ptk_function} />
+                        </div>
+                        <div className="grid content-start gap-1.5">
+                            <Label htmlFor="ptk-position">
+                                Jabatan di madrasah/sekolah
+                            </Label>
+                            <select
+                                id="ptk-position"
+                                name="school_position"
+                                className={selectClass}
+                                defaultValue={values.school_position ?? ''}
+                            >
+                                <option value="">
+                                    (tidak ada / belum diisi)
                                 </option>
-                            ))}
-                        </select>
-                        <InputError message={errors.ptk_function} />
+                                {manage.positions.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.school_position} />
+                        </div>
                     </div>
 
                     <div className="grid gap-1.5">

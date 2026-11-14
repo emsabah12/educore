@@ -32,8 +32,9 @@ final class PtkRecapExport
         'education' => 'Pendidikan terakhir',
         'education_major' => 'Jurusan',
         'sd_graduation_year' => 'Tahun lulus SD',
-        'position' => 'Jabatan',
+        'position' => 'Jabatan (yayasan)',
         'ptk_function' => 'Fungsi PTK',
+        'school_position' => 'Jabatan di madrasah (A05)',
         'civil_servant' => 'Status PNS',
         'employment_type' => 'Jenis pegawai',
         'classification' => 'Status kepegawaian',
@@ -64,7 +65,7 @@ final class PtkRecapExport
             foreach (array_keys(self::COLUMNS) as $index => $key) {
                 $sheet->setColumnWidth(match ($key) {
                     'organization', 'name', 'mother_name', 'address' => 30,
-                    'nik', 'nuptk', 'certificate_number', 'phone', 'position', 'ptk_function' => 20,
+                    'nik', 'nuptk', 'certificate_number', 'phone', 'position', 'ptk_function', 'school_position' => 20,
                     default => 14,
                 }, $index + 1);
             }

@@ -46,7 +46,7 @@ beforeEach(function () {
     $this->post(route('hr.recruitment.open', ['vacancy' => $this->vacancy]));
 
     $add = fn (string $name, array $extra = []) => $this->post(route('hr.applicants.store', ['vacancy' => $this->vacancy]), array_merge([
-        'name' => $name, 'gender' => 'P', 'phone' => '081234567890', 'email' => '', 'education_level' => 'D4_S1',
+        'name' => $name, 'gender' => 'P', 'phone' => '081234567890', 'email' => '', 'education_level' => 'S1',
         'education_major' => 'Pendidikan Matematika', 'note' => '',
     ], $extra));
     $add('Rahma Aulia');
@@ -70,7 +70,7 @@ function rkhEmployeeForm(mixed $test, array $overrides = []): array
 {
     return array_merge([
         'mode' => 'baru', 'name' => 'Rahma Aulia', 'nik' => '3201014101900001', 'gender' => 'P', 'phone' => '081234567890',
-        'education_level' => 'D4_S1', 'education_major' => 'Pendidikan Matematika',
+        'education_level' => 'S1', 'education_major' => 'Pendidikan Matematika',
         'employment_type_id' => rkhCatalog($test, CatalogKind::EmploymentType, 'KONTRAK'), 'start_date' => '2026-11-13',
         'organization_id' => $test->ma, 'position_id' => $test->guruPosition, 'applicant_id' => $test->rahma,
     ], $overrides);

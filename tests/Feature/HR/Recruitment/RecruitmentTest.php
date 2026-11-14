@@ -50,7 +50,7 @@ function rktApplicant(array $overrides = []): array
 {
     return array_merge([
         'name' => 'Rahma Aulia', 'gender' => 'P', 'phone' => '0812-3456-7890', 'email' => 'Rahma@Contoh.id',
-        'education_level' => 'D4_S1', 'education_major' => 'Pendidikan Matematika', 'note' => 'Lamaran lewat WA',
+        'education_level' => 'S1', 'education_major' => 'Pendidikan Matematika', 'note' => 'Lamaran lewat WA',
     ], $overrides);
 }
 

@@ -58,6 +58,7 @@
 | 2026-11-13 | **HR-9 Rekrutmen**: pelamar diinput Admin SDM (tanpa formulir publik); tahap seleksi tetap Berkas → Tes/wawancara → Diterima/Tidak lolos; data pelamar yang tidak jadi pegawai dihapus otomatis 1 tahun sesudah lowongan ditutup                                                                                                              | PRD-001 §20, OD-HR-19 s.d. OD-HR-21                      |
 | 2026-11-13 | **HR-4d Presensi lokasi HP**: titik & radius per lembaga; aturan per jenjang/lembaga (tidak memakai / catat / wajib di dalam radius); hanya jarak yang disimpan, bukan koordinat HP; di luar radius pada aturan wajib ditolak; mesin absen ditunda                                                                                            | PRD-001 §14.6, OD-HR-22 s.d. OD-HR-24                    |
 | 2026-11-13 | **HR-10 Simpatika**: rekap PTK .xlsx dulu, cetak A05 menyusul setelah contoh formulir ada; NIK & nama ibu kandung ikut rekap hanya bagi pemilik izin data pribadi (diaudit); data resmi lembaga (NPSN, status, wilayah) di data Lembaga Core; fungsi PTK daftar tetap                                                                         | PRD-001 §21, OD-HR-25 s.d. OD-HR-27; PRD-000 §4.6        |
+| 2026-11-14 | **HR-10c A05** (contoh formulir diterima): Fungsi PTK Guru/Staf + Jabatan 18 pilihan sesuai A05 (data lama dipindah otomatis); pendidikan dipisah D4 & S1 + SMK (D4/S1 lama → S1)                                                                                                                                                             | PRD-001 §21.3, OD-HR-28, OD-HR-29                        |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                              | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 
 ## Fitur yang sudah ada
@@ -727,6 +728,12 @@
 - Perlu menjalankan seeder katalog HR sesudah migrate agar item offboarding bawaan terisi.
 - Uji manual owner lancar.
 
+**HR-10c-1 — Isian PTK & pendidikan disesuaikan A05: DIBANGUN (2026-11-14, menunggu uji owner)** — PRD-001 §21.3 (OD-HR-28, OD-HR-29)
+
+- Migrasi `2026_11_14_100024`: `hr_ptk_profiles.school_position` (18 jabatan A05); fungsi PTK menjadi GURU/STAF dengan pemindahan data lama otomatis (Kepala → Guru + Ka Mad/Sek; Tenaga Administrasi → Staf + Staf TU; Pustakawan/Laboran → Staf + jabatannya; Lainnya → kosong); pendidikan `D4_S1` → `S1` di pegawai & pelamar, CHECK baru (tambah SMK, D4, S1).
+- `PtkFunction` (Guru/Staf), `SchoolPosition` (label lengkap + label pendek formulir), `EducationLevel` (12 pilihan + `fromImport` menerima kode lama). Tab Data PTK: isian **Jabatan di madrasah/sekolah**. Rekap PTK .xlsx: kolom **Jabatan di madrasah (A05)** (29 kolom).
+- Bukti: test baru `PtkA05MigrationTest` (awalan `pam`) + 1 test jabatan di `PtkProfileTest`; test lama yang memakai D4_S1 disesuaikan. Pint, Larastan, tsc, `vp check` (dicek pada file final), build lulus. Tanpa izin baru.
+
 **HR-10b — Rekap PTK & kelengkapan data: SELESAI (2026-11-14, commit `e8cf86a`, uji owner lancar)** — PRD-001 §21.2 (OD-HR-25)
 
 - `PtkRecap`: pegawai **aktif** yang terlihat (cakupan lihat `hr.employees.view`) menurut lembaga **penempatan utama** berjalan; saringan lembaga beserta turunannya; maks. 5.000 baris. Kelengkapan dari 7 isian (NIK, tanggal lahir, nama ibu kandung, tahun lulus SD, fungsi PTK, status PNS, sertifikasi); NUPTK hanya ditandai. Data resmi lembaga yang kosong ditandai per lembaga.
@@ -1110,5 +1117,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 1. Sebelum produksi Midtrans: kunci Midtrans **produksi** di `.env` server, `MIDTRANS_IS_PRODUCTION=true`, Notification URL di dashboard produksi = `https://<domain>/webhook/midtrans`, `TRUSTED_PROXIES` sesuai server, tarif biaya layanan sesuai kontrak.
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
-4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → HR-10c cetak A05 setelah contoh formulir ada.
+4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): **10c-1 DIBANGUN, menunggu uji owner** → 10c-2 cetak.
 5. AC-9 (ekspor Dapodik/EMIS, PPDB, asrama) — dirinci dulu.

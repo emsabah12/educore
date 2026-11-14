@@ -36,6 +36,7 @@ final class PtkProfileController
             'mother_name' => ['nullable', 'string', 'max:'.PtkProfiles::MOTHER_NAME_MAX],
             'sd_graduation_year' => ['nullable', 'string', 'max:4'],
             'ptk_function' => ['nullable', 'string', 'max:30'],
+            'school_position' => ['nullable', 'string', 'max:30'],
             'civil_servant' => ['nullable', 'string', 'max:10'],
             'certified' => ['nullable', 'string', 'max:10'],
             'certification_year' => ['nullable', 'string', 'max:4'],
@@ -44,6 +45,7 @@ final class PtkProfileController
             'mother_name' => 'nama ibu kandung',
             'sd_graduation_year' => 'tahun lulus SD',
             'ptk_function' => 'fungsi PTK',
+            'school_position' => 'jabatan',
             'civil_servant' => 'status PNS',
             'certified' => 'sertifikasi guru',
             'certification_year' => 'tahun sertifikasi',
@@ -56,7 +58,7 @@ final class PtkProfileController
             $profiles->update(
                 $context->tenantId,
                 $employee,
-                $request->only(['mother_name', 'sd_graduation_year', 'ptk_function', 'civil_servant', 'certified', 'certification_year', 'educator_certificate_number']),
+                $request->only(['mother_name', 'sd_graduation_year', 'ptk_function', 'school_position', 'civil_servant', 'certified', 'certification_year', 'educator_certificate_number']),
                 $context->membershipId,
                 withPersonal: $visibility->canSee($employee, HrAccess::EMPLOYEES_VIEW_PERSONAL),
             );

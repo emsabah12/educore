@@ -281,7 +281,7 @@ final class EmployeeImportValidator
             return null;
         }
 
-        $level = EducationLevel::tryFrom(mb_strtoupper($code));
+        $level = EducationLevel::fromImport($code);
 
         if ($level === null) {
             $draft->error(EmployeeImportColumns::EDUCATION, "Kode \"{$code}\" tidak dikenal. Lihat lembar Kode.");

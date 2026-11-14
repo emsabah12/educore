@@ -16,6 +16,7 @@ use Modules\HR\Domain\Employee\EducationLevel;
 use Modules\HR\Domain\Employee\EmployeeStatus;
 use Modules\HR\Domain\Ptk\CivilServantStatus;
 use Modules\HR\Domain\Ptk\PtkFunction;
+use Modules\HR\Domain\Ptk\SchoolPosition;
 use stdClass;
 
 /**
@@ -141,6 +142,7 @@ final class PtkRecap
                 'sd_graduation_year' => self::text($record->sd_graduation_year),
                 'position' => self::text($record->position_name),
                 'ptk_function' => $function?->label(),
+                'school_position' => $record->school_position === null ? null : SchoolPosition::tryFrom((string) $record->school_position)?->label(),
                 'civil_servant' => $civil?->label(),
                 'employment_type' => self::text($record->employment_type),
                 'classification' => self::text($record->classification),
@@ -241,7 +243,7 @@ final class PtkRecap
                 'o.id as organization_id', 'o.name as organization_name', 'o.jenjang as organization_jenjang', 'o.npsn as organization_npsn',
                 'o.ownership as organization_ownership', 'o.district as organization_district', 'o.regency as organization_regency', 'o.province as organization_province',
                 'j.name as position_name',
-                'k.mother_name_encrypted', 'k.sd_graduation_year', 'k.ptk_function', 'k.civil_servant', 'k.certified', 'k.certification_year', 'k.educator_certificate_number',
+                'k.mother_name_encrypted', 'k.sd_graduation_year', 'k.ptk_function', 'k.school_position', 'k.civil_servant', 'k.certified', 'k.certification_year', 'k.educator_certificate_number',
             ])
             ->values()
             ->all();

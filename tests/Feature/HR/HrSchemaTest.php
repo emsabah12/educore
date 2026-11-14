@@ -113,10 +113,10 @@ test('database menolak NUPTK, nomor induk, pendidikan, dan status yang formatnya
     hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['nuptk' => '12345']));
     hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['nuptk' => '12345678901234ab']));
     hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['employee_number' => 'yys-001']));
-    hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['education_level' => 'S1']));
+    hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['education_level' => 'D4_S1']));
     hrRejected(fn () => hrInsertEmployee($this->tenant, $this->membership, ['status' => 'CUTI']));
 
-    hrInsertEmployee($this->tenant, $this->membership, ['education_level' => 'D4_S1', 'education_major' => 'Pendidikan Matematika']);
+    hrInsertEmployee($this->tenant, $this->membership, ['education_level' => 'S1', 'education_major' => 'Pendidikan Matematika']);
 
     expect(DB::table('hr_employees')->count())->toBe(1);
 });

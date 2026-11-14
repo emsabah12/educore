@@ -63,7 +63,7 @@ function hrFormPegawai(Tenant $tenant, array $overrides = []): array
         'address' => 'Jl. Pesantren No. 1',
         'employee_number' => 'yys/2026.001',
         'nuptk' => '1234 5678 9012 3456',
-        'education_level' => 'D4_S1',
+        'education_level' => 'S1',
         'education_major' => 'Pendidikan Matematika',
         'employment_type_id' => hrKatalogId(CatalogKind::EmploymentType, $tenant, 'TETAP'),
         'classification_id' => hrKatalogId(CatalogKind::Classification, $tenant, 'GTY'),
@@ -147,7 +147,7 @@ test('orang baru: data diri, kepegawaian, periode, dan penempatan tersimpan seka
 
     expect($employee->status)->toBe(EmployeeStatus::Active)
         ->and($employee->nuptk)->toBe('1234567890123456')
-        ->and($employee->education_level)->toBe(EducationLevel::D4S1)
+        ->and($employee->education_level)->toBe(EducationLevel::S1)
         ->and($person->name)->toBe('Siti Aminah')
         ->and($person->gender)->toBe(Gender::Female)
         ->and($person->phone)->toBe('081234567890')

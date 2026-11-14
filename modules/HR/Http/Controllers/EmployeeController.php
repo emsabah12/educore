@@ -173,6 +173,7 @@ final class EmployeeController
                 'withPersonal' => $withPersonal,
                 'manage' => $canManage ? [
                     'functions' => PtkProfiles::functionOptions(),
+                    'positions' => PtkProfiles::positionOptions(),
                     'civilServants' => PtkProfiles::civilServantOptions(),
                     'yearMin' => PtkProfiles::YEAR_MIN,
                     'yearMax' => (int) substr(BusinessClock::todayString(), 0, 4),

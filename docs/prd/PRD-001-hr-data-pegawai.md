@@ -1,7 +1,7 @@
 # PRD-001 — Modul HR (Kepegawaian)
 
-- **Versi:** 0.33 (2026-11-13: rincian HR-10 rekap PTK Simpatika disetujui — §21, OD-HR-25 s.d. OD-HR-27; HR-10a dibangun; HR-4d SELESAI `bdcf694`)
-- **Versi sebelumnya:** 0.32 (rincian HR-4d presensi lokasi HP — §14.6, OD-HR-22 s.d. OD-HR-24), 0.31 (rincian teknis HR-9b — §20.2; HR-9 SELESAI `067da96`, `75c3328`)
+- **Versi:** 0.34 (2026-11-14: usulan rincian HR-10c cetak formulir A05 — §21.3, OD-HR-28, OD-HR-29; HR-10b SELESAI `e8cf86a`)
+- **Versi sebelumnya:** 0.33 (2026-11-13: rincian HR-10 rekap PTK Simpatika disetujui — §21, OD-HR-25 s.d. OD-HR-27; HR-10a dibangun; HR-4d SELESAI `bdcf694`), 0.32 (rincian HR-4d presensi lokasi HP — §14.6, OD-HR-22 s.d. OD-HR-24), 0.31 (rincian teknis HR-9b — §20.2; HR-9 SELESAI `067da96`, `75c3328`)
 - **Versi lebih lama:** 0.30 (rincian HR-9 Rekrutmen — §20, OD-HR-19 s.d. OD-HR-21; HR-9a SELESAI `067da96`)
 - **Versi lebih lama:** 0.29 (HR-8b-2 kunci periode, Kinerja saya, rekap — §19.3; HR-8b SELESAI `346baf1`, `bf60979`)
 - **Versi lama:** 0.27 (2026-11-12: HR-8a SELESAI `8088e0d`), 0.26 (rincian HR-8 — §19, OD-HR-16 s.d. OD-HR-18)
@@ -106,14 +106,14 @@ Isi awal (seeder, bisa diubah) [ASUMSI]:
 
 **`hr_employees`** — profil pegawai
 
-| Field           | Aturan                                                                                                                                                   |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| membership_id   | Wajib, unik (satu profil pegawai per orang per yayasan) [LAMA BR-003]                                                                                    |
-| employee_number | Nomor induk pegawai yayasan; opsional; unik per yayasan bila diisi; huruf besar, angka, `.`, `/`, `-`, maks. 30 karakter (disimpan huruf besar) [ASUMSI] |
-| status          | `AKTIF` \| `BERHENTI` (mengikuti periode kepegawaian yang terbuka)                                                                                       |
-| nuptk           | Opsional; tepat 16 digit; unik per yayasan bila diisi                                                                                                    |
-| education_level | Pendidikan terakhir, opsional: `SD`, `SMP`, `SMA` (termasuk SMK/MA/pesantren setara), `D1`, `D2`, `D3`, `D4_S1`, `S2`, `S3`, `LAINNYA`                   |
-| education_major | Program studi/jurusan, opsional, maks. 150 karakter                                                                                                      |
+| Field           | Aturan                                                                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| membership_id   | Wajib, unik (satu profil pegawai per orang per yayasan) [LAMA BR-003]                                                                                                        |
+| employee_number | Nomor induk pegawai yayasan; opsional; unik per yayasan bila diisi; huruf besar, angka, `.`, `/`, `-`, maks. 30 karakter (disimpan huruf besar) [ASUMSI]                     |
+| status          | `AKTIF` \| `BERHENTI` (mengikuti periode kepegawaian yang terbuka)                                                                                                           |
+| nuptk           | Opsional; tepat 16 digit; unik per yayasan bila diisi                                                                                                                        |
+| education_level | Pendidikan terakhir, opsional: `SD`, `SMP`, `SMA` (termasuk MA/pesantren setara), `SMK`, `D1`, `D2`, `D3`, `D4`, `S1`, `S2`, `S3`, `LAINNYA` (OD-HR-29; `D4_S1` lama → `S1`) |
+| education_major | Program studi/jurusan, opsional, maks. 150 karakter                                                                                                                          |
 
 **`hr_employment_periods`** — periode kepegawaian
 
@@ -371,7 +371,9 @@ Dokumen/SK, cuti, presensi, gaji, kinerja, rekrutmen, ekspor, impor untuk **meng
 | OD-HR-24 | Mesin absen cadangan (impor file fingerprint)                                                                           | **DIPUTUSKAN** — ditunda; pegawai tanpa HP dicatatkan petugas lewat lembar presensi (HR-4b) [OWNER, 2026-11-13]                                                                                                                                                                                                                                                                                                                               |
 | OD-HR-25 | NIK & nama ibu kandung di rekap PTK .xlsx (HR-10)                                                                       | **DIPUTUSKAN** — ikut, terbatas: hanya terisi bagi pemilik `hr.employees.view_personal` di cakupannya, tiap unduhan dicatat di audit; pengecualian khusus rekap PTK dari aturan "NIK tidak pernah diekspor" (§17) [OWNER, 2026-11-13]                                                                                                                                                                                                         |
 | OD-HR-26 | Tempat data resmi lembaga (NPSN, status negeri/swasta, kecamatan, kab/kota, provinsi)                                   | **DIPUTUSKAN** — di data Lembaga (Core, PRD-000 §4.6), diisi di halaman Lembaga, bisa dipakai modul lain [OWNER, 2026-11-13]                                                                                                                                                                                                                                                                                                                  |
-| OD-HR-27 | Pilihan fungsi PTK                                                                                                      | **DIPUTUSKAN** — daftar tetap: Guru Kelas, Guru Mapel, Guru BK, Kepala Sekolah/Madrasah, Tenaga Administrasi, Pustakawan, Laboran, Lainnya (bisa dikoreksi owner) [OWNER, 2026-11-13]                                                                                                                                                                                                                                                         |
+| OD-HR-27 | Pilihan fungsi PTK                                                                                                      | **DIPUTUSKAN** — daftar tetap: Guru Kelas, Guru Mapel, Guru BK, Kepala Sekolah/Madrasah, Tenaga Administrasi, Pustakawan, Laboran, Lainnya (bisa dikoreksi owner) [OWNER, 2026-11-13] — **diganti OD-HR-28** (2026-11-14)                                                                                                                                                                                                                     |
+| OD-HR-28 | Fungsi PTK & jabatan mengikuti formulir A05 asli                                                                        | **DIPUTUSKAN** — Fungsi PTK **Guru / Staf**; isian baru **Jabatan di madrasah/sekolah induk** 18 pilihan sesuai A05; data lama dipindah otomatis (§21.3) [OWNER, 2026-11-14]                                                                                                                                                                                                                                                                  |
+| OD-HR-29 | Pilihan pendidikan terakhir mengikuti A05                                                                               | **DIPUTUSKAN** — SD, SMP, SMA, **SMK**, D1, D2, D3, **D4**, **S1**, S2, S3, Lainnya; data lama "D4/S1" dipindah ke **S1** (pegawai & pelamar), yang sebenarnya D4 dikoreksi manual [OWNER, 2026-11-14]                                                                                                                                                                                                                                        |
 | OD-HR-09 | Presensi pegawai: pencatat, rincian, jam kerja guru                                                                     | **DIPUTUSKAN** — pegawai absen sendiri **dan** petugas lembaga mengisi/mengoreksi; status + jam masuk/pulang; jam kerja guru dari jadwal mengajar, staf dari jam kerja per jenjang/lembaga; impor mesin absen menyusul [OWNER, 2026-10-22]. Presensi mengajar per jadwal & guru pengganti → Akademik AC-6 [OWNER, 2026-10-23]                                                                                                                 |
 
 ## 12. Saran tambahan (di luar ruang lingkup)
@@ -700,7 +702,7 @@ Urutan [OWNER, 2026-11-13]: rekap PTK `.xlsx` dulu; cetak formulir **A05 Registr
 - **Data PTK per pegawai** (tabel HR `hr_ptk_profiles`, satu baris per pegawai; pegawai lama = belum diisi). Semua isian opsional agar data lama tetap sah; kekurangannya ditampilkan di kelengkapan (§21.2):
     - **Nama ibu kandung** — maks. 100 karakter, **disimpan terenkripsi** seperti NIK (§4.5); tampil & bisa diubah hanya bagi pemilik `hr.employees.view_personal` di cakupannya.
     - **Tahun lulus SD** — 4 angka, 1940 s.d. tahun berjalan; bila tanggal lahir terisi, tidak boleh sebelum tahun lahir + 5 [ASUMSI].
-    - **Fungsi PTK** — daftar tetap (OD-HR-27).
+    - **Fungsi PTK** — daftar tetap (OD-HR-27; diganti Guru/Staf + Jabatan oleh OD-HR-28, §21.3).
     - **Status PNS** — PNS / Non-PNS. Terpisah dari status kepegawaian yayasan (GTY/GTT/PTY/PTT) [ASUMSI].
     - **Sertifikasi guru** — Belum / Sudah; bila Sudah: **tahun sertifikasi** (wajib) dan **nomor sertifikat pendidik** (opsional, maks. 50) [ASUMSI]. Tidak otomatis tertaut ke dokumen "Sertifikat Pendidik" (HR-2) maupun riwayat pelatihan (HR-8a).
 - **Tempat mengisi**: detail pegawai → tab baru **Data PTK** → pop-up **Ubah data PTK**, oleh pemilik `hr.employees.manage` (Admin SDM, Admin Yayasan). Pegawai sendiri belum bisa mengubah [ASUMSI]. Tanpa izin baru.
@@ -713,13 +715,34 @@ Urutan [OWNER, 2026-11-13]: rekap PTK `.xlsx` dulu; cetak formulir **A05 Registr
 - Halaman **Rekap PTK** (`/pegawai/rekap-ptk`, tombol di Laporan pegawai §17): pemilik `hr.employees.view`, mengikuti **cakupan lihat** (Kepala Lembaga hanya lembaganya). Saringan lembaga (beserta turunannya).
 - Isi: pegawai **aktif** menurut lembaga **penempatan utama**; per pegawai daftar isian yang **masih kosong** (NIK, tanggal lahir, nama ibu kandung, tahun lulus SD, fungsi PTK, status PNS, sertifikasi; NUPTK hanya ditandai, karena pegawai baru wajar belum punya) dan ringkasan "lengkap x dari y". Per lembaga ditandai bila data resminya (NPSN, status, wilayah) belum diisi. Tautan langsung ke tab Data PTK pegawai.
 - **Unduh `.xlsx`**:
-    - Lembar **Rekap PTK** (per pegawai): lembaga, NPSN, jenjang, status lembaga, kecamatan, kab/kota, provinsi, nama, **NIK**\*, NUPTK, jenis kelamin, tempat lahir\*, tanggal lahir\*, **nama ibu kandung**\*, pendidikan terakhir, jurusan, tahun lulus SD, jabatan, fungsi PTK, status PNS, jenis pegawai, status kepegawaian, mulai kerja, sertifikasi, tahun sertifikasi, no. sertifikat pendidik, no. HP\*, alamat\*.
+    - Lembar **Rekap PTK** (per pegawai): lembaga, NPSN, jenjang, status lembaga, kecamatan, kab/kota, provinsi, nama, **NIK**\*, NUPTK, jenis kelamin, tempat lahir\*, tanggal lahir\*, **nama ibu kandung**\*, pendidikan terakhir, jurusan, tahun lulus SD, jabatan (yayasan), fungsi PTK, jabatan di madrasah (A05, sejak HR-10c-1), status PNS, jenis pegawai, status kepegawaian, mulai kerja, sertifikasi, tahun sertifikasi, no. sertifikat pendidik, no. HP\*, alamat\*.
     - Lembar **Kelengkapan**: pegawai yang isiannya belum lengkap beserta isian yang kosong.
     - \* Data pribadi **hanya terisi untuk pegawai yang boleh dilihat data pribadinya** (`hr.employees.view_personal` di cakupannya); selain itu kosong (OD-HR-25).
     - Sel NIK, NUPTK, NPSN, HP berformat **teks** agar nol di depan tidak hilang. File dibuat saat diunduh dan **tidak disimpan** di server.
 - **Audit** `hr.ptk_exported`: lembaga, jumlah baris, jumlah baris berdata pribadi — tanpa isi data.
 - Rincian teknis HR-10b [ASUMSI]: paling banyak 5.000 pegawai per tampilan/unduhan (sama dengan ekspor daftar §17; judul diberi tanda bila dipotong); pegawai aktif tanpa penempatan utama tampil sebagai "Tanpa penempatan utama" saat tanpa saringan; daftar diurut dari yang paling banyak kurangnya; unduhan dibatasi 10 kali/menit.
 
-### 21.3 HR-10c Cetak formulir A05 — menunggu contoh formulir dari owner
+### 21.3 HR-10c Cetak formulir A05 [OWNER, 2026-11-14 — OD-HR-28, OD-HR-29 + usulan rincian disetujui]
 
-Dirinci setelah contoh formulir A05 diterima; memakai isian §21.1 dan data yang sudah ada.
+Acuan: contoh **Formulir Registrasi PTK (VerVal Lv.1) A05** SIMPATIKA ver.201605091317 dari owner (2026-11-14; contoh kosong, tidak disimpan di repo). Dibangun dua langkah:
+
+**HR-10c-1 — Isian disesuaikan dengan A05** (dibangun 2026-11-14)
+
+- **Fungsi PTK** (OD-HR-28): **Guru / Staf** (menggantikan daftar OD-HR-27).
+- **Jabatan di madrasah/sekolah induk** (isian baru Data PTK, opsional, satu pilihan): Pengawas Sekolah, Kepala Madrasah/Sekolah, Wakil Kepala Madrasah/Sekolah, Kepala Laboratorium, Laboran, Teknisi Laboratorium, Kepala TU, Bendahara, Staf TU, Kepala Perpustakaan, Pustakawan, Pengemudi, Penjaga Sekolah, Pesuruh, Tenaga Kebersihan, Tukang Kebun, Kepala Program (KaProg), Keahlian.
+- **Pemindahan data lama otomatis** (migrasi): Guru Kelas / Guru Mapel / Guru BK → Guru; Kepala Sekolah/Madrasah → Guru + Kepala Madrasah/Sekolah; Tenaga Administrasi → Staf + Staf TU; Pustakawan → Staf + Pustakawan; Laboran → Staf + Laboran; Lainnya → fungsi & jabatan dikosongkan (muncul di kelengkapan).
+- **Pendidikan terakhir** (OD-HR-29): pilihan menjadi SD, SMP, SMA, SMK, D1, D2, D3, D4, S1, S2, S3, Lainnya — berlaku di data pegawai, pelamar (HR-9), impor pegawai (HR-1; tulisan lama "D4/S1" tetap diterima sebagai S1 [ASUMSI]), laporan, dan rekap PTK. Data lama D4_S1 → S1.
+- Rincian teknis HR-10c-1 [ASUMSI]: migrasi `2026_11_14_100024` (kolom `school_position` + CHECK baru; `down()` mengembalikan sebisanya); kode impor lama `D4_S1`/`D4/S1` diterima sebagai S1; unduhan rekap PTK mendapat kolom **Jabatan di madrasah (A05)** dan kolom jabatan lama diberi judul **Jabatan (yayasan)**.
+- Kelengkapan rekap PTK (§21.2) tidak berubah jumlahnya (jabatan tidak dihitung, karena guru biasa memang tidak punya jabatan di A05) [ASUMSI].
+
+**HR-10c-2 — Cetak A05**
+
+- **Cetak lewat browser** (halaman khusus cetak A4, tanpa menu, **tanpa pustaka PDF baru** — pola rapor/slip gaji), satu halaman per pegawai, tata letak mengikuti A05:
+    - **Kop**: teks Kementerian Agama RI / Direktorat Jenderal Pendidikan Islam, judul "FORMULIR REGISTRASI PTK (VerVal Lv.1)", kode **A05** — tanpa lambang/gambar resmi [ASUMSI].
+    - **A. Madrasah/Sekolah induk** = lembaga **penempatan utama** pegawai: nama, NPSN, **jenjang** ditandai (SMP/MTs → SMP, MA → SMA, SMK → SMK; jenjang lain tidak ditandai [ASUMSI]), status Negeri/Swasta, kecamatan, kab/kota, provinsi (data resmi lembaga §21.1).
+    - **B. Pemutakhiran data diri** (huruf besar): NIK (kotak per digit), nama lengkap, tempat lahir, tanggal lahir (tgl/bln/th), jenis kelamin, nama ibu kandung, pendidikan tertinggi, tahun lulus SD, jabatan, fungsi PTK, kepegawaian PNS/NonPNS, sertifikasi guru Belum/Sudah. Pilihan ditandai centang.
+    - Isian yang **belum ada dibiarkan kosong** untuk diisi tangan; di layar (tidak ikut tercetak) tampil daftar isian yang kosong.
+    - **Tanda tangan**: tempat (bawaan kab/kota lembaga) & tanggal (bawaan hari ini), nama & NIP Kepala Madrasah/Sekolah induk **diketik di halaman cetak, tidak disimpan**; nama PTK otomatis; kotak foto 4×6 kosong; catatan kaki & daftar lampiran seperti formulir asli.
+- **Tempat membuka**: tab **Data PTK** → **Cetak A05** (satu pegawai) dan **Rekap PTK** → **Cetak A05** (semua pegawai aktif yang tampil, per saringan lembaga; maks. 200 per cetak [ASUMSI]).
+- **Akses**: formulir memuat NIK & nama ibu kandung, jadi hanya untuk pegawai yang boleh dilihat **data pribadinya** (`hr.employees.view_personal` di cakupannya). Satu pegawai tanpa hak → 403; cetak massal melewati pegawai tanpa hak dan menyebut jumlahnya.
+- **Audit** `hr.a05_printed`: lembaga/saringan dan jumlah pegawai — tanpa isi data. Tanpa izin baru.

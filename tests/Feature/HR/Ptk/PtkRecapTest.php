@@ -96,7 +96,7 @@ beforeEach(function () {
 
     $membership = (string) DB::table('memberships')->where('tenant_id', $this->tenant->id)->value('id');
     app(PtkProfiles::class)->update($this->tenant->id, $this->ani, [
-        'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'ptk_function' => 'GURU_MAPEL',
+        'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'ptk_function' => 'GURU',
         'civil_servant' => 'NON_PNS', 'certified' => 'SUDAH', 'certification_year' => '2019',
     ], $membership, withPersonal: true);
 
@@ -149,7 +149,7 @@ test('unduh .xlsx: data PTK + data resmi lembaga + NIK & nama ibu bagi yang berh
         ->toBe([
             'organization' => 'MA Unit 1', 'npsn' => '01234567', 'jenjang' => 'MA', 'ownership' => 'Swasta', 'regency' => 'Kota Bandung',
             'name' => 'Ani', 'nik' => '3201015705900001', 'nuptk' => '0123456789012345', 'birth_place' => 'Bandung', 'birth_date' => '1990-05-17',
-            'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'position' => 'Guru', 'ptk_function' => 'Guru Mapel',
+            'mother_name' => 'Siti Aminah', 'sd_graduation_year' => '2002', 'position' => 'Guru', 'ptk_function' => 'Guru',
             'civil_servant' => 'Non-PNS', 'employment_type' => 'Pegawai Tetap', 'start_date' => '2020-07-01', 'certified' => 'Sudah',
             'certification_year' => '2019', 'phone' => '081234567890',
         ]);

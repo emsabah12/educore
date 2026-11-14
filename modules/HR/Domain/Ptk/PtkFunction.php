@@ -3,30 +3,18 @@
 namespace Modules\HR\Domain\Ptk;
 
 /**
- * Fungsi PTK untuk Simpatika — daftar tetap (PRD-001 §21.1, OD-HR-27).
+ * Fungsi PTK sesuai formulir A05 Simpatika: Guru / Staf (PRD-001 §21.3, OD-HR-28 — menggantikan daftar OD-HR-27).
  */
 enum PtkFunction: string
 {
-    case GuruKelas = 'GURU_KELAS';
-    case GuruMapel = 'GURU_MAPEL';
-    case GuruBk = 'GURU_BK';
-    case Kepala = 'KEPALA';
-    case TenagaAdministrasi = 'TENAGA_ADMINISTRASI';
-    case Pustakawan = 'PUSTAKAWAN';
-    case Laboran = 'LABORAN';
-    case Lainnya = 'LAINNYA';
+    case Guru = 'GURU';
+    case Staf = 'STAF';
 
     public function label(): string
     {
         return match ($this) {
-            self::GuruKelas => 'Guru Kelas',
-            self::GuruMapel => 'Guru Mapel',
-            self::GuruBk => 'Guru BK',
-            self::Kepala => 'Kepala Sekolah/Madrasah',
-            self::TenagaAdministrasi => 'Tenaga Administrasi',
-            self::Pustakawan => 'Pustakawan',
-            self::Laboran => 'Laboran',
-            self::Lainnya => 'Lainnya',
+            self::Guru => 'Guru',
+            self::Staf => 'Staf',
         };
     }
 }

@@ -12,6 +12,7 @@ use Modules\HR\Application\Audit\HrAuditAction;
 use Modules\HR\Domain\Ptk\CivilServantStatus;
 use Modules\HR\Domain\Ptk\Exceptions\PtkException;
 use Modules\HR\Domain\Ptk\PtkFunction;
+use Modules\HR\Domain\Ptk\SchoolPosition;
 
 /**
  * Data PTK pegawai untuk Simpatika (PRD-001 §21.1, HR-10a).
@@ -19,10 +20,11 @@ use Modules\HR\Domain\Ptk\PtkFunction;
  * - Semua isian opsional (kosong = belum diisi). Nama ibu kandung disimpan terenkripsi dan hanya dibaca/diubah bila
  *   pemanggil boleh melihat data pribadi pegawai ini (`$withPersonal`); bila tidak, nilai tersimpan dipertahankan.
  * - Tahun lulus SD 1940 s.d. tahun berjalan, dan tidak sebelum tahun lahir + 5 bila tanggal lahir terisi [ASUMSI].
+ * - Fungsi PTK Guru/Staf & jabatan di madrasah/sekolah induk mengikuti formulir A05 (§21.3, OD-HR-28).
  * - Sertifikasi: Belum / Sudah; Sudah → tahun sertifikasi wajib, nomor sertifikat pendidik opsional.
  * - Audit `hr.ptk_profile_updated`: nama isian yang berubah saja, tanpa isi.
  *
- * @phpstan-type PtkValues array{mother_name: string|null, has_mother_name: bool, sd_graduation_year: int|null, ptk_function: string|null, ptk_function_label: string|null, civil_servant: string|null, civil_servant_label: string|null, certified: bool|null, certification_year: int|null, educator_certificate_number: string|null}
+ * @phpstan-type PtkValues array{mother_name: string|null, has_mother_name: bool, sd_graduation_year: int|null, ptk_function: string|null, ptk_function_label: string|null, school_position: string|null, school_position_label: string|null, civil_servant: string|null, civil_servant_label: string|null, certified: bool|null, certification_year: int|null, educator_certificate_number: string|null}
  */
 final class PtkProfiles
 {
@@ -37,6 +39,7 @@ final class PtkProfiles
         'mother_name' => 'nama ibu kandung',
         'sd_graduation_year' => 'tahun lulus SD',
         'ptk_function' => 'fungsi PTK',
+        'school_position' => 'jabatan',
         'civil_servant' => 'status PNS',
         'certified' => 'sertifikasi guru',
         'certification_year' => 'tahun sertifikasi',
@@ -60,6 +63,7 @@ final class PtkProfiles
 
         $function = $row?->ptk_function === null ? null : PtkFunction::tryFrom((string) $row->ptk_function);
         $civil = $row?->civil_servant === null ? null : CivilServantStatus::tryFrom((string) $row->civil_servant);
+        $position = $row?->school_position === null ? null : SchoolPosition::tryFrom((string) $row->school_position);
 
         return [
             'mother_name' => $withPersonal ? self::decrypt($row?->mother_name_encrypted) : null,
@@ -67,6 +71,8 @@ final class PtkProfiles
             'sd_graduation_year' => $row?->sd_graduation_year === null ? null : (int) $row->sd_graduation_year,
             'ptk_function' => $function?->value,
             'ptk_function_label' => $function?->label(),
+            'school_position' => $position?->value,
+            'school_position_label' => $position?->label(),
             'civil_servant' => $civil?->value,
             'civil_servant_label' => $civil?->label(),
             'certified' => $row?->certified === null ? null : (bool) $row->certified,
@@ -108,7 +114,7 @@ final class PtkProfiles
                 $changed[] = self::LABELS['mother_name'];
             }
 
-            foreach (['sd_graduation_year', 'ptk_function', 'civil_servant', 'certified', 'certification_year', 'educator_certificate_number'] as $field) {
+            foreach (['sd_graduation_year', 'ptk_function', 'school_position', 'civil_servant', 'certified', 'certification_year', 'educator_certificate_number'] as $field) {
                 $old = $current?->{$field};
                 $old = match ($field) {
                     'sd_graduation_year', 'certification_year' => $old === null ? null : (int) $old,
@@ -132,6 +138,7 @@ final class PtkProfiles
                     : ($mother === null ? null : Crypt::encryptString($mother)),
                 'sd_graduation_year' => $values['sd_graduation_year'],
                 'ptk_function' => $values['ptk_function'],
+                'school_position' => $values['school_position'],
                 'civil_servant' => $values['civil_servant'],
                 'certified' => $values['certified'],
                 'certification_year' => $values['certification_year'],
@@ -172,6 +179,14 @@ final class PtkProfiles
     /**
      * @return list<array{value: string, label: string}>
      */
+    public static function positionOptions(): array
+    {
+        return array_map(fn (SchoolPosition $case): array => ['value' => $case->value, 'label' => $case->label()], SchoolPosition::cases());
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
     public static function civilServantOptions(): array
     {
         return array_map(fn (CivilServantStatus $case): array => ['value' => $case->value, 'label' => $case->label()], CivilServantStatus::cases());
@@ -193,7 +208,7 @@ final class PtkProfiles
 
     /**
      * @param  array<string, mixed>  $input
-     * @return array{mother_name: string|null, sd_graduation_year: int|null, ptk_function: string|null, civil_servant: string|null, certified: bool|null, certification_year: int|null, educator_certificate_number: string|null}
+     * @return array{mother_name: string|null, sd_graduation_year: int|null, ptk_function: string|null, school_position: string|null, civil_servant: string|null, certified: bool|null, certification_year: int|null, educator_certificate_number: string|null}
      *
      * @throws PtkException
      */
@@ -223,6 +238,12 @@ final class PtkProfiles
 
         if ($function !== null && PtkFunction::tryFrom($function) === null) {
             throw PtkException::make('ptk_function', 'Pilih fungsi PTK dari daftar.');
+        }
+
+        $position = $text('school_position');
+
+        if ($position !== null && SchoolPosition::tryFrom($position) === null) {
+            throw PtkException::make('school_position', 'Pilih jabatan dari daftar.');
         }
 
         $civil = $text('civil_servant');
@@ -260,6 +281,7 @@ final class PtkProfiles
             'mother_name' => $mother,
             'sd_graduation_year' => $sdYear,
             'ptk_function' => $function,
+            'school_position' => $position,
             'civil_servant' => $civil,
             'certified' => $certified,
             'certification_year' => $certificationYear,
