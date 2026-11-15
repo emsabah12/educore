@@ -16,10 +16,12 @@ use Modules\Dormitory\Application\Facility\FacilityCode;
 use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Facility\ManageDormitories;
 use Modules\Dormitory\Application\Facility\ManageRooms;
+use Modules\Dormitory\Application\Placement\PlacementDirectory;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Dormitory;
 use Modules\Dormitory\Domain\Facility\RoomComposition;
 use Modules\Dormitory\Domain\Facility\YearEndPolicy;
+use Modules\Dormitory\Domain\Placement\PlacementCategory;
 use Modules\Dormitory\Http\Controllers\Concerns\HandlesFacilityActions;
 
 /**
@@ -89,18 +91,26 @@ final class DormitoryController
         return redirect()->route('dormitory.dormitories.show', ['dormitory' => $dormitory->id]);
     }
 
-    public function show(string $dormitory, FacilityDirectory $directory): Response
+    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements): Response
     {
         $target = $this->find($dormitory, DormitoryAccess::FACILITIES_VIEW);
+        $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
+        $filters = ResidentController::filters($request, [$target->id], $target->id);
 
         return Inertia::render('dormitory/show', array_merge($directory->dormitory($target), [
             'canManage' => $this->authorization->allows(DormitoryAccess::FACILITIES_MANAGE, $target->organization_id),
+            'canViewResidents' => $canViewResidents,
+            'residentFilters' => $filters,
+            'residents' => $canViewResidents && $request->query('tab') === 'penghuni'
+                ? $placements->search($this->tenantId(), [$target->organization_id], $filters)
+                : null,
             'options' => [
                 'genders' => FacilityDirectory::genderOptions(),
                 'bases' => CapacityBasis::options(),
                 'compositions' => RoomComposition::options(),
                 'policies' => YearEndPolicy::options(),
                 'supervisorSlotsMax' => ManageRooms::SUPERVISOR_SLOTS_MAX,
+                'categories' => PlacementCategory::options(),
             ],
         ]));
     }

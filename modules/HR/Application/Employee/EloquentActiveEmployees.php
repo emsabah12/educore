@@ -81,6 +81,55 @@ final class EloquentActiveEmployees implements ActiveEmployees
         return $result;
     }
 
+    public function searchInTenant(string $tenantId, string $query, int $limit): array
+    {
+        $text = trim((string) preg_replace('/\s+/u', ' ', $query));
+
+        if ($text === '') {
+            return [];
+        }
+
+        $rows = DB::table('hr_employees as e')
+            ->join('memberships as m', 'm.id', '=', 'e.membership_id')
+            ->join('persons as p', 'p.id', '=', 'm.person_id')
+            ->where('e.tenant_id', $tenantId)
+            ->where('e.status', EmployeeStatus::Active->value)
+            ->where('p.name', 'ilike', '%'.addcslashes($text, '%_\\').'%')
+            ->orderBy('p.name')
+            ->orderBy('e.id')
+            ->limit(max(1, min($limit, 20)))
+            ->get(['e.id', 'e.membership_id', 'p.name']);
+
+        $employees = [];
+
+        foreach ($rows as $row) {
+            $employees[] = ['membership_id' => (string) $row->membership_id, 'employee_id' => (string) $row->id, 'name' => (string) $row->name];
+        }
+
+        return $employees;
+    }
+
+    public function activeMembershipIds(string $tenantId, array $membershipIds): array
+    {
+        $ids = array_values(array_filter($membershipIds, fn (string $id): bool => Str::isUuid($id)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach (DB::table('hr_employees')
+            ->where('tenant_id', $tenantId)
+            ->where('status', EmployeeStatus::Active->value)
+            ->whereIn('membership_id', $ids)
+            ->pluck('membership_id') as $id) {
+            $result[] = (string) $id;
+        }
+
+        return $result;
+    }
+
     private function activeIn(string $tenantId, string $organizationId): Builder
     {
         return DB::table('hr_employees as e')

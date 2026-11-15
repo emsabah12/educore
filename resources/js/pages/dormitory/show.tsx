@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -10,13 +10,17 @@ import {
     Select,
     StatusToggle,
 } from '@/components/dormitory/facility-forms';
+import { ResidentFilterBar } from '@/components/dormitory/resident-filters';
+import { ResidentList } from '@/components/dormitory/residents';
 import type {
     Option,
+    PlacementPage,
+    ResidentFilters,
     RoomOptions,
     RoomRow,
     YearEndPolicy,
 } from '@/components/dormitory/types';
-import { capacityText } from '@/components/dormitory/types';
+import { capacityText, occupancyText } from '@/components/dormitory/types';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +47,10 @@ type Props = {
     };
     buildings: BuildingRow[];
     canManage: boolean;
-    options: RoomOptions & { genders: Option[] };
+    canViewResidents: boolean;
+    residentFilters: ResidentFilters;
+    residents: PlacementPage | null;
+    options: RoomOptions & { genders: Option[]; categories: Option[] };
 };
 
 type OpenDialog =
@@ -52,19 +59,37 @@ type OpenDialog =
     | { kind: 'edit-building'; building: BuildingRow }
     | { kind: 'add-room'; building: BuildingRow };
 
-const TABS = ['gedung', 'pengaturan'] as const;
+const TABS = ['gedung', 'penghuni', 'pengaturan'] as const;
+type Tab = (typeof TABS)[number];
 
 /**
- * Detail asrama (PRD-008 §10, DM-1): gedung (putra/putri) beserta kamarnya, dan pengaturan asrama. Tab Penghuni &
- * Wali kamar menyusul di DM-2/DM-3.
+ * Detail asrama (PRD-008 §10, §16): gedung (putra/putri) beserta kamar & keterisiannya, penghuni asrama ini, dan
+ * pengaturan. Tab Wali kamar menyusul di DM-3.
  */
 export default function DormitoryShow({
     dormitory,
     buildings,
     canManage,
+    canViewResidents,
+    residentFilters,
+    residents,
     options,
 }: Props) {
-    const [tab, setTab] = usePageTab(TABS, 'gedung');
+    const tabs = canViewResidents ? TABS : (['gedung', 'pengaturan'] as const);
+    const [tab, setTabState] = usePageTab<Tab>(tabs, 'gedung');
+    const setTab = (value: Tab) => {
+        setTabState(value);
+
+        // Daftar penghuni dimuat saat tab dibuka pertama kali.
+        if (value === 'penghuni' && residents === null) {
+            router.reload({ only: ['residents'], data: { tab: 'penghuni' } });
+        }
+    };
+    const over = buildings.reduce(
+        (total, building) =>
+            total + building.rooms.filter((room) => room.over_capacity).length,
+        0,
+    );
     const [dialog, setDialog] = useState<OpenDialog | null>(null);
     const close = () => setDialog(null);
     const policyLabel =
@@ -138,6 +163,14 @@ export default function DormitoryShow({
                     label="Bagian asrama"
                     tabs={[
                         { value: 'gedung', label: 'Gedung & kamar' },
+                        ...(canViewResidents
+                            ? [
+                                  {
+                                      value: 'penghuni' as const,
+                                      label: 'Penghuni',
+                                  },
+                              ]
+                            : []),
                         { value: 'pengaturan', label: 'Pengaturan' },
                     ]}
                     value={tab}
@@ -173,6 +206,40 @@ export default function DormitoryShow({
                                     }
                                 />
                             ))}
+                        </div>
+                    ))}
+
+                {tab === 'gedung' && over > 0 && (
+                    <p className="-order-none rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                        {over} kamar kelebihan muatan (penghuni & rencana
+                        melebihi kapasitas). Periksa bed/loker yang rusak di
+                        kamar bertanda merah.
+                    </p>
+                )}
+
+                {tab === 'penghuni' &&
+                    canViewResidents &&
+                    (residents === null ? (
+                        <p className="text-sm text-muted-foreground">
+                            Memuat penghuni…
+                        </p>
+                    ) : (
+                        <div className="space-y-4">
+                            <ResidentFilterBar
+                                url={base}
+                                extra={{ tab: 'penghuni' }}
+                                filters={residentFilters}
+                                buildings={buildings.map((building) => ({
+                                    value: building.id,
+                                    label: `${building.name} (${building.code})`,
+                                }))}
+                                categories={options.categories}
+                            />
+                            <ResidentList
+                                page={residents}
+                                showDormitory={false}
+                                emptyText="Belum ada penghuni yang cocok. Penempatan dilakukan dari halaman kamar."
+                            />
                         </div>
                     ))}
 
@@ -435,6 +502,16 @@ function BuildingCard({
                                             room.capacity,
                                             room.composition,
                                         )}
+                                    </p>
+                                    <p
+                                        className={`text-xs ${room.over_capacity ? 'font-medium text-destructive' : 'text-muted-foreground'}`}
+                                    >
+                                        {occupancyText(
+                                            room.occupancy,
+                                            room.capacity,
+                                        )}
+                                        {room.over_capacity &&
+                                            ' · kelebihan muatan'}
                                     </p>
                                 </div>
                                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

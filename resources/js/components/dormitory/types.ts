@@ -31,7 +31,97 @@ export type RoomRow = {
     year_end_policy: YearEndPolicy;
     is_active: boolean;
     capacity: Capacity;
+    occupancy: Occupancy;
+    over_capacity: boolean;
 };
+
+export type Occupancy = {
+    active: number;
+    planned: number;
+    residents: number;
+    supervisors: number;
+    unusable: number;
+};
+
+export type PlacementRow = {
+    id: string;
+    membership_id: string;
+    name: string;
+    detail: string;
+    category: 'PENGHUNI' | 'PENGAWAS';
+    category_label: string;
+    status: 'DIRENCANAKAN' | 'AKTIF' | 'SELESAI' | 'DIBATALKAN';
+    status_label: string;
+    planned_on: string | null;
+    check_in_on: string | null;
+    check_out_on: string | null;
+    end_reason_label: string | null;
+    cancel_reason: string | null;
+    note: string | null;
+    bed: string | null;
+    bed_id: string | null;
+    locker: string | null;
+    locker_id: string | null;
+    resource_problem: boolean;
+    dormitory: string;
+    dormitory_id: string;
+    building: string;
+    room: string;
+    room_id: string;
+};
+
+export type PlacementPage = {
+    data: PlacementRow[];
+    total: number;
+    from: number | null;
+    to: number | null;
+    last_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+};
+
+export type ResidentFilters = {
+    dormitory: string | null;
+    building: string | null;
+    status: 'semua' | 'aktif' | 'rencana';
+    category: string | null;
+    q: string;
+};
+
+/** "12 dari 16 terisi · 2 rencana" */
+export function occupancyText(occupancy: Occupancy, capacity: Capacity) {
+    const held = occupancy.active + occupancy.planned;
+    const base = `${held} dari ${capacity.effective} terisi`;
+
+    return occupancy.planned > 0
+        ? `${base} (${occupancy.planned} rencana)`
+        : base;
+}
+
+/** Tanggal "2026-11-15" → "15 Nov 2026". */
+export function dateText(value: string | null) {
+    if (!value) {
+        return '–';
+    }
+
+    const [year, month, day] = value.split('-').map(Number);
+    const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+    ];
+
+    return `${day} ${months[month - 1]} ${year}`;
+}
 
 export type ResourceRow = {
     id: string;

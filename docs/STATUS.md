@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-15
-- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: DM-1 fasilitas asrama (asrama, gedung, kamar, bed & loker, kapasitas) dibangun, menunggu uji owner. Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
-- **Commit terakhir:** `a5eb087` — docs: checklist Midtrans produksi; HR-10 SELESAI
+- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: DM-1 fasilitas asrama SELESAI (commit `13e6156`); DM-2 penempatan penghuni dibangun, menunggu uji owner. Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
+- **Commit terakhir:** `13e6156` — DM-1 fasilitas asrama
 
 ## Keputusan penting
 
@@ -1019,7 +1019,7 @@
 
 ## Asrama (PRD-008)
 
-**DM-1 — Fasilitas asrama: DIBANGUN (2026-11-15), menunggu uji owner** — PRD-008 §15
+**DM-1 — Fasilitas asrama: SELESAI (2026-11-15, commit `13e6156`)** — PRD-008 §15
 
 - Modul baru `modules/Dormitory` (`DormitoryServiceProvider` sesudah Finance); arch test: Dormitory hanya memakai Core + `Academic\Contracts` + `HR\Contracts`, modul lain tidak memakai Dormitory.
 - Akses: `DormitoryAccess` (8 permission `dormitory.*`, role penugasan **Pengurus Asrama** & **Kepala Asrama**; Pimpinan, Kepala Lembaga, Koordinator lihat) → **wajib `php artisan educore:sync-access`**.
@@ -1028,6 +1028,19 @@
 - Frontend: `pages/dormitory/{index, show, room}.tsx`, `components/dormitory/{facility-forms.tsx, types.ts}`, menu kelompok **Asrama**. Bed & loker tampil sebagai petak ringkas; ketuk → pop-up Ubah (dengan Nonaktifkan/Hapus).
 - Test: `tests/Feature/Dormitory/FacilityTest.php` (6 test, awalan `dmf`); `AccessCatalogTest`, `TreeAuthorizationTest`, `MemberAccessTest` disesuaikan. **833 test lulus** (824 + 9 arsitektur); Pint, Larastan, tsc, `vp check` (0 peringatan) lulus; build lulus (di lingkungan Claude dengan plugin font dimatikan sementara karena `fonts.bunny.net` tidak terjangkau).
 - Pelajaran: CHECK `kolom IN (...)` meloloskan NULL (`NULL IN (...)` = NULL dianggap lolos) — tambahkan `kolom IS NOT NULL` bila kolom wajib terisi pada kondisi tertentu.
+
+**DM-2 — Penempatan penghuni: DIBANGUN (2026-11-15), menunggu uji owner** — PRD-008 §16 (penyesuaian di §16.9)
+
+- Migrasi `2026_11_15_400002_create_dm_placements_table`: tabel `dm_placements` (status DIRENCANAKAN/AKTIF/SELESAI/DIBATALKAN, kategori PENGHUNI/PENGAWAS). FK gabungan ke kamar, bed, loker, dan membership. Partial unique: satu Aktif per orang, satu Rencana per orang, satu pemegang per bed/loker. CHECK status ↔ tanggal/alasan. **Tanpa permission baru** (tidak perlu `educore:sync-access`).
+- Kontrak baru: `Academic\Contracts\ActiveStudents`, plus `HR ActiveEmployees::searchInTenant` dan `activeMembershipIds`.
+- `Application/Placement/{ResidentEligibility, RoomOccupancy, PlacementInput, ManagePlacements, PlacementDirectory}`; controller `PlacementController` dan `ResidentController`; audit `dormitory.placement_*`.
+- Pengaman DM-1: putra/putri gedung, dasar kapasitas, komposisi/slot pengawas, dan hapus bed/loker yang pernah dipakai.
+- Frontend:
+    - Halaman kamar dengan tab Penghuni / Bed & loker / Riwayat, dan pop-up Tempatkan, Check-in, Check-out, Ganti bed/loker, Batalkan rencana.
+    - Detail asrama: keterisian per kamar dan tab Penghuni.
+    - Menu **Penghuni** (`pages/dormitory/residents.tsx`) dan riwayat per orang (`resident-history.tsx`).
+- Test: `tests/Feature/Dormitory/PlacementTest.php` (7 test, awalan `dmp`). **831 test + 9 arsitektur lulus**. Pint, Larastan, tsc, `vp check`, dan build lulus. Uji Playwright desktop & HP (390 px, tanpa geser samping) lulus.
+- Catatan lingkungan: test paralel dengan PostgreSQL bawaan bisa gagal "out of shared memory" saat men-drop ±110 tabel. Naikkan `max_locks_per_transaction` (mis. 256) bila terjadi.
 
 ## Perapian tampilan
 
@@ -1138,5 +1151,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → 10c-2 SELESAI. **HR-10 SELESAI** (10a, 10b, 10c).
-5. **Asrama (PRD-008)**: DM-1 fasilitas (dibangun, uji owner) → DM-2 penempatan (rencanakan, check-in, check-out) → DM-3 wali kamar → DM-4 mutasi biasa & darurat → DM-5 impor & akhir tahun → DM-6 laporan hunian → DM-7 absen asrama.
+5. **Asrama (PRD-008)**: DM-1 fasilitas (selesai) → DM-2 penempatan (dibangun, uji owner) → DM-3 wali kamar → DM-4 mutasi biasa & darurat → DM-5 impor & akhir tahun → DM-6 laporan hunian → DM-7 absen asrama.
 6. AC-9 (ekspor Dapodik/EMIS, PPDB) — dirinci dulu.

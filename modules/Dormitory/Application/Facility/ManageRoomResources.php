@@ -26,8 +26,8 @@ use Modules\Dormitory\Domain\Facility\UnavailableReason;
  *   Bed/loker tidak tersedia tidak dihitung dalam kapasitas.
  * - Nonaktif = dikeluarkan dari inventaris (tidak dihitung, tidak bisa dipilih); riwayat tetap. Aktifkan kembali
  *   butuh kamar, gedung, dan asrama aktif.
- * - Hapus permanen hanya untuk bed/loker yang belum pernah dipakai penempatan. Penempatan baru ada di DM-2; sampai
- *   itu semua bed/loker belum pernah dipakai.
+ * - Hapus permanen hanya untuk bed/loker yang belum pernah dipakai penempatan (DM-2); yang pernah dipakai cukup
+ *   dinonaktifkan.
  * - Kamar baru menerima bed/loker bila kamar, gedung, dan asramanya aktif.
  */
 final class ManageRoomResources
@@ -213,6 +213,11 @@ final class ManageRoomResources
         return DB::transaction(function () use ($tenantId, $kind, $resourceId): string {
             $resource = $this->lock($tenantId, $kind, $resourceId);
             $code = $resource->code;
+
+            if (DB::table('dm_placements')->where($kind === ResourceKind::Bed ? 'bed_id' : 'locker_id', $resource->id)->exists()) {
+                throw FacilityException::make('form', "{$kind->label()} {$code} pernah dipakai penghuni, jadi tidak bisa dihapus. Nonaktifkan saja.");
+            }
+
             $resource->delete();
 
             $this->audit->record(

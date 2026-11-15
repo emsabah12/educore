@@ -10,18 +10,23 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
+use Modules\Core\Support\BusinessClock;
 use Modules\Dormitory\Application\Authorization\DormitoryAccess;
 use Modules\Dormitory\Application\Facility\FacilityCode;
 use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Facility\ManageRoomResources;
 use Modules\Dormitory\Application\Facility\ManageRooms;
 use Modules\Dormitory\Application\Facility\RoomData;
+use Modules\Dormitory\Application\Placement\ManagePlacements;
+use Modules\Dormitory\Application\Placement\PlacementDirectory;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Room;
 use Modules\Dormitory\Domain\Facility\RoomComposition;
 use Modules\Dormitory\Domain\Facility\UnavailableReason;
 use Modules\Dormitory\Domain\Facility\YearEndPolicy;
+use Modules\Dormitory\Domain\Placement\EndReason;
+use Modules\Dormitory\Domain\Placement\PlacementCategory;
 use Modules\Dormitory\Http\Controllers\Concerns\HandlesFacilityActions;
 
 /**
@@ -52,20 +57,32 @@ final class RoomController
         return $this->done("Kamar {$room->code} ditambahkan. Lanjutkan dengan menambah bed/loker di halaman kamar.");
     }
 
-    public function show(string $room, FacilityDirectory $directory): Response
+    public function show(Request $request, string $room, FacilityDirectory $directory, PlacementDirectory $placements): Response
     {
         $target = $this->find($room, DormitoryAccess::FACILITIES_VIEW);
 
+        $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
+
         return Inertia::render('dormitory/room', array_merge($directory->room($target), [
             'canManage' => $this->authorization->allows(DormitoryAccess::FACILITIES_MANAGE, $target->organization_id),
+            'canViewResidents' => $canViewResidents,
+            'canManageResidents' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
+            'holders' => $canViewResidents ? $placements->holders($this->tenantId(), $target->id) : [],
+            // Riwayat hanya dimuat saat tab Riwayat dibuka.
+            'history' => $canViewResidents && $request->query('tab') === 'riwayat' ? $placements->roomHistory($this->tenantId(), $target->id) : null,
+            'resourceHolders' => $canViewResidents ? $placements->resourceHolders($this->tenantId(), $target->id) : ['beds' => [], 'lockers' => []],
+            'suggestion' => ManagePlacements::suggestion($target),
+            'today' => BusinessClock::todayString(),
             'options' => [
+                'categories' => PlacementCategory::options(),
+                'endReasons' => EndReason::checkOutOptions(),
+                'noteMax' => ManagePlacements::NOTE_MAX_LENGTH,
                 'bases' => CapacityBasis::options(),
                 'compositions' => RoomComposition::options(),
                 'policies' => YearEndPolicy::options(),
                 'reasons' => UnavailableReason::options(),
                 'supervisorSlotsMax' => ManageRooms::SUPERVISOR_SLOTS_MAX,
                 'batchMax' => ManageRoomResources::BATCH_MAX,
-                'noteMax' => ManageRoomResources::NOTE_MAX_LENGTH,
             ],
         ]));
     }

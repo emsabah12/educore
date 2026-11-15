@@ -7,6 +7,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
+use Modules\Dormitory\Domain\Placement\Exceptions\PlacementException;
 
 /**
  * Bantuan bersama controller fasilitas asrama: yayasan aktif, pesan sukses, dan pelanggaran aturan sebagai pesan
@@ -19,6 +20,12 @@ trait HandlesFacilityActions
         return app(TenantContext::class)->require()->tenantId;
     }
 
+    /** Membership petugas yang sedang bekerja (pencatat penempatan). */
+    private function actorId(): string
+    {
+        return app(TenantContext::class)->require()->membershipId;
+    }
+
     /**
      * @template T
      *
@@ -29,7 +36,7 @@ trait HandlesFacilityActions
     {
         try {
             return $action();
-        } catch (FacilityException $exception) {
+        } catch (FacilityException|PlacementException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
     }

@@ -1,5 +1,14 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    BedDouble,
+    LogIn,
+    LogOut,
+    Pencil,
+    Plus,
+    Trash2,
+    TriangleAlert,
+} from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmAction } from '@/components/confirm-action';
 import {
@@ -10,22 +19,46 @@ import {
     RoomFields,
     StatusToggle,
 } from '@/components/dormitory/facility-forms';
+import type { RoomResources } from '@/components/dormitory/placement-forms';
+import {
+    CancelPlanAction,
+    ChangeResourcesDialog,
+    CheckInDialog,
+    CheckOutDialog,
+    PlaceDialog,
+} from '@/components/dormitory/placement-forms';
+import {
+    Pagination,
+    PlacementStatusBadge,
+    ResourceWarning,
+    dateLine,
+    resourceText,
+} from '@/components/dormitory/residents';
 import type {
     Capacity,
+    Occupancy,
     Option,
+    PlacementPage,
+    PlacementRow,
     ResourceRow,
     RoomOptions,
     RoomRow,
 } from '@/components/dormitory/types';
 import Heading from '@/components/heading';
+import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 type Kind = 'bed' | 'loker';
 
+type Holder = { name: string; status: string };
+
 type Props = {
-    room: Omit<RoomRow, 'building_id' | 'capacity'> & {
+    room: Omit<
+        RoomRow,
+        'building_id' | 'capacity' | 'occupancy' | 'over_capacity'
+    > & {
         accepts_changes: boolean;
         building: {
             id: string;
@@ -44,35 +77,71 @@ type Props = {
         };
     };
     capacity: Capacity;
+    occupancy: Occupancy;
+    over_capacity: boolean;
     beds: ResourceRow[];
     lockers: ResourceRow[];
     canManage: boolean;
+    canViewResidents: boolean;
+    canManageResidents: boolean;
+    holders: PlacementRow[];
+    history: PlacementPage | null;
+    resourceHolders: {
+        beds: Record<string, Holder>;
+        lockers: Record<string, Holder>;
+    };
+    suggestion: { bed: string | null; locker: string | null };
+    today: string;
     options: RoomOptions & {
         reasons: Option[];
         batchMax: number;
         noteMax: number;
+        categories: Option[];
+        endReasons: Option[];
     };
 };
 
 type OpenDialog =
     | { kind: 'edit-room' }
     | { kind: 'add'; resource: Kind }
-    | { kind: 'edit'; resource: Kind; row: ResourceRow };
+    | { kind: 'edit'; resource: Kind; row: ResourceRow }
+    | { kind: 'place' }
+    | { kind: 'check-in'; row: PlacementRow }
+    | { kind: 'check-out'; row: PlacementRow }
+    | { kind: 'change'; row: PlacementRow };
 
 const LABEL: Record<Kind, string> = { bed: 'Bed', loker: 'Loker' };
 
+const TABS = ['penghuni', 'bed-loker', 'riwayat'] as const;
+type Tab = (typeof TABS)[number];
+
 /**
- * Detail kamar (PRD-008 §4.3–§4.5, DM-1): ringkasan kapasitas dan inventaris bed & loker. Kapasitas tidak diketik;
- * dihitung server dari bed/loker yang tersedia menurut dasar kapasitas kamar. Penghuni & riwayat menyusul di DM-2.
+ * Detail kamar (PRD-008 §4.3–§4.5, §16): ringkasan kapasitas & keterisian, penghuni (tempatkan, check-in, check-out,
+ * ganti bed/loker, batalkan rencana), inventaris bed & loker, dan riwayat kamar. Kapasitas dihitung server dari
+ * bed/loker yang tersedia; semua aturan penempatan diperiksa server.
  */
 export default function RoomShow({
     room,
     capacity,
+    occupancy,
+    over_capacity: overCapacity,
     beds,
     lockers,
     canManage,
+    canViewResidents,
+    canManageResidents,
+    holders,
+    history,
+    resourceHolders,
+    suggestion,
+    today,
     options,
 }: Props) {
+    const tabs = canViewResidents ? TABS : (['bed-loker'] as const);
+    const [tab, setTabState] = usePageTab<Tab>(
+        tabs,
+        canViewResidents ? 'penghuni' : 'bed-loker',
+    );
     const [dialog, setDialog] = useState<OpenDialog | null>(null);
     const close = () => setDialog(null);
     const counts = (kind: Kind) =>
@@ -83,8 +152,44 @@ export default function RoomShow({
         ...room,
         building_id: room.building.id,
         capacity,
+        occupancy,
+        over_capacity: overCapacity,
     };
     const title = `Kamar ${room.code}${room.name ? ` · ${room.name}` : ''}`;
+    const heldBy: Record<string, string> = {};
+
+    for (const holder of holders) {
+        if (holder.bed_id) {
+            heldBy[holder.bed_id] = holder.id;
+        }
+
+        if (holder.locker_id) {
+            heldBy[holder.locker_id] = holder.id;
+        }
+    }
+
+    const resources: RoomResources = {
+        basis: room.capacity_basis as RoomResources['basis'],
+        beds,
+        lockers,
+        heldBy,
+        suggestion,
+    };
+    const held = occupancy.active + occupancy.planned;
+    const canPlace =
+        canManageResidents &&
+        room.accepts_changes &&
+        room.building.is_active &&
+        room.dormitory.is_active;
+
+    const setTab = (value: Tab) => {
+        setTabState(value);
+
+        // Riwayat dimuat saat tab dibuka pertama kali.
+        if (value === 'riwayat' && history === null) {
+            router.reload({ only: ['history'], data: { tab: 'riwayat' } });
+        }
+    };
 
     return (
         <>
@@ -142,8 +247,15 @@ export default function RoomShow({
                 </div>
 
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <Stat label="Kapasitas" value={capacity.effective} />
-                    <Stat label="Slot santri" value={capacity.resident_slots} />
+                    <Stat
+                        label="Terisi"
+                        value={`${held}/${capacity.effective}`}
+                        alert={overCapacity}
+                    />
+                    <Stat
+                        label="Santri"
+                        value={`${occupancy.residents}/${capacity.resident_slots}`}
+                    />
                     <Stat
                         label="Bed tersedia"
                         value={`${capacity.beds_available}/${capacity.beds_total}`}
@@ -158,24 +270,124 @@ export default function RoomShow({
                         ? 'Setiap penghuni butuh satu bed dan satu loker, jadi kapasitas = jumlah yang paling sedikit.'
                         : `Kapasitas = jumlah ${room.capacity_basis === 'BED' ? 'bed' : 'loker'} tersedia.`}
                     {room.composition === 'SANTRI_PENGAWAS' &&
-                        ` ${capacity.supervisor_slots} slot disediakan untuk pengawas yang tinggal di kamar (bagian dari kapasitas).`}
+                        ` ${capacity.supervisor_slots} slot disediakan untuk pengawas (terisi ${occupancy.supervisors}).`}
+                    {occupancy.planned > 0 &&
+                        ` Terisi termasuk ${occupancy.planned} rencana.`}
                 </p>
+                {overCapacity && (
+                    <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                        <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                        Kamar kelebihan muatan: penghuni & rencana melebihi
+                        kapasitas (biasanya karena bed/loker rusak). Tidak bisa
+                        menerima penempatan baru sampai beres.
+                    </p>
+                )}
 
-                {(['bed', 'loker'] as const).map((kind) => (
-                    <ResourceSection
-                        key={kind}
-                        kind={kind}
-                        rows={kind === 'bed' ? beds : lockers}
-                        counted={counts(kind)}
-                        canManage={canManage}
-                        acceptsChanges={room.accepts_changes}
-                        onAdd={() => setDialog({ kind: 'add', resource: kind })}
-                        onEdit={(row) =>
-                            setDialog({ kind: 'edit', resource: kind, row })
-                        }
+                {canViewResidents && (
+                    <PageTabs
+                        label="Bagian kamar"
+                        tabs={[
+                            {
+                                value: 'penghuni',
+                                label: 'Penghuni',
+                                badge: holders.length,
+                            },
+                            { value: 'bed-loker', label: 'Bed & loker' },
+                            { value: 'riwayat', label: 'Riwayat' },
+                        ]}
+                        value={tab}
+                        onChange={setTab}
                     />
-                ))}
+                )}
+
+                {tab === 'penghuni' && canViewResidents && (
+                    <HolderSection
+                        holders={holders}
+                        canManage={canManageResidents}
+                        canPlace={canPlace}
+                        noteMax={options.noteMax}
+                        onPlace={() => setDialog({ kind: 'place' })}
+                        onCheckIn={(row) =>
+                            setDialog({ kind: 'check-in', row })
+                        }
+                        onCheckOut={(row) =>
+                            setDialog({ kind: 'check-out', row })
+                        }
+                        onChange={(row) => setDialog({ kind: 'change', row })}
+                    />
+                )}
+
+                {tab === 'bed-loker' &&
+                    (['bed', 'loker'] as const).map((kind) => (
+                        <ResourceSection
+                            key={kind}
+                            kind={kind}
+                            rows={kind === 'bed' ? beds : lockers}
+                            holders={
+                                kind === 'bed'
+                                    ? resourceHolders.beds
+                                    : resourceHolders.lockers
+                            }
+                            counted={counts(kind)}
+                            canManage={canManage}
+                            acceptsChanges={room.accepts_changes}
+                            onAdd={() =>
+                                setDialog({ kind: 'add', resource: kind })
+                            }
+                            onEdit={(row) =>
+                                setDialog({ kind: 'edit', resource: kind, row })
+                            }
+                        />
+                    ))}
+
+                {tab === 'riwayat' &&
+                    canViewResidents &&
+                    (history === null ? (
+                        <p className="text-sm text-muted-foreground">
+                            Memuat riwayat…
+                        </p>
+                    ) : (
+                        <HistorySection page={history} />
+                    ))}
             </div>
+
+            {dialog?.kind === 'place' && (
+                <PlaceDialog
+                    open
+                    onClose={close}
+                    roomId={room.id}
+                    roomCode={room.code}
+                    allowSupervisor={room.composition === 'SANTRI_PENGAWAS'}
+                    categories={options.categories}
+                    resources={resources}
+                    today={today}
+                    noteMax={options.noteMax}
+                />
+            )}
+            {dialog?.kind === 'check-in' && (
+                <CheckInDialog
+                    row={dialog.row}
+                    onClose={close}
+                    resources={resources}
+                    today={today}
+                />
+            )}
+            {dialog?.kind === 'check-out' && (
+                <CheckOutDialog
+                    row={dialog.row}
+                    onClose={close}
+                    endReasons={options.endReasons}
+                    today={today}
+                    noteMax={options.noteMax}
+                />
+            )}
+            {dialog?.kind === 'change' && (
+                <ChangeResourcesDialog
+                    row={dialog.row}
+                    onClose={close}
+                    resources={resources}
+                />
+            )}
 
             <FacilityDialog
                 open={dialog?.kind === 'edit-room'}
@@ -258,6 +470,168 @@ export default function RoomShow({
     );
 }
 
+/** Penghuni & rencana kamar ini, dengan aksi per baris. */
+function HolderSection({
+    holders,
+    canManage,
+    canPlace,
+    noteMax,
+    onPlace,
+    onCheckIn,
+    onCheckOut,
+    onChange,
+}: {
+    holders: PlacementRow[];
+    canManage: boolean;
+    canPlace: boolean;
+    noteMax: number;
+    onPlace: () => void;
+    onCheckIn: (row: PlacementRow) => void;
+    onCheckOut: (row: PlacementRow) => void;
+    onChange: (row: PlacementRow) => void;
+}) {
+    return (
+        <section className="space-y-3">
+            {canPlace && (
+                <div className="flex justify-end">
+                    <Button type="button" size="sm" onClick={onPlace}>
+                        <Plus />
+                        Tempatkan
+                    </Button>
+                </div>
+            )}
+
+            {holders.length === 0 ? (
+                <Empty>
+                    Kamar ini masih kosong.
+                    {canPlace &&
+                        ' Pilih Tempatkan untuk menempatkan santri atau membuat rencana.'}
+                </Empty>
+            ) : (
+                <ul className="grid gap-2">
+                    {holders.map((row) => (
+                        <li
+                            key={row.id}
+                            className="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3"
+                        >
+                            <div className="min-w-0 space-y-0.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Link
+                                        href={`/asrama/penghuni/${row.membership_id}`}
+                                        className="font-medium break-words hover:underline"
+                                    >
+                                        {row.name}
+                                    </Link>
+                                    <PlacementStatusBadge row={row} />
+                                    {row.category === 'PENGAWAS' && (
+                                        <Badge variant="outline">
+                                            Pengawas
+                                        </Badge>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {row.detail}
+                                </p>
+                                <p className="text-sm">
+                                    {resourceText(row)} ·{' '}
+                                    <span className="text-muted-foreground">
+                                        {dateLine(row)}
+                                    </span>
+                                </p>
+                                <ResourceWarning row={row} />
+                            </div>
+                            {canManage && (
+                                <div className="flex flex-wrap gap-1">
+                                    {row.status === 'DIRENCANAKAN' ? (
+                                        <>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => onCheckIn(row)}
+                                            >
+                                                <LogIn />
+                                                Check-in
+                                            </Button>
+                                            <CancelPlanAction
+                                                row={row}
+                                                noteMax={noteMax}
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => onCheckOut(row)}
+                                            >
+                                                <LogOut />
+                                                Check-out
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => onChange(row)}
+                                            >
+                                                <BedDouble />
+                                                Ganti bed/loker
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+/** Riwayat kamar: penempatan yang selesai atau dibatalkan. */
+function HistorySection({ page }: { page: PlacementPage }) {
+    if (page.data.length === 0) {
+        return <Empty>Belum ada riwayat di kamar ini.</Empty>;
+    }
+
+    return (
+        <section className="space-y-3">
+            <ul className="grid gap-2">
+                {page.data.map((row) => (
+                    <li
+                        key={row.id}
+                        className="space-y-0.5 rounded-xl border p-3"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Link
+                                href={`/asrama/penghuni/${row.membership_id}`}
+                                className="font-medium break-words hover:underline"
+                            >
+                                {row.name}
+                            </Link>
+                            <PlacementStatusBadge row={row} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {row.category_label} · {resourceText(row)} ·{' '}
+                            {dateLine(row)}
+                            {row.end_reason_label &&
+                                ` · ${row.end_reason_label}`}
+                        </p>
+                        {(row.cancel_reason || row.note) && (
+                            <p className="text-xs break-words text-muted-foreground">
+                                {row.cancel_reason ?? row.note}
+                            </p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+            <Pagination page={page} label="riwayat" />
+        </section>
+    );
+}
+
 /** Aksi lain di pop-up Ubah bed/loker: nonaktifkan/aktifkan dan hapus (masing-masing dengan konfirmasi). */
 function ResourceExtraActions({
     kind,
@@ -308,11 +682,25 @@ function ResourceExtraActions({
     );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({
+    label,
+    value,
+    alert = false,
+}: {
+    label: string;
+    value: number | string;
+    alert?: boolean;
+}) {
     return (
-        <div className="rounded-xl border p-3">
+        <div
+            className={`rounded-xl border p-3 ${alert ? 'border-destructive/40 bg-destructive/5' : ''}`}
+        >
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="text-xl font-semibold tabular-nums">{value}</dd>
+            <dd
+                className={`text-xl font-semibold tabular-nums ${alert ? 'text-destructive' : ''}`}
+            >
+                {value}
+            </dd>
         </div>
     );
 }
@@ -416,6 +804,7 @@ function AddResourceFields({
 function ResourceSection({
     kind,
     rows,
+    holders,
     counted,
     canManage,
     acceptsChanges,
@@ -424,6 +813,7 @@ function ResourceSection({
 }: {
     kind: Kind;
     rows: ResourceRow[];
+    holders: Record<string, Holder>;
     counted: boolean;
     canManage: boolean;
     acceptsChanges: boolean;
@@ -475,10 +865,13 @@ function ResourceSection({
             ) : (
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2">
                     {rows.map((row) => {
+                        const holder = holders[row.id];
                         const tone = !row.is_active
                             ? 'border-dashed text-muted-foreground'
                             : row.status === 'TERSEDIA'
-                              ? 'bg-card'
+                              ? holder
+                                  ? 'bg-primary/5'
+                                  : 'bg-card'
                               : 'border-destructive/40 bg-destructive/5';
                         const content = (
                             <>
@@ -491,10 +884,19 @@ function ResourceSection({
                                     {!row.is_active
                                         ? 'Nonaktif'
                                         : row.status === 'TERSEDIA'
-                                          ? 'Tersedia'
+                                          ? holder
+                                              ? holder.status === 'DIRENCANAKAN'
+                                                  ? 'Dipesan'
+                                                  : 'Terisi'
+                                              : 'Kosong'
                                           : (row.unavailable_reason_label ??
                                             row.status_label)}
                                 </span>
+                                {holder && (
+                                    <span className="block truncate text-xs">
+                                        {holder.name}
+                                    </span>
+                                )}
                             </>
                         );
 

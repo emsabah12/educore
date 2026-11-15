@@ -8,6 +8,7 @@ use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Domain\Organization\OrganizationStatus;
 use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Person\Gender;
+use Modules\Dormitory\Application\Placement\RoomOccupancy;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Dormitory;
@@ -26,7 +27,7 @@ use Modules\Dormitory\Domain\Facility\YearEndPolicy;
  * karena hanya kamar itu yang bisa menerima penghuni.
  *
  * @phpstan-type Capacity array{beds_total: int, beds_available: int, lockers_total: int, lockers_available: int, effective: int, supervisor_slots: int, resident_slots: int}
- * @phpstan-type RoomRow array{id: string, dormitory_id: string, building_id: string, code: string, name: string|null, capacity_basis: string, capacity_basis_label: string, composition: string, composition_label: string, supervisor_slots: int, year_end_policy: string, is_active: bool, capacity: Capacity}
+ * @phpstan-type RoomRow array{id: string, dormitory_id: string, building_id: string, code: string, name: string|null, capacity_basis: string, capacity_basis_label: string, composition: string, composition_label: string, supervisor_slots: int, year_end_policy: string, is_active: bool, capacity: Capacity, occupancy: array{active: int, planned: int, residents: int, supervisors: int, unusable: int}, over_capacity: bool}
  */
 final class FacilityDirectory
 {
@@ -34,7 +35,7 @@ final class FacilityDirectory
      * Daftar asrama yang pemiliknya terlihat.
      *
      * @param  list<string>  $organizationIds  node yang terlihat (visibleNodeIds)
-     * @return list<array{id: string, code: string, name: string, organization: string, organization_id: string, is_active: bool, buildings: int, rooms: int, effective: int, resident_slots: int, supervisor_slots: int}>
+     * @return list<array{id: string, code: string, name: string, organization: string, organization_id: string, is_active: bool, buildings: int, rooms: int, effective: int, resident_slots: int, supervisor_slots: int, active: int, planned: int, over_capacity: int}>
      */
     public function dormitories(string $tenantId, array $organizationIds, bool $includeInactive, ?string $organizationFilter): array
     {
@@ -68,17 +69,20 @@ final class FacilityDirectory
             ->whereExists(fn (Builder $building) => $building->from('dm_buildings as b')->whereColumn('b.id', 'r.building_id')->where('b.is_active', true))
         ) as $room) {
             $dormitoryId = $room['dormitory_id'];
-            $totals[$dormitoryId] ??= ['rooms' => 0, 'effective' => 0, 'resident_slots' => 0, 'supervisor_slots' => 0];
+            $totals[$dormitoryId] ??= ['rooms' => 0, 'effective' => 0, 'resident_slots' => 0, 'supervisor_slots' => 0, 'active' => 0, 'planned' => 0, 'over_capacity' => 0];
             $totals[$dormitoryId]['rooms']++;
             $totals[$dormitoryId]['effective'] += $room['capacity']['effective'];
             $totals[$dormitoryId]['resident_slots'] += $room['capacity']['resident_slots'];
             $totals[$dormitoryId]['supervisor_slots'] += min($room['capacity']['supervisor_slots'], $room['capacity']['effective']);
+            $totals[$dormitoryId]['active'] += $room['occupancy']['active'];
+            $totals[$dormitoryId]['planned'] += $room['occupancy']['planned'];
+            $totals[$dormitoryId]['over_capacity'] += $room['over_capacity'] ? 1 : 0;
         }
 
         $rows = [];
 
         foreach ($dormitories as $dormitory) {
-            $total = $totals[$dormitory->id] ?? ['rooms' => 0, 'effective' => 0, 'resident_slots' => 0, 'supervisor_slots' => 0];
+            $total = $totals[$dormitory->id] ?? ['rooms' => 0, 'effective' => 0, 'resident_slots' => 0, 'supervisor_slots' => 0, 'active' => 0, 'planned' => 0, 'over_capacity' => 0];
             $rows[] = [
                 'id' => $dormitory->id,
                 'code' => $dormitory->code,
@@ -91,6 +95,9 @@ final class FacilityDirectory
                 'effective' => $total['effective'],
                 'resident_slots' => $total['resident_slots'],
                 'supervisor_slots' => $total['supervisor_slots'],
+                'active' => $total['active'],
+                'planned' => $total['planned'],
+                'over_capacity' => $total['over_capacity'],
             ];
         }
 
@@ -195,12 +202,14 @@ final class FacilityDirectory
     /**
      * Detail kamar: ringkasan kapasitas + daftar bed & loker.
      *
-     * @return array{room: array{id: string, code: string, name: string|null, capacity_basis: string, capacity_basis_label: string, composition: string, composition_label: string, supervisor_slots: int, year_end_policy: string, is_active: bool, accepts_changes: bool, building: array{id: string, code: string, name: string, gender: string, gender_label: string, is_active: bool}, dormitory: array{id: string, code: string, name: string, organization: string, is_active: bool}}, capacity: Capacity, beds: list<array{id: string, code: string, status: string, status_label: string, unavailable_reason: string|null, unavailable_reason_label: string|null, unavailable_note: string|null, is_active: bool}>, lockers: list<array{id: string, code: string, status: string, status_label: string, unavailable_reason: string|null, unavailable_reason_label: string|null, unavailable_note: string|null, is_active: bool}>}
+     * @return array{room: array{id: string, code: string, name: string|null, capacity_basis: string, capacity_basis_label: string, composition: string, composition_label: string, supervisor_slots: int, year_end_policy: string, is_active: bool, accepts_changes: bool, building: array{id: string, code: string, name: string, gender: string, gender_label: string, is_active: bool}, dormitory: array{id: string, code: string, name: string, organization: string, is_active: bool}}, capacity: Capacity, occupancy: array{active: int, planned: int, residents: int, supervisors: int, unusable: int}, over_capacity: bool, beds: list<array{id: string, code: string, status: string, status_label: string, unavailable_reason: string|null, unavailable_reason_label: string|null, unavailable_note: string|null, is_active: bool}>, lockers: list<array{id: string, code: string, status: string, status_label: string, unavailable_reason: string|null, unavailable_reason_label: string|null, unavailable_note: string|null, is_active: bool}>}
      */
     public function room(Room $room): array
     {
         $building = Building::query()->withoutGlobalScope('tenant')->whereKey($room->building_id)->firstOrFail();
         $dormitory = Dormitory::query()->withoutGlobalScope('tenant')->whereKey($room->dormitory_id)->firstOrFail();
+        $capacity = RoomCapacity::forRoom($room);
+        $occupancy = RoomOccupancy::forRooms([$room->id])[$room->id] ?? RoomOccupancy::empty();
 
         return [
             'room' => [
@@ -232,7 +241,9 @@ final class FacilityDirectory
                     'is_active' => $dormitory->is_active,
                 ],
             ],
-            'capacity' => RoomCapacity::forRoom($room),
+            'capacity' => $capacity,
+            'occupancy' => $occupancy,
+            'over_capacity' => RoomOccupancy::isOverCapacity($occupancy, $capacity['effective']),
             'beds' => $this->resources(ResourceKind::Bed, $room->id),
             'lockers' => $this->resources(ResourceKind::Locker, $room->id),
         ];
@@ -280,10 +291,28 @@ final class FacilityDirectory
             ->orderBy('r.id');
 
         $rows = [];
+        $fetched = $scope($query)->get();
+        $roomIds = [];
 
-        foreach ($scope($query)->get() as $row) {
+        foreach ($fetched as $row) {
+            $roomIds[] = (string) $row->id;
+        }
+
+        $occupancies = RoomOccupancy::forRooms($roomIds);
+
+        foreach ($fetched as $row) {
             $basis = CapacityBasis::from((string) $row->capacity_basis);
             $composition = RoomComposition::from((string) $row->composition);
+
+            $capacity = RoomCapacity::summarize(
+                $basis,
+                (int) $row->beds_total,
+                (int) $row->beds_available,
+                (int) $row->lockers_total,
+                (int) $row->lockers_available,
+                (int) $row->supervisor_slots,
+            );
+            $occupancy = $occupancies[(string) $row->id] ?? RoomOccupancy::empty();
 
             $rows[] = [
                 'id' => (string) $row->id,
@@ -298,14 +327,9 @@ final class FacilityDirectory
                 'supervisor_slots' => (int) $row->supervisor_slots,
                 'year_end_policy' => YearEndPolicy::from((string) $row->year_end_policy)->value,
                 'is_active' => (bool) $row->is_active,
-                'capacity' => RoomCapacity::summarize(
-                    $basis,
-                    (int) $row->beds_total,
-                    (int) $row->beds_available,
-                    (int) $row->lockers_total,
-                    (int) $row->lockers_available,
-                    (int) $row->supervisor_slots,
-                ),
+                'capacity' => $capacity,
+                'occupancy' => $occupancy,
+                'over_capacity' => RoomOccupancy::isOverCapacity($occupancy, $capacity['effective']),
             ];
         }
 

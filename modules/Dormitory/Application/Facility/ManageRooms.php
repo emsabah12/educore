@@ -10,6 +10,8 @@ use Modules\Dormitory\Domain\Facility\Dormitory;
 use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
 use Modules\Dormitory\Domain\Facility\Room;
 use Modules\Dormitory\Domain\Facility\RoomComposition;
+use Modules\Dormitory\Domain\Placement\PlacementCategory;
+use Modules\Dormitory\Domain\Placement\PlacementStatus;
 
 /**
  * Kamar asrama (PRD-008 §4.3–§4.4, §15 DM-1): tambah, ubah, nonaktifkan/aktifkan kembali.
@@ -21,8 +23,8 @@ use Modules\Dormitory\Domain\Facility\RoomComposition;
  *   sama atau lebih dari kapasitas efektif bila kamar sudah punya kapasitas (harus tersisa slot santri).
  * - Kebijakan akhir tahun bawaan = milik asrama.
  * - Kamar baru hanya di gedung & asrama aktif; aktifkan kembali butuh gedung & asrama aktif.
- * - Dasar kapasitas, komposisi, dan gender gedung bebas diubah selama belum ada penempatan (penempatan dibangun
- *   di DM-2, yang menambah pengamannya).
+ * - Dasar kapasitas, komposisi, dan slot pengawas hanya boleh diubah bila penghuni yang ada tetap memenuhi aturan
+ *   (DM-2, §16.5).
  */
 final class ManageRooms
 {
@@ -124,6 +126,7 @@ final class ManageRooms
                 return [];
             }
 
+            $this->assertFitsCurrentOccupants($room);
             $capacity = RoomCapacity::forRoom($room);
 
             if ($slots > 0 && $capacity['effective'] > 0 && $slots >= $capacity['effective']) {
@@ -183,6 +186,43 @@ final class ManageRooms
     }
 
     // ── Bantuan ───────────────────────────────────────────────────────────────
+
+    /**
+     * Perubahan kamar tidak boleh membuat penghuni yang ada melanggar aturan (PRD-008 §16.5): dasar kapasitas baru
+     * mewajibkan sumber yang sudah dipegang setiap penghuni; pengawas tidak boleh tertinggal di kamar Khusus santri
+     * atau melebihi slot pengawas.
+     *
+     * @throws FacilityException
+     */
+    private function assertFitsCurrentOccupants(Room $room): void
+    {
+        $holders = DB::table('dm_placements')
+            ->where('room_id', $room->id)
+            ->whereIn('status', PlacementStatus::holdingValues())
+            ->get(['category', 'bed_id', 'locker_id']);
+
+        if ($holders->isEmpty()) {
+            return;
+        }
+
+        if ($room->isDirty('capacity_basis')) {
+            foreach ($holders as $holder) {
+                if (($room->capacity_basis->requiresBed() && $holder->bed_id === null) || ($room->capacity_basis->requiresLocker() && $holder->locker_id === null)) {
+                    throw FacilityException::make('capacity_basis', 'Masih ada penghuni yang belum memegang '.($room->capacity_basis->requiresBed() && $holder->bed_id === null ? 'bed' : 'loker').'. Lengkapi bed/lokernya dulu sebelum mengganti dasar kapasitas.');
+                }
+            }
+        }
+
+        $supervisors = $holders->where('category', PlacementCategory::Supervisor->value)->count();
+
+        if ($supervisors > 0 && $room->composition === RoomComposition::ResidentsOnly) {
+            throw FacilityException::make('composition', 'Masih ada pengawas yang tinggal/direncanakan di kamar ini. Check-out atau batalkan dulu sebelum menjadikannya khusus santri.');
+        }
+
+        if ($supervisors > $room->supervisor_slots && $room->composition === RoomComposition::WithSupervisor) {
+            throw FacilityException::make('supervisor_slots', "Kamar ini punya {$supervisors} pengawas, jadi slot pengawas minimal {$supervisors}.");
+        }
+    }
 
     /**
      * @return int slot pengawas yang disimpan

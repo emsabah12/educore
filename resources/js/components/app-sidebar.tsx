@@ -20,10 +20,10 @@ import {
     Coins,
     CreditCard,
     FileClock,
-    Gauge,
     FileSpreadsheet,
     FileText,
     FolderTree,
+    Gauge,
     GraduationCap,
     HandCoins,
     Heart,
@@ -48,6 +48,7 @@ import {
     UserMinus,
     UserSearch,
     Users,
+    UsersRound,
     Wallet,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -85,6 +86,12 @@ const dormitoriesNavItem: NavItem = {
     title: 'Asrama',
     href: '/asrama',
     icon: BedDouble,
+};
+
+const residentsNavItem: NavItem = {
+    title: 'Penghuni',
+    href: '/asrama/penghuni',
+    icon: UsersRound,
 };
 
 const auditNavItem: NavItem = {
@@ -422,12 +429,17 @@ export function AppSidebar() {
             ],
         },
         {
-            // Asrama (PRD-008 DM-1).
+            // Asrama (PRD-008 DM-1, DM-2).
             key: 'dormitory',
             title: 'Asrama',
-            items: when(permissions.includes('dormitory.facilities.view'), [
-                dormitoriesNavItem,
-            ]),
+            items: [
+                ...when(permissions.includes('dormitory.facilities.view'), [
+                    dormitoriesNavItem,
+                ]),
+                ...when(permissions.includes('dormitory.residents.view'), [
+                    residentsNavItem,
+                ]),
+            ],
         },
         {
             key: 'hr',

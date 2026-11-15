@@ -9,14 +9,15 @@ use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\Dormitory;
 use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
+use Modules\Dormitory\Domain\Placement\PlacementStatus;
 
 /**
  * Gedung asrama (PRD-008 §4.1–§4.2, §15 DM-1): tambah, ubah, nonaktifkan/aktifkan kembali.
  *
  * Aturan:
  * - Gedung selalu di dalam satu asrama dan ikut pemiliknya (salinan `organization_id`, dijaga FK gabungan).
- * - Jenis kelamin Putra (L) / Putri (P) wajib; kamar di dalamnya mengikuti. Di DM-2 penggantian ditolak bila
- *   masih ada penghuni aktif/direncanakan.
+ * - Jenis kelamin Putra (L) / Putri (P) wajib; kamar di dalamnya mengikuti. Penggantian ditolak bila masih ada
+ *   penempatan Aktif/Direncanakan di gedung itu (DM-2).
  * - Kode unik per asrama; nama wajib, maks. 100.
  * - Gedung baru hanya di asrama aktif; aktifkan kembali butuh asrama aktif.
  */
@@ -89,6 +90,15 @@ final class ManageBuildings
 
             $building->fill(['code' => $code, 'name' => $name, 'gender' => $gender]);
             $changed = array_keys($building->getDirty());
+
+            // DM-2 (PRD-008 §16.5): penghuni yang ada tidak boleh tiba-tiba "salah gedung".
+            if (in_array('gender', $changed, true) && DB::table('dm_placements as pl')
+                ->join('dm_rooms as r', 'r.id', '=', 'pl.room_id')
+                ->where('r.building_id', $building->id)
+                ->whereIn('pl.status', PlacementStatus::holdingValues())
+                ->exists()) {
+                throw FacilityException::make('gender', 'Gedung ini masih punya penghuni atau rencana penempatan. Kosongkan dulu sebelum mengganti putra/putri.');
+            }
 
             if ($changed === []) {
                 return [];

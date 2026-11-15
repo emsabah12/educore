@@ -42,6 +42,16 @@ final class DormitoryAuditAction
 
     public const RESOURCE_DELETED = 'dormitory.resource_deleted';
 
+    public const PLACEMENT_PLANNED = 'dormitory.placement_planned';
+
+    public const PLACEMENT_CHECKED_IN = 'dormitory.placement_checked_in';
+
+    public const PLACEMENT_RESOURCE_CHANGED = 'dormitory.placement_resource_changed';
+
+    public const PLACEMENT_CANCELLED = 'dormitory.placement_cancelled';
+
+    public const PLACEMENT_CHECKED_OUT = 'dormitory.placement_checked_out';
+
     public const SUBJECT_DORMITORY = 'dm_dormitory';
 
     public const SUBJECT_BUILDING = 'dm_building';
@@ -51,6 +61,8 @@ final class DormitoryAuditAction
     public const SUBJECT_BED = 'dm_bed';
 
     public const SUBJECT_LOCKER = 'dm_locker';
+
+    public const SUBJECT_PLACEMENT = 'dm_placement';
 
     /**
      * @return array<string, string>
@@ -75,6 +87,11 @@ final class DormitoryAuditAction
             self::RESOURCE_DEACTIVATED => 'Bed/loker dinonaktifkan',
             self::RESOURCE_REACTIVATED => 'Bed/loker diaktifkan kembali',
             self::RESOURCE_DELETED => 'Bed/loker dihapus',
+            self::PLACEMENT_PLANNED => 'Penempatan asrama direncanakan',
+            self::PLACEMENT_CHECKED_IN => 'Penghuni asrama check-in',
+            self::PLACEMENT_RESOURCE_CHANGED => 'Bed/loker penghuni diganti',
+            self::PLACEMENT_CANCELLED => 'Rencana penempatan asrama dibatalkan',
+            self::PLACEMENT_CHECKED_OUT => 'Penghuni asrama check-out',
         ];
     }
 }
