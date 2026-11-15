@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    ArrowRightLeft,
     Award,
     Banknote,
     BedDouble,
@@ -86,6 +87,12 @@ const dormitoriesNavItem: NavItem = {
     title: 'Asrama',
     href: '/asrama',
     icon: BedDouble,
+};
+
+const mutationsNavItem: NavItem = {
+    title: 'Mutasi',
+    href: '/asrama/mutasi',
+    icon: ArrowRightLeft,
 };
 
 const residentsNavItem: NavItem = {
@@ -447,6 +454,14 @@ export function AppSidebar() {
                 ...when(permissions.includes('dormitory.residents.view'), [
                     residentsNavItem,
                 ]),
+                ...when(
+                    [
+                        'dormitory.mutations.request',
+                        'dormitory.mutations.approve',
+                        'dormitory.mutations.emergency',
+                    ].some((key) => permissions.includes(key)),
+                    [mutationsNavItem],
+                ),
             ],
         },
         {

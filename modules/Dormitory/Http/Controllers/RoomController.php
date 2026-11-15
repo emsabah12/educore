@@ -17,6 +17,7 @@ use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Facility\ManageRoomResources;
 use Modules\Dormitory\Application\Facility\ManageRooms;
 use Modules\Dormitory\Application\Facility\RoomData;
+use Modules\Dormitory\Application\Mutation\MutationDirectory;
 use Modules\Dormitory\Application\Placement\ManagePlacements;
 use Modules\Dormitory\Application\Placement\PlacementDirectory;
 use Modules\Dormitory\Application\Supervision\ManageRoomSupervisors;
@@ -27,6 +28,7 @@ use Modules\Dormitory\Domain\Facility\Room;
 use Modules\Dormitory\Domain\Facility\RoomComposition;
 use Modules\Dormitory\Domain\Facility\UnavailableReason;
 use Modules\Dormitory\Domain\Facility\YearEndPolicy;
+use Modules\Dormitory\Domain\Mutation\EmergencyCategory;
 use Modules\Dormitory\Domain\Placement\EndReason;
 use Modules\Dormitory\Domain\Placement\PlacementCategory;
 use Modules\Dormitory\Http\Controllers\Concerns\HandlesFacilityActions;
@@ -59,28 +61,34 @@ final class RoomController
         return $this->done("Kamar {$room->code} ditambahkan. Lanjutkan dengan menambah bed/loker di halaman kamar.");
     }
 
-    public function show(Request $request, string $room, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors): Response
+    public function show(Request $request, string $room, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors, MutationDirectory $mutations): Response
     {
         $target = $this->find($room, DormitoryAccess::FACILITIES_VIEW);
 
         $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
         $historyTab = $request->query('tab') === 'riwayat';
+        $holders = $canViewResidents ? $placements->holders($this->tenantId(), $target->id) : [];
 
         return Inertia::render('dormitory/room', array_merge($directory->room($target), [
             'canManage' => $this->authorization->allows(DormitoryAccess::FACILITIES_MANAGE, $target->organization_id),
             'canViewResidents' => $canViewResidents,
             'canManageResidents' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
-            'holders' => $canViewResidents ? $placements->holders($this->tenantId(), $target->id) : [],
+            'holders' => $holders,
             // Riwayat hanya dimuat saat tab Riwayat dibuka.
             'history' => $canViewResidents && $historyTab ? $placements->roomHistory($this->tenantId(), $target->id) : null,
             // Wali kamar (DM-3): cukup izin lihat fasilitas.
             'supervisors' => $supervisors->forRoom($this->tenantId(), $target->id),
             'supervisorHistory' => $historyTab ? $supervisors->historyForRoom($this->tenantId(), $target->id) : null,
             'supervisorMax' => ManageRoomSupervisors::MAX_PER_ROOM,
+            // Mutasi (DM-4): tombol Mutasi & tanda pengajuan terbuka.
+            'canRequestMutation' => $this->authorization->allows(DormitoryAccess::MUTATIONS_REQUEST, $target->organization_id),
+            'canEmergencyMutation' => $this->authorization->allows(DormitoryAccess::MUTATIONS_EMERGENCY, $target->organization_id),
+            'openMutations' => $canViewResidents ? $mutations->openForPlacements($this->tenantId(), self::placementIds($holders)) : [],
             'resourceHolders' => $canViewResidents ? $placements->resourceHolders($this->tenantId(), $target->id) : ['beds' => [], 'lockers' => []],
             'suggestion' => ManagePlacements::suggestion($target),
             'today' => BusinessClock::todayString(),
             'options' => [
+                'emergencyCategories' => EmergencyCategory::options(),
                 'categories' => PlacementCategory::options(),
                 'endReasons' => EndReason::checkOutOptions(),
                 'noteMax' => ManagePlacements::NOTE_MAX_LENGTH,
@@ -161,5 +169,14 @@ final class RoomController
             'supervisor_slots' => ['nullable', 'integer', 'between:0,'.ManageRooms::SUPERVISOR_SLOTS_MAX],
             'year_end_policy' => ['nullable', 'string', Rule::enum(YearEndPolicy::class)],
         ];
+    }
+
+    /**
+     * @param  list<array{id: string}>  $rows
+     * @return list<string>
+     */
+    private static function placementIds(array $rows): array
+    {
+        return array_map(fn (array $row): string => $row['id'], $rows);
     }
 }

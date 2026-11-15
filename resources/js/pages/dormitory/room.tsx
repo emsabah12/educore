@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
+    ArrowRightLeft,
     BedDouble,
     LogIn,
     LogOut,
@@ -19,6 +20,8 @@ import {
     RoomFields,
     StatusToggle,
 } from '@/components/dormitory/facility-forms';
+import type { OpenMutations } from '@/components/dormitory/mutation-forms';
+import { MutationDialog } from '@/components/dormitory/mutation-forms';
 import type { RoomResources } from '@/components/dormitory/placement-forms';
 import {
     CancelPlanAction,
@@ -94,6 +97,9 @@ type Props = {
     supervisors: SupervisorRow[];
     supervisorHistory: SupervisorRow[] | null;
     supervisorMax: number;
+    canRequestMutation: boolean;
+    canEmergencyMutation: boolean;
+    openMutations: OpenMutations;
     resourceHolders: {
         beds: Record<string, Holder>;
         lockers: Record<string, Holder>;
@@ -106,6 +112,7 @@ type Props = {
         noteMax: number;
         categories: Option[];
         endReasons: Option[];
+        emergencyCategories: Option[];
     };
 };
 
@@ -116,7 +123,8 @@ type OpenDialog =
     | { kind: 'place' }
     | { kind: 'check-in'; row: PlacementRow }
     | { kind: 'check-out'; row: PlacementRow }
-    | { kind: 'change'; row: PlacementRow };
+    | { kind: 'change'; row: PlacementRow }
+    | { kind: 'mutation'; row: PlacementRow };
 
 const LABEL: Record<Kind, string> = { bed: 'Bed', loker: 'Loker' };
 
@@ -143,6 +151,9 @@ export default function RoomShow({
     supervisors,
     supervisorHistory,
     supervisorMax,
+    canRequestMutation,
+    canEmergencyMutation,
+    openMutations,
     resourceHolders,
     suggestion,
     today,
@@ -342,6 +353,9 @@ export default function RoomShow({
                             setDialog({ kind: 'check-out', row })
                         }
                         onChange={(row) => setDialog({ kind: 'change', row })}
+                        canMutate={canRequestMutation || canEmergencyMutation}
+                        openMutations={openMutations}
+                        onMutate={(row) => setDialog({ kind: 'mutation', row })}
                     />
                 )}
 
@@ -410,6 +424,16 @@ export default function RoomShow({
                     endReasons={options.endReasons}
                     today={today}
                     noteMax={options.noteMax}
+                />
+            )}
+            {dialog?.kind === 'mutation' && (
+                <MutationDialog
+                    row={dialog.row}
+                    onClose={close}
+                    canRequest={canRequestMutation}
+                    canEmergency={canEmergencyMutation}
+                    emergencyCategories={options.emergencyCategories}
+                    hasOpenRequest={openMutations[dialog.row.id] !== undefined}
                 />
             )}
             {dialog?.kind === 'change' && (
@@ -511,6 +535,9 @@ function HolderSection({
     onCheckIn,
     onCheckOut,
     onChange,
+    canMutate,
+    openMutations,
+    onMutate,
 }: {
     holders: PlacementRow[];
     canManage: boolean;
@@ -520,6 +547,9 @@ function HolderSection({
     onCheckIn: (row: PlacementRow) => void;
     onCheckOut: (row: PlacementRow) => void;
     onChange: (row: PlacementRow) => void;
+    canMutate: boolean;
+    openMutations: OpenMutations;
+    onMutate: (row: PlacementRow) => void;
 }) {
     return (
         <section className="space-y-3">
@@ -570,10 +600,31 @@ function HolderSection({
                                     </span>
                                 </p>
                                 <ResourceWarning row={row} />
+                                {openMutations[row.id] && (
+                                    <p className="flex items-center gap-1 text-xs text-primary dark:text-accent-foreground">
+                                        <ArrowRightLeft className="size-3.5" />
+                                        Mutasi diajukan ke{' '}
+                                        {openMutations[row.id].to_room},
+                                        menunggu persetujuan
+                                    </p>
+                                )}
                             </div>
-                            {canManage && (
-                                <div className="flex flex-wrap gap-1">
-                                    {row.status === 'DIRENCANAKAN' ? (
+                            <div className="flex flex-wrap gap-1">
+                                {canMutate &&
+                                    row.status === 'AKTIF' &&
+                                    row.category === 'PENGHUNI' && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => onMutate(row)}
+                                        >
+                                            <ArrowRightLeft />
+                                            Mutasi
+                                        </Button>
+                                    )}
+                                {canManage &&
+                                    (row.status === 'DIRENCANAKAN' ? (
                                         <>
                                             <Button
                                                 type="button"
@@ -610,9 +661,8 @@ function HolderSection({
                                                 Ganti bed/loker
                                             </Button>
                                         </>
-                                    )}
-                                </div>
-                            )}
+                                    ))}
+                            </div>
                         </li>
                     ))}
                 </ul>

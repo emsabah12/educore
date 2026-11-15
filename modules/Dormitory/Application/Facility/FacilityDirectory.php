@@ -265,6 +265,18 @@ final class FacilityDirectory
         ];
     }
 
+    /**
+     * Kamar beserta kapasitas & hunian untuk query kamar yang disaring pemanggil (mis. pilihan tujuan mutasi).
+     * Query dasar memakai alias `r` untuk dm_rooms.
+     *
+     * @param  callable(Builder): Builder  $scope
+     * @return list<RoomRow>
+     */
+    public function roomsMatching(callable $scope): array
+    {
+        return $this->roomRows($scope);
+    }
+
     // ── Bantuan ───────────────────────────────────────────────────────────────
 
     /**

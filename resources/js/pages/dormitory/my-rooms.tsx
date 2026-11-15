@@ -1,6 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { TriangleAlert } from 'lucide-react';
+import { ArrowRightLeft, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
 import { Empty } from '@/components/dormitory/facility-forms';
+import type { OpenMutations } from '@/components/dormitory/mutation-forms';
+import { MutationDialog } from '@/components/dormitory/mutation-forms';
 import {
     PlacementStatusBadge,
     ResourceWarning,
@@ -15,6 +18,7 @@ import type {
 import { occupancyText } from '@/components/dormitory/types';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type MyRoom = {
     room: {
@@ -30,13 +34,16 @@ type MyRoom = {
     over_capacity: boolean;
     holders: PlacementRow[];
     supervisors: SupervisorRow[];
+    openMutations: OpenMutations;
 };
 
 /**
  * Kamar saya (PRD-008 §17.3, OD-DM-09): kamar yang diawasi pengguna sebagai wali kamar, dengan daftar penghuni dan
- * rencananya. Hanya lihat; absen asrama (DM-7) dan ajukan mutasi (DM-4) menyusul.
+ * rencananya, dan Ajukan mutasi (DM-4, ke asrama dengan pemilik yang sama). Absen asrama (DM-7) menyusul.
  */
 export default function MyRooms({ rooms }: { rooms: MyRoom[] }) {
+    const [moving, setMoving] = useState<PlacementRow | null>(null);
+
     return (
         <>
             <Head title="Kamar saya" />
@@ -55,6 +62,7 @@ export default function MyRooms({ rooms }: { rooms: MyRoom[] }) {
                         over_capacity: overCapacity,
                         holders,
                         supervisors,
+                        openMutations,
                     }) => {
                         const others = supervisors.filter(
                             (row) => row.employee_active,
@@ -124,6 +132,35 @@ export default function MyRooms({ rooms }: { rooms: MyRoom[] }) {
                                                     · {resourceText(row)}
                                                 </p>
                                                 <ResourceWarning row={row} />
+                                                {openMutations[row.id] ? (
+                                                    <p className="flex items-center gap-1 text-xs text-primary dark:text-accent-foreground">
+                                                        <ArrowRightLeft className="size-3.5" />
+                                                        Mutasi diajukan ke{' '}
+                                                        {
+                                                            openMutations[
+                                                                row.id
+                                                            ].to_room
+                                                        }
+                                                        , menunggu persetujuan
+                                                    </p>
+                                                ) : (
+                                                    row.status === 'AKTIF' &&
+                                                    row.category ===
+                                                        'PENGHUNI' && (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="mt-1"
+                                                            onClick={() =>
+                                                                setMoving(row)
+                                                            }
+                                                        >
+                                                            <ArrowRightLeft />
+                                                            Ajukan mutasi
+                                                        </Button>
+                                                    )
+                                                )}
                                             </li>
                                         ))}
                                     </ul>
@@ -133,6 +170,17 @@ export default function MyRooms({ rooms }: { rooms: MyRoom[] }) {
                     },
                 )}
             </div>
+
+            {moving && (
+                <MutationDialog
+                    row={moving}
+                    onClose={() => setMoving(null)}
+                    canRequest
+                    canEmergency={false}
+                    emergencyCategories={[]}
+                    hasOpenRequest={false}
+                />
+            )}
         </>
     );
 }

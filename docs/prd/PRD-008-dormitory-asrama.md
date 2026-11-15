@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.7 (2026-11-15: DM-3 dibangun, §17.5)
-- **Versi sebelumnya:** 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 DIBANGUN (§17.5, menunggu uji owner)
+- **Versi:** 0.9 (2026-11-15: DM-4 dibangun, §18.5)
+- **Versi sebelumnya:** 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 DIBANGUN (§18.5, menunggu uji owner)
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -515,3 +515,59 @@ Dibangun sesuai §17.1–§17.4, dengan catatan:
 - Kode: migrasi `2026_11_15_400003_create_dm_room_supervisors_table`; `Domain/Supervision/{RoomSupervisor, Exceptions/SupervisionException}`; `Application/Supervision/{ManageRoomSupervisors, SupervisorDirectory}`; `SupervisorController`, `MyRoomsController`; Inertia share `dormitory.myRooms`.
 - Route: `asrama/kamar/{room}/wali-kamar/calon` (GET, throttle 60/menit), `asrama/kamar/{room}/wali-kamar` (POST), `asrama/wali-kamar/{supervisor}/akhiri` (POST), `kamar-saya` (GET).
 - Test: `tests/Feature/Dormitory/SupervisorTest.php` (awalan `dms`, 6 test).
+
+## 18. DM-4 Mutasi kamar [ASUMSI disetujui owner 2026-11-15]
+
+Mewujudkan §8 untuk penghuni yang ditempatkan di DM-2.
+
+### 18.1 Data
+
+**`dm_mutations`** (UUIDv7, `tenant_id`; asal: `organization_id`, `dormitory_id`, `from_room_id`, `placement_id`; tujuan: `to_organization_id`, `to_dormitory_id`, `to_room_id`):
+
+| Field                                 | Aturan                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| membership_id                         | Santri yang dipindah                                                                    |
+| type                                  | `BIASA` \| `DARURAT`                                                                    |
+| status                                | `DIAJUKAN` → `DILAKSANAKAN` / `DITOLAK` / `DIBATALKAN`; darurat langsung `DILAKSANAKAN` |
+| emergency_category                    | Wajib untuk darurat: `KESEHATAN`, `KEAMANAN`, `KONFLIK`, `FASILITAS`, `LAINNYA`         |
+| reason                                | Wajib (biasa ≤ 500; darurat 10–500 karakter)                                            |
+| requested_by                          | Pengaju (biasa) atau pelaku (darurat)                                                   |
+| decided_by, decided_at, decision_note | Penyetuju/penolak; alasan tolak wajib; keterangan sistem bila gugur                     |
+| executed_on, new_placement_id         | Tanggal dilaksanakan & penempatan baru                                                  |
+| reviewed_by, reviewed_at, review_note | Tinjauan mutasi darurat                                                                 |
+
+Pengaman database: FK gabungan asal & tujuan ke `dm_rooms`; partial unique **satu pengajuan `DIAJUKAN` per santri**; CHECK konsistensi jenis/status (darurat wajib kategori & dilaksanakan; dilaksanakan wajib tanggal & penempatan baru; ditolak wajib alasan; tujuan ≠ asal). Data mutasi tidak bisa diubah/dihapus lewat aplikasi.
+
+### 18.2 Aturan
+
+1. **Dilaksanakan = satu transaksi**: kedua kamar dikunci (urutan id), penempatan lama `SELESAI` (alasan Mutasi, tanggal hari ini), penempatan baru `AKTIF` di tujuan (masuk hari ini), bed/loker lama lepas. Semua aturan §5.3 diulang di tujuan (aktif, jenis kelamin, kelayakan santri di asrama tujuan, slot santri, kelebihan muatan, bed/loker). Gagal → tidak ada yang berubah; pengajuan tetap Diajukan.
+2. **Hanya santri** (penempatan kategori Penghuni) yang Aktif. Pengawas pindah kamar lewat check-out + Tempatkan [ASUMSI].
+3. **Lintas asrama boleh** [OWNER, 2026-11-15]. Pengaju, penyetuju, dan pelaku darurat butuh izinnya di node pemilik asrama **asal dan tujuan**; santri harus layak di asrama tujuan (OD-DM-02). Wali kamar hanya bisa memilih tujuan di asrama dengan pemilik yang sama dengan asal [ASUMSI].
+4. **Biasa**: diajukan oleh pemilik `mutations.request` atau **wali kamar aktif** kamar asal (dari Kamar saya). Tujuan langsung dicek saat diajukan. Disetujui oleh pemilik `mutations.approve` yang **bukan pengaju** (memilih bed/loker tujuan; kosong = saran otomatis). Tolak wajib alasan. Pengaju bisa menarik (Dibatalkan).
+5. **Darurat**: pemilik `mutations.emergency`; kategori + alasan ≥ 10 karakter; langsung dilaksanakan dengan aturan yang sama (bukan jalan pintas kapasitas); bed/loker tujuan = saran otomatis (bisa diganti sesudahnya lewat Ganti bed/loker).
+6. **Tinjauan darurat**: pemilik `mutations.approve` (asal & tujuan) yang **bukan pelakunya** [OWNER, 2026-11-15] menandai Sudah ditinjau (catatan opsional).
+7. **Gugur otomatis**: pengajuan terbuka menjadi Dibatalkan dengan keterangan sistem bila penempatan asal berakhir (check-out atau mutasi darurat).
+8. Audit: `dormitory.mutation_requested|approved|rejected|cancelled|emergency|reviewed` (santri, kamar asal & tujuan, jenis, kategori; tanpa isi alasan).
+
+### 18.3 Halaman
+
+- **Detail kamar → tab Penghuni**: aksi **Mutasi** pada santri Aktif (pop-up: kamar tujuan yang cocok beserta sisa slot santri, alasan; pilihan **Darurat** + kategori bila berizin). Santri yang punya pengajuan terbuka diberi tanda "Mutasi diajukan ke …".
+- **Kamar saya**: **Ajukan mutasi** per santri (biasa saja).
+- **Asrama → Mutasi** (`/asrama/mutasi`): tab **Menunggu persetujuan** (Setujui dengan pilih bed/loker · Tolak · Tarik), **Darurat** (belum ditinjau di atas dan bertanda merah, ≤ 24 jam ditonjolkan; Sudah ditinjau), **Riwayat** (semua). Menu tampil bagi pemilik salah satu izin mutasi.
+- **Beranda**: kartu "Pengajuan mutasi menunggu" dan "Mutasi darurat belum ditinjau" (merah) bagi penyetuju. Kartu kelebihan muatan & perlu ditinjau menyusul (DM-5/DM-6) [ASUMSI].
+
+### 18.4 Test (awalan `dmm`)
+
+Atomik (tujuan penuh → tidak berubah), aturan tujuan (jenis kelamin, kelayakan lintas asrama, slot, kamar sama), pengaju ≠ penyetuju, satu pengajuan terbuka, tarik, tolak, gugur otomatis saat check-out & darurat, darurat + tinjauan (bukan pelaku), wali kamar hanya kamarnya & pemilik sama, hak akses asal/tujuan (404/403), kartu Beranda, constraint database.
+
+### 18.5 Hasil pembangunan DM-4 (2026-11-15)
+
+Dibangun sesuai §18.1–§18.4, dengan catatan:
+
+- **Pesan "kamar penuh"** saat disetujui/darurat tampil sebagai kesalahan umum pop-up (bukan di isian kamar tujuan), sama dengan pesan penempatan DM-2.
+- **Pilihan kamar tujuan** dimuat saat pop-up dibuka: kamar aktif dengan jenis kelamin cocok di asrama yang boleh dipilih (cakupan izin pengaju/pelaku; wali kamar: pemilik sama) dan tempat santri layak. Kamar penuh/kelebihan muatan tetap tampil tetapi tidak bisa dipilih.
+- **Tanggal mutasi** = hari ini (zona `EDUCORE_TIMEZONE`); tidak bisa diisi mundur.
+- Pengguna yang punya izin biasa **dan** darurat memilih jenisnya di pop-up; bila santri sudah punya pengajuan terbuka, hanya Darurat yang bisa dipilih (pengajuan itu lalu gugur).
+- Kode: migrasi `2026_11_15_400004_create_dm_mutations_table`; `Domain/Mutation/{Mutation, MutationType, MutationStatus, EmergencyCategory, Exceptions/MutationException}`; `Application/Mutation/{ManageMutations, MutationDirectory, OpenMutations}`; `ManagePlacements::move()` (dipakai biasa & darurat, mode periksa saja saat diajukan); `MutationController`; kartu Beranda `dormitory.mutations_pending` & `dormitory.emergency_unreviewed`.
+- Route: `asrama/mutasi` (GET), `asrama/penempatan/{placement}/tujuan-mutasi` (GET, throttle 60/menit), `asrama/penempatan/{placement}/mutasi` & `/mutasi-darurat` (POST), `asrama/mutasi/{mutation}/setujui|tolak|tarik|tinjau` (POST).
+- Test: `tests/Feature/Dormitory/MutationTest.php` (awalan `dmm`, 7 test).

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Dormitory\Http\Controllers\BuildingController;
 use Modules\Dormitory\Http\Controllers\DormitoryController;
+use Modules\Dormitory\Http\Controllers\MutationController;
 use Modules\Dormitory\Http\Controllers\MyRoomsController;
 use Modules\Dormitory\Http\Controllers\PlacementController;
 use Modules\Dormitory\Http\Controllers\ResidentController;
@@ -28,6 +29,16 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('asrama/penempatan/{placement}/batalkan', [PlacementController::class, 'cancel'])->whereUuid('placement')->name('dormitory.placements.cancel');
     Route::post('asrama/penempatan/{placement}/check-out', [PlacementController::class, 'checkOut'])->whereUuid('placement')->name('dormitory.placements.check-out');
     Route::post('asrama/penempatan/{placement}/bed-loker', [PlacementController::class, 'resources'])->whereUuid('placement')->name('dormitory.placements.resources');
+
+    // Mutasi kamar (DM-4). Hak di asal & tujuan diperiksa controller.
+    Route::get('asrama/mutasi', [MutationController::class, 'index'])->name('dormitory.mutations.index');
+    Route::get('asrama/penempatan/{placement}/tujuan-mutasi', [MutationController::class, 'targets'])->whereUuid('placement')->middleware('throttle:60,1')->name('dormitory.mutations.targets');
+    Route::post('asrama/penempatan/{placement}/mutasi', [MutationController::class, 'store'])->whereUuid('placement')->name('dormitory.mutations.store');
+    Route::post('asrama/penempatan/{placement}/mutasi-darurat', [MutationController::class, 'emergency'])->whereUuid('placement')->name('dormitory.mutations.emergency');
+    Route::post('asrama/mutasi/{mutation}/setujui', [MutationController::class, 'approve'])->whereUuid('mutation')->name('dormitory.mutations.approve');
+    Route::post('asrama/mutasi/{mutation}/tolak', [MutationController::class, 'reject'])->whereUuid('mutation')->name('dormitory.mutations.reject');
+    Route::post('asrama/mutasi/{mutation}/tarik', [MutationController::class, 'cancel'])->whereUuid('mutation')->name('dormitory.mutations.cancel');
+    Route::post('asrama/mutasi/{mutation}/tinjau', [MutationController::class, 'review'])->whereUuid('mutation')->name('dormitory.mutations.review');
 
     // Wali kamar (DM-3). Atur: dormitory.facilities.manage di node pemilik.
     Route::get('asrama/kamar/{room}/wali-kamar/calon', [SupervisorController::class, 'candidates'])->whereUuid('room')->middleware('throttle:60,1')->name('dormitory.supervisors.candidates');

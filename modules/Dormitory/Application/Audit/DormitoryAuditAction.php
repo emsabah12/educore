@@ -56,6 +56,18 @@ final class DormitoryAuditAction
 
     public const SUPERVISOR_ENDED = 'dormitory.supervisor_ended';
 
+    public const MUTATION_REQUESTED = 'dormitory.mutation_requested';
+
+    public const MUTATION_APPROVED = 'dormitory.mutation_approved';
+
+    public const MUTATION_REJECTED = 'dormitory.mutation_rejected';
+
+    public const MUTATION_CANCELLED = 'dormitory.mutation_cancelled';
+
+    public const MUTATION_EMERGENCY = 'dormitory.mutation_emergency';
+
+    public const MUTATION_REVIEWED = 'dormitory.mutation_reviewed';
+
     public const SUBJECT_DORMITORY = 'dm_dormitory';
 
     public const SUBJECT_BUILDING = 'dm_building';
@@ -69,6 +81,8 @@ final class DormitoryAuditAction
     public const SUBJECT_PLACEMENT = 'dm_placement';
 
     public const SUBJECT_SUPERVISOR = 'dm_room_supervisor';
+
+    public const SUBJECT_MUTATION = 'dm_mutation';
 
     /**
      * @return array<string, string>
@@ -100,6 +114,12 @@ final class DormitoryAuditAction
             self::PLACEMENT_CHECKED_OUT => 'Penghuni asrama check-out',
             self::SUPERVISOR_ASSIGNED => 'Wali kamar ditambahkan',
             self::SUPERVISOR_ENDED => 'Penugasan wali kamar diakhiri',
+            self::MUTATION_REQUESTED => 'Mutasi kamar diajukan',
+            self::MUTATION_APPROVED => 'Mutasi kamar disetujui & dilaksanakan',
+            self::MUTATION_REJECTED => 'Mutasi kamar ditolak',
+            self::MUTATION_CANCELLED => 'Pengajuan mutasi ditarik',
+            self::MUTATION_EMERGENCY => 'Mutasi kamar darurat',
+            self::MUTATION_REVIEWED => 'Mutasi darurat ditinjau',
         ];
     }
 }

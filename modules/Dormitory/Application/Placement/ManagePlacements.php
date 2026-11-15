@@ -9,6 +9,7 @@ use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Support\BusinessClock;
 use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Application\Facility\RoomCapacity;
+use Modules\Dormitory\Application\Mutation\OpenMutations;
 use Modules\Dormitory\Domain\Facility\Bed;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\Dormitory;
@@ -236,9 +237,89 @@ final class ManagePlacements
             $placement->save();
 
             $this->record(DormitoryAuditAction::PLACEMENT_CHECKED_OUT, $placement, $room, null, null, ['tanggal' => $checkOutOn->toDateString(), 'alasan' => $reason->value]);
+            OpenMutations::lapse($tenantId, $placement->id, 'Gugur otomatis: santri check-out.');
 
             return $placement;
         });
+    }
+
+    /**
+     * Pindahkan santri yang sedang tinggal ke kamar lain (mutasi, PRD-008 §18.2 butir 1), dalam satu transaksi:
+     * penempatan lama Selesai (alasan Mutasi, hari ini), penempatan baru Aktif di tujuan (masuk hari ini). Kedua
+     * kamar dikunci urut id agar dua mutasi berlawanan arah tidak saling tunggu. Semua aturan §5.3 diulang di tujuan.
+     *
+     * $dryRun = true hanya memeriksa tanpa menyimpan (dipakai saat mutasi diajukan).
+     *
+     * @return Placement|null penempatan baru; null bila $dryRun
+     *
+     * @throws PlacementException
+     */
+    public function move(string $tenantId, string $placementId, string $toRoomId, ?string $bedId, ?string $lockerId, string $actorId, bool $dryRun = false): ?Placement
+    {
+        return $this->guarded(fn (): ?Placement => DB::transaction(function () use ($tenantId, $placementId, $toRoomId, $bedId, $lockerId, $actorId, $dryRun): ?Placement {
+            $fromRoomId = Placement::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($placementId)->value('room_id');
+
+            if (! is_string($fromRoomId)) {
+                throw PlacementException::make('form', 'Penempatan tidak ditemukan.');
+            }
+
+            if ($fromRoomId === $toRoomId) {
+                throw PlacementException::make('to_room_id', 'Kamar tujuan sama dengan kamar sekarang.');
+            }
+
+            $roomIds = [$fromRoomId, $toRoomId];
+            sort($roomIds);
+
+            foreach ($roomIds as $roomId) {
+                if (! Room::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->whereKey($roomId)->lockForUpdate()->exists()) {
+                    throw PlacementException::make('to_room_id', 'Kamar tujuan tidak ditemukan.');
+                }
+            }
+
+            $placement = Placement::query()->withoutGlobalScope('tenant')->whereKey($placementId)->lockForUpdate()->firstOrFail();
+
+            if ($placement->status !== PlacementStatus::Active || $placement->category !== PlacementCategory::Resident) {
+                throw PlacementException::make('form', 'Hanya santri yang sedang tinggal yang bisa dimutasi.');
+            }
+
+            [$room, $building, $dormitory] = $this->lockRoom($tenantId, $toRoomId);
+            $this->assertPersonFits($tenantId, $dormitory, $building, $room, $placement->membership_id, PlacementCategory::Resident);
+            $occupancy = RoomOccupancy::forRoom($room->id);
+            $this->assertCapacity($room, PlacementCategory::Resident, $occupancy);
+            [$bed, $locker] = $this->resolveResources($room, $bedId, $lockerId, $occupancy);
+
+            if ($dryRun) {
+                return null;
+            }
+
+            $today = self::today();
+            $placement->fill([
+                'status' => PlacementStatus::Ended,
+                'check_out_on' => $today,
+                'end_reason' => EndReason::Mutation,
+                'ended_by' => $actorId,
+            ]);
+            $placement->save();
+
+            $moved = new Placement;
+            $moved->fill([
+                'tenant_id' => $tenantId,
+                'organization_id' => $room->organization_id,
+                'dormitory_id' => $room->dormitory_id,
+                'room_id' => $room->id,
+                'bed_id' => $bed?->id,
+                'locker_id' => $locker?->id,
+                'membership_id' => $placement->membership_id,
+                'category' => PlacementCategory::Resident,
+                'status' => PlacementStatus::Active,
+                'check_in_on' => $today,
+                'created_by' => $actorId,
+                'checked_in_by' => $actorId,
+            ]);
+            $moved->save();
+
+            return $moved;
+        }));
     }
 
     /**

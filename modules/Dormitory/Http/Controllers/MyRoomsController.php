@@ -5,6 +5,7 @@ namespace Modules\Dormitory\Http\Controllers;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Dormitory\Application\Facility\FacilityDirectory;
+use Modules\Dormitory\Application\Mutation\MutationDirectory;
 use Modules\Dormitory\Application\Placement\PlacementDirectory;
 use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
 use Modules\Dormitory\Domain\Facility\Room;
@@ -19,7 +20,7 @@ final class MyRoomsController
 {
     use HandlesFacilityActions;
 
-    public function index(SupervisorDirectory $supervisors, FacilityDirectory $directory, PlacementDirectory $placements): Response
+    public function index(SupervisorDirectory $supervisors, FacilityDirectory $directory, PlacementDirectory $placements, MutationDirectory $mutations): Response
     {
         $tenantId = $this->tenantId();
         $roomIds = $supervisors->roomIdsOf($tenantId, $this->actorId());
@@ -37,7 +38,8 @@ final class MyRoomsController
                 'capacity' => $detail['capacity'],
                 'occupancy' => $detail['occupancy'],
                 'over_capacity' => $detail['over_capacity'],
-                'holders' => $placements->holders($tenantId, $room->id),
+                'holders' => $holders = $placements->holders($tenantId, $room->id),
+                'openMutations' => $mutations->openForPlacements($tenantId, array_map(fn (array $row): string => $row['id'], $holders)),
                 'supervisors' => $supervisors->forRoom($tenantId, $room->id),
             ];
         }
