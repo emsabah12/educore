@@ -12,12 +12,14 @@ import {
 } from '@/components/dormitory/facility-forms';
 import { ResidentFilterBar } from '@/components/dormitory/resident-filters';
 import { ResidentList } from '@/components/dormitory/residents';
+import { SupervisorBadges } from '@/components/dormitory/supervisors';
 import type {
     Option,
     PlacementPage,
     ResidentFilters,
     RoomOptions,
     RoomRow,
+    SupervisorRow,
     YearEndPolicy,
 } from '@/components/dormitory/types';
 import { capacityText, occupancyText } from '@/components/dormitory/types';
@@ -50,6 +52,7 @@ type Props = {
     canViewResidents: boolean;
     residentFilters: ResidentFilters;
     residents: PlacementPage | null;
+    supervisors: Record<string, SupervisorRow[]> | null;
     options: RoomOptions & { genders: Option[]; categories: Option[] };
 };
 
@@ -59,12 +62,12 @@ type OpenDialog =
     | { kind: 'edit-building'; building: BuildingRow }
     | { kind: 'add-room'; building: BuildingRow };
 
-const TABS = ['gedung', 'penghuni', 'pengaturan'] as const;
+const TABS = ['gedung', 'penghuni', 'wali-kamar', 'pengaturan'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
  * Detail asrama (PRD-008 §10, §16): gedung (putra/putri) beserta kamar & keterisiannya, penghuni asrama ini, dan
- * pengaturan. Tab Wali kamar menyusul di DM-3.
+ * wali kamar per kamar (DM-3), dan pengaturan.
  */
 export default function DormitoryShow({
     dormitory,
@@ -73,9 +76,12 @@ export default function DormitoryShow({
     canViewResidents,
     residentFilters,
     residents,
+    supervisors,
     options,
 }: Props) {
-    const tabs = canViewResidents ? TABS : (['gedung', 'pengaturan'] as const);
+    const tabs = canViewResidents
+        ? TABS
+        : (['gedung', 'wali-kamar', 'pengaturan'] as const);
     const [tab, setTabState] = usePageTab<Tab>(tabs, 'gedung');
     const setTab = (value: Tab) => {
         setTabState(value);
@@ -83,6 +89,13 @@ export default function DormitoryShow({
         // Daftar penghuni dimuat saat tab dibuka pertama kali.
         if (value === 'penghuni' && residents === null) {
             router.reload({ only: ['residents'], data: { tab: 'penghuni' } });
+        }
+
+        if (value === 'wali-kamar' && supervisors === null) {
+            router.reload({
+                only: ['supervisors'],
+                data: { tab: 'wali-kamar' },
+            });
         }
     };
     const over = buildings.reduce(
@@ -171,6 +184,7 @@ export default function DormitoryShow({
                                   },
                               ]
                             : []),
+                        { value: 'wali-kamar', label: 'Wali kamar' },
                         { value: 'pengaturan', label: 'Pengaturan' },
                     ]}
                     value={tab}
@@ -241,6 +255,18 @@ export default function DormitoryShow({
                                 emptyText="Belum ada penghuni yang cocok. Penempatan dilakukan dari halaman kamar."
                             />
                         </div>
+                    ))}
+
+                {tab === 'wali-kamar' &&
+                    (supervisors === null ? (
+                        <p className="text-sm text-muted-foreground">
+                            Memuat wali kamar…
+                        </p>
+                    ) : (
+                        <SupervisorOverview
+                            buildings={buildings}
+                            supervisors={supervisors}
+                        />
                     ))}
 
                 {tab === 'pengaturan' && (
@@ -521,5 +547,93 @@ function BuildingCard({
                 </ul>
             )}
         </section>
+    );
+}
+
+/**
+ * Tab Wali kamar (PRD-008 §17.3): per gedung, setiap kamar aktif dengan wali kamarnya. Kamar tanpa wali kamar
+ * ditandai. Tambah/akhiri dilakukan di halaman kamar.
+ */
+function SupervisorOverview({
+    buildings,
+    supervisors,
+}: {
+    buildings: BuildingRow[];
+    supervisors: Record<string, SupervisorRow[]>;
+}) {
+    const active = buildings.filter((building) => building.is_active);
+    const without = active.reduce(
+        (total, building) =>
+            total +
+            building.rooms.filter(
+                (room) =>
+                    room.is_active && (supervisors[room.id] ?? []).length === 0,
+            ).length,
+        0,
+    );
+
+    if (active.every((building) => building.rooms.length === 0)) {
+        return <Empty>Belum ada kamar. Tambah gedung dan kamar dulu.</Empty>;
+    }
+
+    return (
+        <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+                {without > 0
+                    ? `${without} kamar aktif belum punya wali kamar.`
+                    : 'Semua kamar aktif sudah punya wali kamar.'}{' '}
+                Tambah atau akhiri wali kamar dari halaman kamar.
+            </p>
+            {active.map((building) => (
+                <section key={building.id} className="rounded-xl border">
+                    <h2 className="border-b px-4 py-2 text-sm font-semibold">
+                        {building.name}{' '}
+                        <span className="font-normal text-muted-foreground">
+                            ({building.gender_label})
+                        </span>
+                    </h2>
+                    <ul className="divide-y">
+                        {building.rooms
+                            .filter((room) => room.is_active)
+                            .map((room) => {
+                                const rows = supervisors[room.id] ?? [];
+
+                                return (
+                                    <li
+                                        key={room.id}
+                                        className="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-2.5"
+                                    >
+                                        <Link
+                                            href={`/asrama/kamar/${room.id}`}
+                                            className="w-24 shrink-0 font-medium hover:underline"
+                                        >
+                                            {room.code}
+                                        </Link>
+                                        {rows.length === 0 ? (
+                                            <span className="text-sm text-destructive">
+                                                Belum ada wali kamar
+                                            </span>
+                                        ) : (
+                                            <ul className="flex min-w-0 flex-1 flex-col gap-1">
+                                                {rows.map((row) => (
+                                                    <li
+                                                        key={row.id}
+                                                        className="flex flex-wrap items-center gap-2 text-sm"
+                                                    >
+                                                        {row.name}
+                                                        <SupervisorBadges
+                                                            row={row}
+                                                        />
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                    </ul>
+                </section>
+            ))}
+        </div>
     );
 }

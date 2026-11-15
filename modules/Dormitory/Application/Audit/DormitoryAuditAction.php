@@ -52,6 +52,10 @@ final class DormitoryAuditAction
 
     public const PLACEMENT_CHECKED_OUT = 'dormitory.placement_checked_out';
 
+    public const SUPERVISOR_ASSIGNED = 'dormitory.supervisor_assigned';
+
+    public const SUPERVISOR_ENDED = 'dormitory.supervisor_ended';
+
     public const SUBJECT_DORMITORY = 'dm_dormitory';
 
     public const SUBJECT_BUILDING = 'dm_building';
@@ -63,6 +67,8 @@ final class DormitoryAuditAction
     public const SUBJECT_LOCKER = 'dm_locker';
 
     public const SUBJECT_PLACEMENT = 'dm_placement';
+
+    public const SUBJECT_SUPERVISOR = 'dm_room_supervisor';
 
     /**
      * @return array<string, string>
@@ -92,6 +98,8 @@ final class DormitoryAuditAction
             self::PLACEMENT_RESOURCE_CHANGED => 'Bed/loker penghuni diganti',
             self::PLACEMENT_CANCELLED => 'Rencana penempatan asrama dibatalkan',
             self::PLACEMENT_CHECKED_OUT => 'Penghuni asrama check-out',
+            self::SUPERVISOR_ASSIGNED => 'Wali kamar ditambahkan',
+            self::SUPERVISOR_ENDED => 'Penugasan wali kamar diakhiri',
         ];
     }
 }

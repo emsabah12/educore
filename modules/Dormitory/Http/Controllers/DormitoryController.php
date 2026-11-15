@@ -17,8 +17,10 @@ use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Facility\ManageDormitories;
 use Modules\Dormitory\Application\Facility\ManageRooms;
 use Modules\Dormitory\Application\Placement\PlacementDirectory;
+use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Dormitory;
+use Modules\Dormitory\Domain\Facility\Room;
 use Modules\Dormitory\Domain\Facility\RoomComposition;
 use Modules\Dormitory\Domain\Facility\YearEndPolicy;
 use Modules\Dormitory\Domain\Placement\PlacementCategory;
@@ -91,7 +93,7 @@ final class DormitoryController
         return redirect()->route('dormitory.dormitories.show', ['dormitory' => $dormitory->id]);
     }
 
-    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements): Response
+    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors): Response
     {
         $target = $this->find($dormitory, DormitoryAccess::FACILITIES_VIEW);
         $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
@@ -103,6 +105,10 @@ final class DormitoryController
             'residentFilters' => $filters,
             'residents' => $canViewResidents && $request->query('tab') === 'penghuni'
                 ? $placements->search($this->tenantId(), [$target->organization_id], $filters)
+                : null,
+            // Tab Wali kamar (DM-3): room_id → wali kamar aktif; dimuat saat tab dibuka.
+            'supervisors' => $request->query('tab') === 'wali-kamar'
+                ? $supervisors->forRooms($this->tenantId(), self::roomIds($target->id))
                 : null,
             'options' => [
                 'genders' => FacilityDirectory::genderOptions(),
@@ -170,5 +176,13 @@ final class DormitoryController
             'name' => ['required', 'string', 'max:'.ManageDormitories::NAME_MAX_LENGTH],
             'default_year_end_policy' => ['nullable', 'string', Rule::enum(YearEndPolicy::class)],
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function roomIds(string $dormitoryId): array
+    {
+        return array_values(array_map('strval', Room::query()->where('dormitory_id', $dormitoryId)->pluck('id')->all()));
     }
 }

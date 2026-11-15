@@ -22,6 +22,8 @@ declare module '@inertiajs/core' {
                 isGuardian: boolean;
             };
             hr?: { isEmployee: boolean };
+            /** Petunjuk menu "Kamar saya" (DM-3); halaman tetap dicek di server. */
+            dormitory?: { myRooms: boolean };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

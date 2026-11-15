@@ -153,3 +153,15 @@ export function capacityText(capacity: Capacity, composition: Composition) {
 
     return `Kapasitas ${capacity.effective} · ${capacity.resident_slots} santri + ${Math.min(capacity.supervisor_slots, capacity.effective)} pengawas`;
 }
+
+/** Penugasan wali kamar (DM-3). */
+export type SupervisorRow = {
+    id: string;
+    membership_id: string;
+    name: string;
+    start_on: string;
+    end_on: string | null;
+    note: string | null;
+    lives_here: boolean;
+    employee_active: boolean;
+};

@@ -244,6 +244,12 @@ const subjectsNavItem: NavItem = {
     icon: BookOpen,
 };
 
+const myRoomsNavItem: NavItem = {
+    title: 'Kamar saya',
+    href: '/kamar-saya',
+    icon: BedDouble,
+};
+
 const myClassesNavItem: NavItem = {
     title: 'Kelas saya',
     href: '/kelas-saya',
@@ -383,7 +389,8 @@ const platformNavItem: NavItem = {
 };
 
 export function AppSidebar() {
-    const { auth, permissions, context, academic, hr } = usePage().props;
+    const { auth, permissions, context, academic, hr, dormitory } =
+        usePage().props;
     // Halaman tingkat Yayasan (Katalog SDM, Kalender akademik, Log audit) hanya bisa dibuka dari lembaga kerja
     // "Seluruh Yayasan" (PRD-000 §6, §4.7). Di lembaga kerja lain menunya disembunyikan,
     // walaupun role tingkat Yayasan-nya terpasang.
@@ -402,6 +409,7 @@ export function AppSidebar() {
             items: [
                 ...when(academic?.isGuardian, [myChildrenNavItem]),
                 ...when(academic?.myClasses, [myClassesNavItem]),
+                ...when(dormitory?.myRooms, [myRoomsNavItem]),
                 ...when(hr?.isEmployee, [
                     myAttendanceNavItem,
                     myLeaveNavItem,

@@ -28,6 +28,10 @@ import {
     PlaceDialog,
 } from '@/components/dormitory/placement-forms';
 import {
+    SupervisorHistory,
+    SupervisorSection,
+} from '@/components/dormitory/supervisors';
+import {
     Pagination,
     PlacementStatusBadge,
     ResourceWarning,
@@ -43,6 +47,7 @@ import type {
     ResourceRow,
     RoomOptions,
     RoomRow,
+    SupervisorRow,
 } from '@/components/dormitory/types';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
@@ -86,6 +91,9 @@ type Props = {
     canManageResidents: boolean;
     holders: PlacementRow[];
     history: PlacementPage | null;
+    supervisors: SupervisorRow[];
+    supervisorHistory: SupervisorRow[] | null;
+    supervisorMax: number;
     resourceHolders: {
         beds: Record<string, Holder>;
         lockers: Record<string, Holder>;
@@ -132,6 +140,9 @@ export default function RoomShow({
     canManageResidents,
     holders,
     history,
+    supervisors,
+    supervisorHistory,
+    supervisorMax,
     resourceHolders,
     suggestion,
     today,
@@ -187,7 +198,10 @@ export default function RoomShow({
 
         // Riwayat dimuat saat tab dibuka pertama kali.
         if (value === 'riwayat' && history === null) {
-            router.reload({ only: ['history'], data: { tab: 'riwayat' } });
+            router.reload({
+                only: ['history', 'supervisorHistory'],
+                data: { tab: 'riwayat' },
+            });
         }
     };
 
@@ -300,6 +314,20 @@ export default function RoomShow({
                     />
                 )}
 
+                {(tab === 'penghuni' || !canViewResidents) && (
+                    <SupervisorSection
+                        roomId={room.id}
+                        roomCode={room.code}
+                        gender={room.building.gender}
+                        supervisors={supervisors}
+                        max={supervisorMax}
+                        canManage={canManage}
+                        acceptsChanges={room.accepts_changes}
+                        today={today}
+                        noteMax={options.noteMax}
+                    />
+                )}
+
                 {tab === 'penghuni' && canViewResidents && (
                     <HolderSection
                         holders={holders}
@@ -347,7 +375,10 @@ export default function RoomShow({
                             Memuat riwayat…
                         </p>
                     ) : (
-                        <HistorySection page={history} />
+                        <>
+                            <HistorySection page={history} />
+                            <SupervisorHistory rows={supervisorHistory ?? []} />
+                        </>
                     ))}
             </div>
 

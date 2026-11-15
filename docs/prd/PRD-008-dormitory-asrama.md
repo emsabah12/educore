@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.5 (2026-11-15: DM-2 dibangun, §16.9)
-- **Versi sebelumnya:** 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 DIBANGUN (§16.9, menunggu uji owner)
+- **Versi:** 0.7 (2026-11-15: DM-3 dibangun, §17.5)
+- **Versi sebelumnya:** 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 DIBANGUN (§17.5, menunggu uji owner)
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -466,3 +466,52 @@ Dibangun sesuai §16.1–§16.8, dengan penyesuaian berikut:
     - Test "dua permintaan berebut bed terakhir" diganti test unique index satu pemegang per bed di database, ditambah kunci baris kamar di service. Hasil akhirnya sama: hanya satu permintaan yang tersimpan.
 - **Kontrak:** `Academic\Contracts\ActiveStudents` (`search`, `withOpenEnrollment`, `describe`); HR `ActiveEmployees::searchInTenant` dan `activeMembershipIds`.
 - **Test:** `tests/Feature/Dormitory/PlacementTest.php` (awalan `dmp`, 7 test).
+
+## 17. DM-3 Wali kamar [ASUMSI disetujui owner 2026-11-15]
+
+Mewujudkan §6. Mengawasi (penugasan wali kamar) dan tinggal di kamar (penempatan kategori Pengawas, DM-2) tetap **dua data terpisah**.
+
+### 17.1 Data
+
+**`dm_room_supervisors`** (UUIDv7, `tenant_id` + `organization_id` pemilik asrama, `dormitory_id`, `room_id`):
+
+| Field                | Aturan                                                                 |
+| -------------------- | ---------------------------------------------------------------------- |
+| membership_id        | Pegawai yang mengawasi (Core). Nama & jenis kelamin dibaca dari Person |
+| start_on             | Tanggal mulai (≤ hari ini, paling jauh 1 tahun ke belakang)            |
+| end_on               | Tanggal selesai; kosong = masih aktif. ≥ tanggal mulai, ≤ hari ini     |
+| note                 | Keterangan ≤ 200 (opsional)                                            |
+| created_by, ended_by | Membership petugas                                                     |
+
+Pengaman database: FK gabungan ke kamar (ikut pemilik & asrama kamarnya) dan ke membership; partial unique satu penugasan aktif per orang per kamar; CHECK `end_on >= start_on`. Penugasan tidak dihapus; yang ada hanya **Akhiri penugasan**.
+
+### 17.2 Aturan
+
+1. Kamar, gedung, asrama aktif (untuk menambah; mengakhiri tetap boleh di kamar nonaktif).
+2. Calon = pegawai aktif mana pun di yayasan (OD-DM-03), lewat kontrak HR `ActiveEmployees`.
+3. Jenis kelamin **wajib sama** dengan gedung, juga bila tidak tinggal di kamar (OD-DM-08). Jenis kelamin kosong → ditolak.
+4. Maks. **3** wali kamar aktif per kamar (kunci baris kamar); satu pegawai boleh mengawasi beberapa kamar; tidak boleh dobel di kamar yang sama.
+5. Izin: `dormitory.facilities.manage` di node pemilik (§7 "atur wali kamar"). Tanpa permission baru.
+6. **Pegawai berhenti/nonaktif di HR** [OWNER, 2026-11-15]: penugasan **tidak** diakhiri otomatis; tampil tanda **Bukan pegawai aktif**, menu Kamar saya untuk orang itu hilang, pengurus mengakhirinya manual (sejalan §5.6).
+7. **Tinggal di kamar** [OWNER, 2026-11-15]: tidak digabung ke pop-up wali kamar; tetap lewat Tempatkan → Pengawas (DM-2). Wali kamar yang juga tinggal di kamar itu diberi badge **Tinggal di kamar ini**.
+
+### 17.3 Halaman
+
+- **Detail kamar**: bagian **Wali kamar** di tab Penghuni (nama, mulai sejak, badge Tinggal di kamar ini / Bukan pegawai aktif) dengan aksi **Tambah wali kamar** (pop-up cari pegawai min. 3 huruf, tanggal mulai, keterangan) dan **Akhiri** (tanggal selesai, keterangan). Penugasan yang sudah selesai tampil di tab Riwayat.
+- **Detail asrama**: tab **Wali kamar** — per gedung, setiap kamar dengan wali kamar aktifnya; kamar aktif tanpa wali kamar ditandai.
+- **Untuk saya → Kamar saya** (`/kamar-saya`, pola Kelas saya, OD-DM-09): muncul bagi pegawai aktif yang punya penugasan aktif. Kartu per kamar: asrama, gedung, keterisian, daftar penghuni & rencana (nama, lembaga + kelas, bed/loker). Hanya lihat; tidak membuka halaman Asrama lain. Absen (DM-7) dan ajukan mutasi (DM-4) menyusul.
+
+### 17.4 Audit & test
+
+- Audit: `dormitory.supervisor_assigned`, `dormitory.supervisor_ended` (kamar, nama pegawai, tanggal; tanpa isi keterangan).
+- Test (awalan `dms`): gender, batas 3, dobel, tanggal, kamar nonaktif, pegawai nonaktif (ditolak saat menambah; penugasan lama ditandai & Kamar saya hilang), hak akses (Kepala Asrama 403, unit lain 404), Kamar saya (hanya kamarnya, kamar lain 404), constraint database.
+
+### 17.5 Hasil pembangunan DM-3 (2026-11-15)
+
+Dibangun sesuai §17.1–§17.4, dengan catatan:
+
+- **Bagian Wali kamar** di detail kamar juga tampil bagi pengguna yang hanya punya izin lihat fasilitas (tanpa izin lihat penghuni), di atas Bed & loker.
+- **Pengguna tanpa izin asrama** (mis. wali kamar yang hanya pegawai) yang membuka halaman kamar mendapat 404, karena tidak punya izin di cakupan mana pun (aturan PRD-000). Ia memakai Kamar saya.
+- Kode: migrasi `2026_11_15_400003_create_dm_room_supervisors_table`; `Domain/Supervision/{RoomSupervisor, Exceptions/SupervisionException}`; `Application/Supervision/{ManageRoomSupervisors, SupervisorDirectory}`; `SupervisorController`, `MyRoomsController`; Inertia share `dormitory.myRooms`.
+- Route: `asrama/kamar/{room}/wali-kamar/calon` (GET, throttle 60/menit), `asrama/kamar/{room}/wali-kamar` (POST), `asrama/wali-kamar/{supervisor}/akhiri` (POST), `kamar-saya` (GET).
+- Test: `tests/Feature/Dormitory/SupervisorTest.php` (awalan `dms`, 6 test).

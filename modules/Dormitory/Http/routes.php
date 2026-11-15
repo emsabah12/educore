@@ -3,10 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Dormitory\Http\Controllers\BuildingController;
 use Modules\Dormitory\Http\Controllers\DormitoryController;
+use Modules\Dormitory\Http\Controllers\MyRoomsController;
 use Modules\Dormitory\Http\Controllers\PlacementController;
 use Modules\Dormitory\Http\Controllers\ResidentController;
 use Modules\Dormitory\Http\Controllers\RoomController;
 use Modules\Dormitory\Http\Controllers\RoomResourceController;
+use Modules\Dormitory\Http\Controllers\SupervisorController;
 
 /*
  * Route web modul Dormitory (PRD-008 §10, §15 DM-1). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -26,6 +28,14 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('asrama/penempatan/{placement}/batalkan', [PlacementController::class, 'cancel'])->whereUuid('placement')->name('dormitory.placements.cancel');
     Route::post('asrama/penempatan/{placement}/check-out', [PlacementController::class, 'checkOut'])->whereUuid('placement')->name('dormitory.placements.check-out');
     Route::post('asrama/penempatan/{placement}/bed-loker', [PlacementController::class, 'resources'])->whereUuid('placement')->name('dormitory.placements.resources');
+
+    // Wali kamar (DM-3). Atur: dormitory.facilities.manage di node pemilik.
+    Route::get('asrama/kamar/{room}/wali-kamar/calon', [SupervisorController::class, 'candidates'])->whereUuid('room')->middleware('throttle:60,1')->name('dormitory.supervisors.candidates');
+    Route::post('asrama/kamar/{room}/wali-kamar', [SupervisorController::class, 'store'])->whereUuid('room')->name('dormitory.supervisors.store');
+    Route::post('asrama/wali-kamar/{supervisor}/akhiri', [SupervisorController::class, 'end'])->whereUuid('supervisor')->name('dormitory.supervisors.end');
+
+    // Kamar saya (DM-3): untuk pegawai yang punya penugasan wali kamar aktif; tanpa permission (OD-DM-09).
+    Route::get('kamar-saya', [MyRoomsController::class, 'index'])->name('dormitory.my-rooms.index');
 
     // Gedung, kamar, bed/loker — didaftarkan sebelum `asrama/{dormitory}`.
     Route::patch('asrama/gedung/{building}', [BuildingController::class, 'update'])->whereUuid('building')->name('dormitory.buildings.update');

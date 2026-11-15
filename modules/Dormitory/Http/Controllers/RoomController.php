@@ -19,6 +19,8 @@ use Modules\Dormitory\Application\Facility\ManageRooms;
 use Modules\Dormitory\Application\Facility\RoomData;
 use Modules\Dormitory\Application\Placement\ManagePlacements;
 use Modules\Dormitory\Application\Placement\PlacementDirectory;
+use Modules\Dormitory\Application\Supervision\ManageRoomSupervisors;
+use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Room;
@@ -57,11 +59,12 @@ final class RoomController
         return $this->done("Kamar {$room->code} ditambahkan. Lanjutkan dengan menambah bed/loker di halaman kamar.");
     }
 
-    public function show(Request $request, string $room, FacilityDirectory $directory, PlacementDirectory $placements): Response
+    public function show(Request $request, string $room, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors): Response
     {
         $target = $this->find($room, DormitoryAccess::FACILITIES_VIEW);
 
         $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
+        $historyTab = $request->query('tab') === 'riwayat';
 
         return Inertia::render('dormitory/room', array_merge($directory->room($target), [
             'canManage' => $this->authorization->allows(DormitoryAccess::FACILITIES_MANAGE, $target->organization_id),
@@ -69,7 +72,11 @@ final class RoomController
             'canManageResidents' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
             'holders' => $canViewResidents ? $placements->holders($this->tenantId(), $target->id) : [],
             // Riwayat hanya dimuat saat tab Riwayat dibuka.
-            'history' => $canViewResidents && $request->query('tab') === 'riwayat' ? $placements->roomHistory($this->tenantId(), $target->id) : null,
+            'history' => $canViewResidents && $historyTab ? $placements->roomHistory($this->tenantId(), $target->id) : null,
+            // Wali kamar (DM-3): cukup izin lihat fasilitas.
+            'supervisors' => $supervisors->forRoom($this->tenantId(), $target->id),
+            'supervisorHistory' => $historyTab ? $supervisors->historyForRoom($this->tenantId(), $target->id) : null,
+            'supervisorMax' => ManageRoomSupervisors::MAX_PER_ROOM,
             'resourceHolders' => $canViewResidents ? $placements->resourceHolders($this->tenantId(), $target->id) : ['beds' => [], 'lockers' => []],
             'suggestion' => ManagePlacements::suggestion($target),
             'today' => BusinessClock::todayString(),

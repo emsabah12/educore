@@ -8,6 +8,7 @@ use Inertia\Inertia;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
 use Modules\Dormitory\Domain\Placement\Exceptions\PlacementException;
+use Modules\Dormitory\Domain\Supervision\Exceptions\SupervisionException;
 
 /**
  * Bantuan bersama controller fasilitas asrama: yayasan aktif, pesan sukses, dan pelanggaran aturan sebagai pesan
@@ -36,7 +37,7 @@ trait HandlesFacilityActions
     {
         try {
             return $action();
-        } catch (FacilityException|PlacementException $exception) {
+        } catch (FacilityException|PlacementException|SupervisionException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
     }
