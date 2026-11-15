@@ -1,4 +1,4 @@
-import { LoaderCircle, Search } from 'lucide-react';
+import { LoaderCircle, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ConfirmAction } from '@/components/confirm-action';
 import {
@@ -40,6 +40,9 @@ type Candidate = {
 };
 
 const SEARCH_MIN = 3;
+
+/** Batas Tempatkan banyak (sama dengan server: ManagePlacements::BULK_MAX). */
+const BULK_MAX = 50;
 
 /**
  * Pilihan bed/loker yang bisa dipegang: aktif, tersedia, dan tidak dipegang penempatan lain. Untuk yang wajib
@@ -148,6 +151,9 @@ export function PlaceDialog({
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState(false);
     const [chosen, setChosen] = useState<Candidate | null>(null);
+    // Tempatkan banyak santri sekaligus (DM-5a): semua atau tidak, bed/loker otomatis.
+    const [bulk, setBulk] = useState(false);
+    const [selected, setSelected] = useState<Candidate[]>([]);
 
     useEffect(() => {
         const term = query.trim();
@@ -202,11 +208,32 @@ export function PlaceDialog({
         setQuery('');
         setResults(null);
         setChosen(null);
+        setSelected([]);
+        setBulk(false);
         setMode('langsung');
         setCategory('PENGHUNI');
         onClose();
     };
     const supervisor = category === 'PENGAWAS';
+    const manyActive = selected.some((candidate) => candidate.active_in);
+    const pick = (candidate: Candidate) => {
+        if (bulk) {
+            setSelected((current) =>
+                current.some(
+                    (item) => item.membership_id === candidate.membership_id,
+                ) || current.length >= BULK_MAX
+                    ? current
+                    : [...current, candidate],
+            );
+            setQuery('');
+        } else {
+            setChosen(candidate);
+        }
+
+        if (candidate.active_in) {
+            setMode('rencana');
+        }
+    };
 
     return (
         <FacilityDialog
@@ -214,19 +241,38 @@ export function PlaceDialog({
             onClose={reset}
             title={`Tempatkan di kamar ${roomCode}`}
             description="Santri harus terdaftar aktif di lembaga milik asrama ini, dan jenis kelaminnya sesuai gedung."
-            action={`/asrama/kamar/${roomId}/penghuni`}
+            action={`/asrama/kamar/${roomId}/${bulk ? 'penghuni-banyak' : 'penghuni'}`}
             errorBag="placeResident"
-            submitLabel={mode === 'rencana' ? 'Simpan rencana' : 'Tempatkan'}
+            submitLabel={
+                bulk
+                    ? mode === 'rencana'
+                        ? `Simpan ${selected.length} rencana`
+                        : `Tempatkan ${selected.length} santri`
+                    : mode === 'rencana'
+                      ? 'Simpan rencana'
+                      : 'Tempatkan'
+            }
         >
             {(errors) => (
                 <>
                     <input type="hidden" name="category" value={category} />
                     <input type="hidden" name="mode" value={mode} />
-                    <input
-                        type="hidden"
-                        name="membership_id"
-                        value={chosen?.membership_id ?? ''}
-                    />
+                    {bulk ? (
+                        selected.map((candidate) => (
+                            <input
+                                key={candidate.membership_id}
+                                type="hidden"
+                                name="membership_ids[]"
+                                value={candidate.membership_id}
+                            />
+                        ))
+                    ) : (
+                        <input
+                            type="hidden"
+                            name="membership_id"
+                            value={chosen?.membership_id ?? ''}
+                        />
+                    )}
 
                     {allowSupervisor && (
                         <Choice
@@ -236,11 +282,67 @@ export function PlaceDialog({
                             onChange={(value) => {
                                 setCategory(value);
                                 setChosen(null);
+                                setSelected([]);
+                                setBulk(false);
                             }}
                         />
                     )}
 
-                    {chosen ? (
+                    {!supervisor && (
+                        <Choice
+                            label="Jumlah santri"
+                            value={bulk ? 'banyak' : 'satu'}
+                            options={[
+                                { value: 'satu', label: 'Satu santri' },
+                                { value: 'banyak', label: 'Banyak santri' },
+                            ]}
+                            onChange={(value) => {
+                                setBulk(value === 'banyak');
+                                setChosen(null);
+                                setSelected([]);
+                            }}
+                        />
+                    )}
+
+                    {bulk && (
+                        <div className="grid gap-1.5">
+                            <Label>
+                                Santri dipilih ({selected.length}/{BULK_MAX})
+                            </Label>
+                            {selected.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Cari lalu ketuk nama untuk menambahkan.
+                                </p>
+                            ) : (
+                                <ul className="flex flex-wrap gap-1.5">
+                                    {selected.map((candidate) => (
+                                        <li key={candidate.membership_id}>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelected((current) =>
+                                                        current.filter(
+                                                            (item) =>
+                                                                item.membership_id !==
+                                                                candidate.membership_id,
+                                                        ),
+                                                    )
+                                                }
+                                                aria-label={`Hapus ${candidate.name} dari daftar`}
+                                                className="inline-flex min-h-9 items-center gap-1 rounded-full border bg-muted/40 px-3 text-sm hover:bg-muted"
+                                            >
+                                                {candidate.name}
+                                                <X className="size-3.5" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <InputError message={errors.membership_ids} />
+                        </div>
+                    )}
+
+                    {chosen && !bulk ? (
                         <div className="grid gap-1.5">
                             <Label>{supervisor ? 'Pegawai' : 'Santri'}</Label>
                             <div className="flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-3">
@@ -298,15 +400,11 @@ export function PlaceDialog({
                                 results={results}
                                 failed={failed}
                                 tooShort={query.trim().length < SEARCH_MIN}
-                                onPick={(candidate) => {
-                                    setChosen(candidate);
-
-                                    if (candidate.active_in) {
-                                        setMode('rencana');
-                                    }
-                                }}
+                                onPick={pick}
                             />
-                            <InputError message={errors.membership_id} />
+                            {!bulk && (
+                                <InputError message={errors.membership_id} />
+                            )}
                         </div>
                     )}
 
@@ -320,7 +418,11 @@ export function PlaceDialog({
                             },
                             { value: 'rencana', label: 'Rencana' },
                         ]}
-                        disabled={chosen?.active_in ? ['langsung'] : []}
+                        disabled={
+                            (bulk ? manyActive : chosen?.active_in)
+                                ? ['langsung']
+                                : []
+                        }
                         onChange={(value) =>
                             setMode(value as 'langsung' | 'rencana')
                         }
@@ -358,24 +460,32 @@ export function PlaceDialog({
                         />
                     </Field>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <ResourcePicker
-                            kind="bed"
-                            prefix="dm-place"
-                            resources={resources}
-                            current={null}
-                            placementId={null}
-                            error={errors.bed_id}
-                        />
-                        <ResourcePicker
-                            kind="loker"
-                            prefix="dm-place"
-                            resources={resources}
-                            current={null}
-                            placementId={null}
-                            error={errors.locker_id}
-                        />
-                    </div>
+                    {bulk ? (
+                        <p className="text-xs text-muted-foreground">
+                            Bed/loker dipilih otomatis berurutan. Bila satu
+                            santri tidak memenuhi aturan, tidak ada yang
+                            disimpan.
+                        </p>
+                    ) : (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <ResourcePicker
+                                kind="bed"
+                                prefix="dm-place"
+                                resources={resources}
+                                current={null}
+                                placementId={null}
+                                error={errors.bed_id}
+                            />
+                            <ResourcePicker
+                                kind="loker"
+                                prefix="dm-place"
+                                resources={resources}
+                                current={null}
+                                placementId={null}
+                                error={errors.locker_id}
+                            />
+                        </div>
+                    )}
 
                     <Field
                         id="dm-place-note"
@@ -582,7 +692,10 @@ export function CheckOutDialog({
     today: string;
     noteMax: number;
 }) {
-    const [reason, setReason] = useState('');
+    // Santri yang sudah tidak terdaftar di lembaganya: alasan bawaan Keluar/lulus lembaga (DM-5a).
+    const [reason, setReason] = useState(
+        row.needs_review ? 'KELUAR_LEMBAGA' : '',
+    );
 
     return (
         <FacilityDialog

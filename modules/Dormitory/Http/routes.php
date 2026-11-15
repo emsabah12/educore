@@ -10,6 +10,7 @@ use Modules\Dormitory\Http\Controllers\ResidentController;
 use Modules\Dormitory\Http\Controllers\RoomController;
 use Modules\Dormitory\Http\Controllers\RoomResourceController;
 use Modules\Dormitory\Http\Controllers\SupervisorController;
+use Modules\Dormitory\Http\Controllers\YearEndController;
 
 /*
  * Route web modul Dormitory (PRD-008 §10, §15 DM-1). Dimuat oleh ModuleServiceProvider dengan middleware group "web".
@@ -25,6 +26,7 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::get('asrama/penghuni/{membership}', [ResidentController::class, 'person'])->whereUuid('membership')->name('dormitory.residents.person');
     Route::get('asrama/kamar/{room}/calon', [PlacementController::class, 'candidates'])->whereUuid('room')->middleware('throttle:60,1')->name('dormitory.placements.candidates');
     Route::post('asrama/kamar/{room}/penghuni', [PlacementController::class, 'store'])->whereUuid('room')->name('dormitory.placements.store');
+    Route::post('asrama/kamar/{room}/penghuni-banyak', [PlacementController::class, 'storeMany'])->whereUuid('room')->name('dormitory.placements.store-many');
     Route::post('asrama/penempatan/{placement}/check-in', [PlacementController::class, 'checkIn'])->whereUuid('placement')->name('dormitory.placements.check-in');
     Route::post('asrama/penempatan/{placement}/batalkan', [PlacementController::class, 'cancel'])->whereUuid('placement')->name('dormitory.placements.cancel');
     Route::post('asrama/penempatan/{placement}/check-out', [PlacementController::class, 'checkOut'])->whereUuid('placement')->name('dormitory.placements.check-out');
@@ -62,6 +64,9 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::post('asrama/{kind}/{resource}/status', [RoomResourceController::class, 'status'])->whereIn('kind', ['bed', 'loker'])->whereUuid('resource')->name('dormitory.resources.status');
     Route::delete('asrama/{kind}/{resource}', [RoomResourceController::class, 'destroy'])->whereIn('kind', ['bed', 'loker'])->whereUuid('resource')->name('dormitory.resources.destroy');
 
+    // Proses akhir tahun (DM-5a). Kelola penghuni di node pemilik.
+    Route::get('asrama/{dormitory}/akhir-tahun', [YearEndController::class, 'show'])->whereUuid('dormitory')->name('dormitory.year-end.show');
+    Route::post('asrama/{dormitory}/akhir-tahun', [YearEndController::class, 'run'])->whereUuid('dormitory')->name('dormitory.year-end.run');
     Route::get('asrama/{dormitory}', [DormitoryController::class, 'show'])->whereUuid('dormitory')->name('dormitory.dormitories.show');
     Route::patch('asrama/{dormitory}', [DormitoryController::class, 'update'])->whereUuid('dormitory')->name('dormitory.dormitories.update');
     Route::post('asrama/{dormitory}/status', [DormitoryController::class, 'status'])->whereUuid('dormitory')->name('dormitory.dormitories.status');

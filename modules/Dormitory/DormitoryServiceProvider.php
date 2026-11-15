@@ -2,6 +2,7 @@
 
 namespace Modules\Dormitory;
 
+use Illuminate\Database\Query\Builder;
 use Inertia\Inertia;
 use Modules\Core\Application\Audit\AuditAction;
 use Modules\Core\Application\Authorization\AccessCatalog;
@@ -11,7 +12,9 @@ use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\ModuleServiceProvider;
 use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Application\Authorization\DormitoryAccess;
+use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Mutation\MutationDirectory;
+use Modules\Dormitory\Application\Placement\ResidentReview;
 use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
 
 /**
@@ -40,7 +43,58 @@ class DormitoryServiceProvider extends ModuleServiceProvider
         // Kartu Beranda penyetuju mutasi (DM-4, PRD-008 §18.3).
         $this->app->make(DashboardCards::class)
             ->register('dormitory.mutations_pending', fn (): ?array => $this->mutationCard(false))
-            ->register('dormitory.emergency_unreviewed', fn (): ?array => $this->mutationCard(true));
+            ->register('dormitory.emergency_unreviewed', fn (): ?array => $this->mutationCard(true))
+            // Pengurus (DM-5a, PRD-008 §10, §19.1).
+            ->register('dormitory.residents_review', fn (): ?array => $this->residentsCard(false))
+            ->register('dormitory.rooms_over_capacity', fn (): ?array => $this->residentsCard(true));
+    }
+
+    /**
+     * @return array{key: string, title: string, value: int, description: string, href: string, tone: 'default'|'warning'|'danger'}|null
+     */
+    private function residentsCard(bool $overCapacity): ?array
+    {
+        $context = $this->app->make(TenantContext::class)->get();
+
+        if ($context === null) {
+            return null;
+        }
+
+        $nodes = $this->app->make(AuthorizationService::class)->visibleNodeIds(DormitoryAccess::RESIDENTS_MANAGE);
+
+        if ($nodes === []) {
+            return null;
+        }
+
+        if ($overCapacity) {
+            $count = count(array_filter(
+                $this->app->make(FacilityDirectory::class)->roomsMatching(fn (Builder $query): Builder => $query
+                    ->where('r.tenant_id', $context->tenantId)
+                    ->whereIn('r.organization_id', $nodes)
+                    ->where('r.is_active', true)),
+                fn (array $room): bool => $room['over_capacity'],
+            ));
+
+            return [
+                'key' => 'dormitory.rooms_over_capacity',
+                'title' => 'Kamar kelebihan muatan',
+                'value' => $count,
+                'description' => $count === 0 ? 'Tidak ada kamar yang kelebihan muatan.' : 'Penghuni melebihi kapasitas atau memegang bed/loker rusak. Perbaiki, ganti bed/loker, atau mutasi.',
+                'href' => '/asrama',
+                'tone' => $count > 0 ? 'warning' : 'default',
+            ];
+        }
+
+        $count = count($this->app->make(ResidentReview::class)->flaggedIn($context->tenantId, $nodes));
+
+        return [
+            'key' => 'dormitory.residents_review',
+            'title' => 'Penghuni perlu ditinjau',
+            'value' => $count,
+            'description' => $count === 0 ? 'Semua penghuni masih terdaftar di lembaganya.' : 'Santri yang sudah tidak terdaftar di lembaga milik asramanya. Check-out bila sudah keluar.',
+            'href' => '/asrama/penghuni?tinjau=1',
+            'tone' => $count > 0 ? 'warning' : 'default',
+        ];
     }
 
     /**

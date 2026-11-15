@@ -80,6 +80,42 @@ final class PlacementController
         return response()->json(['candidates' => $result]);
     }
 
+    /**
+     * Tempatkan banyak santri sekaligus (PRD-008 §19.3): semua atau tidak; bed/loker otomatis.
+     */
+    public function storeMany(Request $request, string $room, ManagePlacements $placements): RedirectResponse
+    {
+        $target = $this->room($room);
+
+        $request->validate([
+            'membership_ids' => ['required', 'array', 'min:1', 'max:'.ManagePlacements::BULK_MAX],
+            'membership_ids.*' => ['required', 'uuid', 'distinct'],
+            'mode' => ['required', 'string', Rule::in(['langsung', 'rencana'])],
+            'date' => ['nullable', 'string', 'max:10'],
+            'note' => ['nullable', 'string', 'max:'.ManagePlacements::NOTE_MAX_LENGTH],
+        ], [
+            'membership_ids.required' => 'Pilih minimal satu santri.',
+            'membership_ids.min' => 'Pilih minimal satu santri.',
+            'membership_ids.max' => 'Paling banyak '.ManagePlacements::BULK_MAX.' santri sekaligus.',
+            'membership_ids.*' => 'Pilih santri dari hasil pencarian.',
+        ]);
+
+        $plan = $request->input('mode') === 'rencana';
+        /** @var list<string> $ids */
+        $ids = array_values(array_map('strval', (array) $request->input('membership_ids')));
+        $placed = $this->attempt(fn (): array => $placements->placeMany(
+            $this->tenantId(),
+            $target->id,
+            $ids,
+            $plan,
+            self::optional($request->input('date')),
+            self::optional($request->input('note')),
+            $this->actorId(),
+        ));
+
+        return $this->done(count($placed).($plan ? ' rencana penempatan disimpan.' : ' santri ditempatkan.'));
+    }
+
     public function store(Request $request, string $room, ManagePlacements $placements): RedirectResponse
     {
         $target = $this->room($room);

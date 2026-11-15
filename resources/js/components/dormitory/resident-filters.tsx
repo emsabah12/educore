@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 import type { Option, ResidentFilters } from '@/components/dormitory/types';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { selectClass } from '@/components/native-select';
@@ -41,6 +42,7 @@ export function ResidentFilterBar({
                 ...(merged.status !== 'semua' ? { status: merged.status } : {}),
                 ...(merged.category ? { kategori: merged.category } : {}),
                 ...(merged.q ? { q: merged.q } : {}),
+                ...(merged.review ? { tinjau: '1' } : {}),
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -127,6 +129,15 @@ export function ResidentFilterBar({
                     ))}
                 </select>
             </div>
+            <label className="flex min-h-9 items-center gap-2 self-end text-sm">
+                <Checkbox
+                    checked={filters.review}
+                    onCheckedChange={(checked) =>
+                        visit({ review: checked === true })
+                    }
+                />
+                Hanya yang perlu ditinjau
+            </label>
             <form
                 className="grid gap-1.5"
                 onSubmit={(event) => {

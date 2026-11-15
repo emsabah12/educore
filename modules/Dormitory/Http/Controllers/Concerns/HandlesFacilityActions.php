@@ -10,6 +10,7 @@ use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
 use Modules\Dormitory\Domain\Mutation\Exceptions\MutationException;
 use Modules\Dormitory\Domain\Placement\Exceptions\PlacementException;
 use Modules\Dormitory\Domain\Supervision\Exceptions\SupervisionException;
+use Modules\Dormitory\Domain\YearEnd\YearEndException;
 
 /**
  * Bantuan bersama controller fasilitas asrama: yayasan aktif, pesan sukses, dan pelanggaran aturan sebagai pesan
@@ -38,7 +39,7 @@ trait HandlesFacilityActions
     {
         try {
             return $action();
-        } catch (FacilityException|PlacementException|SupervisionException|MutationException $exception) {
+        } catch (FacilityException|PlacementException|SupervisionException|MutationException|YearEndException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
     }

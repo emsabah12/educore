@@ -52,6 +52,21 @@ export function dateLine(row: PlacementRow) {
 }
 
 export function ResourceWarning({ row }: { row: PlacementRow }) {
+    return (
+        <>
+            {row.needs_review && (
+                <p className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <TriangleAlert className="size-3.5" />
+                    Perlu ditinjau: sudah tidak terdaftar di lembaga milik
+                    asrama ini.
+                </p>
+            )}
+            <ResourceProblem row={row} />
+        </>
+    );
+}
+
+function ResourceProblem({ row }: { row: PlacementRow }) {
     if (!row.resource_problem) {
         return null;
     }

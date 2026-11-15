@@ -50,6 +50,8 @@ final class ManagePlacements
 {
     public const NOTE_MAX_LENGTH = 200;
 
+    public const BULK_MAX = 50;
+
     /** Tanggal masuk paling jauh ke belakang (hari), sama dengan pembayaran & tabungan. */
     public const BACKDATE_DAYS = 365;
 
@@ -240,6 +242,57 @@ final class ManagePlacements
             OpenMutations::lapse($tenantId, $placement->id, 'Gugur otomatis: santri check-out.');
 
             return $placement;
+        });
+    }
+
+    /**
+     * Tempatkan banyak santri sekaligus ke satu kamar (PRD-008 §19.3): semua atau tidak. Bed/loker dipilih otomatis
+     * berurutan. Setiap santri melewati aturan yang sama dengan place(); bila satu ditolak, tidak ada yang disimpan
+     * dan pesannya menyebut santri itu.
+     *
+     * @param  list<string>  $membershipIds
+     * @return list<Placement>
+     *
+     * @throws PlacementException
+     */
+    public function placeMany(string $tenantId, string $roomId, array $membershipIds, bool $plan, ?string $date, ?string $note, string $actorId): array
+    {
+        $membershipIds = array_values(array_unique($membershipIds));
+
+        if ($membershipIds === []) {
+            throw PlacementException::make('membership_ids', 'Pilih minimal satu santri.');
+        }
+
+        if (count($membershipIds) > self::BULK_MAX) {
+            throw PlacementException::make('membership_ids', 'Paling banyak '.self::BULK_MAX.' santri sekaligus.');
+        }
+
+        $names = $this->eligibility->people($tenantId, $membershipIds);
+
+        return DB::transaction(function () use ($tenantId, $roomId, $membershipIds, $plan, $date, $note, $actorId, $names): array {
+            $placed = [];
+
+            foreach ($membershipIds as $membershipId) {
+                try {
+                    $placed[] = $this->place($tenantId, $roomId, new PlacementInput(
+                        membershipId: $membershipId,
+                        category: PlacementCategory::Resident,
+                        plan: $plan,
+                        bedId: null,
+                        lockerId: null,
+                        date: $date,
+                        note: $note,
+                    ), $actorId);
+                } catch (PlacementException $exception) {
+                    $name = $names[$membershipId]['name'] ?? 'Salah satu santri';
+                    $message = str_contains($exception->getMessage(), $name) ? $exception->getMessage() : "{$name}: {$exception->getMessage()}";
+                    $field = in_array($exception->field, ['date', 'note'], true) ? $exception->field : 'membership_ids';
+
+                    throw PlacementException::make($field, $message);
+                }
+            }
+
+            return $placed;
         });
     }
 

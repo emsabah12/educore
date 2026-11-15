@@ -18,6 +18,7 @@ use Modules\Dormitory\Application\Facility\ManageDormitories;
 use Modules\Dormitory\Application\Facility\ManageRooms;
 use Modules\Dormitory\Application\Placement\PlacementDirectory;
 use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
+use Modules\Dormitory\Application\YearEnd\YearEndProcess;
 use Modules\Dormitory\Domain\Facility\CapacityBasis;
 use Modules\Dormitory\Domain\Facility\Dormitory;
 use Modules\Dormitory\Domain\Facility\Room;
@@ -93,7 +94,7 @@ final class DormitoryController
         return redirect()->route('dormitory.dormitories.show', ['dormitory' => $dormitory->id]);
     }
 
-    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors): Response
+    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors, YearEndProcess $yearEnd): Response
     {
         $target = $this->find($dormitory, DormitoryAccess::FACILITIES_VIEW);
         $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
@@ -110,6 +111,9 @@ final class DormitoryController
             'supervisors' => $request->query('tab') === 'wali-kamar'
                 ? $supervisors->forRooms($this->tenantId(), self::roomIds($target->id))
                 : null,
+            // Proses akhir tahun (DM-5a): tombol & ringkasan di tab Pengaturan.
+            'canRunYearEnd' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
+            'yearEndRuns' => $yearEnd->history($target->id),
             'options' => [
                 'genders' => FacilityDirectory::genderOptions(),
                 'bases' => CapacityBasis::options(),

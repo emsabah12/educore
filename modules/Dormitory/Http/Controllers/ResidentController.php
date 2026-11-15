@@ -68,7 +68,7 @@ final class ResidentController
      * Saringan dari alamat; asrama/gedung yang tidak terlihat diabaikan.
      *
      * @param  list<string>  $dormitoryIds
-     * @return array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string}
+     * @return array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string, review: bool}
      */
     public static function filters(Request $request, array $dormitoryIds, ?string $fixedDormitory = null): array
     {
@@ -85,6 +85,8 @@ final class ResidentController
             'status' => in_array($status, ['aktif', 'rencana'], true) ? $status : 'semua',
             'category' => $category?->value,
             'q' => mb_substr(trim((string) $request->query('q')), 0, 100),
+            // Hanya yang Perlu ditinjau (DM-5a, §19.1).
+            'review' => $request->query('tinjau') === '1',
         ];
     }
 

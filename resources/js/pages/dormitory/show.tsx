@@ -22,7 +22,11 @@ import type {
     SupervisorRow,
     YearEndPolicy,
 } from '@/components/dormitory/types';
-import { capacityText, occupancyText } from '@/components/dormitory/types';
+import {
+    capacityText,
+    dateText,
+    occupancyText,
+} from '@/components/dormitory/types';
 import Heading from '@/components/heading';
 import { PageTabs, usePageTab } from '@/components/page-tabs';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +57,8 @@ type Props = {
     residentFilters: ResidentFilters;
     residents: PlacementPage | null;
     supervisors: Record<string, SupervisorRow[]> | null;
+    canRunYearEnd: boolean;
+    yearEndRuns: YearEndRun[];
     options: RoomOptions & { genders: Option[]; categories: Option[] };
 };
 
@@ -77,6 +83,8 @@ export default function DormitoryShow({
     residentFilters,
     residents,
     supervisors,
+    canRunYearEnd,
+    yearEndRuns,
     options,
 }: Props) {
     const tabs = canViewResidents
@@ -282,8 +290,7 @@ export default function DormitoryShow({
                             <dd>
                                 {policyLabel}
                                 <span className="block text-xs text-muted-foreground">
-                                    Bisa diganti per kamar. Proses akhir tahun
-                                    dijalankan dari halaman asrama (menyusul).
+                                    Bisa diganti per kamar lewat Ubah kamar.
                                 </span>
                             </dd>
                         </dl>
@@ -301,6 +308,14 @@ export default function DormitoryShow({
                             </Button>
                         )}
                     </section>
+                )}
+
+                {tab === 'pengaturan' && (
+                    <YearEndSummary
+                        runs={yearEndRuns}
+                        canRun={canRunYearEnd}
+                        href={`${base}/akhir-tahun`}
+                    />
                 )}
             </div>
 
@@ -635,5 +650,65 @@ function SupervisorOverview({
                 </section>
             ))}
         </div>
+    );
+}
+
+type YearEndRun = {
+    year: string;
+    end_date: string;
+    emptied: number;
+    kept: number;
+    review: number;
+    ran_by: string | null;
+    ran_at: string;
+};
+
+/** Ringkasan Proses akhir tahun (PRD-008 §19.2) di tab Pengaturan. */
+function YearEndSummary({
+    runs,
+    canRun,
+    href,
+}: {
+    runs: YearEndRun[];
+    canRun: boolean;
+    href: string;
+}) {
+    return (
+        <section className="space-y-3 rounded-xl border p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h2 className="font-semibold">Proses akhir tahun</h2>
+                    <p className="text-xs text-muted-foreground">
+                        Mengosongkan kamar berkebijakan Kosongkan setelah tahun
+                        ajaran berakhir. Sekali per tahun ajaran.
+                    </p>
+                </div>
+                {canRun && (
+                    <Button size="sm" variant="outline" asChild>
+                        <Link href={href}>Proses akhir tahun</Link>
+                    </Button>
+                )}
+            </div>
+            {runs.length === 0 ? (
+                <p className="text-muted-foreground">Belum pernah diproses.</p>
+            ) : (
+                <ul className="divide-y">
+                    {runs.map((run) => (
+                        <li key={run.year} className="py-2">
+                            <p className="font-medium">
+                                Tahun ajaran {run.year}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {run.emptied} santri diakhiri · {run.kept} tetap
+                                {run.review > 0 &&
+                                    ` (${run.review} perlu ditinjau)`}{' '}
+                                · oleh {run.ran_by ?? '–'},{' '}
+                                {dateText(run.ran_at)}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
     );
 }

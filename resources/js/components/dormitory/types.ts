@@ -63,6 +63,8 @@ export type PlacementRow = {
     locker: string | null;
     locker_id: string | null;
     resource_problem: boolean;
+    /** Santri sudah tidak terdaftar di lembaga milik asrama (DM-5a). */
+    needs_review: boolean;
     dormitory: string;
     dormitory_id: string;
     building: string;
@@ -86,6 +88,7 @@ export type ResidentFilters = {
     status: 'semua' | 'aktif' | 'rencana';
     category: string | null;
     q: string;
+    review: boolean;
 };
 
 /** "12 dari 16 terisi · 2 rencana" */

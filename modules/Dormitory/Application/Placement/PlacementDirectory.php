@@ -14,7 +14,7 @@ use stdClass;
  * Data halaman penghuni asrama (PRD-008 §16.6). Penyaringan cakupan dilakukan di query (node pemilik asrama yang
  * terlihat); nama dari Person, lembaga/kelas santri dari kontrak Academic.
  *
- * @phpstan-type PlacementRow array{id: string, membership_id: string, name: string, detail: string, category: string, category_label: string, status: string, status_label: string, planned_on: string|null, check_in_on: string|null, check_out_on: string|null, end_reason_label: string|null, cancel_reason: string|null, note: string|null, bed: string|null, bed_id: string|null, locker: string|null, locker_id: string|null, resource_problem: bool, dormitory: string, dormitory_id: string, building: string, room: string, room_id: string}
+ * @phpstan-type PlacementRow array{id: string, membership_id: string, name: string, detail: string, category: string, category_label: string, status: string, status_label: string, planned_on: string|null, check_in_on: string|null, check_out_on: string|null, end_reason_label: string|null, cancel_reason: string|null, note: string|null, bed: string|null, bed_id: string|null, locker: string|null, locker_id: string|null, resource_problem: bool, needs_review: bool, dormitory: string, dormitory_id: string, building: string, room: string, room_id: string}
  * @phpstan-type PlacementPage array{data: list<PlacementRow>, total: int, from: int|null, to: int|null, last_page: int, prev_page_url: string|null, next_page_url: string|null}
  */
 final class PlacementDirectory
@@ -23,7 +23,10 @@ final class PlacementDirectory
 
     public const HISTORY_PER_PAGE = 50;
 
-    public function __construct(private readonly ResidentEligibility $eligibility) {}
+    public function __construct(
+        private readonly ResidentEligibility $eligibility,
+        private readonly ResidentReview $review,
+    ) {}
 
     /**
      * Penghuni Aktif & Direncanakan sebuah kamar (Aktif dulu, lalu nama).
@@ -66,7 +69,7 @@ final class PlacementDirectory
      * Penghuni di asrama yang terlihat.
      *
      * @param  list<string>  $organizationIds  node pemilik yang terlihat
-     * @param  array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string}  $filters
+     * @param  array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string, review?: bool}  $filters
      * @return PlacementPage
      */
     public function search(string $tenantId, array $organizationIds, array $filters): array
@@ -86,6 +89,7 @@ final class PlacementDirectory
             ->when($filters['building'] !== null, fn (Builder $query) => $query->where('r.building_id', $filters['building']))
             ->when($filters['category'] !== null, fn (Builder $query) => $query->where('pl.category', $filters['category']))
             ->when($text !== '', fn (Builder $query) => $query->where('p.name', 'ilike', '%'.addcslashes($text, '%_\\').'%'))
+            ->when($filters['review'] ?? false, fn (Builder $query) => $query->whereIn('pl.id', $this->review->flaggedIn($tenantId, $organizationIds)))
             ->orderBy('d.name')
             ->orderBy('g.code')
             ->orderBy('r.code')
@@ -226,6 +230,15 @@ final class PlacementDirectory
         }
 
         $details = $this->eligibility->studentDetails($tenantId, array_values(array_unique($studentIds)));
+        $holding = [];
+
+        foreach ($rows as $row) {
+            if ($row->category === PlacementCategory::Resident->value && in_array($row->status, PlacementStatus::holdingValues(), true)) {
+                $holding[] = ['id' => (string) $row->id, 'membership_id' => (string) $row->membership_id, 'organization_id' => (string) $row->organization_id];
+            }
+        }
+
+        $review = array_flip($this->review->flagged($tenantId, $holding));
         $result = [];
 
         foreach ($rows as $row) {
@@ -255,6 +268,7 @@ final class PlacementDirectory
                 'locker' => $row->locker_code === null ? null : (string) $row->locker_code,
                 'locker_id' => $row->locker_id === null ? null : (string) $row->locker_id,
                 'resource_problem' => in_array($status, [PlacementStatus::Planned, PlacementStatus::Active], true) && (bool) $row->resource_problem,
+                'needs_review' => isset($review[(string) $row->id]),
                 'dormitory' => (string) $row->dormitory_name,
                 'dormitory_id' => (string) $row->dormitory_id,
                 'building' => (string) $row->building_name,
