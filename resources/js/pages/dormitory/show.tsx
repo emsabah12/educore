@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight, FileUp, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
+import type { AttendanceKindRow } from '@/components/dormitory/attendance-kinds';
+import { AttendanceKindSettings } from '@/components/dormitory/attendance-kinds';
 import {
     CodeNameFields,
     Empty,
@@ -59,6 +61,7 @@ type Props = {
     supervisors: Record<string, SupervisorRow[]> | null;
     canRunYearEnd: boolean;
     yearEndRuns: YearEndRun[];
+    attendanceKinds: AttendanceKindRow[];
     options: RoomOptions & { genders: Option[]; categories: Option[] };
 };
 
@@ -85,6 +88,7 @@ export default function DormitoryShow({
     supervisors,
     canRunYearEnd,
     yearEndRuns,
+    attendanceKinds,
     options,
 }: Props) {
     const tabs = canViewResidents
@@ -318,6 +322,14 @@ export default function DormitoryShow({
                             </Button>
                         )}
                     </section>
+                )}
+
+                {tab === 'pengaturan' && (
+                    <AttendanceKindSettings
+                        dormitoryId={dormitory.id}
+                        kinds={attendanceKinds}
+                        canManage={canManage}
+                    />
                 )}
 
                 {tab === 'pengaturan' && (

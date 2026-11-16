@@ -101,6 +101,12 @@ const residentsNavItem: NavItem = {
     icon: UsersRound,
 };
 
+const dormitoryAttendanceNavItem: NavItem = {
+    title: 'Absen asrama',
+    href: '/asrama/absen',
+    icon: ClipboardCheck,
+};
+
 const occupancyReportNavItem: NavItem = {
     title: 'Laporan hunian',
     href: '/asrama/laporan',
@@ -467,6 +473,11 @@ export function AppSidebar() {
                         'dormitory.mutations.emergency',
                     ].some((key) => permissions.includes(key)),
                     [mutationsNavItem],
+                ),
+                ...when(
+                    permissions.includes('dormitory.attendance.manage') ||
+                        permissions.includes('dormitory.residents.view'),
+                    [dormitoryAttendanceNavItem],
                 ),
                 ...when(permissions.includes('dormitory.residents.view'), [
                     occupancyReportNavItem,

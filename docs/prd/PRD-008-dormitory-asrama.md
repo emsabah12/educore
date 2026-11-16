@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.12 (2026-11-16: DM-6 laporan hunian + unduhan Penghuni dirinci, disetujui & dibangun, §21)
-- **Versi sebelumnya:** 0.11 (DM-5b dibangun, §20), 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b SELESAI (commit `9ccac5b`, uji owner lancar); DM-6 DIBANGUN (§21, menunggu uji owner)
+- **Versi:** 0.13 (2026-11-16: DM-7 absen asrama dirinci, disetujui & dibangun, §22)
+- **Versi sebelumnya:** 0.12 (DM-6 dibangun, §21), 0.11 (DM-5b dibangun, §20), 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b SELESAI (commit `9ccac5b`, uji owner lancar); DM-6 SELESAI (commit `ca4fb10`, uji owner lancar, CI hijau); DM-7 DIBANGUN (§22, menunggu uji owner)
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -278,18 +278,19 @@ Data mutasi tidak bisa diubah atau dihapus lewat aplikasi. Riwayat per santri bi
 
 Menu kelompok baru **Asrama** (sesudah Akademik), mengikuti Pedoman tampilan: tab per fungsi, semua tambah/ubah/hapus lewat pop-up (`FormDialog`/`ConfirmAction`).
 
-| Halaman                           | Isi                                                                                                                                                            |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Asrama** (`/asrama`)            | Daftar asrama dalam cakupan: pemilik, jumlah gedung/kamar, kapasitas, terisi, tersedia, kelebihan muatan. Tombol Tambah asrama                                 |
-| **Detail asrama**                 | Tab **Gedung & kamar** (pohon gedung → kamar dengan bar hunian), **Penghuni**, **Wali kamar**, **Pengaturan** (kebijakan akhir tahun bawaan, status)           |
-| **Detail kamar**                  | Ringkasan (gender, komposisi, dasar kapasitas, kapasitas efektif, slot pengawas, terisi/direncanakan/tersedia). Tab **Penghuni**, **Bed & loker**, **Riwayat** |
-| **Penghuni** (`/asrama/penghuni`) | Semua penghuni dalam cakupan, saringan asrama/gedung/kamar/status/kategori/lembaga, cari nama/NIS, tanda Perlu ditinjau, unduh .xlsx                           |
-| **Mutasi** (`/asrama/mutasi`)     | Tab **Menunggu persetujuan**, **Darurat** (dengan Sudah ditinjau), **Riwayat**. Tombol Ajukan mutasi dan Mutasi darurat sesuai izin                            |
-| **Impor penempatan**              | Pola impor EduCore (§20)                                                                                                                                       |
-| **Proses akhir tahun**            | §9                                                                                                                                                             |
-| **Laporan hunian**                | §21 (`/asrama/laporan`)                                                                                                                                        |
-| **Kamar saya**                    | Untuk wali kamar (§6), di kelompok **Untuk saya**                                                                                                              |
-| Detail siswa / detail pegawai     | **Ditunda** [OWNER, 2026-11-15, §16.8]: riwayat hunian per orang ada di Asrama → Penghuni                                                                      |
+| Halaman                            | Isi                                                                                                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Asrama** (`/asrama`)             | Daftar asrama dalam cakupan: pemilik, jumlah gedung/kamar, kapasitas, terisi, tersedia, kelebihan muatan. Tombol Tambah asrama                                 |
+| **Detail asrama**                  | Tab **Gedung & kamar** (pohon gedung → kamar dengan bar hunian), **Penghuni**, **Wali kamar**, **Pengaturan** (kebijakan akhir tahun bawaan, status)           |
+| **Detail kamar**                   | Ringkasan (gender, komposisi, dasar kapasitas, kapasitas efektif, slot pengawas, terisi/direncanakan/tersedia). Tab **Penghuni**, **Bed & loker**, **Riwayat** |
+| **Penghuni** (`/asrama/penghuni`)  | Semua penghuni dalam cakupan, saringan asrama/gedung/kamar/status/kategori/lembaga, cari nama/NIS, tanda Perlu ditinjau, unduh .xlsx                           |
+| **Mutasi** (`/asrama/mutasi`)      | Tab **Menunggu persetujuan**, **Darurat** (dengan Sudah ditinjau), **Riwayat**. Tombol Ajukan mutasi dan Mutasi darurat sesuai izin                            |
+| **Impor penempatan**               | Pola impor EduCore (§20)                                                                                                                                       |
+| **Proses akhir tahun**             | §9                                                                                                                                                             |
+| **Laporan hunian**                 | §21 (`/asrama/laporan`)                                                                                                                                        |
+| **Absen asrama** (`/asrama/absen`) | §22: isi absen semua kamar per tanggal + jenis, rekap bulanan                                                                                                  |
+| **Kamar saya**                     | Untuk wali kamar (§6), di kelompok **Untuk saya**                                                                                                              |
+| Detail siswa / detail pegawai      | **Ditunda** [OWNER, 2026-11-15, §16.8]: riwayat hunian per orang ada di Asrama → Penghuni                                                                      |
 
 Kartu Beranda [ASUMSI]: **Pengajuan mutasi menunggu** (penyetuju), **Mutasi darurat belum ditinjau** (bendera merah, penyetuju), **Kamar kelebihan muatan** dan **Penghuni perlu ditinjau** (pengurus).
 
@@ -318,7 +319,7 @@ Kartu Beranda [ASUMSI]: **Pengajuan mutasi menunggu** (penyetuju), **Mutasi daru
 | **DM-4** | Mutasi biasa & darurat, tinjauan darurat, kartu Beranda                                                                                                                                                                                                                                                                                                                      |
 | **DM-5** | **Dipecah** [OWNER, 2026-11-15]: **DM-5a** = tanda Perlu ditinjau, Proses akhir tahun, Tempatkan banyak (§19); **DM-5b** = impor penempatan (§20). Rincian awal: impor penempatan (template per asrama: NIS/NISN, kode kamar, bed/loker opsional) + pilih banyak santri sekaligus ke satu kamar; **Proses akhir tahun asrama**; tanda Perlu ditinjau dari `EnrollmentClosed` |
 | **DM-6** | Laporan hunian: per asrama/gedung/kamar — bed, loker, kapasitas efektif, terisi, direncanakan, tersedia, % hunian (kapasitas 0 tidak dibagi), kelebihan muatan, bed/loker rusak, jumlah santri & pengawas; riwayat per rentang tanggal; unduh .xlsx [LAMA 12.9–12.12]                                                                                                        |
-| **DM-7** | Absen asrama (roll call): sesi per asrama per tanggal (mis. Subuh/Malam, diatur per asrama), status Hadir/Izin/Sakit/Tidak ada per penghuni Aktif, diisi wali kamar/pengurus, rekap bulanan. Terpisah dari presensi kelas AC-4 [LAMA 12.14–12.18]                                                                                                                            |
+| **DM-7** | (Rincian akhir §22: sesi **per kamar**, santri + pengawas [OWNER, 2026-11-16].) Absen asrama (roll call): sesi per asrama per tanggal (mis. Subuh/Malam, diatur per asrama), status Hadir/Izin/Sakit/Tidak ada per penghuni Aktif, diisi wali kamar/pengurus, rekap bulanan. Terpisah dari presensi kelas AC-4 [LAMA 12.14–12.18]                                            |
 
 Setiap tahap: test Feature per aturan (awalan fungsi bantu unik, mis. `dmf`, `dmp`), test constraint di PostgreSQL, audit, `composer lint`, `composer test`, `npm run check`.
 
@@ -662,3 +663,39 @@ Mewujudkan §12 DM-6 dan tombol unduh .xlsx di halaman Penghuni (§10) [OWNER, 2
 - Route: `GET asrama/laporan`, `GET asrama/laporan/unduh`, `GET asrama/penghuni/unduh` (unduhan throttle 20/menit).
 - Halaman: `pages/dormitory/report.tsx`; tombol unduh di `pages/dormitory/residents.tsx`; menu samping.
 - Test: `tests/Feature/Dormitory/OccupancyReportTest.php` (awalan `dml`, 4 test: angka hunian sekarang + saringan + kamar nonaktif, riwayat + rentang, isi unduhan, hak akses).
+
+## 22. DM-7 Absen asrama [ASUMSI disetujui owner 2026-11-16]
+
+Mewujudkan §12 DM-7 dan bagian absen di Kamar saya (§6). Pola mengikuti presensi kelas PRD-002 §17 AC-4 agar cara pakainya sama. Dibangun sekaligus (tidak dipecah) [OWNER].
+
+### 22.1 Jenis absen
+
+- Per asrama, mis. "Subuh", "Malam": nama maks. 30 karakter, unik per asrama (huruf besar/kecil dianggap sama), **maks. 5 aktif**, bisa diurutkan, dinonaktifkan/diaktifkan kembali. Jenis yang sudah dipakai tidak bisa dihapus (nonaktifkan saja).
+- Dikelola di tab **Pengaturan** detail asrama oleh pemilik `dormitory.facilities.manage` [ASUMSI disetujui]. Audit `dormitory.attendance_kind_changed`.
+- Tanpa jenis absen aktif, form absen belum terbuka (tampil arahan ke tab Pengaturan).
+
+### 22.2 Isi absen (roll call)
+
+- **Satu sesi = kamar + tanggal + jenis absen** [OWNER, 2026-11-16: per kamar, bukan per asrama], sehingga tiap wali kamar mengisi kamarnya sendiri tanpa saling menimpa.
+- **Yang diabsen = santri dan pengawas** [OWNER, 2026-11-16] yang **Aktif di kamar itu pada tanggal tersebut** (masuk ≤ tanggal, belum keluar pada tanggal itu). Mutasi pada tanggal X = sudah di kamar baru pada tanggal X. Rencana tidak diabsen.
+- Status **H** Hadir · **I** Izin · **S** Sakit · **T** Tidak ada; keterangan opsional maks. 200 karakter. Form dibuka dengan semua Hadir (atau status tersimpan); simpan semua sekaligus; koreksi menimpa sesi yang sama. Tanda "diisi oleh … pada …".
+- **Batas tanggal**: wali kamar hari ini s.d. 6 hari sebelumnya (7 hari); pengurus (`attendance.manage`) s.d. 1 tahun ke belakang; tidak di masa depan.
+- **Tempat mengisi**: wali kamar → **Kamar saya** → **Absen**; pengurus → menu **Asrama → Absen asrama** (`/asrama/absen`, tab Isi absen: semua kamar satu asrama untuk satu tanggal + jenis, tanda sudah/belum diisi + jumlah H/I/S/T) atau tombol **Absen** di halaman kamar. Lembar absen: `/asrama/kamar/{kamar}/absen?jenis=&tanggal=`.
+- Hari tanpa sesi = "belum diisi", **bukan** Tidak ada.
+- Audit `dormitory.attendance_recorded` (kamar, jenis, tanggal, jumlah per status, tanda koreksi; tanpa isi keterangan).
+
+### 22.3 Rekap bulanan
+
+- Tab **Rekap bulanan** di Absen asrama (pemilik `attendance.manage` atau `residents.view` dalam cakupan, termasuk Kepala Asrama — lihat saja) dan **Kamar saya → Rekap absen** (`/kamar-saya/{kamar}/rekap-absen`, kamar yang diawasi saja).
+- Pilihan bulan berjalan + 11 bulan sebelumnya; saring jenis absen dan kamar.
+- Per orang: H/I/S/T, sesi tercatat, **% hadir = Hadir ÷ sesi tercatat** (kosong bila belum ada sesi). Baris jumlah.
+- Per kamar: sesi diisi dibanding seharusnya (hari yang sudah lewat di bulan itu × jenis absen aktif atau terpilih).
+- **Unduh .xlsx**: lembar Rekap dan Per kamar (tanpa keterangan).
+
+### 22.4 Hasil pembangunan (2026-11-16)
+
+- Data: migrasi `2026_11_16_400006_create_dm_attendance_tables` — `dm_attendance_kinds` (nama unik per asrama, `lower(name)`), `dm_attendance_sessions` (unique kamar + jenis + tanggal; FK gabungan ke kamar & jenis di asrama/pemilik yang sama), `dm_attendance_records` (unique sesi + penempatan; CHECK status H/I/S/T). Tanpa permission baru (`attendance.manage` sejak DM-1).
+- Kode: `Domain/Attendance/{AttendanceKind, AttendanceSession, AttendanceStatus, AttendanceException}`, `Application/Attendance/{ManageAttendanceKinds, ManageDormitoryAttendance, AttendanceRecap, AttendanceRecapExport}`, `AttendanceKindController`, `AttendanceController`.
+- Route: `asrama/absen` (GET), `asrama/absen/unduh`, `asrama/kamar/{room}/absen` (GET/POST), `kamar-saya/{room}/rekap-absen` (+ `/unduh`), `asrama/{dormitory}/jenis-absen` (POST), `asrama/jenis-absen/{kind}` (PATCH/DELETE, `/status`, `/urutan`).
+- Halaman: `pages/dormitory/{attendance, attendance-sheet, attendance-recap}.tsx`, `components/dormitory/{attendance-kinds, attendance-recap}.tsx`; tombol di Kamar saya & halaman kamar; menu **Absen asrama**.
+- Test: `tests/Feature/Dormitory/AttendanceTest.php` (awalan `dma`, 4 test: jenis absen, lembar & simpan + koreksi + penolakan + constraint, wali kamar 7 hari & kamarnya saja, rekap + unduhan + hak akses).

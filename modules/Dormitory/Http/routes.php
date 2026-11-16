@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Dormitory\Http\Controllers\AttendanceController;
+use Modules\Dormitory\Http\Controllers\AttendanceKindController;
 use Modules\Dormitory\Http\Controllers\BuildingController;
 use Modules\Dormitory\Http\Controllers\DormitoryController;
 use Modules\Dormitory\Http\Controllers\MutationController;
@@ -30,6 +32,18 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     // Laporan hunian (DM-6, PRD-008 §21).
     Route::get('asrama/laporan', [OccupancyReportController::class, 'index'])->name('dormitory.report.index');
     Route::get('asrama/laporan/unduh', [OccupancyReportController::class, 'export'])->middleware('throttle:20,1')->name('dormitory.report.export');
+    // Absen asrama (DM-7, PRD-008 §22).
+    Route::get('asrama/absen', [AttendanceController::class, 'index'])->name('dormitory.attendance.index');
+    Route::get('asrama/absen/unduh', [AttendanceController::class, 'export'])->middleware('throttle:20,1')->name('dormitory.attendance.export');
+    Route::get('asrama/kamar/{room}/absen', [AttendanceController::class, 'sheet'])->whereUuid('room')->name('dormitory.attendance.sheet');
+    Route::post('asrama/kamar/{room}/absen', [AttendanceController::class, 'save'])->whereUuid('room')->name('dormitory.attendance.save');
+    Route::get('kamar-saya/{room}/rekap-absen', [AttendanceController::class, 'myRecap'])->whereUuid('room')->name('dormitory.attendance.my-recap');
+    Route::get('kamar-saya/{room}/rekap-absen/unduh', [AttendanceController::class, 'myRecapExport'])->whereUuid('room')->middleware('throttle:20,1')->name('dormitory.attendance.my-recap.export');
+    Route::post('asrama/{dormitory}/jenis-absen', [AttendanceKindController::class, 'store'])->whereUuid('dormitory')->name('dormitory.attendance-kinds.store');
+    Route::patch('asrama/jenis-absen/{kind}', [AttendanceKindController::class, 'update'])->whereUuid('kind')->name('dormitory.attendance-kinds.update');
+    Route::post('asrama/jenis-absen/{kind}/status', [AttendanceKindController::class, 'status'])->whereUuid('kind')->name('dormitory.attendance-kinds.status');
+    Route::post('asrama/jenis-absen/{kind}/urutan', [AttendanceKindController::class, 'move'])->whereUuid('kind')->name('dormitory.attendance-kinds.move');
+    Route::delete('asrama/jenis-absen/{kind}', [AttendanceKindController::class, 'destroy'])->whereUuid('kind')->name('dormitory.attendance-kinds.destroy');
     Route::get('asrama/penghuni/{membership}', [ResidentController::class, 'person'])->whereUuid('membership')->name('dormitory.residents.person');
     Route::get('asrama/kamar/{room}/calon', [PlacementController::class, 'candidates'])->whereUuid('room')->middleware('throttle:60,1')->name('dormitory.placements.candidates');
     Route::post('asrama/kamar/{room}/penghuni', [PlacementController::class, 'store'])->whereUuid('room')->name('dormitory.placements.store');

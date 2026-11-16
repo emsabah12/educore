@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     ArrowRightLeft,
     BedDouble,
+    ClipboardCheck,
     LogIn,
     LogOut,
     Pencil,
@@ -92,6 +93,7 @@ type Props = {
     canManage: boolean;
     canViewResidents: boolean;
     canManageResidents: boolean;
+    canFillAttendance: boolean;
     holders: PlacementRow[];
     history: PlacementPage | null;
     supervisors: SupervisorRow[];
@@ -146,6 +148,7 @@ export default function RoomShow({
     canManage,
     canViewResidents,
     canManageResidents,
+    canFillAttendance,
     holders,
     history,
     supervisors,
@@ -245,6 +248,14 @@ export default function RoomShow({
                         </Badge>
                         {!room.is_active && (
                             <Badge variant="outline">Nonaktif</Badge>
+                        )}
+                        {canFillAttendance && (
+                            <Button size="sm" variant="outline" asChild>
+                                <Link href={`/asrama/kamar/${room.id}/absen`}>
+                                    <ClipboardCheck />
+                                    Absen
+                                </Link>
+                            </Button>
                         )}
                         {canManage && (
                             <>

@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { ArrowRightLeft, TriangleAlert } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowRightLeft, ClipboardCheck, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Empty } from '@/components/dormitory/facility-forms';
 import type { OpenMutations } from '@/components/dormitory/mutation-forms';
@@ -90,6 +90,27 @@ export default function MyRooms({ rooms }: { rooms: MyRoom[] }) {
                                         <Badge variant="secondary">
                                             {room.composition_label}
                                         </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        <Button size="sm" asChild>
+                                            <Link
+                                                href={`/asrama/kamar/${room.id}/absen`}
+                                            >
+                                                <ClipboardCheck />
+                                                Absen
+                                            </Link>
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            asChild
+                                        >
+                                            <Link
+                                                href={`/kamar-saya/${room.id}/rekap-absen`}
+                                            >
+                                                Rekap absen
+                                            </Link>
+                                        </Button>
                                     </div>
                                     {overCapacity && (
                                         <p className="flex items-center gap-1 text-sm text-destructive">

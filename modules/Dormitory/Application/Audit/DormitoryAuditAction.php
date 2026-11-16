@@ -72,6 +72,12 @@ final class DormitoryAuditAction
 
     public const PLACEMENTS_IMPORTED = 'dormitory.placements_imported';
 
+    /** Jenis absen asrama ditambah/diubah/dinonaktifkan/diaktifkan/dihapus (DM-7). */
+    public const ATTENDANCE_KIND_CHANGED = 'dormitory.attendance_kind_changed';
+
+    /** Absen asrama satu kamar disimpan atau dikoreksi (DM-7; hanya jumlah per status, tanpa keterangan). */
+    public const ATTENDANCE_RECORDED = 'dormitory.attendance_recorded';
+
     public const SUBJECT_DORMITORY = 'dm_dormitory';
 
     public const SUBJECT_BUILDING = 'dm_building';
@@ -126,6 +132,8 @@ final class DormitoryAuditAction
             self::MUTATION_REVIEWED => 'Mutasi darurat ditinjau',
             self::YEAR_END_RUN => 'Proses akhir tahun asrama',
             self::PLACEMENTS_IMPORTED => 'Penempatan diimpor dari file',
+            self::ATTENDANCE_KIND_CHANGED => 'Jenis absen asrama diubah',
+            self::ATTENDANCE_RECORDED => 'Absen asrama diisi',
         ];
     }
 }

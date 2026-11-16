@@ -6,6 +6,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Core\Domain\Tenancy\TenantContext;
+use Modules\Dormitory\Domain\Attendance\AttendanceException;
 use Modules\Dormitory\Domain\Facility\Exceptions\FacilityException;
 use Modules\Dormitory\Domain\Mutation\Exceptions\MutationException;
 use Modules\Dormitory\Domain\Placement\Exceptions\PlacementException;
@@ -39,7 +40,7 @@ trait HandlesFacilityActions
     {
         try {
             return $action();
-        } catch (FacilityException|PlacementException|SupervisionException|MutationException|YearEndException $exception) {
+        } catch (FacilityException|PlacementException|SupervisionException|MutationException|YearEndException|AttendanceException $exception) {
             throw ValidationException::withMessages([$exception->field => $exception->getMessage()]);
         }
     }

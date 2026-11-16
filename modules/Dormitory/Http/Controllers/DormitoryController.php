@@ -11,6 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Core\Application\Authorization\AuthorizationService;
 use Modules\Core\Domain\Organization\Organization;
+use Modules\Dormitory\Application\Attendance\ManageAttendanceKinds;
 use Modules\Dormitory\Application\Authorization\DormitoryAccess;
 use Modules\Dormitory\Application\Facility\FacilityCode;
 use Modules\Dormitory\Application\Facility\FacilityDirectory;
@@ -94,7 +95,7 @@ final class DormitoryController
         return redirect()->route('dormitory.dormitories.show', ['dormitory' => $dormitory->id]);
     }
 
-    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors, YearEndProcess $yearEnd): Response
+    public function show(Request $request, string $dormitory, FacilityDirectory $directory, PlacementDirectory $placements, SupervisorDirectory $supervisors, YearEndProcess $yearEnd, ManageAttendanceKinds $kinds): Response
     {
         $target = $this->find($dormitory, DormitoryAccess::FACILITIES_VIEW);
         $canViewResidents = $this->authorization->allows(DormitoryAccess::RESIDENTS_VIEW, $target->organization_id);
@@ -114,6 +115,8 @@ final class DormitoryController
             // Proses akhir tahun (DM-5a): tombol & ringkasan di tab Pengaturan.
             'canRunYearEnd' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
             'yearEndRuns' => $yearEnd->history($target->id),
+            // Jenis absen (DM-7) di tab Pengaturan.
+            'attendanceKinds' => $kinds->forDormitory($target->id),
             'options' => [
                 'genders' => FacilityDirectory::genderOptions(),
                 'bases' => CapacityBasis::options(),

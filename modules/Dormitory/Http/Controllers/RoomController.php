@@ -73,6 +73,7 @@ final class RoomController
             'canManage' => $this->authorization->allows(DormitoryAccess::FACILITIES_MANAGE, $target->organization_id),
             'canViewResidents' => $canViewResidents,
             'canManageResidents' => $this->authorization->allows(DormitoryAccess::RESIDENTS_MANAGE, $target->organization_id),
+            'canFillAttendance' => $this->authorization->allows(DormitoryAccess::ATTENDANCE_MANAGE, $target->organization_id),
             'holders' => $holders,
             // Riwayat hanya dimuat saat tab Riwayat dibuka.
             'history' => $canViewResidents && $historyTab ? $placements->roomHistory($this->tenantId(), $target->id) : null,
