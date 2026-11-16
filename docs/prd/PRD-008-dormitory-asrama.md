@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.13 (2026-11-16: DM-7 absen asrama dirinci, disetujui & dibangun, §22)
-- **Versi sebelumnya:** 0.12 (DM-6 dibangun, §21), 0.11 (DM-5b dibangun, §20), 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b SELESAI (commit `9ccac5b`, uji owner lancar); DM-6 SELESAI (commit `ca4fb10`, uji owner lancar, CI hijau); DM-7 DIBANGUN (§22, menunggu uji owner)
+- **Versi:** 0.14 (2026-11-16: DM-7 selesai; sisa DM-2 — teks penghuni di pop-up Nonaktifkan — dibangun, §16.9)
+- **Versi sebelumnya:** 0.13 (DM-7 dibangun, §22), 0.12 (DM-6 dibangun, §21), 0.11 (DM-5b dibangun, §20), 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b SELESAI (commit `9ccac5b`, uji owner lancar); DM-6 SELESAI (commit `ca4fb10`, uji owner lancar, CI hijau); DM-7 SELESAI (commit `cc8592a`, uji owner lancar, CI hijau) — **semua tahap PRD-008 selesai**
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -464,8 +464,8 @@ Dibangun sesuai §16.1–§16.8, dengan penyesuaian berikut:
 - **Daftar penghuni** (menu Penghuni dan tab Penghuni di detail asrama) dicari menurut **nama saja**.
 - **Riwayat kamar dan daftar penghuni detail asrama** dimuat saat tabnya dibuka (bukan saat halaman dibuka).
 - **Kelebihan muatan** ditandai di kartu Terisi dan banner halaman kamar, baris kamar di detail asrama, banner jumlah kamar bermasalah di detail asrama, serta peringatan "bed/loker tidak bisa dipakai" pada penghuni terkait.
-- **Belum dibangun:**
-    - Teks "N penghuni masih tinggal" di pop-up Nonaktifkan asrama/gedung/kamar (§16.5). Pop-up masih memakai teks DM-1, dan penghuni memang tidak dikeluarkan.
+- **Menyusul (2026-11-16, sesudah DM-7):** pop-up Nonaktifkan asrama/gedung/kamar kini menyebut jumlah penghuni Aktif dan rencana di dalamnya, mis. "4 penghuni masih tinggal dan 1 rencana penempatan di sini tidak dikeluarkan atau dibatalkan" (§16.5). Dihitung dari semua kamar di dalamnya, termasuk kamar nonaktif.
+- **Tidak dibangun (diganti):**
     - Test "dua permintaan berebut bed terakhir" diganti test unique index satu pemegang per bed di database, ditambah kunci baris kamar di service. Hasil akhirnya sama: hanya satu permintaan yang tersimpan.
 - **Kontrak:** `Academic\Contracts\ActiveStudents` (`search`, `withOpenEnrollment`, `describe`); HR `ActiveEmployees::searchInTenant` dan `activeMembershipIds`.
 - **Test:** `tests/Feature/Dormitory/PlacementTest.php` (awalan `dmp`, 7 test).

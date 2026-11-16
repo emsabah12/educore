@@ -457,6 +457,22 @@ export function StatusToggle({
     );
 }
 
+/**
+ * Kalimat tambahan pop-up Nonaktifkan asrama/gedung/kamar (PRD-008 §16.5): penghuni tidak dikeluarkan otomatis.
+ */
+export function residentsStayNote(active: number, planned: number): string {
+    if (active === 0 && planned === 0) {
+        return '';
+    }
+
+    const parts = [
+        active > 0 ? `${active} penghuni masih tinggal` : null,
+        planned > 0 ? `${planned} rencana penempatan` : null,
+    ].filter(Boolean);
+
+    return ` ${parts.join(' dan ')} di sini tidak dikeluarkan atau dibatalkan. Check-out, mutasi, atau batalkan satu per satu bila perlu.`;
+}
+
 export function Empty({ children }: { children: ReactNode }) {
     return (
         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">

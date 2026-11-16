@@ -19,6 +19,7 @@ import {
     Field,
     ResourceFields,
     RoomFields,
+    residentsStayNote,
     StatusToggle,
 } from '@/components/dormitory/facility-forms';
 import type { OpenMutations } from '@/components/dormitory/mutation-forms';
@@ -274,7 +275,13 @@ export default function RoomShow({
                                     active={room.is_active}
                                     action={`/asrama/kamar/${room.id}/status`}
                                     subject={`kamar ${room.code}`}
-                                    deactivateNote="Kamar ini tidak menerima penghuni baru. Data dan riwayat tetap tersimpan."
+                                    deactivateNote={
+                                        'Kamar ini tidak menerima penghuni baru. Data dan riwayat tetap tersimpan.' +
+                                        residentsStayNote(
+                                            occupancy.active,
+                                            occupancy.planned,
+                                        )
+                                    }
                                     errorBag="roomStatus"
                                 />
                             </>

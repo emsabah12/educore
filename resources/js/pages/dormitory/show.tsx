@@ -10,6 +10,7 @@ import {
     Field,
     RoomFields,
     Select,
+    residentsStayNote,
     StatusToggle,
 } from '@/components/dormitory/facility-forms';
 import { ResidentFilterBar } from '@/components/dormitory/resident-filters';
@@ -176,7 +177,13 @@ export default function DormitoryShow({
                                     active={dormitory.is_active}
                                     action={`${base}/status`}
                                     subject={`asrama ${dormitory.name}`}
-                                    deactivateNote="Gedung dan kamarnya tidak menerima penghuni baru. Data dan riwayat tetap tersimpan."
+                                    deactivateNote={
+                                        'Gedung dan kamarnya tidak menerima penghuni baru. Data dan riwayat tetap tersimpan.' +
+                                        residentsStayNote(
+                                            sumOccupancy(buildings, 'active'),
+                                            sumOccupancy(buildings, 'planned'),
+                                        )
+                                    }
                                     errorBag="dormitoryStatus"
                                 />
                             </>
@@ -521,7 +528,13 @@ function BuildingCard({
                             active={building.is_active}
                             action={`/asrama/gedung/${building.id}/status`}
                             subject={`gedung ${building.name}`}
-                            deactivateNote="Kamar di gedung ini tidak menerima penghuni baru. Data dan riwayat tetap tersimpan."
+                            deactivateNote={
+                                'Kamar di gedung ini tidak menerima penghuni baru. Data dan riwayat tetap tersimpan.' +
+                                residentsStayNote(
+                                    sumOccupancy([building], 'active'),
+                                    sumOccupancy([building], 'planned'),
+                                )
+                            }
                             errorBag={`buildingStatus-${building.id}`}
                         />
                     </div>
@@ -732,5 +745,21 @@ function YearEndSummary({
                 </ul>
             )}
         </section>
+    );
+}
+
+/** Jumlah penghuni Aktif atau rencana di semua kamar gedung-gedung ini (termasuk kamar nonaktif). */
+function sumOccupancy(
+    buildings: BuildingRow[],
+    field: 'active' | 'planned',
+): number {
+    return buildings.reduce(
+        (total, building) =>
+            total +
+            building.rooms.reduce(
+                (sum, room) => sum + room.occupancy[field],
+                0,
+            ),
+        0,
     );
 }
