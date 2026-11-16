@@ -101,6 +101,12 @@ const residentsNavItem: NavItem = {
     icon: UsersRound,
 };
 
+const occupancyReportNavItem: NavItem = {
+    title: 'Laporan hunian',
+    href: '/asrama/laporan',
+    icon: ChartColumn,
+};
+
 const auditNavItem: NavItem = {
     title: 'Log audit',
     href: '/audit',
@@ -462,6 +468,9 @@ export function AppSidebar() {
                     ].some((key) => permissions.includes(key)),
                     [mutationsNavItem],
                 ),
+                ...when(permissions.includes('dormitory.residents.view'), [
+                    occupancyReportNavItem,
+                ]),
             ],
         },
         {

@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import { ResidentFilterBar } from '@/components/dormitory/resident-filters';
 import { ResidentList } from '@/components/dormitory/residents';
 import type {
@@ -7,6 +8,7 @@ import type {
     ResidentFilters,
 } from '@/components/dormitory/types';
 import Heading from '@/components/heading';
+import { Button } from '@/components/ui/button';
 
 type Props = {
     filters: ResidentFilters;
@@ -34,10 +36,20 @@ export default function Residents({ filters, options, residents }: Props) {
             <Head title="Penghuni asrama" />
 
             <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4">
-                <Heading
-                    title="Penghuni"
-                    description="Santri dan pengawas yang sedang tinggal atau sudah direncanakan menempati kamar. Penempatan dilakukan dari halaman kamar."
-                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <Heading
+                        title="Penghuni"
+                        description="Santri dan pengawas yang sedang tinggal atau sudah direncanakan menempati kamar. Penempatan dilakukan dari halaman kamar."
+                    />
+                    {residents.total > 0 && (
+                        <Button variant="outline" asChild className="shrink-0">
+                            <a href={exportUrl(filters)}>
+                                <Download />
+                                Unduh .xlsx
+                            </a>
+                        </Button>
+                    )}
+                </div>
 
                 <ResidentFilterBar
                     url="/asrama/penghuni"
@@ -61,4 +73,37 @@ export default function Residents({ filters, options, residents }: Props) {
             </div>
         </>
     );
+}
+
+/** Unduhan .xlsx mengikuti saringan yang sedang dipakai (kunci alamat sama dengan halaman ini). */
+function exportUrl(filters: ResidentFilters): string {
+    const params = new URLSearchParams();
+
+    if (filters.dormitory) {
+        params.set('asrama', filters.dormitory);
+    }
+
+    if (filters.building) {
+        params.set('gedung', filters.building);
+    }
+
+    if (filters.status !== 'semua') {
+        params.set('status', filters.status);
+    }
+
+    if (filters.category) {
+        params.set('kategori', filters.category);
+    }
+
+    if (filters.q) {
+        params.set('q', filters.q);
+    }
+
+    if (filters.review) {
+        params.set('tinjau', '1');
+    }
+
+    const query = params.toString();
+
+    return `/asrama/penghuni/unduh${query ? `?${query}` : ''}`;
 }

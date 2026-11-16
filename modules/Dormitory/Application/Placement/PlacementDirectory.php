@@ -23,6 +23,9 @@ final class PlacementDirectory
 
     public const HISTORY_PER_PAGE = 50;
 
+    /** Batas baris unduhan daftar penghuni. */
+    public const EXPORT_LIMIT = 5000;
+
     public function __construct(
         private readonly ResidentEligibility $eligibility,
         private readonly ResidentReview $review,
@@ -74,6 +77,32 @@ final class PlacementDirectory
      */
     public function search(string $tenantId, array $organizationIds, array $filters): array
     {
+        /** @var LengthAwarePaginator<int, stdClass> $page */
+        $page = $this->searchQuery($tenantId, $organizationIds, $filters)
+            ->paginate(self::PER_PAGE, ['*'], 'halaman')
+            ->withQueryString();
+
+        return $this->page($tenantId, $page);
+    }
+
+    /**
+     * Semua penghuni yang cocok saringan (untuk unduhan .xlsx), maks. EXPORT_LIMIT baris.
+     *
+     * @param  list<string>  $organizationIds
+     * @param  array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string, review?: bool}  $filters
+     * @return list<PlacementRow>
+     */
+    public function searchAll(string $tenantId, array $organizationIds, array $filters): array
+    {
+        return $this->present($tenantId, self::list($this->searchQuery($tenantId, $organizationIds, $filters)->limit(self::EXPORT_LIMIT)->get()));
+    }
+
+    /**
+     * @param  list<string>  $organizationIds
+     * @param  array{dormitory: string|null, building: string|null, status: string, category: string|null, q: string, review?: bool}  $filters
+     */
+    private function searchQuery(string $tenantId, array $organizationIds, array $filters): Builder
+    {
         $statuses = match ($filters['status']) {
             'aktif' => [PlacementStatus::Active->value],
             'rencana' => [PlacementStatus::Planned->value],
@@ -81,8 +110,7 @@ final class PlacementDirectory
         };
         $text = trim((string) preg_replace('/\s+/u', ' ', $filters['q']));
 
-        /** @var LengthAwarePaginator<int, stdClass> $page */
-        $page = $this->base($tenantId)
+        return $this->base($tenantId)
             ->whereIn('pl.organization_id', $organizationIds)
             ->whereIn('pl.status', $statuses)
             ->when($filters['dormitory'] !== null, fn (Builder $query) => $query->where('pl.dormitory_id', $filters['dormitory']))
@@ -94,11 +122,7 @@ final class PlacementDirectory
             ->orderBy('g.code')
             ->orderBy('r.code')
             ->orderBy('p.name')
-            ->orderBy('pl.id')
-            ->paginate(self::PER_PAGE, ['*'], 'halaman')
-            ->withQueryString();
-
-        return $this->page($tenantId, $page);
+            ->orderBy('pl.id');
     }
 
     /**

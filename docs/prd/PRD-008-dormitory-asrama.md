@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.11 (2026-11-16: DM-5b impor penempatan dirinci, disetujui & dibangun, §20)
-- **Versi sebelumnya:** 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b DIBANGUN (§20, menunggu uji owner)
+- **Versi:** 0.12 (2026-11-16: DM-6 laporan hunian + unduhan Penghuni dirinci, disetujui & dibangun, §21)
+- **Versi sebelumnya:** 0.11 (DM-5b dibangun, §20), 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b SELESAI (commit `9ccac5b`, uji owner lancar); DM-6 DIBANGUN (§21, menunggu uji owner)
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -285,9 +285,9 @@ Menu kelompok baru **Asrama** (sesudah Akademik), mengikuti Pedoman tampilan: ta
 | **Detail kamar**                  | Ringkasan (gender, komposisi, dasar kapasitas, kapasitas efektif, slot pengawas, terisi/direncanakan/tersedia). Tab **Penghuni**, **Bed & loker**, **Riwayat** |
 | **Penghuni** (`/asrama/penghuni`) | Semua penghuni dalam cakupan, saringan asrama/gedung/kamar/status/kategori/lembaga, cari nama/NIS, tanda Perlu ditinjau, unduh .xlsx                           |
 | **Mutasi** (`/asrama/mutasi`)     | Tab **Menunggu persetujuan**, **Darurat** (dengan Sudah ditinjau), **Riwayat**. Tombol Ajukan mutasi dan Mutasi darurat sesuai izin                            |
-| **Impor penempatan**              | Pola impor EduCore (§12 DM-5)                                                                                                                                  |
+| **Impor penempatan**              | Pola impor EduCore (§20)                                                                                                                                       |
 | **Proses akhir tahun**            | §9                                                                                                                                                             |
-| **Laporan hunian**                | §12 DM-6                                                                                                                                                       |
+| **Laporan hunian**                | §21 (`/asrama/laporan`)                                                                                                                                        |
 | **Kamar saya**                    | Untuk wali kamar (§6), di kelompok **Untuk saya**                                                                                                              |
 | Detail siswa / detail pegawai     | **Ditunda** [OWNER, 2026-11-15, §16.8]: riwayat hunian per orang ada di Asrama → Penghuni                                                                      |
 
@@ -638,3 +638,27 @@ Mewujudkan OD-DM-07 & §12 DM-5: menempatkan banyak santri ke kamar satu asrama 
 - Route: `GET|POST asrama/{dormitory}/impor`, `GET asrama/{dormitory}/impor/template`, `POST …/impor/simpan`, `POST …/impor/batal` (nama `dormitory.import.*`).
 - Halaman: `pages/dormitory/import.tsx`; tombol di tab Penghuni.
 - Test: `tests/Feature/Dormitory/PlacementImportTest.php` (awalan `dmi`, 4 test: pratinjau berurutan, simpan sekaligus, file ditolak + isi template, hak akses). Benchmark 150 baris: pratinjau ±1,3 dtk, simpan ±1,1 dtk (±9 dtk untuk 1000 baris).
+
+## 21. DM-6 Laporan hunian [ASUMSI disetujui owner 2026-11-16]
+
+Mewujudkan §12 DM-6 dan tombol unduh .xlsx di halaman Penghuni (§10) [OWNER, 2026-11-16: ikut DM-6].
+
+### 21.1 Halaman `/asrama/laporan`
+
+- Menu **Asrama → Laporan hunian**, izin `dormitory.residents.view` (§7), hanya asrama yang node pemiliknya terlihat; asrama di luar cakupan di alamat diabaikan. Saringan: asrama (bawaan semua) dan gedung Putra/Putri. Tanpa permission & migrasi baru.
+- **Tab Hunian sekarang**: kartu ringkas (kapasitas efektif + jumlah kamar, terisi santri/pengawas, direncanakan, tersedia, % hunian, kamar kelebihan muatan + bed/loker tidak tersedia) dan daftar bertingkat asrama → gedung → tabel kamar (kapasitas, santri, pengawas, rencana, tersedia, % hunian, bed & loker tersedia/total, tanda kelebihan muatan/nonaktif).
+- **% hunian = Aktif ÷ kapasitas efektif**; kapasitas 0 → "–" (tidak dibagi). Tersedia = kapasitas − aktif − rencana (min. 0). Rencana tidak ikut persen [ASUMSI disetujui].
+- **Kamar/gedung/asrama nonaktif** tidak dihitung ke kapasitas; bila masih berpenghuni tetap tampil bertanda Nonaktif [ASUMSI disetujui].
+- **Tab Riwayat** — pergerakan dalam rentang [OWNER, 2026-11-16]: rentang bawaan awal bulan s.d. hari ini, maks. 1 tahun (disesuaikan otomatis bila melebihi atau melewati hari ini). Per asrama: **hunian awal** (tinggal di akhir hari sebelum tanggal awal), **masuk**, **keluar** menurut alasan (keluar asrama, lulus/keluar lembaga, akhir tahun, lainnya), **mutasi masuk/keluar**, **mutasi darurat** (sekali per mutasi), **hunian akhir** (masih tinggal di akhir tanggal sampai); akhir = awal + masuk − keluar. Daftar kejadian (tanggal, nama, kamar, jenis, keterangan "Darurat · dari/ke kamar …") 50 per halaman. Dimuat saat tab dibuka. Santri & pengawas dihitung; rencana dan rencana batal tidak.
+- **Unduh .xlsx** (sesuai saringan): lembar **Ringkasan** (per asrama: hunian sekarang + pergerakan), **Per kamar**, **Riwayat** (semua kejadian dalam rentang).
+
+### 21.2 Unduh daftar Penghuni
+
+- Tombol **Unduh .xlsx** di `/asrama/penghuni`, mengikuti saringan halaman (asrama, gedung, status, kategori, nama, perlu ditinjau), maks. 5.000 baris. Kolom: nama, kategori, lembaga & kelas, asrama, gedung, kamar, bed, loker, status, tanggal masuk, rencana masuk, perlu ditinjau (tanpa data pribadi lain, §11).
+
+### 21.3 Hasil pembangunan (2026-11-16)
+
+- Kode: `Application/Report/{OccupancyReport, OccupancyReportExport}`, `Application/Placement/ResidentExport`, `PlacementDirectory::searchAll()`, `OccupancyReportController`, `ResidentController::export`.
+- Route: `GET asrama/laporan`, `GET asrama/laporan/unduh`, `GET asrama/penghuni/unduh` (unduhan throttle 20/menit).
+- Halaman: `pages/dormitory/report.tsx`; tombol unduh di `pages/dormitory/residents.tsx`; menu samping.
+- Test: `tests/Feature/Dormitory/OccupancyReportTest.php` (awalan `dml`, 4 test: angka hunian sekarang + saringan + kamar nonaktif, riwayat + rentang, isi unduhan, hak akses).

@@ -5,6 +5,7 @@ use Modules\Dormitory\Http\Controllers\BuildingController;
 use Modules\Dormitory\Http\Controllers\DormitoryController;
 use Modules\Dormitory\Http\Controllers\MutationController;
 use Modules\Dormitory\Http\Controllers\MyRoomsController;
+use Modules\Dormitory\Http\Controllers\OccupancyReportController;
 use Modules\Dormitory\Http\Controllers\PlacementController;
 use Modules\Dormitory\Http\Controllers\PlacementImportController;
 use Modules\Dormitory\Http\Controllers\ResidentController;
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'work.context'])->group(function () {
 
     // Penghuni (DM-2). Lihat: dormitory.residents.view; kelola: dormitory.residents.manage di node pemilik.
     Route::get('asrama/penghuni', [ResidentController::class, 'index'])->name('dormitory.residents.index');
+    Route::get('asrama/penghuni/unduh', [ResidentController::class, 'export'])->middleware('throttle:20,1')->name('dormitory.residents.export');
+
+    // Laporan hunian (DM-6, PRD-008 §21).
+    Route::get('asrama/laporan', [OccupancyReportController::class, 'index'])->name('dormitory.report.index');
+    Route::get('asrama/laporan/unduh', [OccupancyReportController::class, 'export'])->middleware('throttle:20,1')->name('dormitory.report.export');
     Route::get('asrama/penghuni/{membership}', [ResidentController::class, 'person'])->whereUuid('membership')->name('dormitory.residents.person');
     Route::get('asrama/kamar/{room}/calon', [PlacementController::class, 'candidates'])->whereUuid('room')->middleware('throttle:60,1')->name('dormitory.placements.candidates');
     Route::post('asrama/kamar/{room}/penghuni', [PlacementController::class, 'store'])->whereUuid('room')->name('dormitory.placements.store');

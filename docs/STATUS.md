@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-16
-- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: DM-1 s.d. DM-5a SELESAI (commit `13e6156`, `5eb5d69`, `7c09e0c`, `8e8e3ee`, `10640cb`); DM-5b (impor penempatan) dibangun, menunggu uji owner. Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
-- **Commit terakhir:** `10640cb` — DM-5a (perlu ditinjau, akhir tahun, tempatkan banyak); CI GitHub hijau
+- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: DM-1 s.d. DM-5b SELESAI (commit `13e6156`, `5eb5d69`, `7c09e0c`, `8e8e3ee`, `10640cb`, `9ccac5b`); DM-6 (laporan hunian) dibangun, menunggu uji owner. Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
+- **Commit terakhir:** `9ccac5b` — DM-5b (impor penempatan); uji owner lancar
 
 ## Keputusan penting
 
@@ -1071,11 +1071,17 @@
 - **Tempatkan banyak** (`ManagePlacements::placeMany`, `POST asrama/kamar/{room}/penghuni-banyak`): maks. 50, semua atau tidak, bed/loker otomatis.
 - Tanpa permission baru. Test: `tests/Feature/Dormitory/YearEndTest.php` (4 test, awalan `dmy`). **848 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (tempatkan banyak, saringan perlu ditinjau, proses akhir tahun) lulus.
 
-**DM-5b — Impor penempatan: DIBANGUN (2026-11-16), menunggu uji owner** — PRD-008 §20
+**DM-5b — Impor penempatan: SELESAI (`9ccac5b`, uji owner lancar)** — PRD-008 §20
 
 - Halaman `/asrama/{id}/impor` (tombol di tab Penghuni, izin `residents.manage`): unduh template per asrama (lembar Penempatan + Petunjuk berisi kamar, sisa slot, bed/loker kosong) → unggah .xlsx/.csv (maks. 2 MB, 1000 baris) → pratinjau Siap/Salah → simpan semua atau tidak.
 - Santri dikenali dari **NISN atau NIS** (NISN didahulukan; NIS ganda → salah). Pemeriksaan berurutan memakai `ManagePlacements::place()` di transaksi yang di-rollback saat pratinjau. Audit `dormitory.placements_imported`; perintah `dormitory:prune-imports` tiap jam. Kontrak `ActiveStudents::findByIdentifiers`.
 - Tanpa migrasi & permission baru. Test: `tests/Feature/Dormitory/PlacementImportTest.php` (4 test, awalan `dmi`). **852 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (template, file salah, file benar → tersimpan, tampilan HP) lulus.
+
+**DM-6 — Laporan hunian: DIBANGUN (2026-11-16), menunggu uji owner** — PRD-008 §21
+
+- Menu **Asrama → Laporan hunian** (`/asrama/laporan`, izin `residents.view`, cakupan disaring): tab **Hunian sekarang** (kartu ringkas + asrama → gedung → kamar; % hunian = Aktif ÷ kapasitas efektif, kapasitas 0 = "–"; kamar nonaktif berpenghuni tetap tampil) dan **Riwayat** (rentang ≤ 1 tahun: hunian awal/akhir, masuk, keluar per alasan, mutasi masuk/keluar/darurat, daftar kejadian). Unduh .xlsx 3 lembar (Ringkasan, Per kamar, Riwayat).
+- **Unduh .xlsx daftar Penghuni** sesuai saringan (`/asrama/penghuni/unduh`, maks. 5.000 baris).
+- Tanpa migrasi & permission baru. Test: `tests/Feature/Dormitory/OccupancyReportTest.php` (4 test, awalan `dml`). **856 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (laporan, riwayat, kedua unduhan, tampilan HP) lulus.
 
 ## Perapian tampilan
 
@@ -1186,5 +1192,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → 10c-2 SELESAI. **HR-10 SELESAI** (10a, 10b, 10c).
-5. **Asrama (PRD-008)**: DM-1 fasilitas (selesai) → DM-2 penempatan (selesai) → DM-3 wali kamar (selesai) → DM-4 mutasi (selesai) → DM-5a perlu ditinjau, akhir tahun, tempatkan banyak (selesai) → DM-5b impor penempatan (dibangun, uji owner) → DM-6 laporan hunian → DM-7 absen asrama.
+5. **Asrama (PRD-008)**: DM-1 fasilitas (selesai) → DM-2 penempatan (selesai) → DM-3 wali kamar (selesai) → DM-4 mutasi (selesai) → DM-5a perlu ditinjau, akhir tahun, tempatkan banyak (selesai) → DM-5b impor penempatan (selesai) → DM-6 laporan hunian (dibangun, uji owner) → DM-7 absen asrama.
 6. AC-9 (ekspor Dapodik/EMIS, PPDB) — dirinci dulu.
