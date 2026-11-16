@@ -1,8 +1,8 @@
 # PRD-008 — Modul Dormitory (Asrama): Fasilitas, Penghuni, Mutasi & Wali Kamar
 
-- **Versi:** 0.10 (2026-11-15: DM-5 dipecah; DM-5a dirinci, disetujui & dibangun, §19)
-- **Versi sebelumnya:** 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
-- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a DIBANGUN (§19, menunggu uji owner); DM-5b impor menyusul
+- **Versi:** 0.11 (2026-11-16: DM-5b impor penempatan dirinci, disetujui & dibangun, §20)
+- **Versi sebelumnya:** 0.10 (DM-5 dipecah; DM-5a dibangun, §19), 0.9 (DM-4 dibangun, §18.5), 0.8 (rincian DM-4 disetujui owner, §18), 0.7 (DM-3 dibangun, §17.5), 0.6 (rincian DM-3 disetujui owner, §17), 0.5 (DM-2 dibangun, §16.9), 0.4 (rincian DM-2 disetujui owner, §16), 0.3 (DM-1 dibangun, §15), 0.2 (disetujui owner, OD-DM-01 s.d. 12 sesuai usulan; rincian DM-1 §15), 0.1 (draf pertama, ditulis ulang dari Fase 1 owner + analisis lama)
+- **Status:** **DISETUJUI (2026-11-15)**; DM-1 SELESAI (commit `13e6156`, uji owner lancar); DM-2 SELESAI (commit `5eb5d69`, uji owner lancar); DM-3 SELESAI (commit `7c09e0c`, uji owner lancar, CI hijau); DM-4 SELESAI (commit `8e8e3ee`, uji owner lancar, CI hijau); DM-5a SELESAI (commit `10640cb`, uji owner lancar, CI hijau); DM-5b DIBANGUN (§20, menunggu uji owner)
 - **Bergantung pada:** PRD-000 (pohon lembaga, akses, aturan berjenjang, audit), PRD-001 (pegawai aktif sebagai calon wali kamar), PRD-002 (siswa, pendaftaran, tahun ajaran, portal Anak saya), ADR-001
 - **Sumber yang ditulis ulang:**
     - `FASE 1 PRODUCT & BUSINESS REQUIREMENT DORMITORY.docx` (owner, Agustus 2026) → label **[DOCX]**
@@ -310,15 +310,15 @@ Kartu Beranda [ASUMSI]: **Pengajuan mutasi menunggu** (penyetuju), **Mutasi daru
 
 ## 12. Tahapan [ASUMSI]
 
-| Tahap    | Isi                                                                                                                                                                                                                                                                                                                                                                    |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **DM-1** | Kerangka modul + arch test (`Dormitory → Core, Academic\Contracts, HR\Contracts`), katalog akses + 2 role, asrama/gedung/kamar/bed/loker, kapasitas efektif, status & nonaktif, halaman Asrama & Detail kamar                                                                                                                                                          |
-| **DM-2** | Penempatan: tempatkan langsung, rencanakan, check-in, batal rencana, check-out; daftar Penghuni; riwayat kamar & santri; bagian Asrama di detail siswa/pegawai; penanda kelebihan muatan                                                                                                                                                                               |
-| **DM-3** | Wali kamar: penugasan per kamar, penempatan Pengawas, menu **Kamar saya**                                                                                                                                                                                                                                                                                              |
-| **DM-4** | Mutasi biasa & darurat, tinjauan darurat, kartu Beranda                                                                                                                                                                                                                                                                                                                |
-| **DM-5** | **Dipecah** [OWNER, 2026-11-15]: **DM-5a** = tanda Perlu ditinjau, Proses akhir tahun, Tempatkan banyak (§19); **DM-5b** = impor penempatan. Rincian awal: impor penempatan (template per asrama: NIS/NISN, kode kamar, bed/loker opsional) + pilih banyak santri sekaligus ke satu kamar; **Proses akhir tahun asrama**; tanda Perlu ditinjau dari `EnrollmentClosed` |
-| **DM-6** | Laporan hunian: per asrama/gedung/kamar — bed, loker, kapasitas efektif, terisi, direncanakan, tersedia, % hunian (kapasitas 0 tidak dibagi), kelebihan muatan, bed/loker rusak, jumlah santri & pengawas; riwayat per rentang tanggal; unduh .xlsx [LAMA 12.9–12.12]                                                                                                  |
-| **DM-7** | Absen asrama (roll call): sesi per asrama per tanggal (mis. Subuh/Malam, diatur per asrama), status Hadir/Izin/Sakit/Tidak ada per penghuni Aktif, diisi wali kamar/pengurus, rekap bulanan. Terpisah dari presensi kelas AC-4 [LAMA 12.14–12.18]                                                                                                                      |
+| Tahap    | Isi                                                                                                                                                                                                                                                                                                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DM-1** | Kerangka modul + arch test (`Dormitory → Core, Academic\Contracts, HR\Contracts`), katalog akses + 2 role, asrama/gedung/kamar/bed/loker, kapasitas efektif, status & nonaktif, halaman Asrama & Detail kamar                                                                                                                                                                |
+| **DM-2** | Penempatan: tempatkan langsung, rencanakan, check-in, batal rencana, check-out; daftar Penghuni; riwayat kamar & santri; bagian Asrama di detail siswa/pegawai; penanda kelebihan muatan                                                                                                                                                                                     |
+| **DM-3** | Wali kamar: penugasan per kamar, penempatan Pengawas, menu **Kamar saya**                                                                                                                                                                                                                                                                                                    |
+| **DM-4** | Mutasi biasa & darurat, tinjauan darurat, kartu Beranda                                                                                                                                                                                                                                                                                                                      |
+| **DM-5** | **Dipecah** [OWNER, 2026-11-15]: **DM-5a** = tanda Perlu ditinjau, Proses akhir tahun, Tempatkan banyak (§19); **DM-5b** = impor penempatan (§20). Rincian awal: impor penempatan (template per asrama: NIS/NISN, kode kamar, bed/loker opsional) + pilih banyak santri sekaligus ke satu kamar; **Proses akhir tahun asrama**; tanda Perlu ditinjau dari `EnrollmentClosed` |
+| **DM-6** | Laporan hunian: per asrama/gedung/kamar — bed, loker, kapasitas efektif, terisi, direncanakan, tersedia, % hunian (kapasitas 0 tidak dibagi), kelebihan muatan, bed/loker rusak, jumlah santri & pengawas; riwayat per rentang tanggal; unduh .xlsx [LAMA 12.9–12.12]                                                                                                        |
+| **DM-7** | Absen asrama (roll call): sesi per asrama per tanggal (mis. Subuh/Malam, diatur per asrama), status Hadir/Izin/Sakit/Tidak ada per penghuni Aktif, diisi wali kamar/pengurus, rekap bulanan. Terpisah dari presensi kelas AC-4 [LAMA 12.14–12.18]                                                                                                                            |
 
 Setiap tahap: test Feature per aturan (awalan fungsi bantu unik, mis. `dmf`, `dmp`), test constraint di PostgreSQL, audit, `composer lint`, `composer test`, `npm run check`.
 
@@ -576,7 +576,7 @@ Dibangun sesuai §18.1–§18.4, dengan catatan:
 
 ## 19. DM-5a Perlu ditinjau, akhir tahun, tempatkan banyak [ASUMSI disetujui owner 2026-11-15]
 
-DM-5 dipecah [OWNER, 2026-11-15]: **DM-5a** (bagian ini) dan **DM-5b** impor penempatan .xlsx (pola impor EduCore, OD-DM-07; dirinci nanti).
+DM-5 dipecah [OWNER, 2026-11-15]: **DM-5a** (bagian ini) dan **DM-5b** impor penempatan .xlsx (pola impor EduCore, OD-DM-07; §20).
 
 ### 19.1 Perlu ditinjau (§5.6, OD-DM-06)
 
@@ -600,3 +600,41 @@ DM-5 dipecah [OWNER, 2026-11-15]: **DM-5a** (bagian ini) dan **DM-5b** impor pen
 - Kode: `Application/Placement/ResidentReview`, `ManagePlacements::placeMany()`, `Application/YearEnd/YearEndProcess`, `Domain/YearEnd/YearEndException`, `YearEndController`; migrasi `2026_11_15_400005_create_dm_year_end_runs_table`; kartu Beranda `dormitory.residents_review` & `dormitory.rooms_over_capacity`. Tanpa permission baru.
 - Halaman: `pages/dormitory/year-end.tsx`; tab Pengaturan detail asrama (ringkasan & tombol); pop-up Tempatkan (Satu/Banyak santri); saringan Penghuni.
 - Test: `tests/Feature/Dormitory/YearEndTest.php` (awalan `dmy`, 4 test: perlu ditinjau, akhir tahun, hak akses + constraint, tempatkan banyak).
+
+## 20. DM-5b Impor penempatan [ASUMSI disetujui owner 2026-11-16]
+
+Mewujudkan OD-DM-07 & §12 DM-5: menempatkan banyak santri ke kamar satu asrama dari file Excel/CSV, mengikuti pola impor EduCore (template → unggah → pratinjau → simpan semua atau tidak; PRD-001 §6.2, PRD-002 AC-1e).
+
+### 20.1 Alur
+
+- Halaman `/asrama/{id}/impor` (tombol **Impor penempatan** di tab Penghuni detail asrama; izin `residents.manage` di pemilik asrama). Pengawas tidak diimpor: tetap lewat halaman kamar [ASUMSI].
+- **1) Unduh template** `template-impor-penempatan-{kode}.xlsx`: lembar **Penempatan** (kolom wajib bertanda `*`) dan **Petunjuk** (arti kolom + daftar gedung/kamar asrama ini: Putra/Putri, sisa slot santri, bed & loker kosong).
+- **2) Unggah** .xlsx/.csv, maks. 2 MB, maks. 1000 baris. File disimpan sementara (per sesi), belum ada data yang disimpan.
+- **3) Pratinjau**: tiap baris berstatus Siap atau Salah beserta alasannya; saringan Semua/Salah/Siap, 50 baris per halaman. **Simpan** hanya aktif bila semua baris benar; semua baris disimpan dalam satu transaksi. **Batalkan impor** membuang file.
+
+### 20.2 Kolom
+
+| Kolom        | Isi                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| nisn / nis   | Salah satu wajib. **NISN dicari lebih dulu**; NIS dipakai bila NISN kosong [OWNER, 2026-11-16] |
+| kode_gedung* | Kode gedung di asrama ini                                                                      |
+| kode_kamar*  | Kode kamar di gedung tsb                                                                       |
+| kode_bed     | Opsional; kosong = dipilih otomatis bila kamar memakai bed                                     |
+| kode_loker   | Opsional; kosong = dipilih otomatis bila kamar memakai loker                                   |
+| jenis*       | `Langsung` (tinggal) atau `Rencana`                                                            |
+| tanggal      | Tanggal masuk; wajib untuk Langsung                                                            |
+| catatan      | Opsional                                                                                       |
+
+- Santri dicari di pendaftaran **terbuka** pada lembaga di bawah pemilik asrama (kontrak `Academic\Contracts\ActiveStudents::findByIdentifiers`). NIS yang cocok dengan lebih dari satu santri → baris Salah ("Isi NISN-nya"). Hanya santri, bukan pegawai [ASUMSI].
+
+### 20.3 Pemeriksaan
+
+- Tiap baris diperiksa **berurutan dengan aturan yang sama** dengan penempatan satu-per-satu (`ManagePlacements::place()`: jenis kelamin gedung, kapasitas, bed/loker terpakai, santri sudah tinggal/punya rencana, tanggal). Pratinjau benar-benar menjalankan penempatan di dalam transaksi lalu di-rollback, sehingga baris ke-3 ikut memperhitungkan baris 1–2 (mis. kamar penuh, bed ganda di file).
+- Simpan menjalankan ulang pemeriksaan yang sama dan commit hanya bila tidak ada baris salah. Audit per penempatan seperti biasa + satu audit `dormitory.placements_imported` (asrama, jumlah baris).
+
+### 20.4 Hasil pembangunan (2026-11-16)
+
+- Kode: `Application/Import/{PlacementImportColumns, PendingPlacementImport, PlacementImportReader, PlacementImportTemplate, PlacementImporter}`, `PlacementImportController`, perintah `dormitory:prune-imports` (terjadwal tiap jam, membuang file sementara lama). Kontrak Academic bertambah `findByIdentifiers`. Tanpa migrasi & permission baru.
+- Route: `GET|POST asrama/{dormitory}/impor`, `GET asrama/{dormitory}/impor/template`, `POST …/impor/simpan`, `POST …/impor/batal` (nama `dormitory.import.*`).
+- Halaman: `pages/dormitory/import.tsx`; tombol di tab Penghuni.
+- Test: `tests/Feature/Dormitory/PlacementImportTest.php` (awalan `dmi`, 4 test: pratinjau berurutan, simpan sekaligus, file ditolak + isi template, hak akses). Benchmark 150 baris: pratinjau ±1,3 dtk, simpan ±1,1 dtk (±9 dtk untuk 1000 baris).

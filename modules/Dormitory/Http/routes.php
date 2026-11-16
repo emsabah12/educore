@@ -6,6 +6,7 @@ use Modules\Dormitory\Http\Controllers\DormitoryController;
 use Modules\Dormitory\Http\Controllers\MutationController;
 use Modules\Dormitory\Http\Controllers\MyRoomsController;
 use Modules\Dormitory\Http\Controllers\PlacementController;
+use Modules\Dormitory\Http\Controllers\PlacementImportController;
 use Modules\Dormitory\Http\Controllers\ResidentController;
 use Modules\Dormitory\Http\Controllers\RoomController;
 use Modules\Dormitory\Http\Controllers\RoomResourceController;
@@ -63,6 +64,13 @@ Route::middleware(['auth', 'work.context'])->group(function () {
     Route::patch('asrama/{kind}/{resource}', [RoomResourceController::class, 'update'])->whereIn('kind', ['bed', 'loker'])->whereUuid('resource')->name('dormitory.resources.update');
     Route::post('asrama/{kind}/{resource}/status', [RoomResourceController::class, 'status'])->whereIn('kind', ['bed', 'loker'])->whereUuid('resource')->name('dormitory.resources.status');
     Route::delete('asrama/{kind}/{resource}', [RoomResourceController::class, 'destroy'])->whereIn('kind', ['bed', 'loker'])->whereUuid('resource')->name('dormitory.resources.destroy');
+
+    // Impor penempatan (DM-5b). Kelola penghuni di node pemilik.
+    Route::get('asrama/{dormitory}/impor', [PlacementImportController::class, 'index'])->whereUuid('dormitory')->name('dormitory.import.index');
+    Route::get('asrama/{dormitory}/impor/template', [PlacementImportController::class, 'template'])->whereUuid('dormitory')->name('dormitory.import.template');
+    Route::post('asrama/{dormitory}/impor', [PlacementImportController::class, 'upload'])->whereUuid('dormitory')->name('dormitory.import.upload');
+    Route::post('asrama/{dormitory}/impor/simpan', [PlacementImportController::class, 'save'])->whereUuid('dormitory')->name('dormitory.import.save');
+    Route::post('asrama/{dormitory}/impor/batal', [PlacementImportController::class, 'cancel'])->whereUuid('dormitory')->name('dormitory.import.cancel');
 
     // Proses akhir tahun (DM-5a). Kelola penghuni di node pemilik.
     Route::get('asrama/{dormitory}/akhir-tahun', [YearEndController::class, 'show'])->whereUuid('dormitory')->name('dormitory.year-end.show');

@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, FileUp, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import {
     CodeNameFields,
@@ -247,6 +247,16 @@ export default function DormitoryShow({
                         </p>
                     ) : (
                         <div className="space-y-4">
+                            {canRunYearEnd && (
+                                <div className="flex justify-end">
+                                    <Button size="sm" variant="outline" asChild>
+                                        <Link href={`${base}/impor`}>
+                                            <FileUp />
+                                            Impor penempatan
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
                             <ResidentFilterBar
                                 url={base}
                                 extra={{ tab: 'penghuni' }}

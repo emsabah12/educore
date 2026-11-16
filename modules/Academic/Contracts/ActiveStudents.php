@@ -41,4 +41,15 @@ interface ActiveStudents
      * @return array<string, ActiveStudent> membership_id → data
      */
     public function describe(string $tenantId, array $membershipIds): array;
+
+    /**
+     * Cari santri berpendaftaran terbuka di $organizationIds menurut NISN atau NIS persis (impor penempatan asrama,
+     * PRD-008 §20). NIS bisa sama di dua lembaga, jadi satu nilai bisa cocok ke beberapa orang.
+     *
+     * @param  list<string>  $organizationIds
+     * @param  list<string>  $nisns
+     * @param  list<string>  $studentNumbers
+     * @return array{nisn: array<string, list<string>>, nis: array<string, list<string>>} nilai → membership_id
+     */
+    public function findByIdentifiers(string $tenantId, array $organizationIds, array $nisns, array $studentNumbers): array;
 }

@@ -70,6 +70,8 @@ final class DormitoryAuditAction
 
     public const YEAR_END_RUN = 'dormitory.year_end_run';
 
+    public const PLACEMENTS_IMPORTED = 'dormitory.placements_imported';
+
     public const SUBJECT_DORMITORY = 'dm_dormitory';
 
     public const SUBJECT_BUILDING = 'dm_building';
@@ -123,6 +125,7 @@ final class DormitoryAuditAction
             self::MUTATION_EMERGENCY => 'Mutasi kamar darurat',
             self::MUTATION_REVIEWED => 'Mutasi darurat ditinjau',
             self::YEAR_END_RUN => 'Proses akhir tahun asrama',
+            self::PLACEMENTS_IMPORTED => 'Penempatan diimpor dari file',
         ];
     }
 }

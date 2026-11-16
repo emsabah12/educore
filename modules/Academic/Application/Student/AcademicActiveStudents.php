@@ -146,6 +146,40 @@ final class AcademicActiveStudents implements ActiveStudents
         return $result;
     }
 
+    public function findByIdentifiers(string $tenantId, array $organizationIds, array $nisns, array $studentNumbers): array
+    {
+        $organizations = self::uuids($organizationIds);
+        $result = ['nisn' => [], 'nis' => []];
+
+        if ($organizations === []) {
+            return $result;
+        }
+
+        foreach ([['nisn', 's.nisn', $nisns], ['nis', 'e.student_number', $studentNumbers]] as [$key, $column, $values]) {
+            $values = array_values(array_unique(array_filter(array_map('trim', $values), fn (string $value): bool => $value !== '')));
+
+            if ($values === []) {
+                continue;
+            }
+
+            foreach (array_chunk($values, 500) as $chunk) {
+                foreach ($this->openEnrollments($tenantId, $organizations)
+                    ->whereIn($column, $chunk)
+                    ->distinct()
+                    ->get([$column.' as value', 's.membership_id']) as $row) {
+                    $value = (string) $row->value;
+                    $membershipId = (string) $row->membership_id;
+
+                    if (! in_array($membershipId, $result[$key][$value] ?? [], true)) {
+                        $result[$key][$value][] = $membershipId;
+                    }
+                }
+            }
+        }
+
+        return $result;
+    }
+
     /**
      * @param  list<string>  $organizationIds
      */

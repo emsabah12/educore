@@ -2,6 +2,7 @@
 
 namespace Modules\Dormitory;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Query\Builder;
 use Inertia\Inertia;
 use Modules\Core\Application\Audit\AuditAction;
@@ -16,6 +17,7 @@ use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Mutation\MutationDirectory;
 use Modules\Dormitory\Application\Placement\ResidentReview;
 use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
+use Modules\Dormitory\Console\PrunePlacementImportsCommand;
 
 /**
  * Modul Dormitory (Asrama), spesifikasi: PRD-008.
@@ -39,6 +41,15 @@ class DormitoryServiceProvider extends ModuleServiceProvider
 
         // Menu Untuk saya → Kamar saya (DM-3): hanya bagi pegawai aktif yang punya penugasan wali kamar aktif.
         Inertia::share('dormitory', fn (): array => ['myRooms' => $this->hasMyRooms()]);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([PrunePlacementImportsCommand::class]);
+        }
+
+        // File impor penempatan sementara tidak boleh tertinggal lebih dari 24 jam (DM-5b).
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('dormitory:prune-imports')->hourly()->withoutOverlapping();
+        });
 
         // Kartu Beranda penyetuju mutasi (DM-4, PRD-008 §18.3).
         $this->app->make(DashboardCards::class)
