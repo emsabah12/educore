@@ -55,6 +55,9 @@ type Summary = {
     total_label: string;
     missing: { name: string; class: string | null }[];
     missing_count: number;
+    /** Jenis biaya "Hanya penghuni asrama" (PRD-003 §20). */
+    dormitory_only: boolean;
+    not_resident: number;
 };
 
 type Props = {
@@ -1008,6 +1011,16 @@ function SummaryBox({
                 </li>
                 {summary.existing > 0 && (
                     <li>{summary.existing} tagihan sudah ada (dilewati)</li>
+                )}
+                {summary.dormitory_only && (
+                    <li>
+                        Hanya penghuni asrama:{' '}
+                        {summary.not_resident > 0
+                            ? once
+                                ? `${summary.not_resident} siswa dilewati karena tidak tinggal di asrama pada tanggal acuan`
+                                : `${summary.not_resident} tagihan dilewati karena siswanya tidak tinggal di asrama pada bulan itu`
+                            : 'semua siswa di atas tinggal di asrama'}
+                    </li>
                 )}
             </ul>
             {summary.missing_count > 0 && (

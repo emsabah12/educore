@@ -27,6 +27,8 @@ type FeeTypeRow = {
     name: string;
     kind: 'BULANAN' | 'SEKALI';
     kind_label: string;
+    /** Hanya ditagihkan kepada santri penghuni asrama (PRD-003 §20). */
+    dormitory_only: boolean;
     is_active: boolean;
     /** Jumlah tarif yang sudah diisi (semua lembaga & tahun ajaran). */
     rates: number;
@@ -37,6 +39,7 @@ type RateRow = {
     code: string;
     name: string;
     kind_label: string;
+    dormitory_only: boolean;
     is_active: boolean;
     all: { id: string; amount: number } | null;
     grades: { id: string; grade: number; amount: number }[];
@@ -413,6 +416,25 @@ function CreateTypeForm({
                         <InputError message={errors.kind} />
                     </div>
 
+                    <div className="grid gap-1.5">
+                        <label className="flex items-start gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="dormitory_only"
+                                value="1"
+                                className="mt-0.5 size-4 accent-primary"
+                            />
+                            <span>
+                                Hanya penghuni asrama
+                                <span className="block text-xs text-muted-foreground">
+                                    Hanya ditagihkan kepada santri yang tinggal
+                                    di asrama (mis. uang makan & asrama). Tidak
+                                    bisa diubah setelah disimpan.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
                     <Button type="submit" disabled={processing}>
                         <Plus />
                         Tambah
@@ -442,6 +464,9 @@ function TypeRow({ type }: { type: FeeTypeRow }) {
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                         <span className="font-mono">{type.code}</span>
                         <Badge variant="secondary">{type.kind_label}</Badge>
+                        {type.dormitory_only && (
+                            <Badge variant="outline">Penghuni asrama</Badge>
+                        )}
                         {!type.is_active && (
                             <Badge variant="outline">Nonaktif</Badge>
                         )}
@@ -674,6 +699,9 @@ function RateRowEditor({
             <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-medium break-words">{row.name}</span>
                 <Badge variant="secondary">{row.kind_label}</Badge>
+                {row.dormitory_only && (
+                    <Badge variant="outline">Penghuni asrama</Badge>
+                )}
                 {!row.is_active && <Badge variant="outline">Nonaktif</Badge>}
             </div>
 

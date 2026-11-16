@@ -103,6 +103,7 @@ final class FeeSettingsController
             $request->string('code')->value(),
             $request->string('name')->value(),
             FeeKind::from($request->string('kind')->value()),
+            $request->boolean('dormitory_only'),
         ));
 
         return $this->done("{$type->name} ditambahkan.");

@@ -1,9 +1,9 @@
 # PRD-003 — Modul Finance (Keuangan): Tagihan & Pembayaran Siswa
 
-- **Versi:** 0.9 (2026-10-30: rincian & pembangunan FN-5 tagihan di portal orang tua, §19)
-- **Versi sebelumnya:** 0.8 (FN-4b, §18), 0.7 (FN-4a, §17), 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
-- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b SELESAI (`fc62e5b`); FN-5 SELESAI (`a167383`) — **tahap awal selesai**; lanjutan kas umum & pengeluaran di PRD-004
-- **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), ADR-001
+- **Versi:** 0.10 (2026-11-17: FN-6 biaya asrama — jenis biaya "Hanya penghuni asrama", §20)
+- **Versi sebelumnya:** 0.9 (FN-5, §19), 0.8 (FN-4b, §18), 0.7 (FN-4a, §17), 0.6 (FN-3, §16), 0.5 (FN-2b, §15), 0.4 (FN-2a, §14), 0.3 (FN-1b potongan/beasiswa, §13), 0.2 (disetujui owner; FN-1a, §12), 0.1 (draf pertama)
+- **Status:** **DISETUJUI (2026-10-28)**; FN-1a SELESAI (`a51468a`); FN-1b SELESAI (`518d374`); FN-2a SELESAI (`e2b07b6`); FN-2b SELESAI (`d4a46cb`); FN-3 SELESAI (`d610d32`); FN-4a SELESAI (`2fdf51f`); FN-4b SELESAI (`fc62e5b`); FN-5 SELESAI (`a167383`) — **tahap awal selesai**; lanjutan kas umum & pengeluaran di PRD-004; FN-6 DIBANGUN (§20, menunggu uji owner)
+- **Bergantung pada:** PRD-000 (pondasi), PRD-002 (siswa, pendaftaran, kelas, orang tua/wali, portal Anak saya), PRD-008 (penghuni asrama untuk biaya asrama, §20), ADR-001
 - **Referensi domain lama:** tidak ada. Dokumen lama `prd/billing/BILL-000` membahas **langganan platform** (yayasan membayar EduCore), bukan keuangan sekolah; istilah itu tetap dipisah (lihat §7).
 
 Label: **[OWNER]** = keputusan owner · **[ASUMSI]** = usulan baru, perlu konfirmasi.
@@ -59,6 +59,7 @@ Pembayaran (fn_payments)                   pendaftaran, tanggal, metode TUNAI | 
 - **Potongan/beasiswa**: per siswa (pendaftaran) per jenis biaya per tahun ajaran, persen (1–100) **atau** nominal, alasan wajib (mis. "Yatim", "Anak guru"). Berlaku untuk tagihan yang **dibuat sesudahnya**; tagihan lama tidak berubah otomatis.
 - **Tagihan SPP**: satu per siswa per bulan tahun ajaran, untuk siswa yang **terdaftar aktif** di lembaga pada bulan itu; tingkat diambil dari kelasnya. Dibuat massal ("Buat tagihan SPP Juli–Juni") dan bisa diulang dengan aman (yang sudah ada dilewati). Siswa baru masuk di tengah tahun: tagihan mulai bulan masuknya. Siswa keluar: tagihan bulan sesudahnya yang belum dibayar dibatalkan otomatis dengan alasan "Siswa keluar".
 - **Tagihan sekali bayar**: dibuat untuk satu lembaga, satu kelas, atau satu siswa.
+- **Biaya asrama** (§20): jenis biaya bertanda **Hanya penghuni asrama** hanya ditagihkan kepada santri yang tinggal di asrama (PRD-008).
 - **Jatuh tempo**: SPP tanggal 10 bulan itu (aturan berjenjang, bisa diubah per lembaga); sekali bayar diisi saat membuat.
 - **Pembayaran**: jumlah dialokasikan ke tagihan **terlama dulu** atau ke tagihan yang dipilih; boleh **cicil** (tagihan tetap TERBUKA sampai lunas). **Kelebihan bayar ditolak** (belum ada saldo/deposit).
 - **Kuitansi**: nomor urut per lembaga per tahun, mis. `SMP3/2026/000123`; berisi nama siswa, lembaga, kelas, rincian tagihan yang dibayar, jumlah, terbilang, metode, petugas, tanggal. Cetak lewat browser (A5/A4).
@@ -99,6 +100,7 @@ Admin Keuangan dibuat sebagai role terpisah dari Admin SDM agar petugas tagihan 
 
 - Modul baru `modules/Finance` (nama kode **Finance**, label UI **Keuangan**). Berbeda dari `Billing` (langganan platform, BILL-000) yang tidak dibangun di sini.
 - Finance **membaca** siswa, pendaftaran, kelas, tingkat, tahun ajaran, dan tautan orang tua/wali lewat **kontrak** yang disediakan Akademik (`Modules\Academic\Contracts\…`), bukan query langsung ke tabel Akademik. Akademik tidak bergantung pada Finance (tombol/menu Finance dipasang lewat registri bersama, seperti kartu Beranda).
+- Finance juga boleh membaca **kontrak publik Dormitory** (`Modules\Dormitory\Contracts\…`) untuk biaya asrama dan mendengar kejadian `ResidencyEnded` (§20). Dormitory tidak bergantung pada Finance.
 - Gaji pegawai tetap di HR (PRD-001 §16); tidak dicampur dengan tagihan siswa.
 
 ## 8. Audit
@@ -213,3 +215,17 @@ Payment gateway (VA/QRIS) & rekonsiliasi mutasi bank, kas umum/pengeluaran, pemb
     - Lembaga lama (anak sudah keluar) tampil bertanda "Sudah keluar" selama masih ada tagihan atau riwayat bayar di sana.
 - **Kuitansi** (`/anak-saya/{id}/kuitansi/{pembayaran}`): halaman cetak yang sama dengan petugas (§16), tombol kembali "Kembali ke tagihan". Hanya kuitansi **Sah** milik pendaftaran anak itu; lainnya → 404.
 - Pembayaran tetap dicatat petugas (OD-FN-03); portal tidak menerima pembayaran.
+
+## 20. FN-6 Biaya asrama [ASUMSI disetujui owner 2026-11-17]
+
+Mewujudkan PRD-008 OD-DM-10: biaya asrama (mis. uang makan & asrama) hanya ditagihkan kepada santri yang tinggal di asrama.
+
+- **Jenis biaya bertanda "Hanya penghuni asrama"** (`fn_fee_types.dormitory_only`): dipilih saat membuat di Pengaturan keuangan, **tidak bisa diubah** (seperti sifat). Berlaku untuk jenis **Bulanan dan Sekali bayar** [OWNER]. Tarif & potongan memakai aturan biasa (lembaga × tahun ajaran × tingkat). Badge **Penghuni asrama** di daftar jenis biaya & tarif; pilihan jenis biaya di form tagihan diberi keterangan "(penghuni asrama)". Audit pembuatan mencatat `hanya_penghuni_asrama`.
+- **Siapa santri penghuni** (kontrak `Dormitory\Contracts\DormitoryResidents::residentsDuring`): penempatan kategori **santri** (bukan pengawas) yang Aktif/Selesai — rencana tidak — di asrama yang **pemiliknya lembaga itu atau salah satu induknya** (asrama yang boleh dihuni santri lembaga itu, PRD-008 OD-DM-02). "Tinggal pada tanggal d" = masuk ≤ d dan keluar > d (mutasi tanggal d = sudah di kamar baru).
+- **Tagihan bulanan**: santri yang **tinggal minimal 1 hari** di bulan itu [OWNER]. Yang lain dilewati; pratinjau menyebut "N tagihan dilewati karena siswanya tidak tinggal di asrama pada bulan itu".
+- **Tagihan sekali bayar**: santri yang tinggal di asrama pada **tanggal acuan** (aturan FN-2b). Pratinjau menyebut jumlah yang dilewati.
+- **Batal otomatis saat keluar asrama** [OWNER]: Dormitory mengirim kejadian publik `Dormitory\Contracts\Events\ResidencyEnded` (check-out, proses akhir tahun "Kosongkan", mutasi) di dalam transaksinya. Finance membatalkan tagihan **bulanan** bertanda untuk bulan **sesudah** bulan keluar yang **belum ada pembayarannya**, bila santri **tidak tinggal di asrama mana pun yang sah pada bulan itu** (dicek per bulan — mutasi ke kamar/asrama lain yang sah atau masuk lagi tidak membatalkan). Alasan "Keluar asrama (dibatalkan otomatis)". Tagihan sekali bayar, tagihan yang sudah dibayar sebagian, dan bulan yang sudah ditutup buku (PB-4) tidak disentuh. Masuk lagi tidak memulihkan tagihan yang sudah batal (buat ulang lewat _Buat tagihan bulanan_). Audit `finance.invoices_voided_on_dormitory_exit` (tanggal keluar asrama, jumlah) per pendaftaran.
+- **Kontrak Academic**: `EnrolledStudents::activeBetween` kini juga mengembalikan `membership_id`; metode baru `enrollmentIdsOfMember`.
+- **Batas modul** (ADR-001): Finance → kontrak publik Dormitory diizinkan; arch test diperbarui (kontrak Dormitory tidak boleh membuka isi modul Dormitory).
+- **[ASUMSI] Belum termasuk**: tarif berbeda per asrama (sementara: buat jenis biaya terpisah).
+- **Hasil pembangunan (2026-11-17)**: migrasi `2026_11_17_300019_add_dormitory_only_to_fn_fee_types`; `VoidDormitoryInvoicesAfterLeaving`; `Dormitory\Contracts\{DormitoryResidents, Events\ResidencyEnded}` + `PlacementDormitoryResidents`. Test `tests/Feature/Finance/DormitoryFeesTest.php` (awalan `fnd`, 4 test). Tanpa permission baru.

@@ -54,6 +54,7 @@ educore/
 - Autoload: PSR-4 `"Modules\\": "modules/"` di `composer.json`.
 - Registrasi: satu `ServiceProvider` per modul, didaftarkan manual di `bootstrap/providers.php`. **Tidak ada** manifest, discovery, atau enable/disable runtime.
 - Arah dependency (tetap dari repo lama): `Core → []`, `HR → Core`, `Academic → Core, HR`.
+- **Pembaruan 2026-11-17** (modul yang ditambahkan sesudah ADR ini): `Finance → Core, Academic, Dormitory` dan `Dormitory → Core, Academic, HR`, semuanya hanya lewat kontrak publik (`Contracts/`, termasuk event di `Contracts/Events`). Tidak ada modul yang bergantung pada Finance; HR & Academic tidak bergantung pada Dormitory. Dijaga `tests/Architecture/ModuleBoundaryTest.php` (PRD-003 §7, §20; PRD-008 §0).
 - Antar modul hanya boleh lewat kelas publik (`Contracts/`, `DTO/`, event). Dijaga oleh arch test Pest.
 
 ### 2.3 Yang dipertahankan dari dokumen lama

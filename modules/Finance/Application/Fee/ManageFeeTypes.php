@@ -19,7 +19,8 @@ use Modules\Finance\Domain\Fee\FeeType;
  * - kode huruf besar/angka/"-", 2–30 karakter, unik per yayasan, tidak bisa diubah;
  * - nama wajib, maks. 100;
  * - sifat (Bulanan/Sekali bayar) tidak bisa diubah setelah dibuat (tagihan lama tidak boleh berubah arti);
- * - tidak dihapus: nonaktif = tidak bisa diberi tarif & tidak ditagihkan lagi; data lama tetap.
+ * - tidak dihapus: nonaktif = tidak bisa diberi tarif & tidak ditagihkan lagi; data lama tetap;
+ * - tanda "Hanya penghuni asrama" (FN-6, PRD-003 §20) dipilih saat membuat dan tidak bisa diubah.
  */
 final class ManageFeeTypes
 {
@@ -34,7 +35,7 @@ final class ManageFeeTypes
     /**
      * @throws FinanceException
      */
-    public function create(string $tenantId, string $code, string $name, FeeKind $kind): FeeType
+    public function create(string $tenantId, string $code, string $name, FeeKind $kind, bool $dormitoryOnly = false): FeeType
     {
         $code = Str::upper(trim($code));
 
@@ -45,20 +46,20 @@ final class ManageFeeTypes
         $name = $this->name($name);
 
         try {
-            return DB::transaction(function () use ($tenantId, $code, $name, $kind): FeeType {
+            return DB::transaction(function () use ($tenantId, $code, $name, $kind, $dormitoryOnly): FeeType {
                 if (FeeType::query()->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->where('code', $code)->exists()) {
                     throw FinanceException::make('code', "Kode {$code} sudah dipakai jenis biaya lain.");
                 }
 
                 $type = new FeeType;
-                $type->fill(['tenant_id' => $tenantId, 'code' => $code, 'name' => $name, 'kind' => $kind]);
+                $type->fill(['tenant_id' => $tenantId, 'code' => $code, 'name' => $name, 'kind' => $kind, 'dormitory_only' => $dormitoryOnly]);
                 $type->save();
 
                 $this->audit->record(
                     FinanceAuditAction::FEE_TYPE_CREATED,
                     FinanceAuditAction::SUBJECT_FEE_TYPE,
                     $type->id,
-                    ['kode' => $code, 'nama' => $name, 'sifat' => $kind->value],
+                    ['kode' => $code, 'nama' => $name, 'sifat' => $kind->value, 'hanya_penghuni_asrama' => $dormitoryOnly],
                     tenantId: $tenantId,
                 );
 

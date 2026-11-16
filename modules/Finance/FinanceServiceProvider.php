@@ -22,12 +22,14 @@ use Modules\Core\Domain\Organization\OrganizationType;
 use Modules\Core\Domain\Tenancy\TenantContext;
 use Modules\Core\Support\BusinessClock;
 use Modules\Core\Support\ModuleServiceProvider;
+use Modules\Dormitory\Contracts\Events\ResidencyEnded;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Authorization\FinanceAccess;
 use Modules\Finance\Application\Cash\ExpenseApprovalLimitSetting;
 use Modules\Finance\Application\Cash\ExpenseList;
 use Modules\Finance\Application\Fee\Rupiah;
 use Modules\Finance\Application\Invoice\DueDaySetting;
+use Modules\Finance\Application\Invoice\VoidDormitoryInvoicesAfterLeaving;
 use Modules\Finance\Application\Invoice\VoidInvoicesAfterExit;
 use Modules\Finance\Application\Ledger\LedgerLock;
 use Modules\Finance\Application\Ledger\LedgerReports;
@@ -43,7 +45,7 @@ use Modules\Finance\Domain\Cash\ExpenseStatus;
 /**
  * Modul Finance (Keuangan: tagihan & pembayaran siswa), spesifikasi: PRD-003.
  *
- * Aturan dependency: Finance → Core, Academic (hanya kontrak publik). Provider ini wajib di-boot
+ * Aturan dependency: Finance → Core, Academic & Dormitory (hanya kontrak publik; Dormitory untuk biaya asrama, PRD-003 §20). Provider ini wajib di-boot
  * SETELAH AcademicServiceProvider (bootstrap/providers.php), karena kontrak Academic diisi di sana dan
  * role bawaan Core diperluas di sini.
  */
@@ -107,6 +109,8 @@ class FinanceServiceProvider extends ModuleServiceProvider
 
         // Siswa keluar → tagihan bulan sesudahnya yang belum dibayar dibatalkan (OD-FN-07, FN-2b).
         Event::listen(EnrollmentClosed::class, [VoidInvoicesAfterExit::class, 'handle']);
+        // Keluar asrama → biaya asrama bulan sesudahnya dibatalkan (FN-6, PRD-003 §20).
+        Event::listen(ResidencyEnded::class, [VoidDormitoryInvoicesAfterLeaving::class, 'handle']);
 
         // Kartu Beranda "Tunggakan siswa" (PRD-003 FN-4a §17): pemilik finance.billing.view, sesuai cakupannya.
         $this->app->make(DashboardCards::class)->register('finance.arrears', fn (): ?array => $this->arrearsCard());

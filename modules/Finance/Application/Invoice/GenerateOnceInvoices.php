@@ -9,6 +9,7 @@ use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Support\BusinessClock;
+use Modules\Dormitory\Contracts\DormitoryResidents;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Domain\Fee\Exceptions\FinanceException;
 use Modules\Finance\Domain\Fee\FeeKind;
@@ -25,7 +26,9 @@ use Modules\Finance\Domain\Invoice\InvoiceStatus;
  *   hari ini di luar tahun itu; sasaran kelas = siswa yang kelasnya (tahun itu) kelas tersebut;
  * - tarif & potongan sama dengan tagihan bulanan (InvoicePricing); Rp 0 langsung Lunas;
  * - jatuh tempo diisi saat membuat (tanggal apa pun yang benar);
- * - satu tagihan sekali bayar yang belum batal per siswa × jenis biaya × tahun ajaran; yang sudah ada dilewati.
+ * - satu tagihan sekali bayar yang belum batal per siswa × jenis biaya × tahun ajaran; yang sudah ada dilewati;
+ * - jenis biaya "Hanya penghuni asrama" (FN-6, PRD-003 §20): hanya santri yang tinggal di asrama (milik lembaga ini
+ *   atau induknya) pada tanggal acuan; yang tidak tinggal dilewati dan dihitung di ringkasan.
  *
  * @phpstan-import-type Summary from GenerateMonthlyInvoices
  */
@@ -41,6 +44,7 @@ final class GenerateOnceInvoices
         private readonly AcademicYears $years,
         private readonly EnrolledStudents $students,
         private readonly AuditLogger $audit,
+        private readonly DormitoryResidents $residents,
     ) {}
 
     /**
@@ -170,10 +174,21 @@ final class GenerateOnceInvoices
         $rows = [];
         $missing = [];
         $existingCount = 0;
+        $notResident = 0;
         $free = 0;
         $total = 0;
+        // Biaya asrama: santri yang tinggal di asrama pada tanggal acuan.
+        $residents = $type->dormitory_only
+            ? array_flip($this->residents->residentsDuring($tenantId, $organizationId, array_column($students, 'membership_id'), $reference, $reference))
+            : null;
 
         foreach ($students as $student) {
+            if ($residents !== null && ! isset($residents[$student['membership_id']])) {
+                $notResident++;
+
+                continue;
+            }
+
             if (isset($existing[$student['enrollment_id']])) {
                 $existingCount++;
 
@@ -211,6 +226,8 @@ final class GenerateOnceInvoices
                 'existing' => $existingCount,
                 'free' => $free,
                 'total' => $total,
+                'dormitory_only' => $type->dormitory_only,
+                'not_resident' => $notResident,
                 'missing' => array_slice($missing, 0, GenerateMonthlyInvoices::MISSING_LISTED),
                 'missing_count' => count($missing),
             ],

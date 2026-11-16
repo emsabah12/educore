@@ -7,7 +7,7 @@
  *   Core     → (tidak ada)
  *   HR       → Core
  *   Academic → Core, HR (hanya kontrak publik: Contracts, DTO)
- *   Finance  → Core, Academic (hanya kontrak publik: Contracts) — PRD-003 §7
+ *   Finance  → Core, Academic & Dormitory (hanya kontrak publik: Contracts) — PRD-003 §7, §20
  *   Dormitory → Core, Academic & HR (hanya kontrak publik: Contracts) — PRD-008 §0, §15
  *
  * Test ini gagal otomatis bila ada kode yang melanggar,
@@ -18,9 +18,18 @@ arch('Core tidak boleh bergantung pada modul bisnis')
     ->expect('Modules\Core')
     ->not->toUse(['Modules\HR', 'Modules\Academic', 'Modules\Finance', 'Modules\Dormitory']);
 
-arch('Modul lain tidak boleh bergantung pada Dormitory')
-    ->expect(['Modules\HR', 'Modules\Academic', 'Modules\Finance'])
+arch('HR & Academic tidak boleh bergantung pada Dormitory')
+    ->expect(['Modules\HR', 'Modules\Academic'])
     ->not->toUse('Modules\Dormitory');
+
+arch('Kontrak publik Dormitory tidak boleh membuka isi modul Dormitory')
+    ->expect('Modules\Dormitory\Contracts')
+    ->not->toUse([
+        'Modules\Dormitory\Domain',
+        'Modules\Dormitory\Application',
+        'Modules\Dormitory\Http',
+        'Modules\Dormitory\Database',
+    ]);
 
 arch('Dormitory hanya boleh memakai kontrak publik Academic & HR, tanpa Finance')
     ->expect('Modules\Dormitory')
@@ -44,7 +53,7 @@ arch('Academic tidak boleh bergantung pada Finance')
     ->expect('Modules\Academic')
     ->not->toUse('Modules\Finance');
 
-arch('Finance hanya boleh memakai kontrak publik Academic, tanpa HR')
+arch('Finance hanya boleh memakai kontrak publik Academic & Dormitory, tanpa HR')
     ->expect('Modules\Finance')
     ->not->toUse([
         'Modules\HR',
@@ -52,6 +61,10 @@ arch('Finance hanya boleh memakai kontrak publik Academic, tanpa HR')
         'Modules\Academic\Application',
         'Modules\Academic\Http',
         'Modules\Academic\Database',
+        'Modules\Dormitory\Domain',
+        'Modules\Dormitory\Application',
+        'Modules\Dormitory\Http',
+        'Modules\Dormitory\Database',
     ]);
 
 arch('Academic hanya boleh memakai kontrak publik HR')

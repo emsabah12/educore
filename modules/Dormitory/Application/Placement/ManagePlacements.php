@@ -10,6 +10,7 @@ use Modules\Core\Support\BusinessClock;
 use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Application\Facility\RoomCapacity;
 use Modules\Dormitory\Application\Mutation\OpenMutations;
+use Modules\Dormitory\Contracts\Events\ResidencyEnded;
 use Modules\Dormitory\Domain\Facility\Bed;
 use Modules\Dormitory\Domain\Facility\Building;
 use Modules\Dormitory\Domain\Facility\Dormitory;
@@ -241,6 +242,11 @@ final class ManagePlacements
             $this->record(DormitoryAuditAction::PLACEMENT_CHECKED_OUT, $placement, $room, null, null, ['tanggal' => $checkOutOn->toDateString(), 'alasan' => $reason->value]);
             OpenMutations::lapse($tenantId, $placement->id, 'Gugur otomatis: santri check-out.');
 
+            if ($placement->category === PlacementCategory::Resident) {
+                // Modul lain (Finance: biaya asrama, PRD-003 §20) ikut menyesuaikan di transaksi yang sama.
+                event(new ResidencyEnded($tenantId, $placement->membership_id, $checkOutOn->toDateString()));
+            }
+
             return $placement;
         });
     }
@@ -370,6 +376,9 @@ final class ManagePlacements
                 'checked_in_by' => $actorId,
             ]);
             $moved->save();
+
+            // Sesudah penempatan baru tersimpan: pendengar (Finance) melihat santri masih tinggal di kamar barunya.
+            event(new ResidencyEnded($tenantId, $placement->membership_id, $today->toDateString()));
 
             return $moved;
         }));

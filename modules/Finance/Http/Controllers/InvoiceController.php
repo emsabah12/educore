@@ -85,10 +85,11 @@ final class InvoiceController
                 : $list->list($this->tenantId(), $organizationId, $yearId, $filters, max(1, $request->integer('halaman', 1)), BusinessClock::todayString()),
             'options' => [
                 'types' => $types->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name.($type->is_active ? '' : ' (nonaktif)')])->values()->all(),
+                // Biaya asrama (FN-6) diberi keterangan agar petugas tahu sasarannya hanya santri penghuni asrama.
                 'monthlyTypes' => $types->filter(fn (FeeType $type): bool => $type->is_active && $type->kind === FeeKind::Monthly)
-                    ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name])->values()->all(),
+                    ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name.($type->dormitory_only ? ' (penghuni asrama)' : '')])->values()->all(),
                 'onceTypes' => $types->filter(fn (FeeType $type): bool => $type->is_active && $type->kind === FeeKind::Once)
-                    ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name])->values()->all(),
+                    ->map(fn (FeeType $type): array => ['value' => $type->id, 'label' => $type->name.($type->dormitory_only ? ' (penghuni asrama)' : '')])->values()->all(),
                 // FN-2b: sasaran "satu kelas" tagihan sekali bayar.
                 'classes' => $organizationId === null || $yearId === null ? [] : array_map(
                     fn (array $class): array => ['value' => $class['id'], 'label' => $class['name']],

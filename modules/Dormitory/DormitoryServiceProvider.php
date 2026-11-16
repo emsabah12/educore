@@ -15,21 +15,29 @@ use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Application\Authorization\DormitoryAccess;
 use Modules\Dormitory\Application\Facility\FacilityDirectory;
 use Modules\Dormitory\Application\Mutation\MutationDirectory;
+use Modules\Dormitory\Application\Placement\PlacementDormitoryResidents;
 use Modules\Dormitory\Application\Placement\ResidentReview;
 use Modules\Dormitory\Application\Supervision\SupervisorDirectory;
 use Modules\Dormitory\Console\PrunePlacementImportsCommand;
+use Modules\Dormitory\Contracts\DormitoryResidents;
 
 /**
  * Modul Dormitory (Asrama), spesifikasi: PRD-008.
  *
- * Aturan dependency: Dormitory → Core, Academic & HR (hanya kontrak publik). Modul lain tidak bergantung pada
- * Dormitory. Provider ini di-boot SETELAH Finance (bootstrap/providers.php) karena role bawaan Core diperluas di sini.
+ * Aturan dependency: Dormitory → Core, Academic & HR (hanya kontrak publik). Modul lain hanya boleh memakai
+ * kontrak publik Dormitory (`Modules\Dormitory\Contracts`, mis. Finance untuk biaya asrama, PRD-003 §20). Provider ini di-boot SETELAH Finance (bootstrap/providers.php) karena role bawaan Core diperluas di sini.
  */
 class DormitoryServiceProvider extends ModuleServiceProvider
 {
     protected function modulePath(): string
     {
         return __DIR__;
+    }
+
+    public function register(): void
+    {
+        // Santri penghuni asrama untuk Finance (biaya asrama, PRD-003 §20).
+        $this->app->singleton(DormitoryResidents::class, PlacementDormitoryResidents::class);
     }
 
     public function boot(): void

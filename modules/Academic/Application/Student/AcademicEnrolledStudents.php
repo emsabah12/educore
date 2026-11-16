@@ -76,7 +76,7 @@ final class AcademicEnrolledStudents implements EnrolledStudents
             ->where(fn (Builder $where) => $where->whereNull('e.end_date')->orWhere('e.end_date', '>=', $from))
             ->orderBy('p.name')
             ->orderBy('e.id')
-            ->select(['e.id as enrollment_id', 'p.name', 'e.start_date', 'e.end_date'])
+            ->select(['e.id as enrollment_id', 's.membership_id', 'p.name', 'e.start_date', 'e.end_date'])
             ->selectSub($this->latestClass($academicYearId, 'c.id'), 'class_id')
             ->selectSub($this->latestClass($academicYearId, 'c.name'), 'class_name')
             ->selectSub($this->latestClass($academicYearId, 'c.grade'), 'class_grade')
@@ -87,6 +87,7 @@ final class AcademicEnrolledStudents implements EnrolledStudents
         foreach ($rows as $row) {
             $result[] = [
                 'enrollment_id' => (string) $row->enrollment_id,
+                'membership_id' => (string) $row->membership_id,
                 'name' => (string) $row->name,
                 'start_date' => substr((string) $row->start_date, 0, 10),
                 'end_date' => $row->end_date === null ? null : substr((string) $row->end_date, 0, 10),
@@ -97,6 +98,19 @@ final class AcademicEnrolledStudents implements EnrolledStudents
         }
 
         return $result;
+    }
+
+    public function enrollmentIdsOfMember(string $tenantId, string $membershipId): array
+    {
+        if (! Str::isUuid($membershipId)) {
+            return [];
+        }
+
+        return array_values(array_map('strval', $this->base($tenantId)
+            ->where('s.membership_id', $membershipId)
+            ->orderBy('e.start_date')
+            ->pluck('e.id')
+            ->all()));
     }
 
     public function classes(string $tenantId, string $organizationId, string $academicYearId): array

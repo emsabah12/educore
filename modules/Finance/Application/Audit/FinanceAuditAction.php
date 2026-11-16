@@ -30,6 +30,9 @@ final class FinanceAuditAction
     /** Tagihan bulan sesudah siswa keluar dibatalkan otomatis (OD-FN-07, FN-2b). */
     public const INVOICES_VOIDED_ON_EXIT = 'finance.invoices_voided_on_exit';
 
+    /** Biaya asrama bulan sesudah keluar asrama dibatalkan otomatis (FN-6, PRD-003 §20). */
+    public const INVOICES_VOIDED_ON_DORMITORY_EXIT = 'finance.invoices_voided_on_dormitory_exit';
+
     public const PAYMENT_RECORDED = 'finance.payment_recorded';
 
     public const PAYMENT_VOIDED = 'finance.payment_voided';
@@ -162,6 +165,7 @@ final class FinanceAuditAction
             self::INVOICES_GENERATED => 'Tagihan dibuat',
             self::INVOICE_VOIDED => 'Tagihan dibatalkan',
             self::INVOICES_VOIDED_ON_EXIT => 'Tagihan dibatalkan otomatis (siswa keluar)',
+            self::INVOICES_VOIDED_ON_DORMITORY_EXIT => 'Biaya asrama dibatalkan otomatis (keluar asrama)',
             self::PAYMENT_RECORDED => 'Pembayaran dicatat',
             self::PAYMENT_VOIDED => 'Pembayaran dibatalkan',
             self::CASH_CATEGORY_CREATED => 'Kategori kas ditambahkan',

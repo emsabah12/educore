@@ -18,6 +18,7 @@ use Modules\Core\Domain\Tenancy\BelongsToTenant;
  * @property string $code
  * @property string $name
  * @property FeeKind $kind
+ * @property bool $dormitory_only hanya ditagihkan kepada santri penghuni asrama (PRD-003 §20)
  * @property bool $is_active
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -34,6 +35,7 @@ class FeeType extends Model
         'code',
         'name',
         'kind',
+        'dormitory_only',
         'is_active',
     ];
 
@@ -42,6 +44,7 @@ class FeeType extends Model
      */
     protected $attributes = [
         'is_active' => true,
+        'dormitory_only' => false,
     ];
 
     /**
@@ -51,6 +54,7 @@ class FeeType extends Model
     {
         return [
             'kind' => FeeKind::class,
+            'dormitory_only' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

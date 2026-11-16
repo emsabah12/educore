@@ -13,8 +13,8 @@ use Modules\Finance\Domain\Fee\FeeType;
  * Data halaman Pengaturan keuangan (PRD-003 §6, FN-1a): jenis biaya dan tarif satu lembaga × tahun
  * ajaran. Hak akses dicek pemanggil.
  *
- * @phpstan-type TypeRow array{id: string, code: string, name: string, kind: string, kind_label: string, is_active: bool, rates: int}
- * @phpstan-type RateRow array{type_id: string, code: string, name: string, kind_label: string, is_active: bool, all: array{id: string, amount: int}|null, grades: list<array{id: string, grade: int, amount: int}>}
+ * @phpstan-type TypeRow array{id: string, code: string, name: string, kind: string, kind_label: string, dormitory_only: bool, is_active: bool, rates: int}
+ * @phpstan-type RateRow array{type_id: string, code: string, name: string, kind_label: string, dormitory_only: bool, is_active: bool, all: array{id: string, amount: int}|null, grades: list<array{id: string, grade: int, amount: int}>}
  * @phpstan-type OptionRow array{value: string, label: string}
  */
 final class FeeSettingsOverview
@@ -43,6 +43,7 @@ final class FeeSettingsOverview
                 'name' => $type->name,
                 'kind' => $type->kind->value,
                 'kind_label' => $type->kind->label(),
+                'dormitory_only' => $type->dormitory_only,
                 'is_active' => $type->is_active,
                 'rates' => (int) ($counts[$type->id] ?? 0),
             ];
@@ -135,6 +136,7 @@ final class FeeSettingsOverview
                 'code' => $type['code'],
                 'name' => $type['name'],
                 'kind_label' => $type['kind_label'],
+                'dormitory_only' => $type['dormitory_only'],
                 'is_active' => $type['is_active'],
                 'all' => $all,
                 'grades' => $grades,

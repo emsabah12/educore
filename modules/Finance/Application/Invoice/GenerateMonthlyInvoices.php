@@ -10,6 +10,7 @@ use Modules\Academic\Contracts\EnrolledStudents;
 use Modules\Core\Application\Audit\AuditLogger;
 use Modules\Core\Domain\Organization\Organization;
 use Modules\Core\Support\BusinessClock;
+use Modules\Dormitory\Contracts\DormitoryResidents;
 use Modules\Finance\Application\Audit\FinanceAuditAction;
 use Modules\Finance\Application\Ledger\LedgerDate;
 use Modules\Finance\Application\Ledger\LedgerLock;
@@ -30,9 +31,11 @@ use Modules\Finance\Domain\Invoice\InvoiceStatus;
  * - potongan siswa (FN-1b) disalin (InvoicePricing): persen dibulatkan ke bawah ke rupiah, nominal maks. sebesar tarif;
  *   tagihan yang menjadi Rp 0 langsung Lunas;
  * - jatuh tempo = tanggal aturan `finance.due_day` di bulan itu;
- * - aman diulang: tagihan yang sudah ada (belum batal) untuk siswa × jenis × bulan yang sama dilewati.
+ * - aman diulang: tagihan yang sudah ada (belum batal) untuk siswa × jenis × bulan yang sama dilewati;
+ * - jenis biaya "Hanya penghuni asrama" (FN-6, PRD-003 §20): hanya santri yang tinggal minimal satu hari di asrama
+ *   (milik lembaga ini atau induknya) pada bulan itu; yang tidak tinggal dilewati dan dihitung di ringkasan.
  *
- * @phpstan-type Summary array{type: string, months: list<string>, students: int, created: int, existing: int, free: int, total: int, missing: list<array{name: string, class: string|null}>, missing_count: int}
+ * @phpstan-type Summary array{type: string, months: list<string>, students: int, created: int, existing: int, free: int, total: int, dormitory_only: bool, not_resident: int, missing: list<array{name: string, class: string|null}>, missing_count: int}
  */
 final class GenerateMonthlyInvoices
 {
@@ -47,6 +50,7 @@ final class GenerateMonthlyInvoices
         private readonly DueDaySetting $dueDay,
         private readonly AuditLogger $audit,
         private readonly LedgerLock $lock,
+        private readonly DormitoryResidents $residents,
     ) {}
 
     /**
@@ -194,6 +198,7 @@ final class GenerateMonthlyInvoices
         $students = [];
         $missing = [];
         $existingCount = 0;
+        $notResident = 0;
         $free = 0;
         $total = 0;
 
@@ -201,9 +206,20 @@ final class GenerateMonthlyInvoices
             $windowStart = max($month->toDateString(), $year['start_date']);
             $windowEnd = min($month->endOfMonth()->toDateString(), $year['end_date']);
             $period = $month->toDateString();
+            $active = $this->students->activeBetween($tenantId, $organizationId, $yearId, $windowStart, $windowEnd);
+            // Biaya asrama: santri yang tinggal minimal satu hari di asrama pada bulan itu.
+            $residents = $type->dormitory_only
+                ? array_flip($this->residents->residentsDuring($tenantId, $organizationId, array_column($active, 'membership_id'), $windowStart, $windowEnd))
+                : null;
 
-            foreach ($this->students->activeBetween($tenantId, $organizationId, $yearId, $windowStart, $windowEnd) as $student) {
+            foreach ($active as $student) {
                 $students[$student['enrollment_id']] = true;
+
+                if ($residents !== null && ! isset($residents[$student['membership_id']])) {
+                    $notResident++;
+
+                    continue;
+                }
 
                 if (isset($existing[$student['enrollment_id']][$period])) {
                     $existingCount++;
@@ -250,6 +266,8 @@ final class GenerateMonthlyInvoices
                 'existing' => $existingCount,
                 'free' => $free,
                 'total' => $total,
+                'dormitory_only' => $type->dormitory_only,
+                'not_resident' => $notResident,
                 'missing' => array_slice(array_values($missing), 0, self::MISSING_LISTED),
                 'missing_count' => count($missing),
             ],

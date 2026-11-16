@@ -13,6 +13,7 @@ use Modules\Dormitory\Application\Audit\DormitoryAuditAction;
 use Modules\Dormitory\Application\Mutation\OpenMutations;
 use Modules\Dormitory\Application\Placement\ResidentEligibility;
 use Modules\Dormitory\Application\Placement\ResidentReview;
+use Modules\Dormitory\Contracts\Events\ResidencyEnded;
 use Modules\Dormitory\Domain\Facility\Dormitory;
 use Modules\Dormitory\Domain\Facility\YearEndPolicy;
 use Modules\Dormitory\Domain\Placement\EndReason;
@@ -118,6 +119,8 @@ final class YearEndProcess
                 $roomIds = DB::table('dm_rooms')->where('dormitory_id', $dormitory->id)->orderBy('id')->lockForUpdate()->pluck('id');
                 $plan = $this->plan($tenantId, $dormitory, $year['end_date']);
 
+                $members = DB::table('dm_placements')->whereIn('id', $plan['emptyIds'])->pluck('membership_id', 'id');
+
                 foreach ($plan['emptyIds'] as $placementId) {
                     DB::table('dm_placements')->where('id', $placementId)->update([
                         'status' => PlacementStatus::Ended->value,
@@ -127,6 +130,8 @@ final class YearEndProcess
                         'updated_at' => now(),
                     ]);
                     OpenMutations::lapse($tenantId, $placementId, 'Gugur otomatis: kamar dikosongkan pada proses akhir tahun.');
+                    // Finance membatalkan biaya asrama bulan sesudahnya bila santri tidak tinggal lagi (PRD-003 §20).
+                    event(new ResidencyEnded($tenantId, (string) $members[$placementId], $year['end_date']));
                 }
 
                 $id = (string) Str::uuid7();
