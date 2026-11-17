@@ -16,7 +16,7 @@ Sistem informasi yayasan pendidikan (lembaga formal, pesantren, dan nonformal) b
 | PHP        | 8.3+ dengan `pdo_pgsql`, `pgsql`, `mbstring`, `intl` | Laragon: Menu → PHP → Extensions |
 | PostgreSQL | 16                                                   | Sama dengan CI dan production    |
 | Composer   | 2.x                                                  |                                  |
-| Node.js    | 22                                                   |                                  |
+| Node.js    | 22.18 atau lebih baru                                | Syarat `vite-plus` 1.x           |
 | Git        | terbaru                                              |                                  |
 
 ## 2. Instalasi untuk developer (Windows + Laragon)
@@ -139,7 +139,7 @@ sudo apt install -y nginx postgresql-16 postgresql-client-16 git unzip \
   php8.3-fpm php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-intl php8.3-curl php8.3-zip php8.3-bcmath
 ```
 
-Pasang Composer 2 dan Node.js 22 sesuai panduan resmi masing-masing.
+Pasang Composer 2 dan Node.js 22 (minimal **22.18**, syarat `vite-plus` 1.x) sesuai panduan resmi masing-masing. Di server Debian jangan memakai paket `nodejs`/`npm` bawaan Debian (npm 9 punya bug `edgesOut`); pakai NodeSource atau nvm. Pasang paket dengan `npm ci`.
 
 ### 7.2 Database
 

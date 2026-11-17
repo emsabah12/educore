@@ -1,8 +1,8 @@
 # Status Proyek EduCore
 
 - **Diperbarui:** 2026-11-16
-- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: **DM-1 s.d. DM-7 SELESAI** (commit `13e6156`, `5eb5d69`, `7c09e0c`, `8e8e3ee`, `10640cb`, `9ccac5b`, `ca4fb10`, `cc8592a`) — semua tahap PRD-008 selesai; perapian teks pop-up Nonaktifkan SELESAI (`a18cf3a`). Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
-- **Commit terakhir:** `a18cf3a` — perapian Asrama (pop-up Nonaktifkan); uji owner lancar, CI hijau
+- **Tahap aktif:** **Asrama (PRD-008, disetujui 2026-11-15)**: DM-1 s.d. DM-5a SELESAI (commit `13e6156`, `5eb5d69`, `7c09e0c`, `8e8e3ee`, `10640cb`); DM-5b (impor penempatan) dibangun, menunggu uji owner. Semua tahap sebelumnya selesai: Platform, HR-1 s.d. HR-10, AC-1 s.d. AC-8, Keuangan PRD-003 s.d. PRD-007, perapian tampilan UI-1, UI-2, UX-2, UX-3
+- **Commit terakhir:** `10640cb` — DM-5a (perlu ditinjau, akhir tahun, tempatkan banyak); CI GitHub hijau
 
 ## Keputusan penting
 
@@ -61,6 +61,7 @@
 | 2026-11-14 | **HR-10c A05** (contoh formulir diterima): Fungsi PTK Guru/Staf + Jabatan 18 pilihan sesuai A05 (data lama dipindah otomatis); pendidikan dipisah D4 & S1 + SMK (D4/S1 lama → S1)                                                                                                                                                                                                                                                                    | PRD-001 §21.3, OD-HR-28, OD-HR-29                        |
 | 2026-10-28 | Akun orang tua/wali dibuat Operator Akademik/Admin Yayasan dari detail siswa; username = nomor HP + sandi sementara; hanya untuk orang yang murni orang tua/wali; portal **Anak saya** hanya baca, akses dari tautan orang tua/wali (tanpa role)                                                                                                                                                                                                     | PRD-002 §21, OD-AC-16 s.d. OD-AC-18                      |
 | 2026-11-15 | **Asrama/Dormitory** (PRD-008, disetujui; OD-DM-01 s.d. 12 sesuai usulan): ditulis ulang dari Fase 1 owner (Agustus) ke struktur ADR-001; modul `modules/Dormitory` (→ Core + kontrak Academic/HR); penghuni = Membership; asrama milik node LEMBAGA/UNIT; gender di gedung; kapasitas dari bed/loker (Bed, Loker, Bed + loker = minimum); slot pengawas bagian dari kapasitas; mutasi biasa (pengaju ≠ penyetuju) & darurat; tahapan DM-1 s.d. DM-7 | PRD-008 §2–§13                                           |
+| 2026-11-16 | **Keamanan paket frontend**: `vite-plus` 0.3.0 → **1.6.0** untuk menutup 7 celah `npm audit` (3 critical `tinypool`, 4 moderate `@vitest/*`) — semuanya di alat pengembangan (format/lint/test), tidak ikut ke bundel aplikasi. `vite` kini alias `npm:@voidzero-dev/vite-plus-core@1.6.0` + `overrides` agar plugin memakai Vite yang sama; paket lain tidak berubah versi. Syarat Node **≥ 22.18** (server & laptop)                               | `package.json`, README                                   |
 
 ## Fitur yang sudah ada
 
@@ -934,12 +935,6 @@
 - Test: `tests/Feature/Finance/ExpenseApprovalLimitTest.php` (2 test, awalan `fnb`). 713 test lulus (7 arsitektur + 706), Pint PASS, Larastan `[OK]`, `tsc` bersih.
 - Uji manual owner lancar.
 
-**FN-6 — Biaya asrama: DIBANGUN (2026-11-17), menunggu uji owner** — PRD-003 §20, PRD-008 OD-DM-10
-
-- Jenis biaya bertanda **Hanya penghuni asrama** (bulanan & sekali bayar, dipilih saat membuat, tidak bisa diubah). Tagihan bulanan hanya untuk santri yang tinggal minimal 1 hari di asrama (milik lembaga itu atau induknya) pada bulan itu; sekali bayar pada tanggal acuan; pratinjau menyebut yang dilewati.
-- **Batal otomatis saat keluar asrama**: kejadian `Dormitory\Contracts\Events\ResidencyEnded` (check-out, akhir tahun, mutasi) → biaya asrama bulanan bulan sesudahnya yang belum dibayar dibatalkan bila santri tidak tinggal lagi di bulan itu.
-- Kontrak baru `Dormitory\Contracts\DormitoryResidents`; `EnrolledStudents` + `membership_id` & `enrollmentIdsOfMember`. Arch test: Finance boleh memakai kontrak Dormitory. **Migrasi baru** `2026_11_17_300019_add_dormitory_only_to_fn_fee_types`. Test `tests/Feature/Finance/DormitoryFeesTest.php` (4 test, awalan `fnd`). **864 test + 10 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (tambah jenis biaya bertanda) lulus.
-
 ## Tabungan siswa (PRD-005)
 
 **TB-1 — Setor, tarik, slip & rekening Titipan: SELESAI (`7bb4a3d`)** — PRD-005 §12
@@ -1077,28 +1072,11 @@
 - **Tempatkan banyak** (`ManagePlacements::placeMany`, `POST asrama/kamar/{room}/penghuni-banyak`): maks. 50, semua atau tidak, bed/loker otomatis.
 - Tanpa permission baru. Test: `tests/Feature/Dormitory/YearEndTest.php` (4 test, awalan `dmy`). **848 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (tempatkan banyak, saringan perlu ditinjau, proses akhir tahun) lulus.
 
-**DM-5b — Impor penempatan: SELESAI (`9ccac5b`, uji owner lancar)** — PRD-008 §20
+**DM-5b — Impor penempatan: DIBANGUN (2026-11-16), menunggu uji owner** — PRD-008 §20
 
 - Halaman `/asrama/{id}/impor` (tombol di tab Penghuni, izin `residents.manage`): unduh template per asrama (lembar Penempatan + Petunjuk berisi kamar, sisa slot, bed/loker kosong) → unggah .xlsx/.csv (maks. 2 MB, 1000 baris) → pratinjau Siap/Salah → simpan semua atau tidak.
 - Santri dikenali dari **NISN atau NIS** (NISN didahulukan; NIS ganda → salah). Pemeriksaan berurutan memakai `ManagePlacements::place()` di transaksi yang di-rollback saat pratinjau. Audit `dormitory.placements_imported`; perintah `dormitory:prune-imports` tiap jam. Kontrak `ActiveStudents::findByIdentifiers`.
 - Tanpa migrasi & permission baru. Test: `tests/Feature/Dormitory/PlacementImportTest.php` (4 test, awalan `dmi`). **852 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (template, file salah, file benar → tersimpan, tampilan HP) lulus.
-
-**DM-6 — Laporan hunian: SELESAI (`ca4fb10`, uji owner lancar, CI hijau)** — PRD-008 §21
-
-- Menu **Asrama → Laporan hunian** (`/asrama/laporan`, izin `residents.view`, cakupan disaring): tab **Hunian sekarang** (kartu ringkas + asrama → gedung → kamar; % hunian = Aktif ÷ kapasitas efektif, kapasitas 0 = "–"; kamar nonaktif berpenghuni tetap tampil) dan **Riwayat** (rentang ≤ 1 tahun: hunian awal/akhir, masuk, keluar per alasan, mutasi masuk/keluar/darurat, daftar kejadian). Unduh .xlsx 3 lembar (Ringkasan, Per kamar, Riwayat).
-- **Unduh .xlsx daftar Penghuni** sesuai saringan (`/asrama/penghuni/unduh`, maks. 5.000 baris).
-- Tanpa migrasi & permission baru. Test: `tests/Feature/Dormitory/OccupancyReportTest.php` (4 test, awalan `dml`). **856 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (laporan, riwayat, kedua unduhan, tampilan HP) lulus.
-
-**DM-7 — Absen asrama: SELESAI (`cc8592a`, uji owner lancar, CI hijau)** — PRD-008 §22
-
-- **Jenis absen** per asrama (mis. Subuh, Malam; maks. 5 aktif) di tab Pengaturan detail asrama (`facilities.manage`).
-- **Sesi per kamar** (kamar + tanggal + jenis) [OWNER]; yang diabsen santri **dan** pengawas yang Aktif di kamar pada tanggal itu [OWNER]; status H/I/S/T + keterangan; simpan semua sekaligus. Wali kamar 7 hari terakhir dari Kamar saya; pengurus (`attendance.manage`) s.d. 1 tahun dari menu **Absen asrama** atau halaman kamar.
-- **Rekap bulanan** (% hadir = Hadir ÷ sesi tercatat, sesi diisi per kamar, saring jenis/kamar, unduh .xlsx) untuk `attendance.manage`/`residents.view` dan wali kamar (kamarnya).
-- **Migrasi baru** `2026_11_16_400006_create_dm_attendance_tables`; tanpa permission baru. Test: `tests/Feature/Dormitory/AttendanceTest.php` (4 test, awalan `dma`). **860 test + 9 arsitektur lulus**; Pint, Larastan, tsc, `vp check`, build lulus; uji Playwright (jenis absen, isi absen, rekap, unduhan, tampilan HP) lulus.
-
-**Perapian sisa DM-2: SELESAI (`a18cf3a`)** — PRD-008 §16.9
-
-- Pop-up **Nonaktifkan** asrama, gedung, dan kamar menyebut jumlah penghuni Aktif dan rencana penempatan yang tidak dikeluarkan/dibatalkan (§16.5). Hanya perubahan tampilan (`residentsStayNote` di `components/dormitory/facility-forms.tsx`); tanpa migrasi, tanpa perubahan server.
 
 ## Perapian tampilan
 
@@ -1209,5 +1187,5 @@ tests/Feature/Core/Organization/OrganizationTreeTest.php
 2. **Penilaian (PRD-002 §22)**: AC-8 lengkap (8a–8d-2). Berikutnya: AC-9 (dirinci dulu).
 3. **Pembukuan (PRD-007)**: PB-1 s.d. PB-4 lengkap. Halaman lain yang masih padat dirapikan bila owner menemukannya.
 4. **HR menyusul (PRD-001 §3, §18)**: HR-7 SELESAI (7a, 7b) → HR-8 SELESAI (8a, 8b-1, 8b-2) → HR-9 SELESAI (9a, 9b) → HR-4d SELESAI (presensi lokasi HP; mesin absen ditunda, OD-HR-24) → **HR-10 Simpatika** (§21 disetujui): HR-10a SELESAI → HR-10b SELESAI (rekap PTK .xlsx) → **HR-10c cetak A05** (§21.3 disetujui): 10c-1 SELESAI → 10c-2 SELESAI. **HR-10 SELESAI** (10a, 10b, 10c).
-5. **Asrama (PRD-008)**: DM-1 fasilitas (selesai) → DM-2 penempatan (selesai) → DM-3 wali kamar (selesai) → DM-4 mutasi (selesai) → DM-5a perlu ditinjau, akhir tahun, tempatkan banyak (selesai) → DM-5b impor penempatan (selesai) → DM-6 laporan hunian (selesai) → DM-7 absen asrama (selesai). **PRD-008 selesai.** Integrasi biaya asrama ↔ Keuangan: FN-6 (PRD-003 §20) dibangun, uji owner.
+5. **Asrama (PRD-008)**: DM-1 fasilitas (selesai) → DM-2 penempatan (selesai) → DM-3 wali kamar (selesai) → DM-4 mutasi (selesai) → DM-5a perlu ditinjau, akhir tahun, tempatkan banyak (selesai) → DM-5b impor penempatan (dibangun, uji owner) → DM-6 laporan hunian → DM-7 absen asrama.
 6. AC-9 (ekspor Dapodik/EMIS, PPDB) — dirinci dulu.
